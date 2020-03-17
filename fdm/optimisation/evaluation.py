@@ -28,11 +28,7 @@ def log_sample_images(args, data, name, step):
 
 
 def log_metrics(
-    args: VaeArgs,
-    model,
-    data: DatasetTriplet,
-    step: int,
-    save_to_csv: Optional[Path] = None,
+    args: VaeArgs, model, data: DatasetTriplet, step: int, save_to_csv: Optional[Path] = None,
 ):
     """Compute and log a variety of metrics"""
     model.eval()
@@ -199,9 +195,7 @@ def evaluate(
 
 
 def encode_dataset(
-    args: VaeArgs,
-    data: Dataset,
-    vae: VAE,
+    args: VaeArgs, data: Dataset, vae: VAE,
 ):
     print("Encoding dataset...", flush=True)  # flush to avoid conflict with tqdm
     all_xy = []

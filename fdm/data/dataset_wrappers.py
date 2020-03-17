@@ -1,12 +1,13 @@
 import random
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple, Dict, Union, Callable
 
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms
+from ethicml.utility import DataTuple
 
 from .misc import RandomSampler, grouped_features_indexes, set_transform
 
@@ -121,17 +122,27 @@ else:
 class DataTupleDataset(BaseDataset):
     """Wrapper for EthicML datasets"""
 
-    def __init__(self, dataset, disc_features: List[str], cont_features: List[str], transform=None):
-
-        disc_features = [feat for feat in disc_features if feat in dataset.x.columns]
-        self.disc_features = disc_features
-
+    def __init__(
+        self,
+        dataset: DataTuple,
+        disc_feature_groups: Dict[str, List[str]],
+        cont_features: List[str],
+        transform: Union[
+            None, Callable, Dict[str, Callable], List[Union[Callable, Dict[str, Callable]]]
+        ] = None,
+    ):
         cont_features = [feat for feat in cont_features if feat in dataset.x.columns]
-        self.cont_features = cont_features
-        self.feature_groups = dict(discrete=grouped_features_indexes(self.disc_features))
 
-        self.x_disc = dataset.x[self.disc_features].to_numpy(dtype=np.float32)
-        self.x_cont = dataset.x[self.cont_features].to_numpy(dtype=np.float32)
+        # order the discrete features as they are in the dictionary `disc_feature_groups`
+        discrete_features_in_order: List[str] = []
+        for group in disc_feature_groups.values():
+            discrete_features_in_order += group
+
+        # get slices that correspond to that ordering
+        self.feature_group_slices = dict(discrete=grouped_features_indexes(disc_feature_groups))
+
+        self.x_disc = dataset.x[discrete_features_in_order].to_numpy(dtype=np.float32)
+        self.x_cont = dataset.x[cont_features].to_numpy(dtype=np.float32)
         self.s = dataset.s.to_numpy(dtype=np.float32)
         self.y = dataset.y.to_numpy(dtype=np.float32)
 
@@ -151,15 +162,18 @@ class DataTupleDataset(BaseDataset):
         self.y = self.y[inds]
 
     @property
-    def transform(self):
+    def transform(self) -> List[Union[Callable, Dict[str, Callable]]]:
         return self.__transform
 
     @transform.setter
-    def transform(self, t):
+    def transform(
+        self,
+        t: Union[None, Callable, Dict[str, Callable], List[Union[Callable, Dict[str, Callable]]]],
+    ) -> None:
         t = t or []
         if not isinstance(t, list):
             t = [t]
-        self.__transform = t
+        self.__transform: List[Union[Callable, Dict[str, Callable]]] = t
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
 
@@ -171,14 +185,16 @@ class DataTupleDataset(BaseDataset):
         for tform in self.transform:
             if isinstance(tform, dict):
                 if tform["disc"]:
-                    x_disc = tform["disc"](x_disc, self.feature_groups)
+                    x_disc = tform["disc"](x_disc, self.feature_group_slices)
                 if tform["cont"]:
                     x_cont = tform["cont"](x_cont)
             else:
                 x_cont = tform(x_cont)
                 x_disc = tform(x_disc)
 
+        # put the discrete features first so that the slices still work on `x`
         x = np.concatenate([x_disc, x_cont], axis=0)
+
         x = torch.from_numpy(x).squeeze(0)
         s = torch.from_numpy(s).squeeze()
         y = torch.from_numpy(y).squeeze()
@@ -188,7 +204,9 @@ class DataTupleDataset(BaseDataset):
 
 class PerturbedDataTupleDataset(DataTupleDataset):
     def __init__(self, dataset, features: List[str], num_bins: np.ndarray, transform=None):
-        super().__init__(dataset, disc_features=[], cont_features=features, transform=transform)
+        super().__init__(
+            dataset, disc_feature_groups={}, cont_features=features, transform=transform
+        )
         self.bin_size = 1 / num_bins
         self.random = np.random.RandomState(seed=42)
 

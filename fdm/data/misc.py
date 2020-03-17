@@ -1,7 +1,7 @@
 import csv
 import os
 from itertools import groupby
-from typing import Iterator, List, Tuple
+from typing import Iterator, List, Tuple, Dict
 
 import numpy as np
 import torch
@@ -125,16 +125,13 @@ def group_features(disc_feats: List[str]) -> Iterator[Tuple[str, Iterator[str]]]
     return groupby(disc_feats, _first_segment)
 
 
-def grouped_features_indexes(disc_feats: List[str]) -> List[slice]:
+def grouped_features_indexes(disc_feature_groups: Dict[str, List[str]]) -> List[slice]:
     """Group discrete features names according to the first segment of their name
     and return a list of their corresponding slices (assumes order is maintained).
     """
-
-    group_iter = group_features(disc_feats)
-
     feature_slices = []
     start_idx = 0
-    for _, group in group_iter:
+    for group in disc_feature_groups.values():
         len_group = len(list(group))
         indexes = slice(start_idx, start_idx + len_group)
         feature_slices.append(indexes)

@@ -27,7 +27,6 @@ class DatasetTriplet(NamedTuple):
 
 
 def load_dataset(args: SharedArgs) -> DatasetTriplet:
-    assert args.pretrain
     pretrain_data: Dataset
     test_data: Dataset
     train_data: Dataset

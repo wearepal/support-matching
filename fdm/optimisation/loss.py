@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Literal
 
 import torch
 import torch.nn as nn
@@ -136,17 +136,24 @@ class VGGLoss(nn.Module):
 class MixedLoss(nn.Module):
     """Mix of cross entropy and MSE"""
 
-    def __init__(self, feature_groups: Dict[str, List[slice]], reduction="mean"):
+    def __init__(
+        self,
+        feature_group_slices: Dict[str, List[slice]],
+        disc_loss_factor: float = 1.0,
+        reduction: Literal["none", "mean", "sum"] = "mean",
+    ):
         super().__init__()
-        assert feature_groups["discrete"][0].start == 0, "Expecting x to start with disc features"
-        self.feature_groups = feature_groups
-        self.cont_start = feature_groups["discrete"][-1].stop
+        assert feature_group_slices["discrete"][0].start == 0, "x has to start with disc features"
+        self.disc_feature_slices = feature_group_slices["discrete"]
+        assert all(group.stop - group.start >= 2 for group in self.disc_feature_slices)
+        self.cont_start = self.disc_feature_slices[-1].stop
+        self.disc_loss_factor = disc_loss_factor
         self.reduction = reduction
 
     def forward(self, input: Tensor, target: Tensor) -> Tensor:
         disc_loss = input.new_zeros(())
         # for the discrete features do cross entropy loss
-        for disc_slice in self.feature_groups["discrete"]:
+        for disc_slice in self.disc_feature_slices:
             disc_loss += F.cross_entropy(
                 input[:, disc_slice], target[:, disc_slice].argmax(dim=1), reduction=self.reduction
             )
@@ -154,4 +161,4 @@ class MixedLoss(nn.Module):
         cont_loss = F.mse_loss(
             input[:, self.cont_start :], target[:, self.cont_start :], reduction=self.reduction
         )
-        return disc_loss + cont_loss
+        return self.disc_loss_factor * disc_loss + cont_loss

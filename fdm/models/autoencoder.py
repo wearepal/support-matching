@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, Dict, Any, List
 
 import torch
 import torch.distributions as td
@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
 
+from fdm.utils import to_discrete
 from .base import ModelBase
 
 __all__ = ["VaeResults", "AutoEncoder", "VAE"]
@@ -21,12 +22,20 @@ class VaeResults(NamedTuple):
 
 
 class AutoEncoder(nn.Module):
-    def __init__(self, encoder, decoder, decode_with_s=False, optimizer_kwargs=None):
+    def __init__(
+        self,
+        encoder: nn.Module,
+        decoder: nn.Module,
+        decode_with_s: bool = False,
+        feature_group_slices: Optional[Dict[str, List[slice]]] = None,
+        optimizer_kwargs: Optional[Dict[str, Any]] = None,
+    ):
         super(AutoEncoder, self).__init__()
 
         self.encoder: ModelBase = ModelBase(encoder, optimizer_kwargs=optimizer_kwargs)
         self.decoder: ModelBase = ModelBase(decoder, optimizer_kwargs=optimizer_kwargs)
         self.decode_with_s = decode_with_s
+        self.feature_group_slices = feature_group_slices
 
     def encode(self, inputs):
         return self.encoder(inputs)
@@ -35,21 +44,28 @@ class AutoEncoder(nn.Module):
         decoding = self.decode(encoding, s)
 
         if decoding.dim() == 4 and decoding.size(1) > 3:
+            # conversion for cross-entropy loss
             num_classes = 256
             decoding = decoding[:64].view(decoding.size(0), num_classes, -1, *decoding.shape[-2:])
             fac = num_classes - 1
+            # `.max` also returns the index (i.e. argmax) which is what we want here
             decoding = decoding.max(dim=1)[1].float() / fac
 
         return decoding
 
-    def decode(self, encoding, s=None):
+    def decode(self, encoding, s=None, discretize: bool = False):
         decoder_input = encoding
         if s is not None and self.decode_with_s:
             if encoding.dim() == 4:
-                s = s.view(s.size(0), -1, 1, 1).float()
+                s = s.view(s.size(0), -1, 1, 1)
                 s = s.expand(-1, -1, decoder_input.size(-2), decoder_input.size(-1))
-                decoder_input = torch.cat([decoder_input, s], dim=1)
+            decoder_input = torch.cat([decoder_input, s.float()], dim=1)
         decoding = self.decoder(decoder_input)
+
+        if discretize and self.feature_group_slices:
+            for group_slice in self.feature_group_slices["discrete"]:
+                one_hot = to_discrete(decoding[:, group_slice])
+                decoding[:, group_slice] = one_hot
 
         return decoding
 
@@ -100,11 +116,20 @@ class AutoEncoder(nn.Module):
 
 
 class VAE(AutoEncoder):
-    def __init__(self, encoder, decoder, kl_weight=0.1, decode_with_s=False, optimizer_kwargs=None):
+    def __init__(
+        self,
+        encoder: nn.Module,
+        decoder: nn.Module,
+        kl_weight: float = 0.1,
+        decode_with_s: bool = False,
+        feature_group_slices: Optional[Dict[str, List[slice]]] = None,
+        optimizer_kwargs: Optional[Dict[str, Any]] = None,
+    ):
         super().__init__(
             encoder=encoder,
             decoder=decoder,
             decode_with_s=decode_with_s,
+            feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_kwargs,
         )
         self.encoder: ModelBase = ModelBase(encoder, optimizer_kwargs=optimizer_kwargs)

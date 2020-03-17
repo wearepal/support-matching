@@ -1,5 +1,5 @@
 """Definition of the Adult dataset"""
-from typing import List, NamedTuple, Optional, Tuple
+from typing import NamedTuple, Tuple, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -8,7 +8,6 @@ from torch.utils.data import DataLoader
 
 from ethicml.data import Adult, load_data
 from ethicml.preprocessing import (
-    domain_split,
     get_biased_and_debiased_subsets,
     get_biased_subset,
     train_test_split,
@@ -25,36 +24,22 @@ __all__ = ["get_data_tuples", "load_adult_data", "pytorch_data_to_dataframe"]
 class Triplet(NamedTuple):
     """Small helper class; basically for enabling named returns"""
 
-    meta: Optional[DataTuple]
+    meta: DataTuple
     task: DataTuple
     task_train: DataTuple
 
 
-def load_adult_data_tuples(args: SharedArgs) -> Triplet:
+def load_adult_data_tuples(args: SharedArgs) -> Tuple[Triplet, Dict[str, List[str]]]:
     """Load dataset from the files specified in ARGS and return it as PyTorch datasets"""
-    adult_dataset = Adult()
+    adult_dataset = Adult(binarize_nationality=args.drop_native)
     data = load_data(adult_dataset, ordered=True)
-    assert data.x.shape[1] == 101
 
-    if args.drop_native:
-        data, _, cont_feats = drop_native(data, adult_dataset)
-    else:
-        cont_feats = adult_dataset.continuous_features
+    disc_feature_groups = adult_dataset.disc_feature_groups
+    assert disc_feature_groups is not None
+    cont_feats = adult_dataset.continuous_features
 
-    meta_train: Optional[DataTuple] = None
-    if args.pretrain:
-        tuples: Triplet = biased_split(args, data)
-        assert tuples.meta is not None
-        meta_train, task, task_train = tuples.meta, tuples.task, tuples.task_train
-
-    elif args.add_sampling_bias:
-        task_train, task = domain_split(
-            datatup=data,
-            tr_cond="education_Masters == 0. & education_Doctorate == 0.",
-            te_cond="education_Masters == 1. | education_Doctorate == 1.",
-        )
-    else:
-        task_train, task = train_test_split(data)
+    tuples: Triplet = biased_split(args, data)
+    meta_train, task, task_train = tuples.meta, tuples.task, tuples.task_train
 
     scaler = StandardScaler()
 
@@ -64,6 +49,7 @@ def load_adult_data_tuples(args: SharedArgs) -> Triplet:
     )
     if args.drop_discrete:
         task_train = task_train.replace(x=task_train_scaled[cont_feats])
+        disc_feature_groups = {}
     else:
         task_train = task_train.replace(x=task_train_scaled)
 
@@ -74,68 +60,34 @@ def load_adult_data_tuples(args: SharedArgs) -> Triplet:
     else:
         task = task.replace(x=task_scaled)
 
-    if args.pretrain:
-        assert meta_train is not None
-        meta_train_scaled = meta_train.x
-        meta_train_scaled[cont_feats] = scaler.transform(
-            meta_train.x[cont_feats].to_numpy(np.float32)
-        )
-        if args.drop_discrete:
-            meta_train = meta_train.replace(x=meta_train_scaled[cont_feats])
-        else:
-            meta_train = meta_train.replace(x=meta_train_scaled)
+    meta_train_scaled = meta_train.x
+    meta_train_scaled[cont_feats] = scaler.transform(meta_train.x[cont_feats].to_numpy(np.float32))
+    if args.drop_discrete:
+        meta_train = meta_train.replace(x=meta_train_scaled[cont_feats])
+    else:
+        meta_train = meta_train.replace(x=meta_train_scaled)
 
-    return Triplet(meta=meta_train, task=task, task_train=task_train)
+    return Triplet(meta=meta_train, task=task, task_train=task_train), disc_feature_groups
 
 
-def load_adult_data(args) -> Tuple[DataTupleDataset, DataTupleDataset, DataTupleDataset]:
-    tuples: Triplet = load_adult_data_tuples(args)
+def load_adult_data(
+    args: SharedArgs,
+) -> Tuple[DataTupleDataset, DataTupleDataset, DataTupleDataset]:
+    tuples, disc_feature_groups = load_adult_data_tuples(args)
     pretrain_tuple, test_tuple, train_tuple = tuples.meta, tuples.task, tuples.task_train
     assert pretrain_tuple is not None
     source_dataset = Adult()
-    disc_features = source_dataset.discrete_features
     cont_features = source_dataset.continuous_features
     pretrain_data = DataTupleDataset(
-        pretrain_tuple, disc_features=disc_features, cont_features=cont_features
+        pretrain_tuple, disc_feature_groups=disc_feature_groups, cont_features=cont_features
     )
     train_data = DataTupleDataset(
-        train_tuple, disc_features=disc_features, cont_features=cont_features
+        train_tuple, disc_feature_groups=disc_feature_groups, cont_features=cont_features
     )
     test_data = DataTupleDataset(
-        test_tuple, disc_features=disc_features, cont_features=cont_features
+        test_tuple, disc_feature_groups=disc_feature_groups, cont_features=cont_features
     )
     return pretrain_data, train_data, test_data
-
-
-def drop_native(data: DataTuple, adult_dataset: Adult) -> Tuple[DataTuple, List[str], List[str]]:
-    """Drop all features that encode the native country except the one for the US"""
-    new_x = data.x.drop(
-        [
-            col
-            for col in data.x.columns
-            if col.startswith("nat") and col != "native-country_United-States"
-        ],
-        axis="columns",
-    )
-    new_x["native-country_not_United-States"] = 1 - new_x["native-country_United-States"]
-
-    disc_feats = adult_dataset.discrete_features
-    cont_feats = adult_dataset.continuous_features
-
-    countries = [
-        col
-        for col in disc_feats
-        if (col.startswith("nat") and col != "native-country_United-States")
-    ]
-    disc_feats = [col for col in disc_feats if col not in countries]
-    disc_feats += ["native-country_not_United-States"]
-    disc_feats = sorted(disc_feats)
-
-    feats = disc_feats + cont_feats
-
-    data = data.replace(x=new_x[feats])
-    assert data.x.shape[1] == 62
-    return data, disc_feats, cont_feats
 
 
 def biased_split(args: SharedArgs, data: DataTuple) -> Triplet:

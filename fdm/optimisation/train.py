@@ -92,7 +92,7 @@ def train(
         x, s, y = to_device(x, s, y)
         s_oh = None
         if ARGS.cond_decoder:  # One-hot encode the sensitive attribute
-            s_oh = F.one_hot(s, num_classes=ARGS._s_dim)
+            s_oh = F.one_hot(s.long(), num_classes=ARGS._s_dim)
 
         loss, logging_dict = compute_loss(
             x=x,
@@ -294,6 +294,9 @@ def main(raw_args: Optional[List[str]] = None) -> VAE:
     is_image_data = len(INPUT_SHAPE) > 2
 
     optimizer_args = {"lr": args.lr, "weight_decay": args.weight_decay}
+    feature_group_slices = None
+    if hasattr(datasets.pretrain, "feature_group_slices"):
+        feature_group_slices = datasets.pretrain.feature_group_slices
 
     ARGS._s_dim = ARGS._s_dim if ARGS._s_dim > 1 else 2
 
@@ -326,9 +329,12 @@ def main(raw_args: Optional[List[str]] = None) -> VAE:
     elif ARGS.recon_loss == "l2":
         recon_loss_fn_ = nn.MSELoss(reduction="sum")
     elif ARGS.recon_loss == "huber":
-        recon_loss_fn_ = nn.SmoothL1Loss(reduction="sum")
+        recon_loss_fn_ = lambda x, y: F.smooth_l1_loss(x * 10, y * 10, reduction="sum")
     elif ARGS.recon_loss == "ce":
         recon_loss_fn_ = PixelCrossEntropy(reduction="sum")
+    elif ARGS.ae_loss == "mixed":
+        assert feature_group_slices is not None, "can only do multi loss with feature groups"
+        ae_loss_fn = MixedLoss(feature_group_slices, reduction="sum")
     else:
         raise ValueError(f"{ARGS.recon_loss} is an invalid reconstruction loss")
 
@@ -349,6 +355,7 @@ def main(raw_args: Optional[List[str]] = None) -> VAE:
         kl_weight=ARGS.kl_weight,
         optimizer_kwargs=optimizer_args,
         decode_with_s=True,
+        feature_group_slices=feature_group_slices,
     )
     vae.to(args._device)
 
