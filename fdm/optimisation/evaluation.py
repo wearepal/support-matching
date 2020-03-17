@@ -1,15 +1,10 @@
-import random
-import types
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import numpy as np
 import pandas as pd
 import torch
-from captum.attr import IntegratedGradients, NoiseTunnel
-from captum.attr import visualization as viz
-from matplotlib import cm
-from torch.utils.data import DataLoader, Dataset, TensorDataset
+from torch.utils.data import DataLoader, TensorDataset, Dataset
 from tqdm import tqdm
 
 import wandb
@@ -17,9 +12,9 @@ from ethicml.algorithms.inprocess import LR
 from ethicml.evaluators import run_metrics
 from ethicml.metrics import NMI, PPV, TNR, TPR, Accuracy, ProbPos
 from ethicml.utility import DataTuple, Prediction
-from fdm.configs import NosinnArgs, SharedArgs
+from fdm.configs import VaeArgs, SharedArgs
 from fdm.data import DatasetTriplet, get_data_tuples
-from fdm.models import BipartiteInn, Classifier
+from fdm.models import Classifier, VAE
 from fdm.models.configs import fc_net, mp_32x32_net, mp_64x64_net
 from fdm.utils import wandb_log
 
@@ -33,97 +28,30 @@ def log_sample_images(args, data, name, step):
 
 
 def log_metrics(
-    args: NosinnArgs,
+    args: VaeArgs,
     model,
     data: DatasetTriplet,
     step: int,
-    quick_eval: bool = True,
     save_to_csv: Optional[Path] = None,
-    check_originals: bool = False,
-    feat_attr=False,
 ):
     """Compute and log a variety of metrics"""
     model.eval()
     print("Encoding task dataset...")
-    task_repr = encode_dataset(args, data.task, model, recon=True, subdir="task")
+    task_repr = encode_dataset(args, data.task, model)
     print("Encoding task train dataset...")
-    task_train_repr = encode_dataset(args, data.task_train, model, recon=True, subdir="task_train")
+    task_train_repr = encode_dataset(args, data.task_train, model)
 
     print("\nComputing metrics...")
-    _, clf = evaluate(
+    evaluate(
         args,
         step,
-        task_train_repr["xy"],
-        task_repr["xy"],
+        task_train_repr,
+        task_repr,
         name="xy",
         train_on_recon=True,
         pred_s=False,
         save_to_csv=save_to_csv,
     )
-
-    if feat_attr and args.dataset != "adult":
-        print("Creating feature attribution maps...")
-        save_dir = Path(args.save_dir) / "feat_attr_maps"
-        save_dir.mkdir(exist_ok=True, parents=True)  # create directory if it doesn't exist
-        pred_orig, actual, _ = clf.predict_dataset(data.task, device=args.device)
-        pred_deb, _, _ = clf.predict_dataset(task_repr["xy"], device=args.device)
-
-        orig_correct = pred_orig == actual
-        deb_correct = pred_deb == actual
-        diff = (deb_correct.bool() & actual.bool()) ^ (deb_correct.bool() ^ orig_correct.bool())
-        cand_inds = torch.arange(end=actual.size(0))[diff].tolist()
-
-        num_samples = min(actual.size(0), 50)
-        inds = random.sample(cand_inds, num_samples)
-
-        if data.y_dim == 1:
-
-            def _binary_clf_fn(self, _input):
-                out = self.model(_input).sigmoid()
-                return torch.cat([1 - out, out], dim=-1)
-
-            clf.forward = types.MethodType(_binary_clf_fn, clf)
-
-        clf.cpu()
-
-        for k, _ in enumerate(inds):
-            image_orig, _, target_orig = data.task[k]
-            image_deb, _, target_deb = task_repr["xy"][k]
-
-            if image_orig.dim() == 3:
-                feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
-                feat_attr_map_orig.savefig(save_dir / f"feat_attr_map_orig_{k}.png")
-
-                feat_attr_map_deb = get_image_attribution(image_deb, target_deb, clf)
-                feat_attr_map_deb.savefig(save_dir / f"feat_attr_map_deb{k}.png")
-
-        clf.to(args.device)
-
-    # print("===> Predict y from xy")
-    # evaluate(args, experiment, repr.task_train['x'], repr.task['x'], name='xy', pred_s=False)
-    # print("===> Predict s from xy")
-    # evaluate(args, experiment, task_train_repr['xy'], task_repr['xy'], name='xy', pred_s=True)
-
-    if quick_eval:
-        log_sample_images(args, data.task_train, "task_train", step=step)
-    else:
-
-        if args.dataset == "adult":
-            task_data, task_train_data = get_data_tuples(data.task, data.task_train)
-            data = DatasetTriplet(
-                pretrain=None,
-                task=task_data,
-                task_train=task_train_data,
-                s_dim=data.s_dim,
-                y_dim=data.y_dim,
-            )
-
-        # ===========================================================================
-
-        evaluate(args, step, task_train_repr["zy"], task_repr["zy"], name="zy")
-        evaluate(args, step, task_train_repr["zs"], task_repr["zs"], name="zs")
-        evaluate(args, step, task_train_repr["xy"], task_repr["xy"], name="xy")
-        evaluate(args, step, task_train_repr["xs"], task_repr["xs"], name="xs")
 
 
 def compute_metrics(
@@ -174,9 +102,9 @@ def fit_classifier(args, input_dim, train_data, train_on_recon, pred_s, test_dat
 
     n_classes = args.y_dim if args.y_dim > 1 else 2
     clf: Classifier = Classifier(clf, num_classes=n_classes, optimizer_kwargs={"lr": args.eval_lr})
-    clf.to(args.device)
+    clf.to(args._device)
     clf.fit(
-        train_data, test_data=test_data, epochs=args.eval_epochs, device=args.device, pred_s=pred_s
+        train_data, test_data=test_data, epochs=args.eval_epochs, device=args._device, pred_s=pred_s
     )
 
     return clf
@@ -194,42 +122,6 @@ def make_tuple_from_data(train, test, pred_s):
         test_y = test.y
 
     return (DataTuple(x=train_x, s=train.s, y=train_y), DataTuple(x=test_x, s=test.s, y=test_y))
-
-
-def get_image_attribution(input, target, model):
-
-    if input.dim() == 3:
-        original_image = np.transpose(input.cpu().detach().numpy(), (1, 2, 0))
-        input = input.unsqueeze(0)
-    else:
-        original_image = np.transpose(input.squeeze(0).cpu().detach().numpy(), (1, 2, 0))
-
-    def attribute_image_features(algorithm, input, **kwargs):
-        model.zero_grad()
-        tensor_attributions = algorithm.attribute(input, target=target, **kwargs)
-
-        return tensor_attributions
-
-    ig = IntegratedGradients(model)
-    nt = NoiseTunnel(ig)
-
-    attr_ig_nt = attribute_image_features(
-        nt, input, baselines=input * 0, nt_type="smoothgrad_sq", n_samples=100, stdevs=0.2
-    )
-    attr_ig_nt = np.transpose(attr_ig_nt.squeeze(0).cpu().detach().numpy(), (1, 2, 0))
-    cmap = cm.get_cmap("viridis", 12)
-    fig, ax = viz.visualize_image_attr_multiple(
-        attr_ig_nt,
-        original_image=original_image,
-        methods=["original_image", "masked_image", "blended_heat_map"],
-        signs=[None, "absolute_value", "absolute_value"],
-        outlier_perc=10,
-        cmap=cmap,
-        show_colorbar=True,
-        use_pyplot=False,
-    )
-
-    return fig
 
 
 def evaluate(
@@ -262,7 +154,7 @@ def evaluate(
             test_data=test_data,
         )
 
-        preds, actual, sens = clf.predict_dataset(test_data, device=args.device)
+        preds, actual, sens = clf.predict_dataset(test_data, device=args._device)
         preds = Prediction(hard=pd.Series(preds))
         sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=["sex_Male"])
         labels = pd.DataFrame(actual, columns=["labels"])
@@ -307,109 +199,52 @@ def evaluate(
 
 
 def encode_dataset(
-    args: SharedArgs,
+    args: VaeArgs,
     data: Dataset,
-    model: BipartiteInn,
-    recon: bool,
-    subdir: str,
-    get_zy: bool = False,
-) -> Dict[str, torch.utils.data.Dataset]:
-
-    encodings: Dict[str, List[torch.Tensor]] = {"xy": []}
-    if get_zy:
-        encodings["zy"] = []
+    vae: VAE,
+):
+    print("Encoding dataset...")
+    all_xy = []
     all_s = []
     all_y = []
 
-    data = DataLoader(
+    data_loader = DataLoader(
         data, batch_size=args.encode_batch_size, pin_memory=True, shuffle=False, num_workers=4
     )
 
     with torch.set_grad_enabled(False):
-        for _, (x, s, y) in enumerate(tqdm(data)):
+        for x, s, y in tqdm(data_loader):
 
-            x = x.to(args.device, non_blocking=True)
+            x = x.to(args._device, non_blocking=True)
             all_s.append(s)
             all_y.append(y)
 
-            _, zy, zs = model.encode(x, partials=True)
+            enc = vae.encode(x, stochastic=False)
 
-            zs_m = torch.cat([zy, torch.zeros_like(zs)], dim=1)
-            xy = model.invert(zs_m)
+            s_oh = None
+            if args.cond_decoder:
+                s_oh = x.new_zeros(x.size(0), args.s_dim)
+
+            if args.enc_s_dim > 0:
+                enc_y, enc_s = enc.split(split_size=(args.enc_y_dim, args.enc_s_dim), dim=1)
+                enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
+            else:
+                enc_y_m = enc
+
+            xy = vae.reconstruct(enc_y_m, s=s_oh)
 
             if args.dataset in ("celeba", "ssrp", "genfaces"):
                 xy = 0.5 * xy + 0.5
-
             if x.dim() > 2:
                 xy = xy.clamp(min=0, max=1)
 
-            encodings["xy"].append(xy.detach().cpu())
-            if get_zy:
-                encodings["zy"].append(zy.detach().cpu())
+            all_xy.append(xy.detach().cpu())
 
+    all_xy = torch.cat(all_xy, dim=0)
     all_s = torch.cat(all_s, dim=0)
     all_y = torch.cat(all_y, dim=0)
 
-    encodings_dt: Dict[str, torch.utils.data.Dataset] = {}
-    encodings_dt["xy"] = TensorDataset(torch.cat(encodings["xy"], dim=0), all_s, all_y)
-    if get_zy:
-        encodings_dt["zy"] = TensorDataset(torch.cat(encodings["zy"], dim=0), all_s, all_y)
+    encoded_dataset = TensorDataset(all_xy, all_s, all_y)
+    print("Done.")
 
-    return encodings_dt
-
-    # path = Path("data", "encodings", subdir)
-    # if os.path.exists(path):
-    #     shutil.rmtree(path)
-    # os.mkdir(path)
-    #
-    # encodings = ['z', 'zy', 'zs']
-    # if recon:
-    #     encodings.extend(['x', 'xy', 'xs'])
-    #
-    # filepaths = {key: Path(path, key) for key in encodings}
-    #
-    # data = DataLoader(data, batch_size=args.test_batch_size, pin_memory=True, shuffle=False)
-    #
-    # index_offset = 0
-    # with torch.set_grad_enabled(False):
-    #     for i, (x, s, y) in enumerate(data):
-    #         x = x.to(args.device)
-    #
-    #         z, zy, zs = model.encode(x, partials=True)
-    #         if recon:
-    #             x_recon, xy, xs = model.decode(z, partials=True)
-    #
-    #         for j in range(z.size(0)):
-    #             file_index = index_offset + j
-    #             s_j, y_j = s[j], y[j]
-    #
-    #             data_tuple_to_dataset_sample(z[j], s_j, y_j,
-    #                                          root=filepaths['z'],
-    #                                          filename=f"image_{file_index}")
-    #
-    #             data_tuple_to_dataset_sample(zy[j], s_j, y_j,
-    #                                          root=filepaths['zy'],
-    #                                          filename=f"image_{file_index}")
-    #             data_tuple_to_dataset_sample(zs[j], s_j, y_j,
-    #                                          root=filepaths['zs'],
-    #                                          filename=f"image_{file_index}")
-    #
-    #             if recon:
-    #                 data_tuple_to_dataset_sample(x_recon[j], s_j, y_j,
-    #                                              root=filepaths['x'],
-    #                                              filename=f"image_{file_index}")
-    #                 data_tuple_to_dataset_sample(xy[j], s_j, y_j,
-    #                                              root=filepaths['xy'],
-    #                                              filename=f"image_{file_index}")
-    #                 data_tuple_to_dataset_sample(xs[j], s_j, y_j,
-    #                                              root=filepaths['xs'],
-    #                                              filename=f"image_{file_index}")
-    #
-    #         index_offset += x.size(0)
-    #
-    # datasets = {
-    #     key: TripletDataset(root)
-    #     for key, root in filepaths.items()
-    # }
-    #
-    # return datasets
+    return encoded_dataset

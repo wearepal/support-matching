@@ -19,6 +19,8 @@ from fdm.configs import SharedArgs
 
 from .dataset_wrappers import DataTupleDataset
 
+__all__ = ["get_data_tuples", "load_adult_data", "pytorch_data_to_dataframe"]
+
 
 class Triplet(NamedTuple):
     """Small helper class; basically for enabling named returns"""

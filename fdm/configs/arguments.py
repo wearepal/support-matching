@@ -1,14 +1,13 @@
 import argparse
 
-from typing import Dict, List, Optional
-from typing_extensions import Literal
+import torch
+
+from typing import List, Optional, Literal
 from ethicml.data import GenfacesAttributes
 
-
 from tap import Tap
-from typing_extensions import Literal
 
-__all__ = ["NosinnArgs", "VaeArgs", "Ln2lArgs", "SharedArgs", "CELEBATTRS"]
+__all__ = ["VaeArgs", "SharedArgs", "CELEBATTRS"]
 
 CELEBATTRS = Literal[
     "5_o_Clock_Shadow",
@@ -91,7 +90,7 @@ class SharedArgs(Tap):
     input_noise: bool = True  # add uniform noise to the input
 
     # CelebA settings
-    celeba_sens_attr: List[CELEBATTRS] = ["Male"]
+    celeba_sens_attr: CELEBATTRS = "Male"
     celeba_target_attr: CELEBATTRS = "Smiling"
 
     # GenFaces settings
@@ -130,6 +129,30 @@ class SharedArgs(Tap):
     use_wandb: bool = True
     results_csv: str = ""  # name of CSV file to save results to
     feat_attr: bool = False
+
+    @property
+    def _device(self) -> torch.device:
+        return self.__device
+
+    @_device.setter
+    def _device(self, value: torch.device) -> None:
+        self.__device = value
+
+    @property
+    def _s_dim(self) -> int:
+        return self.__s_dim
+
+    @_s_dim.setter
+    def _s_dim(self, value: int) -> None:
+        self.__s_dim = value
+
+    @property
+    def _y_dim(self) -> int:
+        return self.__y_dim
+
+    @_y_dim.setter
+    def _y_dim(self, value: int) -> None:
+        self.__y_dim = value
 
     def process_args(self):
         if not 0 < self.data_pcnt <= 1:

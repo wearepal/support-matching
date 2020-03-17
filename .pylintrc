@@ -63,6 +63,7 @@ confidence=
 disable=bad-continuation,
         comparison-with-itself,
         no-else-return,
+        protected-access,
         global-statement
 
 # Enable the message, report, category or checker with the given id(s). You can

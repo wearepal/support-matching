@@ -6,10 +6,10 @@ import torchvision
 from torch import nn
 
 import wandb
-from fdm.configs import NosinnArgs, SharedArgs
+from fdm.configs import VaeArgs
 from fdm.utils import wandb_log
 
-__all__ = ["get_data_dim", "log_images"]
+__all__ = ["get_data_dim", "log_images", "save_model", "restore_model"]
 
 
 def get_data_dim(data_loader) -> Tuple[int, ...]:
@@ -20,7 +20,7 @@ def get_data_dim(data_loader) -> Tuple[int, ...]:
 
 
 def log_images(
-    args: SharedArgs, image_batch, name, step, nsamples=64, nrows=8, monochrome=False, prefix=None
+    args: VaeArgs, image_batch, name, step, nsamples=64, nrows=8, monochrome=False, prefix=None
 ):
     """Make a grid of the given images, save them in a file and log them with W&B"""
     prefix = "train_" if prefix is None else f"{prefix}_"
@@ -41,13 +41,7 @@ def log_images(
 
 
 def save_model(
-    args: SharedArgs,
-    save_dir: Path,
-    model: nn.Module,
-    disc_ensemble: nn.ModuleList,
-    epoch: int,
-    sha: str,
-    best: bool = False,
+    args: VaeArgs, save_dir: Path, vae: nn.Module, epoch: int, sha: str, best: bool = False,
 ) -> Path:
     if best:
         filename = save_dir / "checkpt_best.pth"
@@ -56,8 +50,7 @@ def save_model(
     save_dict = {
         "args": args.as_dict(),
         "sha": sha,
-        "model": model.state_dict(),
-        "disc_ensemble": disc_ensemble.state_dict(),
+        "vae": vae.state_dict(),
         "epoch": epoch,
     }
 
@@ -66,15 +59,11 @@ def save_model(
     return filename
 
 
-def restore_model(args: NosinnArgs, filename: Path, inn: nn.Module, disc_ensemble: nn.ModuleList):
+def restore_model(args: VaeArgs, filename: Path, vae: nn.Module):
     chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
     args_chkpt = chkpt["args"]
     assert args.levels == args_chkpt["levels"]
     assert args.level_depth == args_chkpt["level_depth"]
-    assert args.coupling_channels == args_chkpt["coupling_channels"]
-    assert args.coupling_depth == args_chkpt["coupling_depth"]
 
-    inn.load_state_dict(chkpt["model"])
-    disc_ensemble.load_state_dict(chkpt["disc_ensemble"])
-
-    return inn, disc_ensemble
+    vae.load_state_dict(chkpt["vae"])
+    return vae, chkpt["epoch"]

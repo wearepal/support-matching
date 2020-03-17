@@ -3,13 +3,12 @@ from typing import NamedTuple, Optional
 from torch.utils.data import Dataset, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
-from ethicml.data import create_genfaces_dataset
+from ethicml.data import create_genfaces_dataset, create_celeba_dataset
 from ethicml.vision.data import LdColorizer
 
 from fdm.configs import SharedArgs
 
 from .adult import load_adult_data
-from .celeba import CelebA
 from .dataset_wrappers import LdAugmentedDataset
 from .misc import shrink_dataset, train_test_split
 from .perturbed_adult import load_perturbed_adult
@@ -85,8 +84,8 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
             base_augmentations=base_aug,
         )
 
-        args.y_dim = 10
-        args.s_dim = 10
+        args._y_dim = 10
+        args._s_dim = 10
 
     elif args.dataset == "ssrp":
         image_size = 64
@@ -106,8 +105,8 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
 
         train_data, test_data = train_test_split(train_test_data, train_pcnt=(1 - args.test_pcnt))
 
-        args.y_dim = train_test_data.num_classes
-        args.s_dim = pretrain_data.num_classes
+        args._y_dim = train_test_data.num_classes
+        args._s_dim = pretrain_data.num_classes
 
     elif args.dataset == "celeba":
 
@@ -125,9 +124,9 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
         transform = transforms.Compose(transform)
 
         unbiased_pcnt = args.test_pcnt + args.pretrain_pcnt
-        unbiased_data = CelebA(
+        unbiased_data = create_celeba_dataset(
             root=args.root,
-            sens_attrs=args.celeba_sens_attr,
+            sens_attr_name=args.celeba_sens_attr,
             target_attr_name=args.celeba_target_attr,
             biased=False,
             mixing_factor=args.task_mixing_factor,
@@ -141,9 +140,9 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
         test_len = len(unbiased_data) - pretrain_len
         pretrain_data, test_data = random_split(unbiased_data, lengths=(pretrain_len, test_len))
 
-        train_data = CelebA(
+        train_data = create_celeba_dataset(
             root=args.root,
-            sens_attrs=args.celeba_sens_attr,
+            sens_attr_name=args.celeba_sens_attr,
             target_attr_name=args.celeba_target_attr,
             biased=True,
             mixing_factor=args.task_mixing_factor,
@@ -153,8 +152,8 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
             seed=args.data_split_seed,
         )
 
-        args.y_dim = 1
-        args.s_dim = unbiased_data.s_dim
+        args._y_dim = 1
+        args._s_dim = unbiased_data.s_dim
 
     elif args.dataset == "genfaces":
 
@@ -200,8 +199,8 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
             seed=args.data_split_seed,
         )
 
-        args.y_dim = 1
-        args.s_dim = unbiased_data.s_dim
+        args._y_dim = 1
+        args._s_dim = unbiased_data.s_dim
 
     elif args.dataset == "adult":
         if args.input_noise:
@@ -209,8 +208,8 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
         else:
             pretrain_data, test_data, train_data = load_adult_data(args)
 
-        args.y_dim = 1
-        args.s_dim = 1
+        args._y_dim = 1
+        args._s_dim = 1
     else:
         raise ValueError("Invalid choice of dataset.")
 
@@ -223,6 +222,6 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
         pretrain=pretrain_data,
         task=test_data,
         task_train=train_data,
-        s_dim=args.s_dim,
-        y_dim=args.y_dim,
+        s_dim=args._s_dim,
+        y_dim=args._y_dim,
     )

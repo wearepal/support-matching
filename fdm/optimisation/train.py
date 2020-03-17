@@ -2,24 +2,31 @@
 import time
 from logging import Logger
 from pathlib import Path
-from typing import Callable, Dict, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple, List
 
+import git
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader
 
 import wandb
-from fdm import utils
 from fdm.configs import VaeArgs
 from fdm.data import DatasetTriplet, load_dataset
 from fdm.models import VAE, VaeResults, build_discriminator
 from fdm.models.configs import conv_autoencoder, fc_autoencoder, linear_disciminator
-from fdm.utils import random_seed, wandb_log
+from fdm.utils import (
+    AverageMeter,
+    count_parameters,
+    get_logger,
+    random_seed,
+    readable_duration,
+    wandb_log,
+)
 
-from .evaluation import evaluate
+from .evaluation import log_metrics
 from .loss import PixelCrossEntropy, VGGLoss, grad_reverse
-from .utils import get_data_dim, log_images
+from .utils import get_data_dim, log_images, save_model, restore_model
 
 __all__ = ["main"]
 
@@ -29,7 +36,7 @@ LOGGER: Logger = None
 INPUT_SHAPE: Tuple[int, ...] = ()
 
 
-def compute_losses(
+def compute_loss(
     x, s, s_oh: Optional[torch.Tensor], vae: VAE, disc_enc_y, disc_enc_s, recon_loss_fn
 ) -> Tuple[torch.Tensor, Dict[str, float]]:
     """Compute all losses"""
@@ -64,29 +71,27 @@ def compute_losses(
     return loss, logging_dict
 
 
-def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) -> int:
+def train(
+    vae: VAE, disc_enc_y, disc_enc_s, dataloader: DataLoader, epoch: int, recon_loss_fn,
+) -> int:
     vae.train()
-    vae.eval()
 
-    total_loss_meter = utils.AverageMeter()
-    loss_meters: Dict[str, utils.AverageMeter] = {
-        "ELBO": utils.AverageMeter(),
-        "Adv loss": utils.AverageMeter(),
-        "KL divergence": utils.AverageMeter(),
-    }
+    total_loss_meter = AverageMeter()
+    loss_meters: Optional[Dict[str, AverageMeter]] = None
 
-    time_meter = utils.AverageMeter()
+    time_meter = AverageMeter()
     start_epoch_time = time.time()
     end = start_epoch_time
-    start_itr = epoch * len(dataloader)
+    itr = start_itr = (epoch - 1) * len(dataloader)
+
     for itr, (x, s, y) in enumerate(dataloader, start=start_itr):
 
         x, s, y = to_device(x, s, y)
         s_oh = None
         if ARGS.cond_decoder:  # One-hot encode the sensitive attribute
-            s_oh = F.one_hot(s, num_classes=ARGS.s_dim)
+            s_oh = F.one_hot(s, num_classes=ARGS._s_dim)
 
-        loss, logging_dict = compute_losses(
+        loss, logging_dict = compute_loss(
             x=x,
             s=s,
             s_oh=s_oh,
@@ -101,17 +106,19 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
 
         loss.backward()
         vae.step()
-        disc_enc_y.step()
 
         if disc_enc_s is not None:
             disc_enc_s.step()
 
         # Log losses
         total_loss_meter.update(loss.item())
+        if loss_meters is None:
+            loss_meters = {name: AverageMeter() for name in logging_dict}
         for name, value in logging_dict.items():
             loss_meters[name].update(value)
 
-        time_meter.update(time.time() - end)
+        time_for_batch = time.time() - end
+        time_meter.update(time_for_batch)
 
         wandb_log(ARGS, logging_dict, step=itr)
         end = time.time()
@@ -122,11 +129,12 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
                 log_recons(vae=vae, x=x, s_oh=s_oh, itr=itr)
 
     time_for_epoch = time.time() - start_epoch_time
+    assert loss_meters is not None
     log_string = " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items())
     LOGGER.info(
-        "[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | {} ({:.5g})",
+        "[TRN] Epoch {:04d} | Duration: {} | Batches/s: {:.4g} | {} ({:.5g})",
         epoch,
-        time_for_epoch,
+        readable_duration(time_for_epoch),
         1 / time_meter.avg,
         log_string,
         total_loss_meter.avg,
@@ -136,16 +144,16 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
 
 def validate(vae: VAE, disc_enc_y, disc_enc_s, val_loader, itr: int, recon_loss_fn):
     vae.eval()
-    with torch.no_grad():
-        loss_meter = utils.AverageMeter()
-        for x_val, s_val, y_val in val_loader:
+    with torch.set_grad_enabled(False):
+        loss_meter = AverageMeter()
+        for val_itr, (x_val, s_val, y_val) in enumerate(val_loader):
 
             x_val, s_val, y_val = to_device(x_val, s_val, y_val)
             s_oh = None
             if ARGS.cond_decoder:  # One-hot encode the sensitive attribute
-                s_oh = F.one_hot(s_val, num_classes=ARGS.s_dim)
+                s_oh = F.one_hot(s_val, num_classes=ARGS._s_dim)
 
-            loss, logging_dict = compute_losses(
+            loss, logging_dict = compute_loss(
                 x=x_val,
                 s=s_val,
                 s_oh=s_oh,
@@ -155,19 +163,30 @@ def validate(vae: VAE, disc_enc_y, disc_enc_s, val_loader, itr: int, recon_loss_
                 recon_loss_fn=recon_loss_fn,
             )
 
-            loss_meter.update(loss.item(), n=x_val.size(0))
+            loss_meter.update(logging_dict["Loss Validation"], n=x_val.size(0))
 
-    wandb_log(ARGS, {"Loss": loss_meter.avg}, step=itr)
+            if val_itr == 0:
+                if ARGS.dataset in ("cmnist", "celeba", "ssrp", "genfaces"):
+                    log_recons(vae, x_val, s_oh=s_oh, itr=itr, prefix="test")
+                else:
+                    z = vae(x_val[:1000])
+                    _, recon_y, recon_s = vae.decode(z)
+                    log_images(ARGS, x_val, "original_x", prefix="test", step=itr)
+                    log_images(ARGS, recon_y, "reconstruction_yn", prefix="test", step=itr)
+                    log_images(ARGS, recon_s, "reconstruction_yn", prefix="test", step=itr)
+                    x_recon = vae(vae(x_val), reverse=True)
+                    x_diff = (x_recon - x_val).abs().mean().item()
+                    print(f"MAE of x and reconstructed x: {x_diff}")
+                    wandb_log(ARGS, {"reconstruction MAE": x_diff}, step=itr)
 
-    if ARGS.dataset in ("cmnist", "celeba", "ssrp", "genfaces"):
-        log_recons(vae=vae, x=x_val, s_oh=s_oh, itr=itr, prefix="test")
+        wandb_log(ARGS, {"Loss": loss_meter.avg}, step=itr)
 
     return loss_meter.avg
 
 
 def to_device(*tensors):
     """Place tensors on the correct device and set type to float32"""
-    moved = [tensor.to(ARGS.device, non_blocking=True) for tensor in tensors]
+    moved = [tensor.to(ARGS._device, non_blocking=True) for tensor in tensors]
     if len(moved) == 1:
         return moved[0]
     return tuple(moved)
@@ -187,7 +206,7 @@ def log_recons(vae: VAE, x, s_oh: Optional[torch.Tensor], itr, prefix=None):
         enc_y_m = enc
         enc_s_m = torch.zeros_like(enc)
         if ARGS.cond_decoder:
-            if ARGS.s_dim == 2:
+            if ARGS._s_dim == 2:
                 s_oh_flipped = 1 - s_oh
             else:
                 s_oh_flipped = s_oh[torch.randperm(s_oh.size(0))]
@@ -206,61 +225,19 @@ def log_recons(vae: VAE, x, s_oh: Optional[torch.Tensor], itr, prefix=None):
     log_images(ARGS, recon_null, "reconstruction_null", step=itr, prefix=prefix)
 
 
-def encode_dataset(args, vae, data_loader):
-    LOGGER.info("Encoding dataset...")
-    all_xy = []
-    all_s = []
-    all_y = []
-
-    with torch.set_grad_enabled(False):
-        for x, s, y in data_loader:
-
-            x = x.to(args.device)
-            all_s.append(s)
-            all_y.append(y)
-
-            enc = vae.encode(x, stochastic=False)
-
-            s_oh = None
-            if ARGS.cond_decoder:
-                s_oh = x.new_zeros(x.size(0), args.s_dim)
-
-            if ARGS.enc_s_dim > 0:
-                enc_y, enc_s = enc.split(split_size=(ARGS.enc_y_dim, ARGS.enc_s_dim), dim=1)
-                enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
-            else:
-                enc_y_m = enc
-
-            xy = vae.reconstruct(enc_y_m, s=s_oh)
-
-            if args.dataset in ("celeba", "ssrp", "genfaces"):
-                xy = 0.5 * xy + 0.5
-            xy = xy.clamp(0, 1)
-
-            all_xy.append(xy.detach().cpu())
-
-    all_xy = torch.cat(all_xy, dim=0)
-    all_s = torch.cat(all_s, dim=0)
-    all_y = torch.cat(all_y, dim=0)
-
-    encoded_dataset = TensorDataset(all_xy, all_s, all_y)
-    LOGGER.info("Done.")
-
-    return encoded_dataset
-
-
-def evaluate_vae(args, vae, train_loader, test_loader, step, save_to_csv: Optional[Path] = None):
-    train_data = encode_dataset(args, vae, train_loader)
-    test_data = encode_dataset(args, vae, test_loader)
-    evaluate(ARGS, step, train_data, test_data, "xy", pred_s=False, save_to_csv=save_to_csv)
-
-
-def main(raw_args=None) -> None:
+def main(raw_args: Optional[List[str]] = None) -> VAE:
     """Main function
 
     Args:
         raw_args: commandline arguments
+        datasets: a Dataset object
+
+    Returns:
+        the trained model
     """
+    repo = git.Repo(search_parent_directories=True)
+    sha = repo.head.object.hexsha
+
     args = VaeArgs(explicit_bool=True, underscores_to_dashes=True)
     args.parse_args(raw_args)
     use_gpu = torch.cuda.is_available() and args.gpu >= 0
@@ -272,21 +249,27 @@ def main(raw_args=None) -> None:
     args_dict = args.as_dict()
 
     if ARGS.use_wandb:
-        wandb.init(project="nosinn", config=args_dict)
+        wandb.init(project="fdm", config=args_dict)
 
     save_dir = Path(ARGS.save_dir) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    LOGGER = utils.get_logger(logpath=save_dir / "logs", filepath=Path(__file__).resolve())
+    LOGGER = get_logger(logpath=save_dir / "logs", filepath=Path(__file__).resolve())
     LOGGER.info("Namespace(" + ", ".join(f"{k}={args_dict[k]}" for k in sorted(args_dict)) + ")")
     LOGGER.info("Save directory: {}", save_dir.resolve())
     # ==== check GPU ====
-    ARGS.device = torch.device(
-        f"cuda:{ARGS.gpu}" if (torch.cuda.is_available() and not ARGS.gpu < 0) else "cpu"
+    ARGS._device = torch.device(
+        f"cuda:{ARGS.gpu}" if (torch.cuda.is_available() and ARGS.gpu >= 0) else "cpu"
     )
-    LOGGER.info("{} GPUs available. Using device '{}'", torch.cuda.device_count(), ARGS.device)
+    LOGGER.info("{} GPUs available. Using device '{}'", torch.cuda.device_count(), ARGS._device)
 
     # ==== construct dataset ====
+    LOGGER.info(
+        "Size of pretrain: {}, task_train: {}, task: {}",
+        len(datasets.pretrain),
+        len(datasets.task_train),
+        len(datasets.task),
+    )
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
     train_loader = DataLoader(
         datasets.pretrain,
@@ -297,13 +280,6 @@ def main(raw_args=None) -> None:
     )
     val_loader = DataLoader(
         datasets.task_train,
-        shuffle=True,
-        batch_size=ARGS.test_batch_size,
-        num_workers=ARGS.num_workers,
-        pin_memory=True,
-    )
-    test_loader = DataLoader(
-        datasets.task,
         shuffle=False,
         batch_size=ARGS.test_batch_size,
         num_workers=ARGS.num_workers,
@@ -316,7 +292,7 @@ def main(raw_args=None) -> None:
 
     optimizer_args = {"lr": args.lr, "weight_decay": args.weight_decay}
 
-    ARGS.s_dim = ARGS.s_dim if ARGS.s_dim > 1 else 2
+    ARGS._s_dim = ARGS._s_dim if ARGS._s_dim > 1 else 2
 
     if is_image_data:
         decoding_dim = INPUT_SHAPE[0] * 256 if args.recon_loss == "ce" else INPUT_SHAPE[0]
@@ -327,7 +303,7 @@ def main(raw_args=None) -> None:
             decoding_dim=decoding_dim,
             levels=ARGS.levels,
             vae=ARGS.vae,
-            s_dim=ARGS.s_dim if ARGS.cond_decoder else 0,
+            s_dim=ARGS._s_dim if ARGS.cond_decoder else 0,
             level_depth=ARGS.level_depth,
         )
     else:
@@ -337,7 +313,7 @@ def main(raw_args=None) -> None:
             encoding_dim=ARGS.enc_y_dim + ARGS.enc_s_dim,
             levels=ARGS.levels,
             vae=ARGS.vae,
-            s_dim=ARGS.s_dim if ARGS.cond_decoder else 0,
+            s_dim=ARGS._s_dim if ARGS.cond_decoder else 0,
         )
     LOGGER.info("Encoding shape: {}", enc_shape)
 
@@ -356,7 +332,7 @@ def main(raw_args=None) -> None:
     recon_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
     if ARGS.vgg_weight != 0:
         vgg_loss = VGGLoss()
-        vgg_loss.to(ARGS.device)
+        vgg_loss.to(ARGS._device)
 
         def recon_loss_fn(input_, target):
             return recon_loss_fn_(input_, target) + ARGS.vgg_weight * vgg_loss(input_, target)
@@ -371,7 +347,7 @@ def main(raw_args=None) -> None:
         optimizer_kwargs=optimizer_args,
         decode_with_s=True,
     )
-    vae.to(args.device)
+    vae.to(args._device)
 
     # Initialise Discriminator
     disc_fn = linear_disciminator
@@ -393,7 +369,7 @@ def main(raw_args=None) -> None:
         model_kwargs=disc_enc_y_kwargs,
         optimizer_kwargs=disc_optimizer_kwargs,
     )
-    disc_enc_y.to(args.device)
+    disc_enc_y.to(args._device)
 
     disc_enc_s = None
     if ARGS.enc_s_dim > 0:
@@ -413,40 +389,40 @@ def main(raw_args=None) -> None:
             optimizer_kwargs=disc_optimizer_kwargs,
         )
 
-        disc_enc_s.to(args.device)
+        disc_enc_s.to(args._device)
+
+    start_epoch = 1  # start at 1 so that the val_freq works correctly
+    # Resume from checkpoint
+    if ARGS.resume is not None:
+        LOGGER.info("Restoring model from checkpoint")
+        vae, start_epoch = restore_model(ARGS, Path(ARGS.resume), vae)
+        if ARGS.evaluate:
+            log_metrics(ARGS, model=vae, data=datasets, save_to_csv=Path(ARGS.save_dir), step=0)
+            return vae
 
     # Logging
-    # wandb.set_model_graph(str(inn))
-    LOGGER.info("Number of trainable parameters: {}", utils.count_parameters(vae))
+    # wandb.set_model_graph(str(vae))
+    LOGGER.info("Number of trainable parameters: {}", count_parameters(vae))
 
     best_loss = float("inf")
     n_vals_without_improvement = 0
+    super_val_freq = ARGS.super_val_freq or ARGS.val_freq
 
-    epoch_0 = 0
-    if args.resume:
-        LOGGER.info("Restoring from checkpoint")
-        checkpoint = torch.load(args.resume)
-        vae.load_state_dict(checkpoint["model"])
-        epoch_0 = checkpoint["epoch"]
-
-    itr = epoch_0 * len(train_loader)
-    # Train INN for N epochs
-    for epoch in range(epoch_0, ARGS.epochs):
+    itr = 0
+    # Train vae for N epochs
+    for epoch in range(start_epoch, start_epoch + ARGS.epochs):
         if n_vals_without_improvement > ARGS.early_stopping > 0:
             break
 
         itr = train(vae, disc_enc_y, disc_enc_s, train_loader, epoch, recon_loss_fn)
 
-        save_model(save_dir=save_dir, vae=vae, epoch=epoch, prefix="latest")
-        if epoch % ARGS.val_freq == 0 and epoch != 0:
+        if epoch % ARGS.val_freq == 0:
             val_loss = validate(vae, disc_enc_y, disc_enc_s, val_loader, itr, recon_loss_fn)
-            if args.super_val:
-                evaluate_vae(args, vae, train_loader=val_loader, test_loader=test_loader, step=itr)
 
             if val_loss < best_loss:
                 best_loss = val_loss
+                save_model(args, save_dir, vae, epoch=epoch, sha=sha, best=True)
                 n_vals_without_improvement = 0
-                save_model(save_dir=save_dir, vae=vae, epoch=epoch)
             else:
                 n_vals_without_improvement += 1
 
@@ -457,26 +433,16 @@ def main(raw_args=None) -> None:
                 val_loss,
                 n_vals_without_improvement,
             )
+        if ARGS.super_val and epoch % super_val_freq == 0:
+            log_metrics(ARGS, model=vae, data=datasets, step=itr)
+            save_model(args, save_dir, vae=vae, epoch=epoch, sha=sha)
 
     LOGGER.info("Training has finished.")
-    evaluate_vae(
-        args,
-        vae,
-        train_loader=val_loader,
-        test_loader=test_loader,
-        step=itr,
-        save_to_csv=Path(ARGS.save_dir),
-    )
-
-
-def save_model(save_dir, vae, epoch, prefix="best") -> str:
-    filename = save_dir / f"{prefix}_checkpt.pth"
-    save_dict = {"args": ARGS.as_dict(), "model": vae.state_dict(), "epoch": epoch}
-
-    torch.save(save_dict, filename)
-
-    return filename
+    path = save_model(args, save_dir, vae=vae, epoch=epoch, sha=sha)
+    vae, _ = restore_model(args, path, vae=vae)
+    log_metrics(ARGS, model=vae, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr)
+    return vae
 
 
 if __name__ == "__main__":
-    main_vae()
+    main()
