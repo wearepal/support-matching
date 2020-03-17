@@ -52,7 +52,7 @@ def compute_loss(
 
     enc_y = grad_reverse(enc_y)
     # Discriminator for zy
-    disc_loss, _ = disc_enc_y.routine(enc_y, s)
+    disc_loss, disc_acc = disc_enc_y.routine(enc_y, s)
 
     # Discriminator for zs if partitioning the latent space
     if ARGS.enc_s_dim > 0:
@@ -65,8 +65,11 @@ def compute_loss(
     loss = elbo + disc_loss
     logging_dict = {
         "ELBO": elbo.item(),
-        "Adv loss": disc_loss.item(),
+        "Loss Adversarial": disc_loss.item(),
+        "Accuracy Discriminator": disc_acc,
         "KL divergence": vae_results.kl_div.item(),
+        "Loss Reconstruction": vae_results.recon_loss.item(),
+        "Loss Validation": (elbo - disc_loss).item(),
     }
     return loss, logging_dict
 

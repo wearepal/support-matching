@@ -17,6 +17,7 @@ class VaeResults(NamedTuple):
     enc_y: torch.Tensor
     enc_s: torch.Tensor
     recon: torch.Tensor
+    recon_loss: torch.Tensor
 
 
 class AutoEncoder(nn.Module):
@@ -209,4 +210,6 @@ class VAE(AutoEncoder):
         kl_div /= x.size(0)
 
         elbo = recon_loss + self.kl_weight * kl_div
-        return VaeResults(elbo=elbo, enc_y=enc_y, enc_s=enc_s, recon=recon, kl_div=kl_div)
+        return VaeResults(
+            elbo=elbo, enc_y=enc_y, enc_s=enc_s, recon=recon, kl_div=kl_div, recon_loss=recon_loss
+        )

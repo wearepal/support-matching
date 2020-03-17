@@ -163,7 +163,7 @@ class Classifier(ModelBase):
         if lr_milestones is not None:
             scheduler = MultiStepLR(optimizer=self.optimizer, **lr_milestones)
 
-        print("Training classifier...")
+        print("Training classifier...", flush=True)  # flush to avoid conflict with tqdm
         pbar = trange(epochs)
         for epoch in pbar:
             self.model.train()
@@ -175,8 +175,8 @@ class Classifier(ModelBase):
                 else:
                     target = y
 
-                x = x.to(device)
-                target = target.to(device)
+                x = x.to(device, non_blocking=True)
+                target = target.to(device, non_blocking=True)
 
                 self.optimizer.zero_grad()
                 loss, acc = self.routine(x, target)

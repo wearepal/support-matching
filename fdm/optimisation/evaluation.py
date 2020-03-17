@@ -89,7 +89,7 @@ def compute_metrics(
     return metrics
 
 
-def fit_classifier(args, input_dim, train_data, train_on_recon, pred_s, test_data=None):
+def fit_classifier(args: SharedArgs, input_dim, train_data, train_on_recon, pred_s, test_data=None):
 
     if args.dataset == "cmnist":
         clf_fn = mp_32x32_net
@@ -98,9 +98,9 @@ def fit_classifier(args, input_dim, train_data, train_on_recon, pred_s, test_dat
     else:
         clf_fn = fc_net
         input_dim = (input_dim,)
-    clf = clf_fn(input_dim=input_dim, target_dim=args.y_dim)
+    clf = clf_fn(input_dim=input_dim, target_dim=args._y_dim)
 
-    n_classes = args.y_dim if args.y_dim > 1 else 2
+    n_classes = args._y_dim if args._y_dim > 1 else 2
     clf: Classifier = Classifier(clf, num_classes=n_classes, optimizer_kwargs={"lr": args.eval_lr})
     clf.to(args._device)
     clf.fit(
@@ -172,7 +172,7 @@ def evaluate(
     full_name = f"{args.dataset}_{name}"
     full_name += "_s" if pred_s else "_y"
     full_name += "_on_recons" if train_on_recon else "_on_encodings"
-    metrics = compute_metrics(args, preds, actual, full_name, run_all=args.y_dim == 1, step=step)
+    metrics = compute_metrics(args, preds, actual, full_name, run_all=args._y_dim == 1, step=step)
     print(f"Results for {full_name}:")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
     print()  # empty line
@@ -203,7 +203,7 @@ def encode_dataset(
     data: Dataset,
     vae: VAE,
 ):
-    print("Encoding dataset...")
+    print("Encoding dataset...", flush=True)  # flush to avoid conflict with tqdm
     all_xy = []
     all_s = []
     all_y = []
@@ -223,7 +223,7 @@ def encode_dataset(
 
             s_oh = None
             if args.cond_decoder:
-                s_oh = x.new_zeros(x.size(0), args.s_dim)
+                s_oh = x.new_zeros(x.size(0), args._s_dim)
 
             if args.enc_s_dim > 0:
                 enc_y, enc_s = enc.split(split_size=(args.enc_y_dim, args.enc_s_dim), dim=1)
