@@ -32,7 +32,7 @@ class Triplet(NamedTuple):
 def load_adult_data_tuples(args: SharedArgs) -> Tuple[Triplet, Dict[str, List[str]]]:
     """Load dataset from the files specified in ARGS and return it as PyTorch datasets"""
     adult_dataset = Adult(binarize_nationality=args.drop_native)
-    data = load_data(adult_dataset, ordered=True)
+    data = load_data(adult_dataset, ordered=True, generate_dummies=True)
 
     disc_feature_groups = adult_dataset.disc_feature_groups
     assert disc_feature_groups is not None

@@ -25,7 +25,7 @@ from fdm.utils import (
 )
 
 from .evaluation import log_metrics
-from .loss import PixelCrossEntropy, VGGLoss, grad_reverse
+from .loss import PixelCrossEntropy, VGGLoss, grad_reverse, MixedLoss
 from .utils import get_data_dim, log_images, save_model, restore_model
 
 __all__ = ["main"]
@@ -332,9 +332,9 @@ def main(raw_args: Optional[List[str]] = None) -> VAE:
         recon_loss_fn_ = lambda x, y: F.smooth_l1_loss(x * 10, y * 10, reduction="sum")
     elif ARGS.recon_loss == "ce":
         recon_loss_fn_ = PixelCrossEntropy(reduction="sum")
-    elif ARGS.ae_loss == "mixed":
+    elif ARGS.recon_loss == "mixed":
         assert feature_group_slices is not None, "can only do multi loss with feature groups"
-        ae_loss_fn = MixedLoss(feature_group_slices, reduction="sum")
+        recon_loss_fn_ = MixedLoss(feature_group_slices, reduction="sum")
     else:
         raise ValueError(f"{ARGS.recon_loss} is an invalid reconstruction loss")
 

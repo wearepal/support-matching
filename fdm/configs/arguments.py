@@ -168,7 +168,7 @@ class VaeArgs(SharedArgs):
     enc_s_dim: int = 0
     cond_decoder: bool = True
     init_channels: int = 32
-    recon_loss: Literal["l1", "l2", "huber", "ce"] = "l2"
+    recon_loss: Literal["l1", "l2", "huber", "ce", "mixed"] = "l2"
     stochastic: bool = True
     vgg_weight: float = 0
     vae: bool = True

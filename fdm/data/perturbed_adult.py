@@ -17,7 +17,7 @@ def load_perturbed_adult(
 ) -> Tuple[DataTupleDataset, DataTupleDataset, DataTupleDataset]:
     """Load dataset from the files specified in ARGS and return it as PyTorch datasets"""
     adult_dataset = Adult(binarize_nationality=args.drop_native)
-    data = load_data(adult_dataset, ordered=True)
+    data = load_data(adult_dataset, ordered=True, generate_dummies=True)
 
     cont_feats = adult_dataset.continuous_features
 
