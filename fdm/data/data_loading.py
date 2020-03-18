@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 from torch.utils.data import Dataset, random_split
 from torchvision import transforms
@@ -19,7 +19,7 @@ __all__ = ["DatasetTriplet", "load_dataset"]
 
 
 class DatasetTriplet(NamedTuple):
-    pretrain: Optional[Dataset]
+    pretrain: Dataset
     task: Dataset
     task_train: Dataset
     s_dim: int

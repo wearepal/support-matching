@@ -156,7 +156,7 @@ def validate(vae: VAE, disc_enc_y, disc_enc_s, val_loader, itr: int, recon_loss_
             if ARGS.cond_decoder:  # One-hot encode the sensitive attribute
                 s_oh = F.one_hot(s_val, num_classes=ARGS._s_dim)
 
-            loss, logging_dict = compute_loss(
+            _, logging_dict = compute_loss(
                 x=x_val,
                 s=s_val,
                 s_oh=s_oh,
@@ -294,9 +294,7 @@ def main(raw_args: Optional[List[str]] = None) -> VAE:
     is_image_data = len(INPUT_SHAPE) > 2
 
     optimizer_args = {"lr": args.lr, "weight_decay": args.weight_decay}
-    feature_group_slices = None
-    if hasattr(datasets.pretrain, "feature_group_slices"):
-        feature_group_slices = datasets.pretrain.feature_group_slices
+    feature_group_slices = getattr(datasets.pretrain, "feature_group_slices", None)
 
     ARGS._s_dim = ARGS._s_dim if ARGS._s_dim > 1 else 2
 
@@ -343,7 +341,7 @@ def main(raw_args: Optional[List[str]] = None) -> VAE:
         vgg_loss = VGGLoss()
         vgg_loss.to(ARGS._device)
 
-        def recon_loss_fn(input_, target):
+        def recon_loss_fn(input_: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
             return recon_loss_fn_(input_, target) + ARGS.vgg_weight * vgg_loss(input_, target)
 
     else:
