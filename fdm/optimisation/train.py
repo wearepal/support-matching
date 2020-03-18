@@ -2,18 +2,20 @@
 import time
 from logging import Logger
 from pathlib import Path
-from typing import Callable, Dict, Optional, Tuple, List
+from typing import Callable, Dict, Optional, Tuple, List, cast
+from itertools import islice
 
 import git
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+from torch import Tensor
 
 import wandb
 from fdm.configs import VaeArgs
 from fdm.data import DatasetTriplet, load_dataset
-from fdm.models import VAE, VaeResults, build_discriminator
+from fdm.models import VAE, VaeResults, build_discriminator, AutoEncoder, Classifier
 from fdm.models.configs import conv_autoencoder, fc_autoencoder, linear_disciminator
 from fdm.utils import (
     AverageMeter,
@@ -22,6 +24,7 @@ from fdm.utils import (
     random_seed,
     readable_duration,
     wandb_log,
+    inf_generator,
 )
 
 from .evaluation import log_metrics
@@ -37,27 +40,45 @@ INPUT_SHAPE: Tuple[int, ...] = ()
 
 
 def compute_loss(
-    x, s, s_oh: Optional[torch.Tensor], vae: VAE, disc_enc_y, disc_enc_s, recon_loss_fn
-) -> Tuple[torch.Tensor, Dict[str, float]]:
-    """Compute all losses"""
-    vae_results: VaeResults = vae.standalone_routine(
-        x=x,
-        s_oh=s_oh,
-        recon_loss_fn=recon_loss_fn,
-        stochastic=ARGS.stochastic,
-        enc_y_dim=ARGS.enc_y_dim,
-        enc_s_dim=ARGS.enc_s_dim,
-    )
-    elbo, enc_y, enc_s = vae_results.elbo, vae_results.enc_y, vae_results.enc_s
+    x_p: Tensor, x_t: Tensor, vae: AutoEncoder, discriminator: Classifier, recon_loss_fn
+) -> Tuple[Tensor, Dict[str, float]]:
+    """Compute all losses.
 
-    enc_y = grad_reverse(enc_y)
+    Args:
+        x_p: x from pre-training set
+        x_t: x from training set
+    """
+    # Encode the data
+    if ARGS.stochastic:
+        vae = cast(VAE, vae)
+        encoding, posterior = vae.encode(x_t, stochastic=True, return_posterior=True)
+        kl_div = vae.compute_divergence(encoding, posterior)
+    else:
+        encoding = vae.encode(x_t)
+        kl_div = x_t.new_zeros(())
+
+    zs_m, zy_m = vae.random_mask(encoding)
+
+    recon_all = vae.decode(encoding)
+    recon_rand_s = grad_reverse(vae.decode(zs_m))
+    recon_rand_y = grad_reverse(vae.decode(zy_m))
+
+    # Compute losses
+    recon_loss = recon_loss_fn(recon_all, x_t)
+
+    recon_loss /= x_t.size(0)
+    kl_div /= x_t.size(0)
+
+    elbo = recon_loss + ARGS.kl_weight * kl_div
+
     # Discriminator for zy
-    disc_loss, disc_acc = disc_enc_y.routine(enc_y, s)
+    x_t_batch = (x_t.size(0),)
+    disc_loss_rand_s, disc_acc_s = discriminator.routine(recon_rand_s, x_t.new_zeros(x_t_batch))
+    disc_loss_rand_y, disc_acc_y = discriminator.routine(recon_rand_y, x_t.new_zeros(x_t_batch))
 
-    # Discriminator for zs if partitioning the latent space
-    if ARGS.enc_s_dim > 0:
-        disc_loss += disc_enc_s.routine(enc_s, s)[0]
-        disc_enc_s.zero_grad()
+    disc_loss_true, disc_acc_true = discriminator.routine(x_p, x_p.new_ones((x_p.size(0),)))
+
+    disc_loss = disc_loss_rand_s + disc_loss_rand_y + disc_loss_true
 
     elbo *= ARGS.elbo_weight
     disc_loss *= ARGS.pred_s_weight
@@ -66,16 +87,23 @@ def compute_loss(
     logging_dict = {
         "ELBO": elbo.item(),
         "Loss Adversarial": disc_loss.item(),
-        "Accuracy Discriminator": disc_acc,
-        "KL divergence": vae_results.kl_div.item(),
-        "Loss Reconstruction": vae_results.recon_loss.item(),
+        "Accuracy Disc (rand s)": disc_acc_s,
+        "Accuracy Disc (rand y)": disc_acc_y,
+        "Accuracy Disc (true)": disc_acc_true,
+        "KL divergence": kl_div.item(),
+        "Loss Reconstruction": recon_loss.item(),
         "Loss Validation": (elbo - disc_loss).item(),
     }
     return loss, logging_dict
 
 
 def train(
-    vae: VAE, disc_enc_y, disc_enc_s, dataloader: DataLoader, epoch: int, recon_loss_fn,
+    vae: AutoEncoder,
+    discriminator: Classifier,
+    pretrain_data: DataLoader,
+    task_train_data: DataLoader,
+    epoch: int,
+    recon_loss_fn,
 ) -> int:
     vae.train()
 
@@ -85,33 +113,31 @@ def train(
     time_meter = AverageMeter()
     start_epoch_time = time.time()
     end = start_epoch_time
-    itr = start_itr = (epoch - 1) * len(dataloader)
+    epoch_len = max(len(pretrain_data), len(task_train_data))
+    itr = start_itr = (epoch - 1) * epoch_len
+    data_iterator = islice(
+        zip(inf_generator(pretrain_data), inf_generator(task_train_data)), epoch_len
+    )
 
-    for itr, (x, s, y) in enumerate(dataloader, start=start_itr):
+    for itr, ((x_p, _, _), (x_t, _, _)) in enumerate(data_iterator, start=start_itr):
 
-        x, s, y = to_device(x, s, y)
-        s_oh = None
-        if ARGS.cond_decoder:  # One-hot encode the sensitive attribute
-            s_oh = F.one_hot(s.long(), num_classes=ARGS._s_dim)
+        x_p, x_t = to_device(x_p, x_t)
 
         loss, logging_dict = compute_loss(
-            x=x,
-            s=s,
-            s_oh=s_oh,
+            x_p=x_p,
+            x_t=x_t,
             vae=vae,
-            disc_enc_y=disc_enc_y,
-            disc_enc_s=disc_enc_s,
+            discriminator=discriminator,
             recon_loss_fn=recon_loss_fn,
         )
 
         vae.zero_grad()
-        disc_enc_y.zero_grad()
+        discriminator.zero_grad()
 
         loss.backward()
         vae.step()
-
-        if disc_enc_s is not None:
-            disc_enc_s.step()
+        if itr & ARGS.skip_disc_steps == 0:
+            discriminator.step()
 
         # Log losses
         total_loss_meter.update(loss.item())
@@ -129,7 +155,7 @@ def train(
         # Log images
         if itr % ARGS.log_freq == 0:
             with torch.set_grad_enabled(False):
-                log_recons(vae=vae, x=x, s_oh=s_oh, itr=itr)
+                log_recons(vae=vae, x_t=x_t, itr=itr)
 
     time_for_epoch = time.time() - start_epoch_time
     assert loss_meters is not None
@@ -145,24 +171,19 @@ def train(
     return itr
 
 
-def validate(vae: VAE, disc_enc_y, disc_enc_s, val_loader, itr: int, recon_loss_fn):
+def validate(vae: AutoEncoder, discriminator, val_loader, itr: int, recon_loss_fn):
     vae.eval()
     with torch.set_grad_enabled(False):
         loss_meter = AverageMeter()
-        for val_itr, (x_val, s_val, y_val) in enumerate(val_loader):
+        for val_itr, (x_val, _, _) in enumerate(val_loader):
 
-            x_val, s_val, y_val = to_device(x_val, s_val, y_val)
-            s_oh = None
-            if ARGS.cond_decoder:  # One-hot encode the sensitive attribute
-                s_oh = F.one_hot(s_val, num_classes=ARGS._s_dim)
+            x_val = to_device(x_val)
 
             _, logging_dict = compute_loss(
-                x=x_val,
-                s=s_val,
-                s_oh=s_oh,
+                x_p=x_val,
+                x_t=x_val,
                 vae=vae,
-                disc_enc_y=disc_enc_y,
-                disc_enc_s=disc_enc_s,
+                discriminator=discriminator,
                 recon_loss_fn=recon_loss_fn,
             )
 
@@ -170,8 +191,9 @@ def validate(vae: VAE, disc_enc_y, disc_enc_s, val_loader, itr: int, recon_loss_
 
             if val_itr == 0:
                 if ARGS.dataset in ("cmnist", "celeba", "ssrp", "genfaces"):
-                    log_recons(vae, x_val, s_oh=s_oh, itr=itr, prefix="test")
+                    log_recons(vae, x_val, itr=itr, prefix="test")
                 else:
+                    # TODO: the following is (most likely) completely wrong
                     z = vae(x_val[:1000])
                     _, recon_y, recon_s = vae.decode(z)
                     log_images(ARGS, x_val, "original_x", prefix="test", step=itr)
@@ -195,40 +217,25 @@ def to_device(*tensors):
     return tuple(moved)
 
 
-def log_recons(vae: VAE, x, s_oh: Optional[torch.Tensor], itr, prefix=None):
+def log_recons(vae: AutoEncoder, x_t: Tensor, itr, prefix=None):
     """Log reconstructed images"""
-    enc = vae.encode(x[:64], stochastic=False)
-    if s_oh is not None:
-        s_oh = s_oh[:64]
+    encoding = vae.encode(x_t[:64])
 
-    if ARGS.enc_s_dim > 0:
-        enc_y, enc_s = enc.split(split_size=(ARGS.enc_y_dim, ARGS.enc_s_dim), dim=1)
-        enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
-        enc_s_m = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1)
-    else:
-        enc_y_m = enc
-        enc_s_m = torch.zeros_like(enc)
-        if ARGS.cond_decoder:
-            if ARGS._s_dim == 2:
-                s_oh_flipped = 1 - s_oh
-            else:
-                s_oh_flipped = s_oh[torch.randperm(s_oh.size(0))]
-            recon_s_flipped = vae.reconstruct(enc, s_oh_flipped)
-            log_images(ARGS, recon_s_flipped, "reconstruction_y_flipped_s", step=itr)
-    recon_all = vae.reconstruct(enc, s=s_oh)
-    recon_y = vae.reconstruct(enc_y_m, s=torch.zeros_like(s_oh) if s_oh is not None else None)
-    recon_null = vae.reconstruct(
-        torch.zeros_like(enc), s=torch.zeros_like(s_oh) if s_oh is not None else None
-    )
-    recon_s = vae.reconstruct(enc_s_m, s=s_oh)
-    log_images(ARGS, x[:64], "original_x", step=itr, prefix=prefix)
+    # TODO: turn the following 4 lines into a single function; it's done quite often
+    # (it corresponds to decode(..., partials=True))
+    zs_m, zy_m = vae.random_mask(encoding)
+    recon_all = vae.decode(encoding)
+    recon_y = vae.decode(zs_m)
+    recon_s = vae.decode(zy_m)
+
+    log_images(ARGS, x_t[:64], "original_x", step=itr, prefix=prefix)
     log_images(ARGS, recon_all, "reconstruction_all", step=itr, prefix=prefix)
     log_images(ARGS, recon_y, "reconstruction_y", step=itr, prefix=prefix)
     log_images(ARGS, recon_s, "reconstruction_s", step=itr, prefix=prefix)
-    log_images(ARGS, recon_null, "reconstruction_null", step=itr, prefix=prefix)
+    # log_images(ARGS, recon_null, "reconstruction_null", step=itr, prefix=prefix)
 
 
-def main(raw_args: Optional[List[str]] = None) -> VAE:
+def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
     """Main function
 
     Args:
@@ -347,14 +354,23 @@ def main(raw_args: Optional[List[str]] = None) -> VAE:
     else:
         recon_loss_fn = recon_loss_fn_
 
-    vae = VAE(
-        encoder=encoder,
-        decoder=decoder,
-        kl_weight=ARGS.kl_weight,
-        optimizer_kwargs=optimizer_args,
-        decode_with_s=True,
-        feature_group_slices=feature_group_slices,
-    )
+    if not ARGS.stochastic:
+        vae = AutoEncoder(
+            encoder=encoder,
+            decoder=decoder,
+            decode_with_s=True,
+            feature_group_slices=feature_group_slices,
+            optimizer_kwargs=optimizer_args,
+        )
+    else:
+        vae = VAE(
+            encoder=encoder,
+            decoder=decoder,
+            kl_weight=ARGS.kl_weight,
+            decode_with_s=True,
+            feature_group_slices=feature_group_slices,
+            optimizer_kwargs=optimizer_args,
+        )
     vae.to(args._device)
 
     # Initialise Discriminator

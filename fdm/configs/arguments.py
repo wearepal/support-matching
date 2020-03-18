@@ -164,8 +164,8 @@ class VaeArgs(SharedArgs):
     # VAEsettings
     levels: int = 4
     level_depth: int = 2
-    enc_y_dim: int = 64
-    enc_s_dim: int = 0
+    zs_frac: float = 0.33
+    zy_frac: float = 0.33
     cond_decoder: bool = True
     init_channels: int = 32
     recon_loss: Literal["l1", "l2", "huber", "ce", "mixed"] = "l2"
@@ -185,3 +185,4 @@ class VaeArgs(SharedArgs):
     kl_weight: float = 0.1
     elbo_weight: float = 1
     pred_s_weight: float = 1
+    skip_disc_steps: int = 1

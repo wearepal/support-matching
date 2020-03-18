@@ -1,24 +1,27 @@
-from typing import NamedTuple, Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple, NamedTuple
 
 import torch
 import torch.distributions as td
 import torch.nn as nn
 import torch.nn.functional as F
-from tqdm import tqdm
+from torch import Tensor
 
 from fdm.utils import to_discrete
 from .base import ModelBase
 
-__all__ = ["VaeResults", "AutoEncoder", "VAE"]
+__all__ = ["AutoEncoder", "VAE"]
 
 
-class VaeResults(NamedTuple):
-    elbo: torch.Tensor
-    kl_div: torch.Tensor
-    enc_y: torch.Tensor
-    enc_s: torch.Tensor
-    recon: torch.Tensor
-    recon_loss: torch.Tensor
+class EncodingSize(NamedTuple):
+    zs: int
+    zy: int
+    zn: int
+
+
+class SplitEncoding(NamedTuple):
+    zs: Tensor
+    zy: Tensor
+    zn: Tensor
 
 
 class AutoEncoder(nn.Module):
@@ -26,7 +29,7 @@ class AutoEncoder(nn.Module):
         self,
         encoder: nn.Module,
         decoder: nn.Module,
-        decode_with_s: bool = False,
+        encoding_size: EncodingSize,
         feature_group_slices: Optional[Dict[str, List[slice]]] = None,
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
     ):
@@ -34,11 +37,14 @@ class AutoEncoder(nn.Module):
 
         self.encoder: ModelBase = ModelBase(encoder, optimizer_kwargs=optimizer_kwargs)
         self.decoder: ModelBase = ModelBase(decoder, optimizer_kwargs=optimizer_kwargs)
-        self.decode_with_s = decode_with_s
+        self.encoding_size = encoding_size
         self.feature_group_slices = feature_group_slices
 
-    def encode(self, inputs):
+    def encode(self, inputs: Tensor) -> Tensor:
         return self.encoder(inputs)
+
+    def encode_and_split(self, inputs: Tensor) -> SplitEncoding:
+        return self.split_encoding(self.encode(inputs))
 
     def reconstruct(self, encoding, s=None):
         decoding = self.decode(encoding, s)
@@ -53,13 +59,8 @@ class AutoEncoder(nn.Module):
 
         return decoding
 
-    def decode(self, encoding, s=None, discretize: bool = False):
-        decoder_input = encoding
-        if s is not None and self.decode_with_s:
-            if encoding.dim() == 4:
-                s = s.view(s.size(0), -1, 1, 1)
-                s = s.expand(-1, -1, decoder_input.size(-2), decoder_input.size(-1))
-            decoder_input = torch.cat([decoder_input, s.float()], dim=1)
+    def decode(self, z, discretize: bool = False):
+        decoder_input = z
         decoding = self.decoder(decoder_input)
 
         if discretize and self.feature_group_slices:
@@ -83,36 +84,17 @@ class AutoEncoder(nn.Module):
         self.encoder.step()
         self.decoder.step()
 
-    def routine(self, x, recon_loss_fn, s=None):
-        encoding = self.encoder(x)
-        decoding = self.decode(encoding, s=s)
-        loss = recon_loss_fn(decoding, x)
-        loss /= x.size(0)
+    def split_encoding(self, z: Tensor) -> SplitEncoding:
+        zs, zy, zn = z.split(
+            (self.encoding_size.zs, self.encoding_size.zy, self.encoding_size.zn), dim=1
+        )
+        return SplitEncoding(zs=zs, zy=zy, zn=zn)
 
-        return encoding, decoding, loss
-
-    def fit(self, train_data, epochs, device, loss_fn):
-
-        self.train()
-
-        with tqdm(total=epochs * len(train_data)) as pbar:
-            for epoch in range(epochs):
-
-                for x, s, _ in train_data:
-
-                    x = x.to(device)
-                    if self.decode_with_s:
-                        s = s.to(device)
-
-                    self.zero_grad()
-                    _, _, loss = self.routine(x, recon_loss_fn=loss_fn, s=s)
-                    loss /= x[0].nelement()
-
-                    loss.backward()
-                    self.step()
-
-                    pbar.update()
-                    pbar.set_postfix(AE_loss=loss.detach().cpu().numpy())
+    def random_mask(self, z: Tensor) -> Tuple[Tensor, Tensor]:
+        zs, zy, zn = self.split_encoding(z)
+        zs_m = torch.cat([torch.randn_like(zs), zy, zn], dim=1)
+        zy_m = torch.cat([zs, torch.randn_like(zy), zn], dim=1)
+        return zs_m, zy_m
 
 
 class VAE(AutoEncoder):
@@ -120,15 +102,15 @@ class VAE(AutoEncoder):
         self,
         encoder: nn.Module,
         decoder: nn.Module,
+        encoding_size: EncodingSize,
         kl_weight: float = 0.1,
-        decode_with_s: bool = False,
         feature_group_slices: Optional[Dict[str, List[slice]]] = None,
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(
             encoder=encoder,
             decoder=decoder,
-            decode_with_s=decode_with_s,
+            encoding_size=encoding_size,
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_kwargs,
         )
@@ -160,81 +142,3 @@ class VAE(AutoEncoder):
             return sample, posterior
         else:
             return sample
-
-    def routine(self, x, recon_loss_fn, s=None):
-        sample, posterior = self.encode(x, stochastic=True, return_posterior=True)
-        kl = self.compute_divergence(sample, posterior)
-
-        decoder_input = sample
-        recon = self.decode(decoder_input, s)
-        recon_loss = recon_loss_fn(recon, s)
-
-        # denom = x.nelement()
-        denom = x.size(0)
-        recon_loss /= denom
-        kl /= denom
-
-        loss = recon_loss + self.kl_weight * kl
-
-        return sample, recon, loss
-
-    def fit(self, train_data, epochs, device, loss_fn):
-
-        self.train()
-
-        with tqdm(total=epochs * len(train_data)) as pbar:
-            for epoch in range(epochs):
-
-                for x, s, _ in train_data:
-
-                    x = x.to(device)
-                    if self.decode_with_s:
-                        s = s.to(device)
-
-                    self.zero_grad()
-                    _, _, loss = self.routine(x, recon_loss_fn=loss_fn, s=s)
-                    loss.backward()
-                    self.step()
-
-                    pbar.update()
-                    pbar.set_postfix(AE_loss=loss.detach().cpu().numpy())
-
-    def standalone_routine(
-        self,
-        x: torch.Tensor,
-        s_oh: Optional[torch.Tensor],
-        recon_loss_fn,
-        stochastic: bool,
-        enc_y_dim: int,
-        enc_s_dim: int,
-    ) -> VaeResults:
-        """Compute ELBO"""
-
-        # Encode the data
-        if stochastic:
-            encoding, posterior = self.encode(x, stochastic=True, return_posterior=True)
-            kl_div = self.compute_divergence(encoding, posterior)
-        else:
-            encoding = self.encode(x, stochastic=False, return_posterior=False)
-            kl_div = x.new_zeros(())
-
-        if enc_s_dim > 0:
-            enc_y, enc_s = encoding.split(split_size=(enc_y_dim, enc_s_dim), dim=1)
-            decoder_input = torch.cat([enc_y, enc_s.detach()], dim=1)
-        else:
-            enc_y = encoding
-            enc_s = None
-            decoder_input = encoding
-
-        recon = self.decode(decoder_input, s_oh)
-
-        # Compute losses
-        recon_loss = recon_loss_fn(recon, x)
-
-        recon_loss /= x.size(0)
-        kl_div /= x.size(0)
-
-        elbo = recon_loss + self.kl_weight * kl_div
-        return VaeResults(
-            elbo=elbo, enc_y=enc_y, enc_s=enc_s, recon=recon, kl_div=kl_div, recon_loss=recon_loss
-        )
