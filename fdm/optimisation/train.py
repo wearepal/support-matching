@@ -33,7 +33,6 @@ from .utils import get_data_dim, log_images, restore_model, save_model
 
 __all__ = ["main"]
 
-NDECS = 0
 ARGS: VaeArgs = None
 LOGGER: Logger = None
 INPUT_SHAPE: Tuple[int, ...] = ()
