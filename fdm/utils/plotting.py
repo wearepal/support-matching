@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from fdm.configs import SharedArgs
+from fdm.configs import BaseArgs
 
 from .utils import wandb_log
 
@@ -42,7 +42,7 @@ def plot_contrastive(original, recon, columns, filename):
 
 
 def plot_histogram(
-    args: SharedArgs,
+    args: BaseArgs,
     vector: torch.Tensor,
     step: int,
     prefix: str = "train",

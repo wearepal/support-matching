@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any, List, Tuple, NamedTuple
+from typing import Any, Dict, List, Literal, NamedTuple, Optional, Tuple, Union, overload
 
 import torch
 import torch.distributions as td
@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from fdm.utils import to_discrete
+
 from .base import ModelBase
 
 __all__ = ["AutoEncoder", "VAE", "EncodingSize", "SplitEncoding", "Reconstructions"]
@@ -66,8 +67,7 @@ class AutoEncoder(nn.Module):
         return decoding
 
     def decode(self, z, discretize: bool = False):
-        decoder_input = z
-        decoding = self.decoder(decoder_input)
+        decoding = self.decoder(z)
 
         if discretize and self.feature_group_slices:
             for group_slice in self.feature_group_slices["discrete"]:
@@ -75,6 +75,11 @@ class AutoEncoder(nn.Module):
                 decoding[:, group_slice] = one_hot
 
         return decoding
+
+    def generate_recon_rand_s(self, inputs: Tensor) -> Tensor:
+        zs, zy, zn = self.encode_and_split(inputs)
+        zs_m = torch.cat([torch.randn_like(zs), zy, zn], dim=1)
+        return self.decode(zs_m)
 
     def decode_and_mask(self, z: Tensor, discretize: bool = False) -> Reconstructions:
         zs_m, zy_m = self.random_mask(z)
@@ -116,7 +121,6 @@ class VAE(AutoEncoder):
         encoder: nn.Module,
         decoder: nn.Module,
         encoding_size: EncodingSize,
-        kl_weight: float = 0.1,
         feature_group_slices: Optional[Dict[str, List[slice]]] = None,
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
     ):
@@ -132,9 +136,8 @@ class VAE(AutoEncoder):
 
         self.prior = td.Normal(0, 1)
         self.posterior_fn = td.Normal
-        self.kl_weight = kl_weight
 
-    def compute_divergence(self, sample, posterior: td.Distribution):
+    def compute_divergence(self, sample: Tensor, posterior: td.Distribution) -> float:
         log_p = self.prior.log_prob(sample)
         log_q = posterior.log_prob(sample)
 
@@ -142,13 +145,28 @@ class VAE(AutoEncoder):
 
         return kl
 
-    def encode(self, x, stochastic=False, return_posterior=False):
+    @overload
+    def encode(
+        self, x: Tensor, stochastic: bool, return_posterior: Literal[True]
+    ) -> Tuple[Tensor, td.Distribution]:
+        ...
+
+    @overload
+    def encode(self, x: Tensor, stochastic: bool, return_posterior: Literal[False]) -> Tensor:
+        ...
+
+    @overload
+    def encode(
+        self, x: Tensor, stochastic: bool, return_posterior: bool
+    ) -> Union[Tuple[Tensor, td.Distribution], Tensor]:
+        ...
+
+    def encode(self, x, stochastic=True, return_posterior: bool = False):
         loc, scale = self.encoder(x).chunk(2, dim=1)
 
         if stochastic or return_posterior:
             scale = F.softplus(scale)
             posterior = self.posterior_fn(loc, scale)
-
         sample = posterior.rsample() if stochastic else loc
 
         if return_posterior:

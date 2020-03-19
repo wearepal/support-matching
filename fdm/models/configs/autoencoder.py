@@ -34,10 +34,9 @@ def conv_autoencoder(
     levels: int,
     encoding_dim,
     decoding_dim,
-    vae,
+    variational,
     level_depth: int = 2,
 ):
-    assert level_depth in (2, 3), "only level depth 2 and 3 are supported right now"
     encoder: List[nn.Module] = []
     decoder: List[nn.Module] = []
     c_in, h, w = input_shape
@@ -49,13 +48,9 @@ def conv_autoencoder(
             c_out *= 2
 
         encoder += [gated_conv(c_in, c_out, kernel_size=3, stride=1, padding=1)]
-        if level_depth == 3:
-            encoder += [gated_conv(c_out, c_out, kernel_size=3, stride=1, padding=1)]
         encoder += [gated_conv(c_out, c_out, kernel_size=4, stride=2, padding=1)]
 
         decoder += [gated_conv(c_out, c_in, kernel_size=3, stride=1, padding=1)]
-        if level_depth == 3:
-            decoder += [gated_conv(c_out, c_out, kernel_size=3, stride=1, padding=1)]
         decoder += [
             gated_up_conv(c_out, c_out, kernel_size=4, stride=2, padding=1, output_padding=0)
         ]
@@ -63,7 +58,7 @@ def conv_autoencoder(
         h //= 2
         w //= 2
 
-    encoder_out_dim = 2 * encoding_dim if vae else encoding_dim
+    encoder_out_dim = 2 * encoding_dim if variational else encoding_dim
 
     encoder += [nn.Conv2d(c_out, encoder_out_dim, kernel_size=1, stride=1, padding=0)]
     decoder += [nn.Conv2d(encoding_dim, c_out, kernel_size=1, stride=1, padding=0)]
@@ -87,7 +82,7 @@ def fc_autoencoder(
     hidden_channels: int,
     levels: int,
     encoding_dim: int,
-    vae: bool,
+    variational: bool,
 ) -> Tuple[nn.Sequential, nn.Sequential, Tuple[int, ...]]:
     encoder = []
     decoder = []
@@ -100,9 +95,9 @@ def fc_autoencoder(
         decoder += [_linear_block(c_out, c_in)]
         c_in = c_out
 
-    encoder_out_dim = 2 * encoding_dim if vae else encoding_dim
+    encoder_out_dim = 2 * encoding_dim if variational else encoding_dim
 
-    encoder += [_linear_block(c_out, encoder_out_dim)]
+    encoder += [_linear_block(c_in, encoder_out_dim)]
     decoder += [_linear_block(encoding_dim, c_out)]
     decoder = decoder[::-1]
 

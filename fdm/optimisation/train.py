@@ -1,35 +1,35 @@
 """Main training file"""
 import time
+from itertools import islice
 from logging import Logger
 from pathlib import Path
-from typing import Callable, Dict, Optional, Tuple, List, cast
-from itertools import islice
+from typing import Callable, Dict, List, Optional, Tuple, Union, cast
 
 import git
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
-from torch import Tensor
-
 import wandb
+from torch import Tensor
+from torch.utils.data import DataLoader
+
 from fdm.configs import VaeArgs
 from fdm.data import DatasetTriplet, load_dataset
-from fdm.models import VAE, build_discriminator, AutoEncoder, Classifier, EncodingSize
-from fdm.models.configs import conv_autoencoder, fc_autoencoder, linear_disciminator
+from fdm.models import VAE, AutoEncoder, Classifier, EncodingSize, build_discriminator
+from fdm.models.configs import conv_autoencoder, fc_autoencoder, fc_net, mp_32x32_net, mp_64x64_net
 from fdm.utils import (
     AverageMeter,
     count_parameters,
     get_logger,
+    inf_generator,
     random_seed,
     readable_duration,
     wandb_log,
-    inf_generator,
 )
 
 from .evaluation import log_metrics
-from .loss import PixelCrossEntropy, VGGLoss, grad_reverse, MixedLoss
-from .utils import get_data_dim, log_images, save_model, restore_model
+from .loss import MixedLoss, PixelCrossEntropy, VGGLoss
+from .utils import get_data_dim, log_images, restore_model, save_model
 
 __all__ = ["main"]
 
@@ -40,72 +40,93 @@ INPUT_SHAPE: Tuple[int, ...] = ()
 
 
 def compute_loss(
-    x_p: Tensor, x_t: Tensor, vae: AutoEncoder, discriminator: Classifier, recon_loss_fn
+    x_c: Tensor, x_t: Tensor, generator: AutoEncoder, discriminator: Classifier, recon_loss_fn
 ) -> Tuple[Tensor, Dict[str, float]]:
     """Compute all losses.
 
     Args:
-        x_p: x from pre-training set
-        x_t: x from training set
+        x_c: x from the context set
+        x_t: x from the training set
     """
-    # Encode the data
-    if ARGS.stochastic:
-        vae = cast(VAE, vae)
-        encoding, posterior = vae.encode(x_t, stochastic=True, return_posterior=True)
-        kl_div = vae.compute_divergence(encoding, posterior)
-    else:
-        encoding = vae.encode(x_t)
-        kl_div = x_t.new_zeros(())
-
-    recon = vae.decode_and_mask(encoding)
-    recon_rand_s = grad_reverse(recon.rand_s)
-
-    # Compute losses
-    recon_loss = recon_loss_fn(recon.all, x_t)
-
-    recon_loss /= x_t.size(0)
-    kl_div /= x_t.size(0)
-
-    elbo = recon_loss + ARGS.kl_weight * kl_div
-
-    # Discriminators for z
-    disc_loss_true, disc_acc_true = discriminator.routine(x_p, x_p.new_ones((x_p.size(0),)))
+    # Train the discriminator for a number of iterations
+    generator.eval()
+    discriminator.train()
 
     x_t_batch = (x_t.size(0),)
-    disc_loss_rand_s, disc_acc_s = discriminator.routine(recon_rand_s, x_t.new_zeros(x_t_batch))
-    disc_loss = disc_loss_rand_s + disc_loss_true
-    if ARGS.three_way_split:
-        recon_rand_y = grad_reverse(recon.rand_y)
-        disc_loss_rand_y, disc_acc_y = discriminator.routine(recon_rand_y, x_t.new_zeros(x_t_batch))
-        disc_loss += disc_loss_rand_y
+    ones = x_c.new_ones((x_c.size(0),))
+    zeros = x_t.new_zeros(x_t_batch)
+
+    for _ in range(ARGS.num_disc_updates):
+        recon_rand_s_sg = generator.generate_recon_rand_s(x_t).detach()
+        disc_loss_true, disc_acc_true = discriminator.routine(x_c, ones)
+        disc_loss_rand_s, disc_acc_s = discriminator.routine(recon_rand_s_sg, zeros)
+        disc_loss = disc_loss_true + disc_loss_rand_s
+        discriminator.zero_grad()
+        disc_loss.backward()
+        discriminator.step()
+
+    # Compute losses for the generator.
+    discriminator.eval()
+    generator.train()
+
+    if ARGS.vae:
+        generator = cast(VAE, generator)
+        encoding, posterior = generator.encode(x_t, stochastic=True, return_posterior=True)
+        kl_div = generator.compute_divergence(encoding, posterior)
+        kl_div /= x_t.size(0)
+        kl_div *= ARGS.kl_weight
+    else:
+        encoding = generator.encode(x_t)
+        kl_div = x_t.new_zeros(())
+
+    zs_m, zy_m = generator.random_mask(encoding)
+    recon_all = generator.decode(encoding)
+    recon_rand_s = generator.decode(zs_m)
+
+    disc_loss_rand_s, disc_acc_s = discriminator.routine(recon_rand_s, zeros)
+    # if ARGS.three_way_split:
+    #     recon_rand_y = grad_reverse(recon.rand_y)
+    #     disc_loss_rand_y, disc_acc_y = discriminator.routine(recon_rand_y, x_t.new_zeros(x_t_batch))
+    #     disc_loss += disc_loss_rand_y
+
+    recon_loss = recon_loss_fn(recon_all, x_t)
+    recon_loss /= x_t.size(0)
+    elbo = recon_loss + kl_div
 
     elbo *= ARGS.elbo_weight
-    disc_loss *= ARGS.pred_s_weight
+    disc_loss_rand_s *= ARGS.pred_s_weight
 
-    loss = elbo + disc_loss
+    gen_loss = elbo - disc_loss_rand_s
+
+    # Update the generator's parameters
+    generator.zero_grad()
+    gen_loss.backward()
+    generator.step()
+
     logging_dict = {
         "ELBO": elbo.item(),
-        "Loss Adversarial": disc_loss.item(),
+        "Loss Adversarial": disc_loss_rand_s.item(),
         "Accuracy Disc (rand s)": disc_acc_s,
         "Accuracy Disc (true)": disc_acc_true,
         "KL divergence": kl_div.item(),
         "Loss Reconstruction": recon_loss.item(),
         "Loss Validation": (elbo - disc_loss).item(),
     }
-    if ARGS.three_way_split:
-        logging_dict["Accuracy Disc (rand y)"] = disc_acc_y,
-    return loss, logging_dict
+    # if ARGS.three_way_split:
+    #     logging_dict["Accuracy Disc (rand y)"] = disc_acc_y,
+
+    return gen_loss, logging_dict
 
 
 def train(
-    vae: AutoEncoder,
+    generator: AutoEncoder,
     discriminator: Classifier,
-    pretrain_data: DataLoader,
-    task_train_data: DataLoader,
+    context_data: DataLoader,
+    train_data: DataLoader,
     epoch: int,
     recon_loss_fn,
 ) -> int:
-    vae.train()
+    generator.train()
 
     total_loss_meter = AverageMeter()
     loss_meters: Optional[Dict[str, AverageMeter]] = None
@@ -113,34 +134,25 @@ def train(
     time_meter = AverageMeter()
     start_epoch_time = time.time()
     end = start_epoch_time
-    epoch_len = max(len(pretrain_data), len(task_train_data))
+    epoch_len = max(len(context_data), len(train_data))
     itr = start_itr = (epoch - 1) * epoch_len
-    data_iterator = islice(
-        zip(inf_generator(pretrain_data), inf_generator(task_train_data)), epoch_len
-    )
+    #  FIXME: Should move from epoch- to iteration-based training.
+    data_iterator = islice(zip(inf_generator(context_data), inf_generator(train_data)), epoch_len)
 
-    for itr, ((x_p, _, _), (x_t, _, _)) in enumerate(data_iterator, start=start_itr):
+    for itr, ((x_c, _, _), (x_t, _, _)) in enumerate(data_iterator, start=start_itr):
 
-        x_p, x_t = to_device(x_p, x_t)
+        x_c, x_t = to_device(x_c, x_t)
 
-        loss, logging_dict = compute_loss(
-            x_p=x_p,
+        gen_loss, logging_dict = compute_loss(
+            x_c=x_c,
             x_t=x_t,
-            vae=vae,
+            generator=generator,
             discriminator=discriminator,
             recon_loss_fn=recon_loss_fn,
         )
 
-        vae.zero_grad()
-        discriminator.zero_grad()
-
-        loss.backward()
-        vae.step()
-        if itr & ARGS.skip_disc_steps == 0:
-            discriminator.step()
-
         # Log losses
-        total_loss_meter.update(loss.item())
+        total_loss_meter.update(gen_loss.item())
         if loss_meters is None:
             loss_meters = {name: AverageMeter() for name in logging_dict}
         for name, value in logging_dict.items():
@@ -155,7 +167,7 @@ def train(
         # Log images
         if itr % ARGS.log_freq == 0:
             with torch.set_grad_enabled(False):
-                log_recons(vae=vae, x_t=x_t, itr=itr)
+                log_recons(generator=generator, x_t=x_t, itr=itr)
 
     time_for_epoch = time.time() - start_epoch_time
     assert loss_meters is not None
@@ -171,38 +183,7 @@ def train(
     return itr
 
 
-def validate(vae: AutoEncoder, discriminator, val_loader, itr: int, recon_loss_fn):
-    vae.eval()
-    with torch.set_grad_enabled(False):
-        loss_meter = AverageMeter()
-        for val_itr, (x_val, _, _) in enumerate(val_loader):
-
-            x_val = to_device(x_val)
-
-            _, logging_dict = compute_loss(
-                x_p=x_val,
-                x_t=x_val,
-                vae=vae,
-                discriminator=discriminator,
-                recon_loss_fn=recon_loss_fn,
-            )
-
-            loss_meter.update(logging_dict["Loss Validation"], n=x_val.size(0))
-
-            if val_itr == 0:
-                log_recons(vae, x_val, itr=itr, prefix="test")
-                if ARGS.dataset in ("adult",):
-                    x_recon = vae.decode(vae.encode(x_val), discretize=False)
-                    x_diff = (x_recon - x_val).abs().mean().item()
-                    print(f"MAE of x and reconstructed x: {x_diff}")
-                    wandb_log(ARGS, {"reconstruction MAE": x_diff}, step=itr)
-
-        wandb_log(ARGS, {"Loss": loss_meter.avg}, step=itr)
-
-    return loss_meter.avg
-
-
-def to_device(*tensors):
+def to_device(*tensors: Tensor) -> Union[Tensor, Tuple[Tensor]]:
     """Place tensors on the correct device and set type to float32"""
     moved = [tensor.to(ARGS._device, non_blocking=True) for tensor in tensors]
     if len(moved) == 1:
@@ -210,11 +191,11 @@ def to_device(*tensors):
     return tuple(moved)
 
 
-def log_recons(vae: AutoEncoder, x_t: Tensor, itr, prefix=None):
+def log_recons(generator: AutoEncoder, x_t: Tensor, itr, prefix=None):
     """Log reconstructed images"""
-    encoding = vae.encode(x_t[:64])
+    encoding = generator.encode(x_t[:64])
 
-    recon = vae.decode_and_mask(encoding, discretize=True)
+    recon = generator.decode_and_mask(encoding, discretize=True)
 
     log_images(ARGS, x_t[:64], "original_x", step=itr, prefix=prefix)
     log_images(ARGS, recon.all, "reconstruction_all", step=itr, prefix=prefix)
@@ -231,7 +212,7 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
         datasets: a Dataset object
 
     Returns:
-        the trained model
+        the trained generator
     """
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha
@@ -263,28 +244,28 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
 
     # ==== construct dataset ====
     LOGGER.info(
-        "Size of pretrain: {}, task_train: {}, task: {}",
-        len(datasets.pretrain),
-        len(datasets.task_train),
-        len(datasets.task),
+        "Size of context-set: {}, training-set: {}, test-set: {}",
+        len(datasets.context),
+        len(datasets.train),
+        len(datasets.test),
     )
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
-    pretrain_loader = DataLoader(
-        datasets.pretrain,
+    context_loader = DataLoader(
+        datasets.context,
         shuffle=True,
         batch_size=ARGS.batch_size,
         num_workers=ARGS.num_workers,
         pin_memory=True,
     )
-    task_train_loader = DataLoader(
-        datasets.task_train,
+    train_loader = DataLoader(
+        datasets.train,
         shuffle=True,
         batch_size=ARGS.batch_size,
         num_workers=ARGS.num_workers,
         pin_memory=True,
     )
-    # task_loader = DataLoader(
-    #     datasets.task,
+    # tesr_loader = DataLoader(
+    #     datasets.test,
     #     shuffle=False,
     #     batch_size=ARGS.test_batch_size,
     #     num_workers=ARGS.num_workers,
@@ -292,11 +273,11 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
     # )
 
     # ==== construct networks ====
-    INPUT_SHAPE = get_data_dim(pretrain_loader)
+    INPUT_SHAPE = get_data_dim(context_loader)
     is_image_data = len(INPUT_SHAPE) > 2
 
     optimizer_args = {"lr": args.lr, "weight_decay": args.weight_decay}
-    feature_group_slices = getattr(datasets.pretrain, "feature_group_slices", None)
+    feature_group_slices = getattr(datasets.context, "feature_group_slices", None)
 
     if is_image_data:
         decoding_dim = INPUT_SHAPE[0] * 256 if args.recon_loss == "ce" else INPUT_SHAPE[0]
@@ -306,7 +287,7 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
             encoding_dim=ARGS.enc_dim,
             decoding_dim=decoding_dim,
             levels=ARGS.levels,
-            vae=ARGS.vae,
+            variational=ARGS.vae,
             level_depth=ARGS.level_depth,
         )
     else:
@@ -315,10 +296,11 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
             ARGS.init_channels,
             encoding_dim=ARGS.enc_dim,
             levels=ARGS.levels,
-            vae=ARGS.vae,
+            variational=ARGS.vae,
         )
     zs_dim = round(ARGS.zs_frac * enc_shape[0])
-    zy_dim = round(ARGS.zy_frac * enc_shape[0]) if ARGS.three_way_split else 0
+    zy_dim = 0
+    # zy_dim = round(ARGS.zy_frac * enc_shape[0]) if ARGS.three_way_split else 0
     zn_dim = enc_shape[0] - zs_dim - zy_dim
     encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim, zn=zn_dim)
     LOGGER.info("Encoding shape: {}, {}", enc_shape, encoding_size)
@@ -333,10 +315,10 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
     elif ARGS.recon_loss == "ce":
         recon_loss_fn_ = PixelCrossEntropy(reduction="sum")
     elif ARGS.recon_loss == "mixed":
-        assert feature_group_slices is not None, "can only do multi loss with feature groups"
+        assert feature_group_slices is not None, "can only do multi gen_loss with feature groups"
         recon_loss_fn_ = MixedLoss(feature_group_slices, reduction="sum")
     else:
-        raise ValueError(f"{ARGS.recon_loss} is an invalid reconstruction loss")
+        raise ValueError(f"{ARGS.recon_loss} is an invalid reconstruction gen_loss")
 
     recon_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
     if ARGS.vgg_weight != 0:
@@ -349,8 +331,8 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
     else:
         recon_loss_fn = recon_loss_fn_
 
-    if not ARGS.stochastic:
-        vae = AutoEncoder(
+    if ARGS.vae:
+        generator = VAE(
             encoder=encoder,
             decoder=decoder,
             encoding_size=encoding_size,
@@ -358,26 +340,27 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
             optimizer_kwargs=optimizer_args,
         )
     else:
-        vae = VAE(
+        generator = AutoEncoder(
             encoder=encoder,
             decoder=decoder,
-            kl_weight=ARGS.kl_weight,
             encoding_size=encoding_size,
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_args,
         )
-    vae.to(args._device)
+    generator.to(args._device)
 
     # Initialise Discriminator
-    disc_fn = linear_disciminator
-
     disc_optimizer_kwargs = {"lr": args.disc_lr}
-
-    disc_kwargs = {
-        "hidden_channels": ARGS.disc_enc_y_channels,
-        "num_blocks": ARGS.disc_enc_y_depth,
-        "use_bn": True,
-    }
+    disc_kwargs = {}
+    # FIXME: Architectures need to be GAN specific (e.g. incorporate spectral norm)
+    if is_image_data:
+        if args.dataset == "cmnist":
+            disc_fn = mp_32x32_net
+        else:
+            disc_fn = mp_64x64_net
+    else:
+        disc_fn = fc_net
+        disc_kwargs["hidden_dims"] = args.disc_hidden_dims
 
     discriminator = build_discriminator(
         input_shape=INPUT_SHAPE,
@@ -391,54 +374,56 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
     start_epoch = 1  # start at 1 so that the val_freq works correctly
     # Resume from checkpoint
     if ARGS.resume is not None:
-        LOGGER.info("Restoring model from checkpoint")
-        vae, start_epoch = restore_model(ARGS, Path(ARGS.resume), vae)
+        LOGGER.info("Restoring generator from checkpoint")
+        generator, start_epoch = restore_model(ARGS, Path(ARGS.resume), generator)
         if ARGS.evaluate:
-            log_metrics(ARGS, model=vae, data=datasets, save_to_csv=Path(ARGS.save_dir), step=0)
-            return vae
+            log_metrics(
+                ARGS, generator=generator, data=datasets, save_to_csv=Path(ARGS.save_dir), step=0
+            )
+            return generator
 
     # Logging
-    # wandb.set_model_graph(str(vae))
-    LOGGER.info("Number of trainable parameters: {}", count_parameters(vae))
+    # wandb.set_model_graph(str(generator))
+    LOGGER.info("Number of trainable parameters: {}", count_parameters(generator))
 
-    best_loss = float("inf")
+    # best_loss = float("inf")
     n_vals_without_improvement = 0
     super_val_freq = ARGS.super_val_freq or ARGS.val_freq
 
     itr = 0
-    # Train vae for N epochs
+    # Train generator for N epochs
     for epoch in range(start_epoch, start_epoch + ARGS.epochs):
         if n_vals_without_improvement > ARGS.early_stopping > 0:
             break
 
-        itr = train(vae, discriminator, pretrain_loader, task_train_loader, epoch, recon_loss_fn)
+        itr = train(generator, discriminator, context_loader, train_loader, epoch, recon_loss_fn)
 
-        if epoch % ARGS.val_freq == 0:
-            val_loss = validate(vae, discriminator, task_train_loader, itr, recon_loss_fn)
+        # if epoch % ARGS.val_freq == 0:
+        #     val_loss = validate(generator, discriminator, train_loader, itr, recon_loss_fn)
 
-            if val_loss < best_loss:
-                best_loss = val_loss
-                save_model(args, save_dir, vae, epoch=epoch, sha=sha, best=True)
-                n_vals_without_improvement = 0
-            else:
-                n_vals_without_improvement += 1
+        #     if val_loss < best_loss:
+        #         best_loss = val_loss
+        #         save_model(args, save_dir, generator, epoch=epoch, sha=sha, best=True)
+        #         n_vals_without_improvement = 0
+        #     else:
+        #         n_vals_without_improvement += 1
 
-            LOGGER.info(
-                "[VAL] Epoch {:04d} | Val Loss {:.6f} | "
-                "No improvement during validation: {:02d}",
-                epoch,
-                val_loss,
-                n_vals_without_improvement,
-            )
+        #     LOGGER.info(
+        #         "[VAL] Epoch {:04d} | Val Loss {:.6f} | "
+        #         "No improvement during validation: {:02d}",
+        #         epoch,
+        #         val_loss,
+        #         n_vals_without_improvement,
+        #     )
         if ARGS.super_val and epoch % super_val_freq == 0:
-            log_metrics(ARGS, model=vae, data=datasets, step=itr)
-            save_model(args, save_dir, vae=vae, epoch=epoch, sha=sha)
+            log_metrics(ARGS, generator=generator, data=datasets, step=itr)
+            save_model(args, save_dir, generator=generator, epoch=epoch, sha=sha)
 
     LOGGER.info("Training has finished.")
-    path = save_model(args, save_dir, vae=vae, epoch=epoch, sha=sha)
-    vae, _ = restore_model(args, path, vae=vae)
-    log_metrics(ARGS, model=vae, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr)
-    return vae
+    path = save_model(args, save_dir, generator=generator, epoch=epoch, sha=sha)
+    generator, _ = restore_model(args, path, generator=generator)
+    log_metrics(ARGS, generator=generator, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr)
+    return generator
 
 
 if __name__ == "__main__":

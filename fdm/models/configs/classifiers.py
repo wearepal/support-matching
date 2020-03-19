@@ -1,14 +1,14 @@
-from typing import Union, Protocol
+from typing import Protocol, Union
 
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import resnet50
 
-from fdm.layers.resnet import ResidualNet
+from fdm.models.resnet import ResidualNet
 
 __all__ = [
-    "linear_disciminator",
+    "linear_resnet",
     "mp_28x28_net",
     "mp_32x32_net",
     "mp_64x64_net",
@@ -24,16 +24,7 @@ class ModelFn(Protocol):
         ...
 
 
-class GlobalAvgPool(nn.Module):
-    def __init__(self, keepdim=True):
-        super().__init__()
-        self.keepdim = keepdim
-
-    def forward(self, x):
-        return x.flatten(start_dim=1).mean(dim=1, keepdim=self.keepdim)
-
-
-def linear_disciminator(in_dim, target_dim, hidden_channels=512, num_blocks=4, use_bn=False):
+def linear_resnet(in_dim, target_dim, hidden_channels=512, num_blocks=4, use_bn=False):
 
     act = F.relu if use_bn else F.selu
     layers = [
@@ -84,9 +75,9 @@ def mp_64x64_net(input_dim, target_dim, use_bn=True):
     return nn.Sequential(*layers)
 
 
-def resnet_50_ft(input_dim, target_dim, freeze=True, pretrained=True):
-    net = resnet50(pretrained=pretrained)
-    # net = resnet18(pretrained=pretrained)
+def resnet_50_ft(input_dim, target_dim, freeze=True, contexted=True):
+    net = resnet50(contexted=contexted)
+    # net = resnet18(contexted=contexted)
     if freeze:
         for param in net.parameters():
             param.requires_grad = False
@@ -110,39 +101,6 @@ def mp_32x32_net(input_dim: int, target_dim: int, use_bn: bool = True):
 
     layers = []
     layers.extend(conv_block(input_dim, 64, 5, 1, 0))
-    layers += [nn.MaxPool2d(2, 2)]
-
-    layers.extend(conv_block(64, 128, 3, 1, 1))
-    layers += [nn.MaxPool2d(2, 2)]
-
-    layers.extend(conv_block(128, 256, 3, 1, 1))
-    layers += [nn.MaxPool2d(2, 2)]
-
-    layers.extend(conv_block(256, 512, 3, 1, 1))
-    layers += [nn.MaxPool2d(2, 2)]
-
-    layers += [nn.Flatten()]
-    layers += [nn.Linear(512, target_dim)]
-
-    return nn.Sequential(*layers)
-
-
-def mp_64x64_net(input_dim, target_dim, use_bn=True):
-    def conv_block(in_dim, out_dim, kernel_size, stride, padding):
-        _block = []
-        _block += [
-            nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size, stride=stride, padding=padding)
-        ]
-        if use_bn:
-            _block += [nn.BatchNorm2d(out_dim)]
-        _block += [nn.LeakyReLU()]
-        return _block
-
-    layers = []
-    layers.extend(conv_block(input_dim, 32, 5, 1, 0))
-    layers += [nn.MaxPool2d(2, 2)]
-
-    layers.extend(conv_block(32, 64, 3, 1, 1))
     layers += [nn.MaxPool2d(2, 2)]
 
     layers.extend(conv_block(64, 128, 3, 1, 1))

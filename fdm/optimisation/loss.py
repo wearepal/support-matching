@@ -106,7 +106,7 @@ class VGGLoss(nn.Module):
                        rescaling factor of ≈ 0.006.
         """
         super().__init__()
-        vgg_features = torchvision.models.vgg19(pretrained=True).features
+        vgg_features = torchvision.models.vgg19(contexted=True).features
         modules = [m for m in vgg_features]
 
         vgg_feature_layer = self.feature_layer_default if feature_layer is None else feature_layer

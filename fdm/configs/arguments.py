@@ -2,12 +2,12 @@ import argparse
 
 import torch
 
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 from ethicml.data import GenfacesAttributes
 
 from tap import Tap
 
-__all__ = ["VaeArgs", "SharedArgs", "CELEBATTRS"]
+__all__ = ["VaeArgs", "BaseArgs", "CELEBATTRS"]
 
 CELEBATTRS = Literal[
     "5_o_Clock_Shadow",
@@ -62,14 +62,14 @@ class StoreDictKeyPair(argparse.Action):
         setattr(namespace, self.dest, my_dict)
 
 
-class SharedArgs(Tap):
+class BaseArgs(Tap):
     # General data set settings
 
     dataset: Literal["adult", "cmnist", "celeba", "ssrp", "genfaces"] = "cmnist"
 
     data_pcnt: float = 1.0  # data pcnt should be a real value > 0, and up to 1
-    task_mixing_factor: float = 0.0  # How much of meta train should be mixed into task train?
-    pretrain_pcnt: float = 0.4
+    mixing_factor: float = 0.0  # How much of meta train should be mixed into task train?
+    context_pcnt: float = 0.4
     test_pcnt: float = 0.2
 
     # Adult data set feature settings
@@ -152,7 +152,7 @@ class SharedArgs(Tap):
             raise ValueError("frequency cannot be negative")
 
 
-class VaeArgs(SharedArgs):
+class VaeArgs(BaseArgs):
     # VAEsettings
     levels: int = 4
     level_depth: int = 2
@@ -160,17 +160,14 @@ class VaeArgs(SharedArgs):
     zy_frac: float = 0.33
     enc_dim: int = 64
     init_channels: int = 32
-    recon_loss: Literal["l1", "l2", "huber", "ce", "mixed"] = "l2"
-    stochastic: bool = False
+    recon_loss: Optional[Literal["l1", "l2", "huber", "ce", "mixed"]] = None
+    stochastic: bool = True
     vgg_weight: float = 0
-    vae: bool = False
+    vae: bool = True
     three_way_split: bool = False
 
     # Discriminator settings
-    disc_enc_y_depth: int = 1
-    disc_enc_y_channels: int = 256
-    disc_enc_s_depth: int = 1
-    disc_enc_s_channels: int = 128
+    disc_hidden_dims: List[int] = [256]
 
     # Training settings
     lr: float = 1e-3
@@ -178,8 +175,13 @@ class VaeArgs(SharedArgs):
     kl_weight: float = 0.1
     elbo_weight: float = 1
     pred_s_weight: float = 1
-    skip_disc_steps: int = 1
+    num_disc_updates: int = 1
 
     def process_args(self):
+        if self.recon_loss is None:
+            if self.dataset == "adult":
+                self.recon_loss = "mixed"
+            else:
+                self.recon_loss = "l1"
         if self.zs_frac + self.zy_frac > 1:
             raise ValueError("the sum of z fractions must not exceed 1")

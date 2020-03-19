@@ -41,7 +41,7 @@ def log_images(
 
 
 def save_model(
-    args: VaeArgs, save_dir: Path, vae: nn.Module, epoch: int, sha: str, best: bool = False,
+    args: VaeArgs, save_dir: Path, model: nn.Module, epoch: int, sha: str, best: bool = False,
 ) -> Path:
     if best:
         filename = save_dir / "checkpt_best.pth"
@@ -50,7 +50,7 @@ def save_model(
     save_dict = {
         "args": args.as_dict(),
         "sha": sha,
-        "vae": vae.state_dict(),
+        "model": model.state_dict(),
         "epoch": epoch,
     }
 
@@ -59,11 +59,11 @@ def save_model(
     return filename
 
 
-def restore_model(args: VaeArgs, filename: Path, vae: nn.Module):
+def restore_model(args: VaeArgs, filename: Path, model: nn.Module):
     chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
     args_chkpt = chkpt["args"]
     assert args.levels == args_chkpt["levels"]
     assert args.level_depth == args_chkpt["level_depth"]
 
-    vae.load_state_dict(chkpt["vae"])
-    return vae, chkpt["epoch"]
+    model.load_state_dict(chkpt["model"])
+    return model, chkpt["epoch"]

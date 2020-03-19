@@ -15,7 +15,7 @@ from ethicml.algorithms.inprocess import LR
 from ethicml.evaluators import run_metrics
 from ethicml.metrics import NMI, PPV, TNR, TPR, Accuracy, ProbPos
 from ethicml.utility import DataTuple, Prediction
-from fdm.configs import VaeArgs, SharedArgs
+from fdm.configs import VaeArgs, BaseArgs
 from fdm.data import DatasetTriplet, get_data_tuples
 from fdm.models import Classifier, AutoEncoder
 from fdm.models.configs import fc_net, mp_32x32_net, mp_64x64_net
@@ -35,31 +35,31 @@ def log_metrics(
 ):
     """Compute and log a variety of metrics"""
     model.eval()
-    print("Encoding task train dataset...")
-    task_train_rand_s = encode_dataset(args, data.task_train, model, random="s")
+    print("Encoding training set...")
+    train_rand_s = encode_dataset(args, data.train, model, random="s")
 
-    # don't encode task dataset
-    task_repr = data.task
+    # don't encode test dataset
+    test_repr = data.test
 
     print("\nComputing metrics...")
     evaluate(
         args,
         step,
-        task_train_rand_s,
-        task_repr,
+        train_rand_s,
+        test_repr,
         name="x_rand_s",
         train_on_recon=True,
         pred_s=False,
         save_to_csv=save_to_csv,
     )
     if args.three_way_split:
-        print("Encoding task train dataset (random y)...")
-        task_train_rand_y = encode_dataset(args, data.task_train, model, random="y")
+        print("Encoding test train dataset (random y)...")
+        train_rand_y = encode_dataset(args, data.train, model, random="y")
         evaluate(
             args,
             step,
-            task_train_rand_y,
-            task_repr,
+            train_rand_y,
+            test_repr,
             name="x_rand_y",
             train_on_recon=True,
             pred_s=False,
@@ -68,7 +68,7 @@ def log_metrics(
 
 
 def compute_metrics(
-    args: SharedArgs, predictions: Prediction, actual, name: str, step: int, run_all=False
+    args: BaseArgs, predictions: Prediction, actual, name: str, step: int, run_all=False
 ) -> Dict[str, float]:
     """Compute accuracy and fairness metrics and log them"""
 
@@ -102,7 +102,7 @@ def compute_metrics(
     return metrics
 
 
-def fit_classifier(args: SharedArgs, input_dim, train_data, train_on_recon, pred_s, test_data=None):
+def fit_classifier(args: BaseArgs, input_dim, train_data, train_on_recon, pred_s, test_data=None):
 
     if args.dataset == "cmnist":
         clf_fn = mp_32x32_net
@@ -138,7 +138,7 @@ def make_tuple_from_data(train, test, pred_s):
 
 
 def evaluate(
-    args: SharedArgs,
+    args: BaseArgs,
     step: int,
     train_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
     test_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
@@ -193,7 +193,7 @@ def evaluate(
     if save_to_csv is not None and args.results_csv:
         assert isinstance(save_to_csv, Path)
         sweep_key = "Scale" if args.dataset == "cmnist" else "Mix_fact"
-        sweep_value = str(args.scale) if args.dataset == "cmnist" else str(args.task_mixing_factor)
+        sweep_value = str(args.scale) if args.dataset == "cmnist" else str(args.mixing_factor)
         results_path = save_to_csv / f"{full_name}_{args.results_csv}"
         value_list = ",".join([sweep_value] + [str(v) for v in metrics.values()])
         if not results_path.is_file():

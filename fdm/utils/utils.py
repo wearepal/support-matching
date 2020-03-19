@@ -8,7 +8,7 @@ import numpy as np
 import torch
 
 import wandb
-from fdm.configs import SharedArgs
+from fdm.configs import BaseArgs
 
 LOGGER = None
 
@@ -28,7 +28,7 @@ __all__ = [
 T = TypeVar("T")
 
 
-def wandb_log(args: SharedArgs, row: Dict[str, Any], step: int, commit: bool = True):
+def wandb_log(args: BaseArgs, row: Dict[str, Any], step: int, commit: bool = True):
     """Wrapper around wandb's log function"""
     if args.use_wandb:
         wandb.log(row, commit=commit, step=step)
