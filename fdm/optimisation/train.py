@@ -87,12 +87,13 @@ def compute_loss(
         "ELBO": elbo.item(),
         "Loss Adversarial": disc_loss.item(),
         "Accuracy Disc (rand s)": disc_acc_s,
-        "Accuracy Disc (rand y)": disc_acc_y,
         "Accuracy Disc (true)": disc_acc_true,
         "KL divergence": kl_div.item(),
         "Loss Reconstruction": recon_loss.item(),
         "Loss Validation": (elbo - disc_loss).item(),
     }
+    if ARGS.three_way_split:
+        logging_dict["Accuracy Disc (rand y)"] = disc_acc_y,
     return loss, logging_dict
 
 
@@ -380,7 +381,7 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
 
     discriminator = build_discriminator(
         input_shape=INPUT_SHAPE,
-        target_dim=2,  # real vs fake
+        target_dim=1,  # real vs fake
         model_fn=disc_fn,
         model_kwargs=disc_kwargs,
         optimizer_kwargs=disc_optimizer_kwargs,
