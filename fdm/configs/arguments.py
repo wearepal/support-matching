@@ -2,7 +2,7 @@ import argparse
 
 import torch
 
-from typing import List, Optional, Literal
+from typing import Optional, Literal
 from ethicml.data import GenfacesAttributes
 
 from tap import Tap
@@ -138,14 +138,6 @@ class SharedArgs(Tap):
         self.__device = value
 
     @property
-    def _s_dim(self) -> int:
-        return self.__s_dim
-
-    @_s_dim.setter
-    def _s_dim(self, value: int) -> None:
-        self.__s_dim = value
-
-    @property
     def _y_dim(self) -> int:
         return self.__y_dim
 
@@ -166,12 +158,13 @@ class VaeArgs(SharedArgs):
     level_depth: int = 2
     zs_frac: float = 0.33
     zy_frac: float = 0.33
-    cond_decoder: bool = True
+    enc_dim: int = 64
     init_channels: int = 32
     recon_loss: Literal["l1", "l2", "huber", "ce", "mixed"] = "l2"
-    stochastic: bool = True
+    stochastic: bool = False
     vgg_weight: float = 0
-    vae: bool = True
+    vae: bool = False
+    three_way_split: bool = False
 
     # Discriminator settings
     disc_enc_y_depth: int = 1
@@ -186,3 +179,7 @@ class VaeArgs(SharedArgs):
     elbo_weight: float = 1
     pred_s_weight: float = 1
     skip_disc_steps: int = 1
+
+    def process_args(self):
+        if self.zs_frac + self.zy_frac > 1:
+            raise ValueError("the sum of z fractions must not exceed 1")

@@ -15,7 +15,7 @@ from torch import Tensor
 import wandb
 from fdm.configs import VaeArgs
 from fdm.data import DatasetTriplet, load_dataset
-from fdm.models import VAE, VaeResults, build_discriminator, AutoEncoder, Classifier
+from fdm.models import VAE, build_discriminator, AutoEncoder, Classifier, EncodingSize
 from fdm.models.configs import conv_autoencoder, fc_autoencoder, linear_disciminator
 from fdm.utils import (
     AverageMeter,
@@ -57,28 +57,27 @@ def compute_loss(
         encoding = vae.encode(x_t)
         kl_div = x_t.new_zeros(())
 
-    zs_m, zy_m = vae.random_mask(encoding)
-
-    recon_all = vae.decode(encoding)
-    recon_rand_s = grad_reverse(vae.decode(zs_m))
-    recon_rand_y = grad_reverse(vae.decode(zy_m))
+    recon = vae.decode_and_mask(encoding)
+    recon_rand_s = grad_reverse(recon.rand_s)
 
     # Compute losses
-    recon_loss = recon_loss_fn(recon_all, x_t)
+    recon_loss = recon_loss_fn(recon.all, x_t)
 
     recon_loss /= x_t.size(0)
     kl_div /= x_t.size(0)
 
     elbo = recon_loss + ARGS.kl_weight * kl_div
 
-    # Discriminator for zy
-    x_t_batch = (x_t.size(0),)
-    disc_loss_rand_s, disc_acc_s = discriminator.routine(recon_rand_s, x_t.new_zeros(x_t_batch))
-    disc_loss_rand_y, disc_acc_y = discriminator.routine(recon_rand_y, x_t.new_zeros(x_t_batch))
-
+    # Discriminators for z
     disc_loss_true, disc_acc_true = discriminator.routine(x_p, x_p.new_ones((x_p.size(0),)))
 
-    disc_loss = disc_loss_rand_s + disc_loss_rand_y + disc_loss_true
+    x_t_batch = (x_t.size(0),)
+    disc_loss_rand_s, disc_acc_s = discriminator.routine(recon_rand_s, x_t.new_zeros(x_t_batch))
+    disc_loss = disc_loss_rand_s + disc_loss_true
+    if ARGS.three_way_split:
+        recon_rand_y = grad_reverse(recon.rand_y)
+        disc_loss_rand_y, disc_acc_y = discriminator.routine(recon_rand_y, x_t.new_zeros(x_t_batch))
+        disc_loss += disc_loss_rand_y
 
     elbo *= ARGS.elbo_weight
     disc_loss *= ARGS.pred_s_weight
@@ -190,16 +189,9 @@ def validate(vae: AutoEncoder, discriminator, val_loader, itr: int, recon_loss_f
             loss_meter.update(logging_dict["Loss Validation"], n=x_val.size(0))
 
             if val_itr == 0:
-                if ARGS.dataset in ("cmnist", "celeba", "ssrp", "genfaces"):
-                    log_recons(vae, x_val, itr=itr, prefix="test")
-                else:
-                    # TODO: the following is (most likely) completely wrong
-                    z = vae(x_val[:1000])
-                    _, recon_y, recon_s = vae.decode(z)
-                    log_images(ARGS, x_val, "original_x", prefix="test", step=itr)
-                    log_images(ARGS, recon_y, "reconstruction_yn", prefix="test", step=itr)
-                    log_images(ARGS, recon_s, "reconstruction_yn", prefix="test", step=itr)
-                    x_recon = vae(vae(x_val), reverse=True)
+                log_recons(vae, x_val, itr=itr, prefix="test")
+                if ARGS.dataset in ("adult",):
+                    x_recon = vae.decode(vae.encode(x_val), discretize=False)
                     x_diff = (x_recon - x_val).abs().mean().item()
                     print(f"MAE of x and reconstructed x: {x_diff}")
                     wandb_log(ARGS, {"reconstruction MAE": x_diff}, step=itr)
@@ -221,17 +213,12 @@ def log_recons(vae: AutoEncoder, x_t: Tensor, itr, prefix=None):
     """Log reconstructed images"""
     encoding = vae.encode(x_t[:64])
 
-    # TODO: turn the following 4 lines into a single function; it's done quite often
-    # (it corresponds to decode(..., partials=True))
-    zs_m, zy_m = vae.random_mask(encoding)
-    recon_all = vae.decode(encoding)
-    recon_y = vae.decode(zs_m)
-    recon_s = vae.decode(zy_m)
+    recon = vae.decode_and_mask(encoding, discretize=True)
 
     log_images(ARGS, x_t[:64], "original_x", step=itr, prefix=prefix)
-    log_images(ARGS, recon_all, "reconstruction_all", step=itr, prefix=prefix)
-    log_images(ARGS, recon_y, "reconstruction_y", step=itr, prefix=prefix)
-    log_images(ARGS, recon_s, "reconstruction_s", step=itr, prefix=prefix)
+    log_images(ARGS, recon.all, "reconstruction_all", step=itr, prefix=prefix)
+    log_images(ARGS, recon.rand_s, "reconstruction_y", step=itr, prefix=prefix)
+    log_images(ARGS, recon.rand_y, "reconstruction_s", step=itr, prefix=prefix)
     # log_images(ARGS, recon_null, "reconstruction_null", step=itr, prefix=prefix)
 
 
@@ -281,52 +268,59 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
         len(datasets.task),
     )
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
-    train_loader = DataLoader(
+    pretrain_loader = DataLoader(
         datasets.pretrain,
         shuffle=True,
         batch_size=ARGS.batch_size,
         num_workers=ARGS.num_workers,
         pin_memory=True,
     )
-    val_loader = DataLoader(
+    task_train_loader = DataLoader(
         datasets.task_train,
-        shuffle=False,
-        batch_size=ARGS.test_batch_size,
+        shuffle=True,
+        batch_size=ARGS.batch_size,
         num_workers=ARGS.num_workers,
         pin_memory=True,
     )
+    # task_loader = DataLoader(
+    #     datasets.task,
+    #     shuffle=False,
+    #     batch_size=ARGS.test_batch_size,
+    #     num_workers=ARGS.num_workers,
+    #     pin_memory=True,
+    # )
 
     # ==== construct networks ====
-    INPUT_SHAPE = get_data_dim(train_loader)
+    INPUT_SHAPE = get_data_dim(pretrain_loader)
     is_image_data = len(INPUT_SHAPE) > 2
 
     optimizer_args = {"lr": args.lr, "weight_decay": args.weight_decay}
     feature_group_slices = getattr(datasets.pretrain, "feature_group_slices", None)
-
-    ARGS._s_dim = ARGS._s_dim if ARGS._s_dim > 1 else 2
 
     if is_image_data:
         decoding_dim = INPUT_SHAPE[0] * 256 if args.recon_loss == "ce" else INPUT_SHAPE[0]
         encoder, decoder, enc_shape = conv_autoencoder(
             INPUT_SHAPE,
             ARGS.init_channels,
-            encoding_dim=ARGS.enc_y_dim + ARGS.enc_s_dim,
+            encoding_dim=ARGS.enc_dim,
             decoding_dim=decoding_dim,
             levels=ARGS.levels,
             vae=ARGS.vae,
-            s_dim=ARGS._s_dim if ARGS.cond_decoder else 0,
             level_depth=ARGS.level_depth,
         )
     else:
         encoder, decoder, enc_shape = fc_autoencoder(
             INPUT_SHAPE,
             ARGS.init_channels,
-            encoding_dim=ARGS.enc_y_dim + ARGS.enc_s_dim,
+            encoding_dim=ARGS.enc_dim,
             levels=ARGS.levels,
             vae=ARGS.vae,
-            s_dim=ARGS._s_dim if ARGS.cond_decoder else 0,
         )
-    LOGGER.info("Encoding shape: {}", enc_shape)
+    zs_dim = round(ARGS.zs_frac * enc_shape[0])
+    zy_dim = round(ARGS.zy_frac * enc_shape[0]) if ARGS.three_way_split else 0
+    zn_dim = enc_shape[0] - zs_dim - zy_dim
+    encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim, zn=zn_dim)
+    LOGGER.info("Encoding shape: {}, {}", enc_shape, encoding_size)
 
     recon_loss_fn_: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
     if ARGS.recon_loss == "l1":
@@ -358,7 +352,7 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
         vae = AutoEncoder(
             encoder=encoder,
             decoder=decoder,
-            decode_with_s=True,
+            encoding_size=encoding_size,
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_args,
         )
@@ -367,7 +361,7 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
             encoder=encoder,
             decoder=decoder,
             kl_weight=ARGS.kl_weight,
-            decode_with_s=True,
+            encoding_size=encoding_size,
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_args,
         )
@@ -378,42 +372,20 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
 
     disc_optimizer_kwargs = {"lr": args.disc_lr}
 
-    disc_enc_y_kwargs = {
+    disc_kwargs = {
         "hidden_channels": ARGS.disc_enc_y_channels,
         "num_blocks": ARGS.disc_enc_y_depth,
         "use_bn": True,
     }
 
-    disc_enc_y = build_discriminator(
-        input_shape=enc_shape,
-        target_dim=datasets.s_dim,
-        train_on_recon=ARGS.train_on_recon,
-        frac_enc=ARGS.enc_y_dim / enc_shape[0],
+    discriminator = build_discriminator(
+        input_shape=INPUT_SHAPE,
+        target_dim=2,  # real vs fake
         model_fn=disc_fn,
-        model_kwargs=disc_enc_y_kwargs,
+        model_kwargs=disc_kwargs,
         optimizer_kwargs=disc_optimizer_kwargs,
     )
-    disc_enc_y.to(args._device)
-
-    disc_enc_s = None
-    if ARGS.enc_s_dim > 0:
-
-        disc_enc_s_kwargs = {
-            "hidden_channels": ARGS.disc_enc_s_channels,
-            "num_blocks": ARGS.disc_enc_s_depth,
-            "use_bn": True,
-        }
-        disc_enc_s = build_discriminator(
-            enc_shape,
-            target_dim=datasets.s_dim,
-            train_on_recon=ARGS.train_on_recon,
-            frac_enc=ARGS.enc_s_dim / enc_shape[0],
-            model_fn=disc_fn,
-            model_kwargs=disc_enc_s_kwargs,
-            optimizer_kwargs=disc_optimizer_kwargs,
-        )
-
-        disc_enc_s.to(args._device)
+    discriminator.to(args._device)
 
     start_epoch = 1  # start at 1 so that the val_freq works correctly
     # Resume from checkpoint
@@ -438,10 +410,10 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
         if n_vals_without_improvement > ARGS.early_stopping > 0:
             break
 
-        itr = train(vae, disc_enc_y, disc_enc_s, train_loader, epoch, recon_loss_fn)
+        itr = train(vae, discriminator, pretrain_loader, task_train_loader, epoch, recon_loss_fn)
 
         if epoch % ARGS.val_freq == 0:
-            val_loss = validate(vae, disc_enc_y, disc_enc_s, val_loader, itr, recon_loss_fn)
+            val_loss = validate(vae, discriminator, task_train_loader, itr, recon_loss_fn)
 
             if val_loss < best_loss:
                 best_loss = val_loss

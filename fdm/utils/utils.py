@@ -2,7 +2,7 @@ import datetime
 import logging
 import os
 import random
-from typing import Any, Dict, Sequence, TypeVar
+from typing import Any, Dict, Sequence, TypeVar, Iterable, Iterator
 
 import numpy as np
 import torch
@@ -123,16 +123,17 @@ class RunningAverageMeter:
         self.val = val
 
 
-def inf_generator(iterable):
-    """Allows training with DataLoaders in a single infinite loop:
-        for i, (x, y) in enumerate(inf_generator(train_loader)):
+def inf_generator(iterable: Iterable[T]) -> Iterator[T]:
+    """Get DataLoaders in a single infinite loop.
+
+    for i, (x, y) in enumerate(inf_generator(train_loader))
     """
-    iterator = iterable.__iter__()
+    iterator = iter(iterable)
     while True:
         try:
-            yield iterator.__next__()
+            yield next(iterator)
         except StopIteration:
-            iterator = iterable.__iter__()
+            iterator = iter(iterable)
 
 
 def save_checkpoint(state, save, epoch):

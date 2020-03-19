@@ -9,7 +9,7 @@ from torch import Tensor
 from fdm.utils import to_discrete
 from .base import ModelBase
 
-__all__ = ["AutoEncoder", "VAE"]
+__all__ = ["AutoEncoder", "VAE", "EncodingSize", "SplitEncoding", "Reconstructions"]
 
 
 class EncodingSize(NamedTuple):
@@ -22,6 +22,12 @@ class SplitEncoding(NamedTuple):
     zs: Tensor
     zy: Tensor
     zn: Tensor
+
+
+class Reconstructions(NamedTuple):
+    all: Tensor
+    rand_s: Tensor  # reconstruction with random s
+    rand_y: Tensor  # reconstruction with random y
 
 
 class AutoEncoder(nn.Module):
@@ -69,6 +75,13 @@ class AutoEncoder(nn.Module):
                 decoding[:, group_slice] = one_hot
 
         return decoding
+
+    def decode_and_mask(self, z: Tensor, discretize: bool = False) -> Reconstructions:
+        zs_m, zy_m = self.random_mask(z)
+        recon_all = self.decode(z, discretize=discretize)
+        recon_rand_s = self.decode(zs_m, discretize=discretize)
+        recon_rand_y = self.decode(zy_m, discretize=discretize)
+        return Reconstructions(all=recon_all, rand_s=recon_rand_s, rand_y=recon_rand_y)
 
     def forward(self, inputs, reverse: bool = True):
         if reverse:

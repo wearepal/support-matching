@@ -1,10 +1,13 @@
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple, Literal
 
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader, TensorDataset, Dataset
+from torch import Tensor
 from tqdm import tqdm
 
 import wandb
@@ -14,7 +17,7 @@ from ethicml.metrics import NMI, PPV, TNR, TPR, Accuracy, ProbPos
 from ethicml.utility import DataTuple, Prediction
 from fdm.configs import VaeArgs, SharedArgs
 from fdm.data import DatasetTriplet, get_data_tuples
-from fdm.models import Classifier, VAE
+from fdm.models import Classifier, AutoEncoder
 from fdm.models.configs import fc_net, mp_32x32_net, mp_64x64_net
 from fdm.utils import wandb_log
 
@@ -32,22 +35,36 @@ def log_metrics(
 ):
     """Compute and log a variety of metrics"""
     model.eval()
-    print("Encoding task dataset...")
-    task_repr = encode_dataset(args, data.task, model)
     print("Encoding task train dataset...")
-    task_train_repr = encode_dataset(args, data.task_train, model)
+    task_train_rand_s = encode_dataset(args, data.task_train, model, random="s")
+
+    # don't encode task dataset
+    task_repr = data.task
 
     print("\nComputing metrics...")
     evaluate(
         args,
         step,
-        task_train_repr,
+        task_train_rand_s,
         task_repr,
-        name="xy",
+        name="x_rand_s",
         train_on_recon=True,
         pred_s=False,
         save_to_csv=save_to_csv,
     )
+    if args.three_way_split:
+        print("Encoding task train dataset (random y)...")
+        task_train_rand_y = encode_dataset(args, data.task_train, model, random="y")
+        evaluate(
+            args,
+            step,
+            task_train_rand_y,
+            task_repr,
+            name="x_rand_y",
+            train_on_recon=True,
+            pred_s=False,
+            save_to_csv=save_to_csv,
+        )
 
 
 def compute_metrics(
@@ -123,8 +140,8 @@ def make_tuple_from_data(train, test, pred_s):
 def evaluate(
     args: SharedArgs,
     step: int,
-    train_data,
-    test_data,
+    train_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
+    test_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
     name: str,
     train_on_recon: bool = True,
     pred_s: bool = False,
@@ -134,23 +151,23 @@ def evaluate(
 
     if args.dataset in ("cmnist", "celeba", "ssrp", "genfaces"):
 
-        train_data = DataLoader(
+        train_loader = DataLoader(
             train_data, batch_size=args.batch_size, shuffle=True, pin_memory=True
         )
-        test_data = DataLoader(
+        test_loader = DataLoader(
             test_data, batch_size=args.test_batch_size, shuffle=False, pin_memory=True
         )
 
         clf: Classifier = fit_classifier(
             args,
             input_dim,
-            train_data=train_data,
+            train_data=train_loader,
             train_on_recon=train_on_recon,
             pred_s=pred_s,
-            test_data=test_data,
+            test_data=test_loader,
         )
 
-        preds, actual, sens = clf.predict_dataset(test_data, device=args._device)
+        preds, actual, sens = clf.predict_dataset(test_loader, device=args._device)
         preds = Prediction(hard=pd.Series(preds))
         sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=["sex_Male"])
         labels = pd.DataFrame(actual, columns=["labels"])
@@ -195,10 +212,10 @@ def evaluate(
 
 
 def encode_dataset(
-    args: VaeArgs, data: Dataset, vae: VAE,
-):
+    args: VaeArgs, data: Dataset, vae: AutoEncoder, random: Literal["s", "y"] = "s"
+) -> Dataset[Tuple[Tensor, Tensor, Tensor]]:
     print("Encoding dataset...", flush=True)  # flush to avoid conflict with tqdm
-    all_xy = []
+    all_x_m = []
     all_s = []
     all_y = []
 
@@ -213,32 +230,25 @@ def encode_dataset(
             all_s.append(s)
             all_y.append(y)
 
-            enc = vae.encode(x, stochastic=False)
+            enc = vae.encode(x)
+            zs_m, zy_m = vae.random_mask(enc)
 
-            s_oh = None
-            if args.cond_decoder:
-                s_oh = x.new_zeros(x.size(0), args._s_dim)
+            z_m = zs_m if random == "s" else zy_m
 
-            if args.enc_s_dim > 0:
-                enc_y, enc_s = enc.split(split_size=(args.enc_y_dim, args.enc_s_dim), dim=1)
-                enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
-            else:
-                enc_y_m = enc
-
-            xy = vae.reconstruct(enc_y_m, s=s_oh)
+            x_m = vae.decode(z_m, discretize=True)
 
             if args.dataset in ("celeba", "ssrp", "genfaces"):
-                xy = 0.5 * xy + 0.5
+                x_m = 0.5 * x_m + 0.5
             if x.dim() > 2:
-                xy = xy.clamp(min=0, max=1)
+                x_m = x_m.clamp(min=0, max=1)
 
-            all_xy.append(xy.detach().cpu())
+            all_x_m.append(x_m.detach().cpu())
 
-    all_xy = torch.cat(all_xy, dim=0)
+    all_x_m = torch.cat(all_x_m, dim=0)
     all_s = torch.cat(all_s, dim=0)
     all_y = torch.cat(all_y, dim=0)
 
-    encoded_dataset = TensorDataset(all_xy, all_s, all_y)
+    encoded_dataset = TensorDataset(all_x_m, all_s, all_y)
     print("Done.")
 
     return encoded_dataset

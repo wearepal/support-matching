@@ -35,7 +35,6 @@ def conv_autoencoder(
     encoding_dim,
     decoding_dim,
     vae,
-    s_dim=0,
     level_depth: int = 2,
 ):
     assert level_depth in (2, 3), "only level depth 2 and 3 are supported right now"
@@ -67,7 +66,7 @@ def conv_autoencoder(
     encoder_out_dim = 2 * encoding_dim if vae else encoding_dim
 
     encoder += [nn.Conv2d(c_out, encoder_out_dim, kernel_size=1, stride=1, padding=0)]
-    decoder += [nn.Conv2d(encoding_dim + s_dim, c_out, kernel_size=1, stride=1, padding=0)]
+    decoder += [nn.Conv2d(encoding_dim, c_out, kernel_size=1, stride=1, padding=0)]
     decoder = decoder[::-1]
     decoder += [nn.Conv2d(input_shape[0], decoding_dim, kernel_size=1, stride=1, padding=0)]
 
@@ -89,7 +88,6 @@ def fc_autoencoder(
     levels: int,
     encoding_dim: int,
     vae: bool,
-    s_dim: int = 0,
 ) -> Tuple[nn.Sequential, nn.Sequential, Tuple[int, ...]]:
     encoder = []
     decoder = []
@@ -105,7 +103,7 @@ def fc_autoencoder(
     encoder_out_dim = 2 * encoding_dim if vae else encoding_dim
 
     encoder += [_linear_block(c_out, encoder_out_dim)]
-    decoder += [_linear_block(encoding_dim + s_dim, c_out)]
+    decoder += [_linear_block(encoding_dim, c_out)]
     decoder = decoder[::-1]
 
     encoder = nn.Sequential(*encoder)
