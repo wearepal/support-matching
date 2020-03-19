@@ -38,7 +38,7 @@ LOGGER: Logger = None
 INPUT_SHAPE: Tuple[int, ...] = ()
 
 
-def compute_loss(
+def update(
     x_c: Tensor, x_t: Tensor, generator: AutoEncoder, discriminator: Classifier, recon_loss_fn
 ) -> Tuple[Tensor, Dict[str, float]]:
     """Compute all losses.
@@ -142,7 +142,7 @@ def train(
 
         x_c, x_t = to_device(x_c, x_t)
 
-        gen_loss, logging_dict = compute_loss(
+        gen_loss, logging_dict = update(
             x_c=x_c,
             x_t=x_t,
             generator=generator,
