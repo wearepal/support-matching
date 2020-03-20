@@ -26,8 +26,11 @@ def log_images(
     prefix = "train_" if prefix is None else f"{prefix}_"
     images = image_batch[:nsamples]
 
-    if args.dataset in ("celeba", "ssrp", "genfaces"):
-        images = 0.5 * images + 0.5
+    if args.recon_loss == "ce":
+        images = images.argmax(dim=1).float() / 255
+    else:
+        if args.dataset in ("celeba", "ssrp", "genfaces"):
+            images = 0.5 * images + 0.5
 
     if monochrome:
         images = images.mean(dim=1, keepdim=True)

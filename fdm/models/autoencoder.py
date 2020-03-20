@@ -69,14 +69,19 @@ class AutoEncoder(nn.Module):
 
     def decode(self, z, discretize: bool = False):
         decoding = self.decoder(z)
-        
-        if decoding.dim() == 4 and decoding.size(1) <= 3:
-            decoding = decoding.sigmoid()
-
-        if discretize and self.feature_group_slices:
-            for group_slice in self.feature_group_slices["discrete"]:
-                one_hot = to_discrete(decoding[:, group_slice])
-                decoding[:, group_slice] = one_hot
+        if decoding.dim() == 4:
+            if decoding.size(1) <= 3:
+                decoding = decoding.sigmoid()
+            else:
+                if decoding.size(1) > 3:
+                    # conversion for cross-entropy loss
+                    num_classes = 256
+                    decoding = decoding.view(decoding.size(0), num_classes, -1, *decoding.shape[-2:])
+        else:
+            if discretize and self.feature_group_slices:
+                for group_slice in self.feature_group_slices["discrete"]:
+                    one_hot = to_discrete(decoding[:, group_slice])
+                    decoding[:, group_slice] = one_hot
 
         return decoding
 

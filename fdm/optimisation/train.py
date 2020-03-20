@@ -56,6 +56,10 @@ def update(
 
     for _ in range(ARGS.num_disc_updates):
         recon_rand_s_sg = generator.generate_recon_rand_s(x_t).detach()
+        if ARGS.recon_loss == "ce":
+            recon_rand_s_sg = recon_rand_s_sg.argmax(dim=1).float() / 255
+            if ARGS.dataset != "cmnist":
+                recon_rand_s_sg = recon_rand_s_sg * 2 - 1
         disc_loss_true, disc_acc_true = discriminator.routine(x_c, ones)
         disc_loss_rand_s, disc_acc_s = discriminator.routine(recon_rand_s_sg, zeros)
         disc_loss = disc_loss_true + disc_loss_rand_s
@@ -80,8 +84,12 @@ def update(
     zs_m, zy_m = generator.random_mask(encoding)
     recon_all = generator.decode(encoding)
     recon_rand_s = generator.decode(zs_m)
+    if ARGS.recon_loss == "ce":
+        recon_rand_s = recon_rand_s.argmax(dim=1).float() / 255
+        if ARGS.dataset != "cmnist":
+            recon_rand_s = recon_rand_s_sg * 2 - 1
 
-    # disc_loss_rand_s, disc_acc_s = discriminator.routine(recon_rand_s, zeros)
+    disc_loss_rand_s, disc_acc_s = discriminator.routine(recon_rand_s, zeros)
     # if ARGS.three_way_split:
     #     recon_rand_y = grad_reverse(recon.rand_y)
     #     disc_loss_rand_y, disc_acc_y = discriminator.routine(recon_rand_y, x_t.new_zeros(x_t_batch))
@@ -92,9 +100,9 @@ def update(
     elbo = recon_loss + kl_div
 
     elbo *= ARGS.elbo_weight
-    # disc_loss_rand_s *= ARGS.pred_s_weight
+    disc_loss_rand_s *= ARGS.pred_s_weight
 
-    gen_loss = elbo
+    gen_loss = elbo - disc_loss_rand_s
 
     # Update the generator's parameters
     generator.zero_grad()
