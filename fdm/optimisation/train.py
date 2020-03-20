@@ -286,10 +286,10 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
 
     if is_image_data:
         decoding_dim = INPUT_SHAPE[0] * 256 if args.recon_loss == "ce" else INPUT_SHAPE[0]
-        if ARGS.recon_loss == "ce":
-            decoder_out_act = None
-        else:
-            decoder_out_act = nn.Sigmoid() if ARGS.dataset == "cmnist" else nn.Tanh()
+        # if ARGS.recon_loss == "ce":
+        decoder_out_act = None
+        # else:
+        #     decoder_out_act = nn.Sigmoid() if ARGS.dataset == "cmnist" else nn.Tanh()
         encoder, decoder, enc_shape = conv_autoencoder(
             INPUT_SHAPE,
             ARGS.init_channels,
