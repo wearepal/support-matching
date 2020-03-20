@@ -70,8 +70,7 @@ def update(
     if ARGS.vae:
         generator = cast(VAE, generator)
         encoding, posterior = generator.encode(x_t, stochastic=True, return_posterior=True)
-        kl_div = generator.compute_divergence(encoding, posterior)
-        kl_div /= x_t.size(0)
+        kl_div = generator.compute_divergence(encoding, posterior).mean()
         kl_div *= ARGS.kl_weight
     else:
         encoding = generator.encode(x_t)
@@ -87,8 +86,7 @@ def update(
     #     disc_loss_rand_y, disc_acc_y = discriminator.routine(recon_rand_y, x_t.new_zeros(x_t_batch))
     #     disc_loss += disc_loss_rand_y
 
-    recon_loss = recon_loss_fn(recon_all, x_t)
-    recon_loss /= x_t.size(0)
+    recon_loss = recon_loss_fn(recon_all, x_t).mean()
     elbo = recon_loss + kl_div
 
     elbo *= ARGS.elbo_weight
