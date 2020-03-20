@@ -85,7 +85,7 @@ class BaseArgs(Tap):
     binarize: bool = True
     rotate_data: bool = False
     shift_data: bool = False
-    padding: int = 2  # by how many pixels to pad the input images
+    padding: int = 0  # by how many pixels to pad the input images
     quant_level: Literal["3", "5", "8"] = "8"  # number of bits that encode color
     input_noise: bool = True  # add uniform noise to the input
 
@@ -169,9 +169,8 @@ class VaeArgs(BaseArgs):
     enc_dim: int = 64
     init_channels: int = 32
     recon_loss: Optional[Literal["l1", "l2", "huber", "ce", "mixed"]] = None
-    stochastic: bool = False
     vgg_weight: float = 0
-    vae: bool = False
+    vae: bool = True
     three_way_split: bool = False
 
     # Discriminator settings

@@ -16,7 +16,7 @@ import wandb
 from fdm.configs import VaeArgs
 from fdm.data import DatasetTriplet, load_dataset
 from fdm.models import VAE, AutoEncoder, Classifier, EncodingSize, build_discriminator
-from fdm.models.configs import conv_autoencoder, fc_autoencoder, fc_net, mp_32x32_net, mp_64x64_net
+from fdm.models.configs import conv_autoencoder, fc_autoencoder, fc_net, strided_28x28_net, residual_64x64_net
 from fdm.utils import (
     AverageMeter,
     count_parameters,
@@ -352,9 +352,10 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
     # FIXME: Architectures need to be GAN specific (e.g. incorporate spectral norm)
     if is_image_data:
         if args.dataset == "cmnist":
-            disc_fn = mp_32x32_net
+            disc_fn = strided_28x28_net
         else:
-            disc_fn = mp_64x64_net
+            disc_fn = residual_64x64_net
+        disc_kwargs["batch_norm"] = False
     else:
         disc_fn = fc_net
         disc_kwargs["hidden_dims"] = args.disc_hidden_dims
@@ -367,6 +368,11 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
         optimizer_kwargs=disc_optimizer_kwargs,
     )
     discriminator.to(args._device)
+
+    def spectral_norm(m):
+        if hasattr(m, "weight"):
+            return torch.nn.utils.spectral_norm(m)
+    discriminator.apply(spectral_norm)
 
     start_epoch = 1  # start at 1 so that the val_freq works correctly
     # Resume from checkpoint
