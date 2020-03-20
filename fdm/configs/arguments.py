@@ -85,7 +85,7 @@ class BaseArgs(Tap):
     binarize: bool = True
     rotate_data: bool = False
     shift_data: bool = False
-    padding: int = 0  # by how many pixels to pad the input images
+    padding: int = 2  # by how many pixels to pad the cmnist images by
     quant_level: Literal["3", "5", "8"] = "8"  # number of bits that encode color
     input_noise: bool = True  # add uniform noise to the input
 
