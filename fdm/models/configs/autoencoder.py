@@ -100,6 +100,10 @@ def fc_autoencoder(
     decoder += [_linear_block(encoding_dim, c_in)]
     decoder = decoder[::-1]
 
+    if not variational:
+        # whiten the encoding
+        encoder += [nn.BatchNorm1d(encoder_out_dim, affine=False)]
+
     encoder = nn.Sequential(*encoder)
     decoder = nn.Sequential(*decoder)
 
