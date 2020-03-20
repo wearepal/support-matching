@@ -168,7 +168,7 @@ class VaeArgs(BaseArgs):
     zy_frac: float = 0.33
     enc_dim: int = 64
     init_channels: int = 32
-    recon_loss: Optional[Literal["l1", "l2", "huber", "ce", "mixed"]] = None
+    recon_loss: Optional[Literal["l1", "l2", "bce", "huber", "ce", "mixed"]] = None
     vgg_weight: float = 0
     vae: bool = True
     three_way_split: bool = False
