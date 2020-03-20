@@ -81,7 +81,7 @@ def update(
     recon_all = generator.decode(encoding)
     recon_rand_s = generator.decode(zs_m)
 
-    disc_loss_rand_s, disc_acc_s = discriminator.routine(recon_rand_s, zeros)
+    # disc_loss_rand_s, disc_acc_s = discriminator.routine(recon_rand_s, zeros)
     # if ARGS.three_way_split:
     #     recon_rand_y = grad_reverse(recon.rand_y)
     #     disc_loss_rand_y, disc_acc_y = discriminator.routine(recon_rand_y, x_t.new_zeros(x_t_batch))
@@ -92,9 +92,9 @@ def update(
     elbo = recon_loss + kl_div
 
     elbo *= ARGS.elbo_weight
-    disc_loss_rand_s *= ARGS.pred_s_weight
+    # disc_loss_rand_s *= ARGS.pred_s_weight
 
-    gen_loss = elbo - disc_loss_rand_s
+    gen_loss = elbo
 
     # Update the generator's parameters
     generator.zero_grad()
@@ -105,7 +105,6 @@ def update(
         "ELBO": elbo.item(),
         "Loss Adversarial": disc_loss_rand_s.item(),
         "Accuracy Disc (rand s)": disc_acc_s,
-        "Accuracy Disc (true)": disc_acc_true,
         "KL divergence": kl_div.item(),
         "Loss Reconstruction": recon_loss.item(),
         "Loss Validation": (elbo - disc_loss).item(),
