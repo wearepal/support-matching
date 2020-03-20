@@ -137,31 +137,29 @@ class VAE(AutoEncoder):
         self.prior = td.Normal(0, 1)
         self.posterior_fn = td.Normal
 
-    def compute_divergence(self, sample: Tensor, posterior: td.Distribution) -> float:
+    def compute_divergence(self, sample: Tensor, posterior: td.Distribution) -> Tensor:
         log_p = self.prior.log_prob(sample)
         log_q = posterior.log_prob(sample)
 
-        kl = (log_q - log_p).sum()
+        kl_div = (log_q - log_p).sum()
 
-        return kl
+        return kl_div
 
     @overload
     def encode(
-        self, x: Tensor, stochastic: bool, return_posterior: Literal[True]
+        self, x: Tensor, return_posterior: Literal[True], stochastic: bool = ...
     ) -> Tuple[Tensor, td.Distribution]:
         ...
 
     @overload
-    def encode(self, x: Tensor, stochastic: bool, return_posterior: Literal[False]) -> Tensor:
-        ...
-
-    @overload
     def encode(
-        self, x: Tensor, stochastic: bool, return_posterior: bool
-    ) -> Union[Tuple[Tensor, td.Distribution], Tensor]:
+        self, x: Tensor, return_posterior: Literal[False] = ..., stochastic: bool = ...
+    ) -> Tensor:
         ...
 
-    def encode(self, x, stochastic=True, return_posterior: bool = False):
+    def encode(
+        self, x: Tensor, return_posterior: bool = False, stochastic: bool = True
+    ) -> Union[Tuple[Tensor, td.Distribution], Tensor]:
         loc, scale = self.encoder(x).chunk(2, dim=1)
 
         if stochastic or return_posterior:

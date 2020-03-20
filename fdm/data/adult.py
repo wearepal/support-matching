@@ -7,8 +7,11 @@ from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
 
 from ethicml.data import Adult, load_data
-from ethicml.preprocessing import (get_biased_and_debiased_subsets,
-                                   get_biased_subset, train_test_split)
+from ethicml.preprocessing import (
+    get_biased_and_debiased_subsets,
+    get_biased_subset,
+    train_test_split,
+)
 from ethicml.utility import DataTuple
 from fdm.configs import BaseArgs
 
@@ -16,7 +19,7 @@ from .dataset_wrappers import DataTupleDataset
 
 __all__ = ["get_data_tuples", "load_adult_data", "pytorch_data_to_dataframe"]
 
-ADULT_DATASET: Optional[Adult] = None
+ADULT_DATASET: Adult = None  # type: ignore[assignment]
 
 
 class DataTupleTriplet(NamedTuple):
@@ -47,7 +50,7 @@ def load_adult_data(args: BaseArgs,) -> Tuple[DataTupleDataset, DataTupleDataset
     test_x[cont_feats] = scaler.transform(test.x[cont_feats].to_numpy(np.float32))
     context_x = context.x
     context_x[cont_feats] = scaler.transform(context.x[cont_feats].to_numpy(np.float32))
-    
+
     if args.drop_discrete:
         context_x = context_x[cont_feats]
         train_x = train_x[cont_feats]
@@ -58,8 +61,7 @@ def load_adult_data(args: BaseArgs,) -> Tuple[DataTupleDataset, DataTupleDataset
     test = test.replace(x=test_x)
     context = context.replace(x=context_x)
 
-    source_dataset = Adult()
-    cont_features = source_dataset.continuous_features
+    cont_features = ADULT_DATASET.continuous_features
     context_dataset = DataTupleDataset(
         context, disc_feature_groups=disc_feature_groups, cont_features=cont_features
     )
@@ -91,12 +93,12 @@ def biased_split(args: BaseArgs, data: DataTuple) -> DataTupleTriplet:
             seed=args.data_split_seed,
         )
 
-    task_tuple, meta_tuple = train_test_split(
+    task_tuple, context_tuple = train_test_split(
         unbiased,
         train_percentage=args.test_pcnt / (args.test_pcnt + args.context_pcnt),
         random_seed=args.data_split_seed,
     )
-    return DataTupleTriplet(context=meta_tuple, test=task_tuple, train=train_tuple)
+    return DataTupleTriplet(context=context_tuple, test=task_tuple, train=train_tuple)
 
 
 def get_data_tuples(*pytorch_datasets):

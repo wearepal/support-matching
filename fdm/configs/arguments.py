@@ -65,7 +65,7 @@ class StoreDictKeyPair(argparse.Action):
 class BaseArgs(Tap):
     # General data set settings
 
-    dataset: Literal["adult", "cmnist", "celeba",  "genfaces"] = "cmnist"
+    dataset: Literal["adult", "cmnist", "celeba", "genfaces"] = "cmnist"
 
     data_pcnt: float = 1.0  # data pcnt should be a real value > 0, and up to 1
     mixing_factor: float = 0.0  # How much of context train should be mixed into task train?
@@ -138,6 +138,14 @@ class BaseArgs(Tap):
         self.__device = value
 
     @property
+    def _s_dim(self) -> int:
+        return self.__s_dim
+
+    @_s_dim.setter
+    def _s_dim(self, value: int) -> None:
+        self.__s_dim = value
+
+    @property
     def _y_dim(self) -> int:
         return self.__y_dim
 
@@ -161,8 +169,9 @@ class VaeArgs(BaseArgs):
     enc_dim: int = 64
     init_channels: int = 32
     recon_loss: Optional[Literal["l1", "l2", "huber", "ce", "mixed"]] = None
+    stochastic: bool = False
     vgg_weight: float = 0
-    vae: bool = True
+    vae: bool = False
     three_way_split: bool = False
 
     # Discriminator settings

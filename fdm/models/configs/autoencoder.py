@@ -73,7 +73,7 @@ def conv_autoencoder(
     return encoder, decoder, enc_shape
 
 
-def _linear_block(in_channels, out_channels):
+def _linear_block(in_channels: int, out_channels: int) -> nn.Sequential:
     return nn.Sequential(nn.SELU(), nn.Linear(in_channels, out_channels))
 
 
@@ -90,7 +90,7 @@ def fc_autoencoder(
     c_in = input_shape[0]
     c_out = hidden_channels
 
-    for level in range(levels):
+    for _ in range(levels):
         encoder += [_linear_block(c_in, c_out)]
         decoder += [_linear_block(c_out, c_in)]
         c_in = c_out
@@ -98,7 +98,7 @@ def fc_autoencoder(
     encoder_out_dim = 2 * encoding_dim if variational else encoding_dim
 
     encoder += [_linear_block(c_in, encoder_out_dim)]
-    decoder += [_linear_block(encoding_dim, c_out)]
+    decoder += [_linear_block(encoding_dim, c_in)]
     decoder = decoder[::-1]
 
     encoder = nn.Sequential(*encoder)

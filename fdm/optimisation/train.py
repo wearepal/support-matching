@@ -9,9 +9,9 @@ import git
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import wandb
 from torch import Tensor
 from torch.utils.data import DataLoader
+import wandb
 
 from fdm.configs import VaeArgs
 from fdm.data import DatasetTriplet, load_dataset
@@ -33,8 +33,8 @@ from .utils import get_data_dim, log_images, restore_model, save_model
 
 __all__ = ["main"]
 
-ARGS: VaeArgs = None
-LOGGER: Logger = None
+ARGS: VaeArgs = None  # type: ignore[assignment]
+LOGGER: Logger = None  # type: ignore[assignment]
 INPUT_SHAPE: Tuple[int, ...] = ()
 
 
@@ -51,9 +51,8 @@ def update(
     generator.eval()
     discriminator.train()
 
-    x_t_batch = (x_t.size(0),)
     ones = x_c.new_ones((x_c.size(0),))
-    zeros = x_t.new_zeros(x_t_batch)
+    zeros = x_t.new_zeros((x_t.size(0),))
 
     for _ in range(ARGS.num_disc_updates):
         recon_rand_s_sg = generator.generate_recon_rand_s(x_t).detach()
@@ -182,7 +181,7 @@ def train(
     return itr
 
 
-def to_device(*tensors: Tensor) -> Union[Tensor, Tuple[Tensor]]:
+def to_device(*tensors: Tensor) -> Union[Tensor, Tuple[Tensor, ...]]:
     """Place tensors on the correct device and set type to float32"""
     moved = [tensor.to(ARGS._device, non_blocking=True) for tensor in tensors]
     if len(moved) == 1:
@@ -190,7 +189,7 @@ def to_device(*tensors: Tensor) -> Union[Tensor, Tuple[Tensor]]:
     return tuple(moved)
 
 
-def log_recons(generator: AutoEncoder, x_t: Tensor, itr, prefix=None):
+def log_recons(generator: AutoEncoder, x_t: Tensor, itr: int, prefix: Optional[str] = None):
     """Log reconstructed images"""
     encoding = generator.encode(x_t[:64])
 

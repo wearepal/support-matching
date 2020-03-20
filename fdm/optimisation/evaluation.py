@@ -53,7 +53,7 @@ def log_metrics(
         save_to_csv=save_to_csv,
     )
     if args.three_way_split:
-        print("Encoding test train dataset (random y)...")
+        print("Encoding training dataset (random y)...")
         train_rand_y = encode_dataset(args, data.train, model, random="y")
         evaluate(
             args,
