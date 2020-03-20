@@ -312,6 +312,8 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
         recon_loss_fn_ = nn.L1Loss(reduction="sum")
     elif ARGS.recon_loss == "l2":
         recon_loss_fn_ = nn.MSELoss(reduction="sum")
+    elif ARGS.recon_loss == "bce":
+        recon_loss_fn_ = nn.BCELoss(reduction="sum")
     elif ARGS.recon_loss == "huber":
         recon_loss_fn_ = lambda x, y: F.smooth_l1_loss(x * 10, y * 10, reduction="sum")
     elif ARGS.recon_loss == "ce":
