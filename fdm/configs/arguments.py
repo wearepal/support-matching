@@ -65,10 +65,10 @@ class StoreDictKeyPair(argparse.Action):
 class BaseArgs(Tap):
     # General data set settings
 
-    dataset: Literal["adult", "cmnist", "celeba", "ssrp", "genfaces"] = "cmnist"
+    dataset: Literal["adult", "cmnist", "celeba",  "genfaces"] = "cmnist"
 
     data_pcnt: float = 1.0  # data pcnt should be a real value > 0, and up to 1
-    mixing_factor: float = 0.0  # How much of meta train should be mixed into task train?
+    mixing_factor: float = 0.0  # How much of context train should be mixed into task train?
     context_pcnt: float = 0.4
     test_pcnt: float = 0.2
 
@@ -161,7 +161,6 @@ class VaeArgs(BaseArgs):
     enc_dim: int = 64
     init_channels: int = 32
     recon_loss: Optional[Literal["l1", "l2", "huber", "ce", "mixed"]] = None
-    stochastic: bool = True
     vgg_weight: float = 0
     vae: bool = True
     three_way_split: bool = False

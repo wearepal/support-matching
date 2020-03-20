@@ -1,5 +1,5 @@
 """Definition of the Adult dataset"""
-from typing import NamedTuple, Tuple, Dict, List
+from typing import NamedTuple, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -7,11 +7,8 @@ from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
 
 from ethicml.data import Adult, load_data
-from ethicml.preprocessing import (
-    get_biased_and_debiased_subsets,
-    get_biased_subset,
-    train_test_split,
-)
+from ethicml.preprocessing import (get_biased_and_debiased_subsets,
+                                   get_biased_subset, train_test_split)
 from ethicml.utility import DataTuple
 from fdm.configs import BaseArgs
 
@@ -19,13 +16,13 @@ from .dataset_wrappers import DataTupleDataset
 
 __all__ = ["get_data_tuples", "load_adult_data", "pytorch_data_to_dataframe"]
 
-ADULT_DATASET = None
+ADULT_DATASET: Optional[Adult] = None
 
 
 class DataTupleTriplet(NamedTuple):
     """Small helper class; basically for enabling named returns"""
 
-    meta: DataTuple
+    context: DataTuple
     test: DataTuple
     train: DataTuple
 
@@ -40,7 +37,7 @@ def load_adult_data(args: BaseArgs,) -> Tuple[DataTupleDataset, DataTupleDataset
     cont_feats = ADULT_DATASET.continuous_features
 
     tuples: DataTupleTriplet = biased_split(args, data)
-    context, test, train = tuples.meta, tuples.test, tuples.train
+    context, test, train = tuples.context, tuples.test, tuples.train
 
     scaler = StandardScaler()
 
@@ -50,16 +47,16 @@ def load_adult_data(args: BaseArgs,) -> Tuple[DataTupleDataset, DataTupleDataset
     test_x[cont_feats] = scaler.transform(test.x[cont_feats].to_numpy(np.float32))
     context_x = context.x
     context_x[cont_feats] = scaler.transform(context.x[cont_feats].to_numpy(np.float32))
-
+    
     if args.drop_discrete:
-        train = train.replace(x=train_x[cont_feats])
-        test = test.replace(x=test_x[cont_feats])
-        context = context.replace(x=context_x[cont_feats])
+        context_x = context_x[cont_feats]
+        train_x = train_x[cont_feats]
+        test_x = test_x[cont_feats]
         disc_feature_groups = {}
-    else:
-        train = train.replace(x=train_x)
-        test = test.replace(x=test_x)
-        context = context.replace(x=context_x)
+
+    train = train.replace(x=train_x)
+    test = test.replace(x=test_x)
+    context = context.replace(x=context_x)
 
     source_dataset = Adult()
     cont_features = source_dataset.continuous_features
@@ -76,7 +73,7 @@ def load_adult_data(args: BaseArgs,) -> Tuple[DataTupleDataset, DataTupleDataset
 
 
 def biased_split(args: BaseArgs, data: DataTuple) -> DataTupleTriplet:
-    """Split the dataset such that the test subset is very biased"""
+    """Split the dataset such that the training set is biased."""
     use_new_split = True
     if use_new_split:
         train_tuple, unbiased = get_biased_subset(
@@ -99,7 +96,7 @@ def biased_split(args: BaseArgs, data: DataTuple) -> DataTupleTriplet:
         train_percentage=args.test_pcnt / (args.test_pcnt + args.context_pcnt),
         random_seed=args.data_split_seed,
     )
-    return DataTupleTriplet(meta=meta_tuple, test=task_tuple, train=train_tuple)
+    return DataTupleTriplet(context=meta_tuple, test=task_tuple, train=train_tuple)
 
 
 def get_data_tuples(*pytorch_datasets):

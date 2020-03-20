@@ -377,7 +377,7 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
         generator, start_epoch = restore_model(ARGS, Path(ARGS.resume), generator)
         if ARGS.evaluate:
             log_metrics(
-                ARGS, generator=generator, data=datasets, save_to_csv=Path(ARGS.save_dir), step=0
+                ARGS, model=generator, data=datasets, save_to_csv=Path(ARGS.save_dir), step=0
             )
             return generator
 
@@ -415,13 +415,13 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
         #         n_vals_without_improvement,
         #     )
         if ARGS.super_val and epoch % super_val_freq == 0:
-            log_metrics(ARGS, generator=generator, data=datasets, step=itr)
-            save_model(args, save_dir, generator=generator, epoch=epoch, sha=sha)
+            log_metrics(ARGS, model=generator, data=datasets, step=itr)
+            save_model(args, save_dir, model=generator, epoch=epoch, sha=sha)
 
     LOGGER.info("Training has finished.")
-    path = save_model(args, save_dir, generator=generator, epoch=epoch, sha=sha)
+    path = save_model(args, save_dir, model=generator, epoch=epoch, sha=sha)
     generator, _ = restore_model(args, path, generator=generator)
-    log_metrics(ARGS, generator=generator, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr)
+    log_metrics(ARGS, model=generator, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr)
     return generator
 
 
