@@ -420,7 +420,7 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
 
     LOGGER.info("Training has finished.")
     path = save_model(args, save_dir, model=generator, epoch=epoch, sha=sha)
-    generator, _ = restore_model(args, path, generator=generator)
+    generator, _ = restore_model(args, path, model=generator)
     log_metrics(ARGS, model=generator, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr)
     return generator
 
