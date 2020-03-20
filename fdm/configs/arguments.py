@@ -68,7 +68,8 @@ class BaseArgs(Tap):
     dataset: Literal["adult", "cmnist", "celeba", "genfaces"] = "cmnist"
 
     data_pcnt: float = 1.0  # data pcnt should be a real value > 0, and up to 1
-    mixing_factor: float = 0.0  # How much of context train should be mixed into task train?
+    biased_train: bool = True  # if True, make the training set biased, dependent on mixing factor
+    mixing_factor: float = 0.0  # How much of context should be mixed into training?
     context_pcnt: float = 0.4
     test_pcnt: float = 0.2
 
@@ -163,7 +164,6 @@ class BaseArgs(Tap):
 class VaeArgs(BaseArgs):
     # VAEsettings
     levels: int = 4
-    level_depth: int = 2
     zs_frac: float = 0.33
     zy_frac: float = 0.33
     enc_dim: int = 64

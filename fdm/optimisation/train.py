@@ -286,7 +286,6 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
             decoding_dim=decoding_dim,
             levels=ARGS.levels,
             variational=ARGS.vae,
-            level_depth=ARGS.level_depth,
         )
     else:
         encoder, decoder, enc_shape = fc_autoencoder(

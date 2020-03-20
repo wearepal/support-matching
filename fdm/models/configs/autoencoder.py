@@ -35,7 +35,6 @@ def conv_autoencoder(
     encoding_dim,
     decoding_dim,
     variational,
-    level_depth: int = 2,
 ):
     encoder: List[nn.Module] = []
     decoder: List[nn.Module] = []

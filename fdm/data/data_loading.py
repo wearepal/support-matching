@@ -180,7 +180,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         args._s_dim = unbiased_data.s_dim
 
     elif args.dataset == "adult":
-        context_data, test_data, train_data = load_adult_data(args)
+        context_data, train_data, test_data = load_adult_data(args)
         args._y_dim = 1
         args._s_dim = 1
     else:

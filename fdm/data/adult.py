@@ -8,9 +8,9 @@ from torch.utils.data import DataLoader
 
 from ethicml.data import Adult, load_data
 from ethicml.preprocessing import (
-    get_biased_and_debiased_subsets,
+    BalancedTestSplit,
+    ProportionalSplit,
     get_biased_subset,
-    train_test_split,
 )
 from ethicml.utility import DataTuple
 from fdm.configs import BaseArgs
@@ -76,8 +76,7 @@ def load_adult_data(args: BaseArgs,) -> Tuple[DataTupleDataset, DataTupleDataset
 
 def biased_split(args: BaseArgs, data: DataTuple) -> DataTupleTriplet:
     """Split the dataset such that the training set is biased."""
-    use_new_split = True
-    if use_new_split:
+    if args.biased_train:
         train_tuple, unbiased = get_biased_subset(
             data=data,
             mixing_factor=args.mixing_factor,
@@ -86,19 +85,16 @@ def biased_split(args: BaseArgs, data: DataTuple) -> DataTupleTriplet:
             data_efficient=True,
         )
     else:
-        train_tuple, unbiased = get_biased_and_debiased_subsets(
-            data=data,
-            mixing_factor=args.mixing_factor,
-            unbiased_pcnt=args.test_pcnt + args.context_pcnt,
-            seed=args.data_split_seed,
-        )
+        train_tuple, unbiased, _ = BalancedTestSplit(
+            train_percentage=1 - args.test_pcnt - args.context_pcnt,
+            start_seed=args.data_split_seed,
+        )(data)
 
-    task_tuple, context_tuple = train_test_split(
-        unbiased,
+    test_tuple, context_tuple, _ = ProportionalSplit(
         train_percentage=args.test_pcnt / (args.test_pcnt + args.context_pcnt),
-        random_seed=args.data_split_seed,
-    )
-    return DataTupleTriplet(context=context_tuple, test=task_tuple, train=train_tuple)
+        start_seed=args.data_split_seed,
+    )(unbiased)
+    return DataTupleTriplet(context=context_tuple, test=test_tuple, train=train_tuple)
 
 
 def get_data_tuples(*pytorch_datasets):

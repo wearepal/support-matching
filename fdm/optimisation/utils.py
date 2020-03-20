@@ -63,7 +63,6 @@ def restore_model(args: VaeArgs, filename: Path, model: nn.Module):
     chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
     args_chkpt = chkpt["args"]
     assert args.levels == args_chkpt["levels"]
-    assert args.level_depth == args_chkpt["level_depth"]
 
     model.load_state_dict(chkpt["model"])
     return model, chkpt["epoch"]
