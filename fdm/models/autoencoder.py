@@ -56,18 +56,22 @@ class AutoEncoder(nn.Module):
     def reconstruct(self, encoding, s=None):
         decoding = self.decode(encoding, s)
 
-        if decoding.dim() == 4 and decoding.size(1) > 3:
-            # conversion for cross-entropy loss
-            num_classes = 256
-            decoding = decoding[:64].view(decoding.size(0), num_classes, -1, *decoding.shape[-2:])
-            fac = num_classes - 1
-            # `.max` also returns the index (i.e. argmax) which is what we want here
-            decoding = decoding.max(dim=1)[1].float() / fac
+        if decoding.dim() == 4:
+            if decoding.size(1) > 3:
+                # conversion for cross-entropy loss
+                num_classes = 256
+                decoding = decoding[:64].view(decoding.size(0), num_classes, -1, *decoding.shape[-2:])
+                fac = num_classes - 1
+                # `.max` also returns the index (i.e. argmax) which is what we want here
+                decoding = decoding.max(dim=1)[1].float() / fac
 
         return decoding
 
     def decode(self, z, discretize: bool = False):
         decoding = self.decoder(z)
+        
+        if decoding.dim() == 4 and decoding.size(1) <= 3:
+            decoding = decoding.sigmoid()
 
         if discretize and self.feature_group_slices:
             for group_slice in self.feature_group_slices["discrete"]:

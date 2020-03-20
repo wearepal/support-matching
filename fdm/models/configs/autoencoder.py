@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import torch.nn as nn
 
@@ -34,7 +34,8 @@ def conv_autoencoder(
     levels: int,
     encoding_dim,
     decoding_dim,
-    variational,
+    variational: bool,
+    decoder_out_act: Optional[nn.Module] = None
 ):
     encoder: List[nn.Module] = []
     decoder: List[nn.Module] = []
@@ -63,6 +64,9 @@ def conv_autoencoder(
     decoder += [nn.Conv2d(encoding_dim, c_out, kernel_size=1, stride=1, padding=0)]
     decoder = decoder[::-1]
     decoder += [nn.Conv2d(input_shape[0], decoding_dim, kernel_size=1, stride=1, padding=0)]
+
+    if decoder_out_act is not None:
+        decoder += [decoder_out_act]
 
     encoder = nn.Sequential(*encoder)
     decoder = nn.Sequential(*decoder)
