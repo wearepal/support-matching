@@ -3,7 +3,7 @@ import time
 from itertools import islice
 from logging import Logger
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple, Union, cast
+from typing import Callable, Dict, List, Optional, Tuple, Union, cast, Literal
 
 import git
 import torch
@@ -16,7 +16,13 @@ import wandb
 from fdm.configs import VaeArgs
 from fdm.data import DatasetTriplet, load_dataset
 from fdm.models import VAE, AutoEncoder, Classifier, EncodingSize, build_discriminator
-from fdm.models.configs import conv_autoencoder, fc_autoencoder, fc_net, strided_28x28_net, residual_64x64_net
+from fdm.models.configs import (
+    conv_autoencoder,
+    fc_autoencoder,
+    fc_net,
+    strided_28x28_net,
+    residual_64x64_net,
+)
 from fdm.utils import (
     AverageMeter,
     count_parameters,
@@ -38,35 +44,56 @@ LOGGER: Logger = None  # type: ignore[assignment]
 INPUT_SHAPE: Tuple[int, ...] = ()
 
 
-def update(
-    x_c: Tensor, x_t: Tensor, generator: AutoEncoder, discriminator: Classifier, recon_loss_fn
-) -> Tuple[Tensor, Dict[str, float]]:
-    """Compute all losses.
+def update_disc(
+    x_c: Tensor, x_t: Tensor, generator: AutoEncoder, discriminator: Classifier
+) -> Tuple[Tensor, float]:
+    """Train the discriminator while keeping the generator constant.
 
     Args:
         x_c: x from the context set
         x_t: x from the training set
     """
-    # Train the discriminator for a number of iterations
     generator.eval()
     discriminator.train()
 
     ones = x_c.new_ones((x_c.size(0),))
     zeros = x_t.new_zeros((x_t.size(0),))
+    invariances: List[Literal["s", "y"]] = ["s", "y"] if ARGS.three_way_split else ["s"]
 
     for _ in range(ARGS.num_disc_updates):
-        recon_rand_s_sg = generator.generate_recon_rand_s(x_t).detach()
-        if ARGS.recon_loss == "ce":
-            recon_rand_s_sg = recon_rand_s_sg.argmax(dim=1).float() / 255
-            if ARGS.dataset != "cmnist":
-                recon_rand_s_sg = recon_rand_s_sg * 2 - 1
-        disc_loss_true, disc_acc_true = discriminator.routine(x_c, ones)
-        disc_loss_rand_s, disc_acc_s = discriminator.routine(recon_rand_s_sg, zeros)
-        disc_loss = disc_loss_true + disc_loss_rand_s
+        encoding_t = generator.encode(x_t)
+        if not ARGS.train_on_recon:
+            encoding_c = generator.encode(x_c)
+
+        disc_loss = x_c.new_zeros(())
+        # in case of the three-way split, we have to check more than one invariance
+        for invariance in invariances:
+            disc_input_t = get_disc_input(generator, encoding_t, invariant_to=invariance)
+            disc_input_t = disc_input_t.detach()
+            disc_input_c: Tensor
+            if ARGS.train_on_recon:
+                disc_input_c = x_c
+            else:
+                disc_input_c = get_disc_input(generator, encoding_c, invariant_to=invariance)
+
+            # discriminator is trained to distinguish `disc_input_c` and `disc_input_t`
+            disc_loss_true, disc_acc_true = discriminator.routine(disc_input_c, ones)
+            disc_loss_false, disc_acc_false = discriminator.routine(disc_input_t, zeros)
+            disc_loss += disc_loss_true + disc_loss_false
         discriminator.zero_grad()
         disc_loss.backward()
         discriminator.step()
+    return disc_loss, 0.5 * (disc_acc_true + disc_acc_false)  # statistics from last step
 
+
+def update(
+    x_t: Tensor, generator: AutoEncoder, discriminator: Classifier, recon_loss_fn
+) -> Tuple[Tensor, Dict[str, float]]:
+    """Compute all losses.
+
+    Args:
+        x_t: x from the training set
+    """
     # Compute losses for the generator.
     discriminator.eval()
     generator.train()
@@ -81,28 +108,25 @@ def update(
         encoding = generator.encode(x_t)
         kl_div = x_t.new_zeros(())
 
-    zs_m, zy_m = generator.random_mask(encoding)
     recon_all = generator.decode(encoding)
-    recon_rand_s = generator.decode(zs_m)
-    if ARGS.recon_loss == "ce":
-        recon_rand_s = recon_rand_s.argmax(dim=1).float() / 255
-        if ARGS.dataset != "cmnist":
-            recon_rand_s = recon_rand_s_sg * 2 - 1
 
-    disc_loss_rand_s, disc_acc_s = discriminator.routine(recon_rand_s, zeros)
-    # if ARGS.three_way_split:
-    #     recon_rand_y = grad_reverse(recon.rand_y)
-    #     disc_loss_rand_y, disc_acc_y = discriminator.routine(recon_rand_y, x_t.new_zeros(x_t_batch))
-    #     disc_loss += disc_loss_rand_y
+    disc_input = get_disc_input(generator, encoding, invariant_to="s")
+    zeros = x_t.new_zeros((x_t.size(0),))
+    disc_loss, disc_acc_rand_s = discriminator.routine(disc_input, zeros)
+
+    if ARGS.three_way_split:
+        disc_input_y = get_disc_input(generator, encoding, invariant_to="y")
+        disc_loss_y, _ = discriminator.routine(disc_input_y, zeros)
+        disc_loss += disc_loss_y
 
     recon_loss = recon_loss_fn(recon_all, x_t)
     recon_loss /= x_t.size(0)
     elbo = recon_loss + kl_div
 
     elbo *= ARGS.elbo_weight
-    disc_loss_rand_s *= ARGS.pred_s_weight
+    disc_loss *= ARGS.pred_s_weight
 
-    gen_loss = elbo - disc_loss_rand_s
+    gen_loss = elbo - disc_loss
 
     # Update the generator's parameters
     generator.zero_grad()
@@ -111,16 +135,34 @@ def update(
 
     logging_dict = {
         "ELBO": elbo.item(),
-        "Loss Adversarial": disc_loss_rand_s.item(),
-        "Accuracy Disc (rand s)": disc_acc_s,
+        "Loss Adversarial": disc_loss.item(),
+        "Accuracy Disc": disc_acc_rand_s,
         "KL divergence": kl_div.item(),
         "Loss Reconstruction": recon_loss.item(),
-        "Loss Validation": (elbo - disc_loss).item(),
+        "Loss Generator": gen_loss.item(),
     }
     # if ARGS.three_way_split:
     #     logging_dict["Accuracy Disc (rand y)"] = disc_acc_y,
 
     return gen_loss, logging_dict
+
+
+def get_disc_input(
+    generator: AutoEncoder, encoding: Tensor, invariant_to: Literal["s", "y"] = "s"
+) -> Tensor:
+    """Construct the input that the discriminator expects."""
+    if ARGS.train_on_recon:
+        zs_m, zy_m = generator.mask(encoding, random=True)
+        masked_randomly = zs_m if invariant_to == "s" else zy_m
+        recon = generator.decode(masked_randomly)
+        if ARGS.recon_loss == "ce":
+            recon = recon.argmax(dim=1).float() / 255
+            if ARGS.dataset != "cmnist":
+                recon = recon * 2 - 1
+        return recon
+    else:
+        zs_m, zy_m = generator.mask(encoding)
+        return zs_m if invariant_to == "s" else zy_m
 
 
 def train(
@@ -141,19 +183,18 @@ def train(
     end = start_epoch_time
     epoch_len = max(len(context_data), len(train_data))
     itr = start_itr = (epoch - 1) * epoch_len
-    #  FIXME: Should move from epoch- to iteration-based training.
+    # FIXME: Should move from epoch- to iteration-based training.
     data_iterator = islice(zip(inf_generator(context_data), inf_generator(train_data)), epoch_len)
 
     for itr, ((x_c, _, _), (x_t, _, _)) in enumerate(data_iterator, start=start_itr):
 
         x_c, x_t = to_device(x_c, x_t)
 
+        # Train the discriminator on its own for a number of iterations
+        update_disc(x_c=x_c, x_t=x_t, generator=generator, discriminator=discriminator)
+
         gen_loss, logging_dict = update(
-            x_c=x_c,
-            x_t=x_t,
-            generator=generator,
-            discriminator=discriminator,
-            recon_loss_fn=recon_loss_fn,
+            x_t=x_t, generator=generator, discriminator=discriminator, recon_loss_fn=recon_loss_fn,
         )
 
         # Log losses
@@ -342,6 +383,7 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
     else:
         recon_loss_fn = recon_loss_fn_
 
+    generator: AutoEncoder
     if ARGS.vae:
         generator = VAE(
             encoder=encoder,
@@ -364,7 +406,7 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
     disc_optimizer_kwargs = {"lr": args.disc_lr}
     disc_kwargs = {}
     # FIXME: Architectures need to be GAN specific (e.g. incorporate spectral norm)
-    if is_image_data:
+    if is_image_data and ARGS.train_on_recon:
         if args.dataset == "cmnist":
             disc_fn = strided_28x28_net
         else:
@@ -375,7 +417,7 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
         disc_kwargs["hidden_dims"] = args.disc_hidden_dims
 
     discriminator = build_discriminator(
-        input_shape=INPUT_SHAPE,
+        input_shape=INPUT_SHAPE if ARGS.train_on_recon else enc_shape,
         target_dim=1,  # real vs fake
         model_fn=disc_fn,
         model_kwargs=disc_kwargs,
@@ -386,6 +428,7 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
     def spectral_norm(m):
         if hasattr(m, "weight"):
             return torch.nn.utils.spectral_norm(m)
+
     discriminator.apply(spectral_norm)
 
     start_epoch = 1  # start at 1 so that the val_freq works correctly

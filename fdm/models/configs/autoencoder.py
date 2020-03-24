@@ -35,7 +35,7 @@ def conv_autoencoder(
     encoding_dim,
     decoding_dim,
     variational: bool,
-    decoder_out_act: Optional[nn.Module] = None
+    decoder_out_act: Optional[nn.Module] = None,
 ):
     encoder: List[nn.Module] = []
     decoder: List[nn.Module] = []

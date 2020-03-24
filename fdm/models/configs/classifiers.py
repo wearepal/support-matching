@@ -46,7 +46,7 @@ class ResidualBlock(nn.Module):
         if (stride != 1) or (self.in_channels != out_channels):
             downsample = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride)
         self.downsample = downsample
-       
+
     def forward(self, x):
         residual = x
         out = self.block(x)
@@ -213,10 +213,16 @@ def residual_64x64_net(input_dim, target_dim, batch_norm=False):
 
     layers = []
     for out_channels in [64, 128, 256, 512]:
-        layers += [ResidualBlock(in_channels=input_dim, out_channels=out_channels, stride=2, batch_norm=batch_norm)]
+        layers += [
+            ResidualBlock(
+                in_channels=input_dim, out_channels=out_channels, stride=2, batch_norm=batch_norm
+            )
+        ]
         input_dim = out_channels
-        
-    layers.append(ResidualBlock(in_channels=512, out_channels=1024, stride=1, batch_norm=batch_norm))
+
+    layers.append(
+        ResidualBlock(in_channels=512, out_channels=1024, stride=1, batch_norm=batch_norm)
+    )
 
     layers += [nn.AdaptiveAvgPool2d(1)]
     layers += [nn.Flatten()]

@@ -36,32 +36,38 @@ def log_metrics(
     """Compute and log a variety of metrics"""
     model.eval()
     print("Encoding training set...")
-    train_rand_s = encode_dataset(args, data.train, model, random="s")
-
-    # don't encode test dataset
-    test_repr = data.test
+    train_inv_s = encode_dataset(
+        args, data.train, model, recons=args.eval_on_recon, invariant_to="s"
+    )
+    if args.eval_on_recon:
+        # don't encode test dataset
+        test_repr = data.test
+    else:
+        test_repr = encode_dataset(args, data.test, model, recons=False, invariant_to="s")
 
     print("\nComputing metrics...")
     evaluate(
         args,
         step,
-        train_rand_s,
+        train_inv_s,
         test_repr,
         name="x_rand_s",
-        train_on_recon=True,
+        eval_on_recon=args.eval_on_recon,
         pred_s=False,
         save_to_csv=save_to_csv,
     )
     if args.three_way_split:
         print("Encoding training dataset (random y)...")
-        train_rand_y = encode_dataset(args, data.train, model, random="y")
+        train_rand_y = encode_dataset(
+            args, data.train, model, recons=args.eval_on_recon, invariant_to="y"
+        )
         evaluate(
             args,
             step,
             train_rand_y,
             test_repr,
             name="x_rand_y",
-            train_on_recon=True,
+            eval_on_recon=args.eval_on_recon,
             pred_s=False,
             save_to_csv=save_to_csv,
         )
@@ -104,9 +110,9 @@ def compute_metrics(
 
 def fit_classifier(args: BaseArgs, input_dim, train_data, train_on_recon, pred_s, test_data=None):
 
-    if args.dataset == "cmnist":
+    if args.dataset == "cmnist" and train_on_recon:
         clf_fn = mp_32x32_net
-    elif args.dataset in ("celeba", "ssrp", "genfaces"):
+    elif args.dataset in ("celeba", "ssrp", "genfaces") and train_on_recon:
         clf_fn = mp_64x64_net
     else:
         clf_fn = fc_net
@@ -143,7 +149,7 @@ def evaluate(
     train_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
     test_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
     name: str,
-    train_on_recon: bool = True,
+    eval_on_recon: bool = True,
     pred_s: bool = False,
     save_to_csv: Optional[Path] = None,
 ):
@@ -162,7 +168,7 @@ def evaluate(
             args,
             input_dim,
             train_data=train_loader,
-            train_on_recon=train_on_recon,
+            train_on_recon=eval_on_recon,
             pred_s=pred_s,
             test_data=test_loader,
         )
@@ -184,7 +190,7 @@ def evaluate(
 
     full_name = f"{args.dataset}_{name}"
     full_name += "_s" if pred_s else "_y"
-    full_name += "_on_recons" if train_on_recon else "_on_encodings"
+    full_name += "_on_recons" if eval_on_recon else "_on_encodings"
     metrics = compute_metrics(args, preds, actual, full_name, run_all=args._y_dim == 1, step=step)
     print(f"Results for {full_name}:")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
@@ -212,7 +218,11 @@ def evaluate(
 
 
 def encode_dataset(
-    args: VaeArgs, data: Dataset, vae: AutoEncoder, random: Literal["s", "y"] = "s"
+    args: VaeArgs,
+    data: Dataset,
+    generator: AutoEncoder,
+    recons: bool,
+    invariant_to: Literal["s", "y"] = "s",
 ) -> Dataset[Tuple[Tensor, Tensor, Tensor]]:
     print("Encoding dataset...", flush=True)  # flush to avoid conflict with tqdm
     all_x_m = []
@@ -230,17 +240,20 @@ def encode_dataset(
             all_s.append(s)
             all_y.append(y)
 
-            enc = vae.encode(x)
-            zs_m, zy_m = vae.random_mask(enc)
+            enc = generator.encode(x)
+            if recons:
+                zs_m, zy_m = generator.mask(enc, random=True)
+                z_m = zs_m if invariant_to == "s" else zy_m
+                x_m = generator.decode(z_m, discretize=True)
 
-            z_m = zs_m if random == "s" else zy_m
-
-            x_m = vae.decode(z_m, discretize=True)
-
-            if args.dataset in ("celeba", "ssrp", "genfaces"):
-                x_m = 0.5 * x_m + 0.5
-            if x.dim() > 2:
-                x_m = x_m.clamp(min=0, max=1)
+                if args.dataset in ("celeba", "ssrp", "genfaces"):
+                    x_m = 0.5 * x_m + 0.5
+                if x.dim() > 2:
+                    x_m = x_m.clamp(min=0, max=1)
+            else:
+                zs_m, zy_m = generator.mask(enc)
+                # `zs_m` has zs zeroed out
+                x_m = zs_m if invariant_to == "s" else zy_m
 
             all_x_m.append(x_m.detach().cpu())
 

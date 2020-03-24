@@ -60,7 +60,9 @@ class AutoEncoder(nn.Module):
             if decoding.size(1) > 3:
                 # conversion for cross-entropy loss
                 num_classes = 256
-                decoding = decoding[:64].view(decoding.size(0), num_classes, -1, *decoding.shape[-2:])
+                decoding = decoding[:64].view(
+                    decoding.size(0), num_classes, -1, *decoding.shape[-2:]
+                )
                 fac = num_classes - 1
                 # `.max` also returns the index (i.e. argmax) which is what we want here
                 decoding = decoding.max(dim=1)[1].float() / fac
@@ -76,7 +78,9 @@ class AutoEncoder(nn.Module):
                 if decoding.size(1) > 3:
                     # conversion for cross-entropy loss
                     num_classes = 256
-                    decoding = decoding.view(decoding.size(0), num_classes, -1, *decoding.shape[-2:])
+                    decoding = decoding.view(
+                        decoding.size(0), num_classes, -1, *decoding.shape[-2:]
+                    )
         else:
             if discretize and self.feature_group_slices:
                 for group_slice in self.feature_group_slices["discrete"]:
@@ -117,10 +121,14 @@ class AutoEncoder(nn.Module):
         )
         return SplitEncoding(zs=zs, zy=zy, zn=zn)
 
-    def random_mask(self, z: Tensor) -> Tuple[Tensor, Tensor]:
+    def mask(self, z: Tensor, random: bool = False) -> Tuple[Tensor, Tensor]:
         zs, zy, zn = self.split_encoding(z)
-        zs_m = torch.cat([torch.randn_like(zs), zy, zn], dim=1)
-        zy_m = torch.cat([zs, torch.randn_like(zy), zn], dim=1)
+        if random:
+            zs_m = torch.cat([torch.randn_like(zs), zy, zn], dim=1)
+            zy_m = torch.cat([zs, torch.randn_like(zy), zn], dim=1)
+        else:
+            zs_m = torch.cat([torch.zeros_like(zs), zy, zn], dim=1)
+            zy_m = torch.cat([zs, torch.zeros_like(zy), zn], dim=1)
         return zs_m, zy_m
 
 

@@ -109,7 +109,8 @@ class BaseArgs(Tap):
     warmup_steps: int = 0
     gamma: float = 1.0  # Gamma value for Exponential Learning Rate scheduler.
     train_on_recon: bool = False  # whether to train the discriminator on recons or encodings
-    recon_detach: bool = False  # Whether to apply the stop gradient operator to the reconstruction.
+    recon_detach: bool = True  # Whether to apply the stop gradient operator to the reconstruction.
+    eval_on_recon: bool = True
 
     # Evaluation settings
     eval_epochs: int = 40
