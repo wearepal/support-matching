@@ -39,7 +39,7 @@ def conv_autoencoder(
 ):
     encoder: List[nn.Module] = []
     decoder: List[nn.Module] = []
-    c_in, h, w = input_shape
+    c_in, height, width = input_shape
     c_out = initial_hidden_channels
 
     for level in range(levels):
@@ -55,8 +55,8 @@ def conv_autoencoder(
             gated_up_conv(c_out, c_out, kernel_size=4, stride=2, padding=1, output_padding=0)
         ]
 
-        h //= 2
-        w //= 2
+        height //= 2
+        width //= 2
 
     encoder_out_dim = 2 * encoding_dim if variational else encoding_dim
 
@@ -68,10 +68,14 @@ def conv_autoencoder(
     if decoder_out_act is not None:
         decoder += [decoder_out_act]
 
+    if not variational:
+        # whiten the encoding
+        encoder += [nn.BatchNorm2d(encoder_out_dim, affine=False)]
+
     encoder = nn.Sequential(*encoder)
     decoder = nn.Sequential(*decoder)
 
-    enc_shape = (encoding_dim, h, w)
+    enc_shape = (encoding_dim, height, width)
 
     return encoder, decoder, enc_shape
 

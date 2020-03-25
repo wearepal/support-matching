@@ -117,7 +117,7 @@ def fit_classifier(args: BaseArgs, input_dim, train_data, train_on_recon, pred_s
     else:
         clf_fn = fc_net
         input_dim = (input_dim,)
-    clf = clf_fn(input_dim=input_dim, target_dim=args._y_dim)
+    clf = clf_fn(input_dim, target_dim=args._y_dim)
 
     n_classes = args._y_dim if args._y_dim > 1 else 2
     clf: Classifier = Classifier(clf, num_classes=n_classes, optimizer_kwargs={"lr": args.eval_lr})

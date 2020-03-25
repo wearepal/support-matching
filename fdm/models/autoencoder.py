@@ -53,34 +53,16 @@ class AutoEncoder(nn.Module):
     def encode_and_split(self, inputs: Tensor) -> SplitEncoding:
         return self.split_encoding(self.encode(inputs))
 
-    def reconstruct(self, encoding, s=None):
-        decoding = self.decode(encoding, s)
-
-        if decoding.dim() == 4:
-            if decoding.size(1) > 3:
-                # conversion for cross-entropy loss
-                num_classes = 256
-                decoding = decoding[:64].view(
-                    decoding.size(0), num_classes, -1, *decoding.shape[-2:]
-                )
-                fac = num_classes - 1
-                # `.max` also returns the index (i.e. argmax) which is what we want here
-                decoding = decoding.max(dim=1)[1].float() / fac
-
-        return decoding
-
     def decode(self, z, discretize: bool = False):
         decoding = self.decoder(z)
         if decoding.dim() == 4:
-            if decoding.size(1) <= 3:
-                decoding = decoding.sigmoid()
-            else:
-                if decoding.size(1) > 3:
-                    # conversion for cross-entropy loss
-                    num_classes = 256
-                    decoding = decoding.view(
-                        decoding.size(0), num_classes, -1, *decoding.shape[-2:]
-                    )
+            # if decoding.size(1) <= 3:
+            #     decoding = decoding.sigmoid()
+            # else:
+            if decoding.size(1) > 3:  # if we use CE losss, we have more than 3 channels
+                # conversion for cross-entropy loss
+                num_classes = 256
+                decoding = decoding.view(decoding.size(0), num_classes, -1, *decoding.shape[-2:])
         else:
             if discretize and self.feature_group_slices:
                 for group_slice in self.feature_group_slices["discrete"]:
@@ -95,7 +77,7 @@ class AutoEncoder(nn.Module):
         return self.decode(zs_m)
 
     def decode_and_mask(self, z: Tensor, discretize: bool = False) -> Reconstructions:
-        zs_m, zy_m = self.random_mask(z)
+        zs_m, zy_m = self.mask(z, random=True)
         recon_all = self.decode(z, discretize=discretize)
         recon_rand_s = self.decode(zs_m, discretize=discretize)
         recon_rand_y = self.decode(zy_m, discretize=discretize)
@@ -138,6 +120,7 @@ class VAE(AutoEncoder):
         encoder: nn.Module,
         decoder: nn.Module,
         encoding_size: EncodingSize,
+        std_transform: Literal["softplus", "exp"],
         feature_group_slices: Optional[Dict[str, List[slice]]] = None,
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
     ):
@@ -153,6 +136,7 @@ class VAE(AutoEncoder):
 
         self.prior = td.Normal(0, 1)
         self.posterior_fn = td.Normal
+        self.std_transform = std_transform
 
     def compute_divergence(self, sample: Tensor, posterior: td.Distribution) -> Tensor:
         log_p = self.prior.log_prob(sample)
@@ -180,7 +164,10 @@ class VAE(AutoEncoder):
         loc, scale = self.encoder(x).chunk(2, dim=1)
 
         if stochastic or return_posterior:
-            scale = F.softplus(scale)
+            if self.std_transform == "softplus":
+                scale = F.softplus(scale)
+            else:
+                scale = torch.exp(0.5 * scale).clamp(min=0.005, max=3.0)
             posterior = self.posterior_fn(loc, scale)
         sample = posterior.rsample() if stochastic else loc
 

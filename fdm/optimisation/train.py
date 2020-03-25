@@ -28,6 +28,7 @@ from fdm.utils import (
     count_parameters,
     get_logger,
     inf_generator,
+    product,
     random_seed,
     readable_duration,
     wandb_log,
@@ -41,7 +42,6 @@ __all__ = ["main"]
 
 ARGS: VaeArgs = None  # type: ignore[assignment]
 LOGGER: Logger = None  # type: ignore[assignment]
-INPUT_SHAPE: Tuple[int, ...] = ()
 
 
 def update_disc(
@@ -239,14 +239,19 @@ def to_device(*tensors: Tensor) -> Union[Tensor, Tuple[Tensor, ...]]:
 
 def log_recons(generator: AutoEncoder, x_t: Tensor, itr: int, prefix: Optional[str] = None):
     """Log reconstructed images"""
-    encoding = generator.encode(x_t[:64])
+    if ARGS.vae:
+        generator = cast(VAE, generator)
+        encoding = generator.encode(x_t[:64], stochastic=False)
+    else:
+        encoding = generator.encode(x_t[:64])
 
     recon = generator.decode_and_mask(encoding, discretize=True)
 
     log_images(ARGS, x_t[:64], "original_x", step=itr, prefix=prefix)
     log_images(ARGS, recon.all, "reconstruction_all", step=itr, prefix=prefix)
-    log_images(ARGS, recon.rand_s, "reconstruction_y", step=itr, prefix=prefix)
-    log_images(ARGS, recon.rand_y, "reconstruction_s", step=itr, prefix=prefix)
+    log_images(ARGS, recon.rand_s, "reconstruction_rand_s", step=itr, prefix=prefix)
+    if ARGS.three_way_split:
+        log_images(ARGS, recon.rand_y, "reconstruction_rand_y", step=itr, prefix=prefix)
     # log_images(ARGS, recon_null, "reconstruction_null", step=itr, prefix=prefix)
 
 
@@ -269,7 +274,7 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
     random_seed(args.seed, use_gpu)
     datasets: DatasetTriplet = load_dataset(args)
     # ==== initialize globals ====
-    global ARGS, LOGGER, INPUT_SHAPE
+    global ARGS, LOGGER
     ARGS = args
     args_dict = args.as_dict()
 
@@ -319,22 +324,22 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
     # )
 
     # ==== construct networks ====
-    INPUT_SHAPE = get_data_dim(context_loader)
-    is_image_data = len(INPUT_SHAPE) > 2
+    input_shape = get_data_dim(context_loader)
+    is_image_data = len(input_shape) > 2
 
     optimizer_args = {"lr": args.lr, "weight_decay": args.weight_decay}
     feature_group_slices = getattr(datasets.context, "feature_group_slices", None)
 
     if is_image_data:
-        decoding_dim = INPUT_SHAPE[0] * 256 if args.recon_loss == "ce" else INPUT_SHAPE[0]
+        decoding_dim = input_shape[0] * 256 if args.recon_loss == "ce" else input_shape[0]
         # if ARGS.recon_loss == "ce":
         decoder_out_act = None
         # else:
         #     decoder_out_act = nn.Sigmoid() if ARGS.dataset == "cmnist" else nn.Tanh()
         encoder, decoder, enc_shape = conv_autoencoder(
-            INPUT_SHAPE,
+            input_shape,
             ARGS.init_channels,
-            encoding_dim=ARGS.enc_dim,
+            encoding_dim=ARGS.enc_channels,
             decoding_dim=decoding_dim,
             levels=ARGS.levels,
             decoder_out_act=decoder_out_act,
@@ -342,9 +347,9 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
         )
     else:
         encoder, decoder, enc_shape = fc_autoencoder(
-            INPUT_SHAPE,
+            input_shape,
             ARGS.init_channels,
-            encoding_dim=ARGS.enc_dim,
+            encoding_dim=ARGS.enc_channels,
             levels=ARGS.levels,
             variational=ARGS.vae,
         )
@@ -363,7 +368,7 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
     elif ARGS.recon_loss == "bce":
         recon_loss_fn_ = nn.BCELoss(reduction="sum")
     elif ARGS.recon_loss == "huber":
-        recon_loss_fn_ = lambda x, y: F.smooth_l1_loss(x * 10, y * 10, reduction="sum")
+        recon_loss_fn_ = lambda x, y: 0.1 * F.smooth_l1_loss(x * 10, y * 10, reduction="sum")
     elif ARGS.recon_loss == "ce":
         recon_loss_fn_ = PixelCrossEntropy(reduction="sum")
     elif ARGS.recon_loss == "mixed":
@@ -389,6 +394,7 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
             encoder=encoder,
             decoder=decoder,
             encoding_size=encoding_size,
+            std_transform=ARGS.std_transform,
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_args,
         )
@@ -405,6 +411,7 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
     # Initialise Discriminator
     disc_optimizer_kwargs = {"lr": args.disc_lr}
     disc_kwargs = {}
+    disc_input_shape: Tuple[int, ...] = input_shape if ARGS.train_on_recon else enc_shape
     # FIXME: Architectures need to be GAN specific (e.g. incorporate spectral norm)
     if is_image_data and ARGS.train_on_recon:
         if args.dataset == "cmnist":
@@ -415,9 +422,10 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
     else:
         disc_fn = fc_net
         disc_kwargs["hidden_dims"] = args.disc_hidden_dims
+        disc_input_shape = (product(disc_input_shape),)  # fc_net first flattens the input
 
     discriminator = build_discriminator(
-        input_shape=INPUT_SHAPE if ARGS.train_on_recon else enc_shape,
+        input_shape=disc_input_shape,
         target_dim=1,  # real vs fake
         model_fn=disc_fn,
         model_kwargs=disc_kwargs,

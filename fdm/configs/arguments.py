@@ -167,12 +167,13 @@ class VaeArgs(BaseArgs):
     levels: int = 4
     zs_frac: float = 0.33
     zy_frac: float = 0.33
-    enc_dim: int = 64
+    enc_channels: int = 64
     init_channels: int = 32
     recon_loss: Optional[Literal["l1", "l2", "bce", "huber", "ce", "mixed"]] = None
     vgg_weight: float = 0
     vae: bool = True
     three_way_split: bool = False
+    std_transform: Literal["softplus", "exp"] = "exp"
 
     # Discriminator settings
     disc_hidden_dims: List[int] = [256]
