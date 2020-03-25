@@ -1,0 +1,15 @@
+dataset: "cmnist"
+three_way: False
+train_on_recon: False
+eval_on_recon: False
+levels: 4
+enc_chan: 64
+gpu: 1
+recon_loss: l2
+vae: False
+pred_s_weight: 2
+kl_weight: 1
+std_transform: exp
+zs_frac: 0.0469
+num_disc_updates: 3
+log_freq: 200

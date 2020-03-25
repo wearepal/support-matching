@@ -268,7 +268,7 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha
 
-    args = VaeArgs(explicit_bool=True, underscores_to_dashes=True)
+    args = VaeArgs(explicit_bool=True, underscores_to_dashes=True, fromfile_prefix_chars="@")
     args.parse_args(raw_args)
     use_gpu = torch.cuda.is_available() and args.gpu >= 0
     random_seed(args.seed, use_gpu)

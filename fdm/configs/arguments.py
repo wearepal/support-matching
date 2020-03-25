@@ -161,6 +161,22 @@ class BaseArgs(Tap):
         if self.super_val_freq < 0:
             raise ValueError("frequency cannot be negative")
 
+    def convert_arg_line_to_args(self, arg_line: str) -> List[str]:
+        # parse each line like a YAML file
+        arg_line = arg_line.split("#", maxsplit=1)[0]  # split off comments
+        if not arg_line.strip():  # empty line
+            return []
+        key, value = arg_line.split(sep=":", maxsplit=1)
+        key = key.strip()
+        value = value.strip()
+        if value[0] == "\"" and value[-1] == "\"":  # if wrapped in quotes, don't split further
+            values = [value[1:-1]]
+        else:
+            values = value.split()
+        if self._underscores_to_dashes:
+            key = key.replace("_", "-")
+        return [f"--{key}"] + values
+
 
 class VaeArgs(BaseArgs):
     # VAEsettings
