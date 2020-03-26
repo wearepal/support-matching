@@ -12,7 +12,7 @@ def build_discriminator(
     model_fn: ModelFn,
     model_kwargs: Dict[str, Union[float, str, bool]],
     optimizer_kwargs=None,
-):
+) -> Classifier:
     in_dim = input_shape[0]
 
     num_classes = target_dim if target_dim > 1 else 2

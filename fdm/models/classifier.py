@@ -2,13 +2,14 @@ from typing import Dict, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
+from torch import Tensor
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader, Dataset
 from tqdm import trange
 
 from fdm.models.base import ModelBase
 
-__all__ = ["Classifier"]
+__all__ = ["Classifier", "Regressor"]
 
 
 class Classifier(ModelBase):
@@ -35,11 +36,9 @@ class Classifier(ModelBase):
         else:
             self.criterion = "ce"
 
-        self.out_dim = num_classes if self.criterion == "ce" else 1
-
         super().__init__(model, optimizer_kwargs=optimizer_kwargs)
 
-    def apply_criterion(self, logits, targets):
+    def apply_criterion(self, logits: Tensor, targets: Tensor) -> Tensor:
         if self.criterion == "bce":
             if targets.dtype != torch.float32:
                 targets = targets.float()
@@ -52,7 +51,7 @@ class Classifier(ModelBase):
                 targets = targets.long()
             return F.cross_entropy(logits, targets, reduction="none")
 
-    def predict(self, inputs: torch.Tensor, top: int = 1) -> torch.Tensor:
+    def predict(self, inputs: Tensor, top: int = 1) -> Tensor:
         """Make prediction.
 
         Args:
@@ -70,7 +69,7 @@ class Classifier(ModelBase):
 
         return pred
 
-    def predict_dataset(self, data, device, batch_size=100):
+    def predict_dataset(self, data: Union[Dataset, DataLoader], device, batch_size=100):
         if not isinstance(data, DataLoader):
             data = DataLoader(data, batch_size=batch_size, shuffle=False, pin_memory=True)
         preds, actual, sens = [], [], []
@@ -90,7 +89,7 @@ class Classifier(ModelBase):
 
         return preds, actual, sens
 
-    def compute_accuracy(self, outputs: torch.Tensor, targets: torch.Tensor, top: int = 1) -> float:
+    def compute_accuracy(self, outputs: Tensor, targets: Tensor, top: int = 1) -> float:
         """Computes the classification accuracy.
 
         Args:
@@ -114,11 +113,8 @@ class Classifier(ModelBase):
         return accuracy.detach().item()
 
     def routine(
-        self,
-        data: torch.Tensor,
-        targets: torch.Tensor,
-        instance_weights: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, float]:
+        self, data: Tensor, targets: Tensor, instance_weights: Optional[Tensor] = None
+    ) -> Tuple[Tensor, float]:
         """Classifier routine.
 
         Args:
@@ -211,3 +207,30 @@ class Classifier(ModelBase):
             if scheduler is not None:
                 scheduler.step(epoch)
         pbar.close()
+
+
+class Regressor(Classifier):
+    """Wrapper for regression models."""
+
+    def __init__(self, model, optimizer_kwargs: Optional[Dict] = None):
+        """Build classifier model.
+
+        Args:).
+            model: nn.Module. Classifier model to wrap around.
+            optimizer_args: Dictionary. Arguments to pass to the optimizer.
+
+        Returns:
+            None
+        """
+        super().__init__(model, 2, optimizer_kwargs=optimizer_kwargs)
+        self.criterion = "mse"
+
+    def apply_criterion(self, logits: Tensor, targets: Tensor) -> Tensor:
+        return F.mse_loss(logits, targets.flatten(start_dim=1), reduction="none")
+
+    def predict(self, inputs: Tensor, top: int = 1) -> Tensor:
+        """Make prediction."""
+        return super().__call__(inputs)
+
+    def compute_accuracy(self, outputs: Tensor, targets: Tensor, top: int = 1) -> float:
+        return 0

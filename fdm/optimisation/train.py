@@ -15,7 +15,7 @@ import wandb
 
 from fdm.configs import VaeArgs
 from fdm.data import DatasetTriplet, load_dataset
-from fdm.models import VAE, AutoEncoder, Classifier, EncodingSize, build_discriminator
+from fdm.models import VAE, AutoEncoder, Classifier, EncodingSize, build_discriminator, Regressor
 from fdm.models.configs import (
     conv_autoencoder,
     fc_autoencoder,
@@ -87,7 +87,11 @@ def update_disc(
 
 
 def update(
-    x_t: Tensor, generator: AutoEncoder, discriminator: Classifier, recon_loss_fn
+    x_t: Tensor,
+    generator: AutoEncoder,
+    discriminator: Classifier,
+    recon_loss_fn,
+    disc_distinguish: Optional[Regressor],
 ) -> Tuple[Tensor, Dict[str, float]]:
     """Compute all losses.
 
@@ -97,6 +101,7 @@ def update(
     # Compute losses for the generator.
     discriminator.eval()
     generator.train()
+    logging_dict = {}
 
     if ARGS.vae:
         generator = cast(VAE, generator)
@@ -112,12 +117,20 @@ def update(
 
     disc_input = get_disc_input(generator, encoding, invariant_to="s")
     zeros = x_t.new_zeros((x_t.size(0),))
-    disc_loss, disc_acc_rand_s = discriminator.routine(disc_input, zeros)
+    disc_loss, disc_acc_inv_s = discriminator.routine(disc_input, zeros)
 
     if ARGS.three_way_split:
         disc_input_y = get_disc_input(generator, encoding, invariant_to="y")
-        disc_loss_y, _ = discriminator.routine(disc_input_y, zeros)
+        disc_loss_y, disc_acc_inv_y = discriminator.routine(disc_input_y, zeros)
         disc_loss += disc_loss_y
+        logging_dict["Accuracy Disc 2"] = disc_acc_inv_y
+
+        assert not ARGS.train_on_recon and disc_distinguish is not None
+        encs = generator.split_encoding(encoding)
+        # predict zy from the encoding that is invariant to y
+        disc_loss_distinguish, _ = disc_distinguish.routine(disc_input_y, encs.zy)
+        disc_loss += disc_loss_distinguish
+        logging_dict["Loss Distinguisher"] = disc_loss_distinguish.item()
 
     recon_loss = recon_loss_fn(recon_all, x_t)
     recon_loss /= x_t.size(0)
@@ -133,16 +146,16 @@ def update(
     gen_loss.backward()
     generator.step()
 
-    logging_dict = {
-        "ELBO": elbo.item(),
-        "Loss Adversarial": disc_loss.item(),
-        "Accuracy Disc": disc_acc_rand_s,
-        "KL divergence": kl_div.item(),
-        "Loss Reconstruction": recon_loss.item(),
-        "Loss Generator": gen_loss.item(),
-    }
-    # if ARGS.three_way_split:
-    #     logging_dict["Accuracy Disc (rand y)"] = disc_acc_y,
+    logging_dict.update(
+        {
+            "ELBO": elbo.item(),
+            "Loss Adversarial": disc_loss.item(),
+            "Accuracy Disc": disc_acc_inv_s,
+            "KL divergence": kl_div.item(),
+            "Loss Reconstruction": recon_loss.item(),
+            "Loss Generator": gen_loss.item(),
+        }
+    )
 
     return gen_loss, logging_dict
 
@@ -168,6 +181,7 @@ def get_disc_input(
 def train(
     generator: AutoEncoder,
     discriminator: Classifier,
+    disc_distinguish: Optional[Regressor],
     context_data: DataLoader,
     train_data: DataLoader,
     epoch: int,
@@ -194,7 +208,11 @@ def train(
         update_disc(x_c=x_c, x_t=x_t, generator=generator, discriminator=discriminator)
 
         gen_loss, logging_dict = update(
-            x_t=x_t, generator=generator, discriminator=discriminator, recon_loss_fn=recon_loss_fn,
+            x_t=x_t,
+            generator=generator,
+            discriminator=discriminator,
+            recon_loss_fn=recon_loss_fn,
+            disc_distinguish=disc_distinguish,
         )
 
         # Log losses
@@ -232,9 +250,7 @@ def train(
 def to_device(*tensors: Tensor) -> Union[Tensor, Tuple[Tensor, ...]]:
     """Place tensors on the correct device and set type to float32"""
     moved = [tensor.to(ARGS._device, non_blocking=True) for tensor in tensors]
-    if len(moved) == 1:
-        return moved[0]
-    return tuple(moved)
+    return moved[0] if len(moved) == 1 else tuple(moved)
 
 
 def log_recons(generator: AutoEncoder, x_t: Tensor, itr: int, prefix: Optional[str] = None):
@@ -251,8 +267,7 @@ def log_recons(generator: AutoEncoder, x_t: Tensor, itr: int, prefix: Optional[s
     log_images(ARGS, recon.all, "reconstruction_all", step=itr, prefix=prefix)
     log_images(ARGS, recon.rand_s, "reconstruction_rand_s", step=itr, prefix=prefix)
     if ARGS.three_way_split:
-        log_images(ARGS, recon.rand_y, "reconstruction_rand_y", step=itr, prefix=prefix)
-    # log_images(ARGS, recon_null, "reconstruction_null", step=itr, prefix=prefix)
+        log_images(ARGS, recon.rand_y, "reconstruction_rand_2", step=itr, prefix=prefix)
 
 
 def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
@@ -433,11 +448,22 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
     )
     discriminator.to(args._device)
 
-    def spectral_norm(m):
+    disc_distinguish = None
+    if args.three_way_split:
+        assert not ARGS.train_on_recon  # for now, this only works with train on encodings
+        disc_dist_fn = fc_net
+        disc_dist_kwargs = {"hidden_dims": args.disc_hidden_dims}
+        output_dim = product((encoding_size.zy,) + enc_shape[1:])
+        disc_distinguish = Regressor(
+            disc_dist_fn(disc_input_shape, output_dim, **disc_dist_kwargs), disc_optimizer_kwargs,
+        )
+        disc_distinguish.to(args._device)
+
+    def _spectral_norm(m):
         if hasattr(m, "weight"):
             return torch.nn.utils.spectral_norm(m)
 
-    discriminator.apply(spectral_norm)
+    discriminator.apply(_spectral_norm)
 
     start_epoch = 1  # start at 1 so that the val_freq works correctly
     # Resume from checkpoint
@@ -464,7 +490,15 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
         if n_vals_without_improvement > ARGS.early_stopping > 0:
             break
 
-        itr = train(generator, discriminator, context_loader, train_loader, epoch, recon_loss_fn)
+        itr = train(
+            generator=generator,
+            discriminator=discriminator,
+            disc_distinguish=disc_distinguish,
+            context_data=context_loader,
+            train_data=train_loader,
+            epoch=epoch,
+            recon_loss_fn=recon_loss_fn,
+        )
 
         # if epoch % ARGS.val_freq == 0:
         #     val_loss = validate(generator, discriminator, train_loader, itr, recon_loss_fn)

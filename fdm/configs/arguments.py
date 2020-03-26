@@ -169,7 +169,7 @@ class BaseArgs(Tap):
         key, value = arg_line.split(sep=":", maxsplit=1)
         key = key.strip()
         value = value.strip()
-        if value[0] == "\"" and value[-1] == "\"":  # if wrapped in quotes, don't split further
+        if value[0] == '"' and value[-1] == '"':  # if wrapped in quotes, don't split further
             values = [value[1:-1]]
         else:
             values = value.split()
