@@ -182,7 +182,6 @@ class VaeArgs(BaseArgs):
     # VAEsettings
     levels: int = 4
     zs_frac: float = 0.33
-    zy_frac: float = 0.33
     enc_channels: int = 64
     init_channels: int = 32
     recon_loss: Optional[Literal["l1", "l2", "bce", "huber", "ce", "mixed"]] = None
@@ -201,6 +200,7 @@ class VaeArgs(BaseArgs):
     elbo_weight: float = 1
     pred_s_weight: float = 1
     num_disc_updates: int = 1
+    distinguish_weight: float = 1
 
     def process_args(self):
         if self.recon_loss is None:
@@ -208,5 +208,5 @@ class VaeArgs(BaseArgs):
                 self.recon_loss = "mixed"
             else:
                 self.recon_loss = "l1"
-        if self.zs_frac + self.zy_frac > 1:
-            raise ValueError("the sum of z fractions must not exceed 1")
+        if self.three_way_split and self.zs_frac > 0.5:
+            raise ValueError("2*zs_frac must be less than or equal 1")

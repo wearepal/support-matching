@@ -45,7 +45,11 @@ LOGGER: Logger = None  # type: ignore[assignment]
 
 
 def update_disc(
-    x_c: Tensor, x_t: Tensor, generator: AutoEncoder, discriminator: Classifier
+    x_c: Tensor,
+    x_t: Tensor,
+    generator: AutoEncoder,
+    discriminator: Classifier,
+    disc_distinguish: Optional[Regressor],
 ) -> Tuple[Tensor, float]:
     """Train the discriminator while keeping the generator constant.
 
@@ -55,6 +59,8 @@ def update_disc(
     """
     generator.eval()
     discriminator.train()
+    if disc_distinguish is not None:
+        disc_distinguish.train()
 
     ones = x_c.new_ones((x_c.size(0),))
     zeros = x_t.new_zeros((x_t.size(0),))
@@ -66,6 +72,7 @@ def update_disc(
             encoding_c = generator.encode(x_c)
 
         disc_loss = x_c.new_zeros(())
+        disc_loss_distinguish = x_c.new_zeros(())
         # in case of the three-way split, we have to check more than one invariance
         for invariance in invariances:
             disc_input_t = get_disc_input(generator, encoding_t, invariant_to=invariance)
@@ -75,18 +82,32 @@ def update_disc(
                 disc_input_c = x_c
             else:
                 disc_input_c = get_disc_input(generator, encoding_c, invariant_to=invariance)
+                disc_input_c = disc_input_c.detach()
 
             # discriminator is trained to distinguish `disc_input_c` and `disc_input_t`
             disc_loss_true, disc_acc_true = discriminator.routine(disc_input_c, ones)
             disc_loss_false, disc_acc_false = discriminator.routine(disc_input_t, zeros)
             disc_loss += disc_loss_true + disc_loss_false
+            if ARGS.three_way_split:
+                assert disc_distinguish is not None
+                encs = generator.split_encoding(encoding_c)
+                target_enc = encs.zs if invariance == "s" else encs.zy
+                # predict target_enc from the encoding that should be invariant of it
+                disc_loss_distinguish_c, _ = disc_distinguish.routine(disc_input_c, target_enc)
+                disc_loss_distinguish += disc_loss_distinguish_c
         discriminator.zero_grad()
         disc_loss.backward()
         discriminator.step()
+
+        if disc_distinguish is not None:
+            disc_distinguish.zero_grad()
+            disc_loss_distinguish.backward()
+            disc_distinguish.step()
     return disc_loss, 0.5 * (disc_acc_true + disc_acc_false)  # statistics from last step
 
 
 def update(
+    x_c: Tensor,
     x_t: Tensor,
     generator: AutoEncoder,
     discriminator: Classifier,
@@ -100,12 +121,14 @@ def update(
     """
     # Compute losses for the generator.
     discriminator.eval()
+    if disc_distinguish is not None:
+        disc_distinguish.eval()
     generator.train()
     logging_dict = {}
 
     if ARGS.vae:
         generator = cast(VAE, generator)
-        encoding, posterior = generator.encode(x_t, stochastic=True, return_posterior=True)
+        encoding, posterior = generator.encode(x_t, return_posterior=True)
         kl_div = generator.compute_divergence(encoding, posterior)
         kl_div /= x_t.size(0)
         kl_div *= ARGS.kl_weight
@@ -114,11 +137,36 @@ def update(
         kl_div = x_t.new_zeros(())
 
     recon_all = generator.decode(encoding)
+    recon_loss = recon_loss_fn(recon_all, x_t)
+    recon_loss /= x_t.size(0)
+    elbo = recon_loss + kl_div
+
+    # we need a reconstruction loss for x_c when we train on encodings
+    # because otherwise, the network will just falsify encodings for x_c
+    if not ARGS.train_on_recon:
+        if ARGS.vae:
+            generator = cast(VAE, generator)
+            encoding_c, posterior_c = generator.encode(x_c, return_posterior=True)
+            kl_div_c = generator.compute_divergence(encoding_c, posterior_c)
+            kl_div_c /= x_c.size(0)
+            kl_div_c *= ARGS.kl_weight
+        else:
+            encoding_c = generator.encode(x_c)
+            kl_div_c = x_c.new_zeros(())
+
+        recon_all_c = generator.decode(encoding_c)
+        recon_loss_c = recon_loss_fn(recon_all_c, x_c)
+        recon_loss_c /= x_c.size(0)
+        recon_loss += recon_loss_c  # for logging
+        kl_div += kl_div_c  # for logging
+        elbo += recon_loss_c + kl_div_c
+        elbo *= 0.5  # take average of the two recon losses
 
     disc_input = get_disc_input(generator, encoding, invariant_to="s")
     zeros = x_t.new_zeros((x_t.size(0),))
     disc_loss, disc_acc_inv_s = discriminator.routine(disc_input, zeros)
 
+    disc_loss_distinguish = x_t.new_zeros(())
     if ARGS.three_way_split:
         disc_input_y = get_disc_input(generator, encoding, invariant_to="y")
         disc_loss_y, disc_acc_inv_y = discriminator.routine(disc_input_y, zeros)
@@ -126,20 +174,24 @@ def update(
         logging_dict["Accuracy Disc 2"] = disc_acc_inv_y
 
         assert not ARGS.train_on_recon and disc_distinguish is not None
-        encs = generator.split_encoding(encoding)
-        # predict zy from the encoding that is invariant to y
-        disc_loss_distinguish, _ = disc_distinguish.routine(disc_input_y, encs.zy)
-        disc_loss += disc_loss_distinguish
-        logging_dict["Loss Distinguisher"] = disc_loss_distinguish.item()
+        encs_c = generator.split_encoding(encoding_c)
+        # predict zs from zn and zy
+        disc_input_c = get_disc_input(generator, encoding_c, invariant_to="s")
+        disc_loss_distinguish_s, _ = disc_distinguish.routine(disc_input_c, encs_c.zs)
+        disc_loss_distinguish += disc_loss_distinguish_s
+        logging_dict["Loss Distinguisher 1"] = disc_loss_distinguish_s.item()
 
-    recon_loss = recon_loss_fn(recon_all, x_t)
-    recon_loss /= x_t.size(0)
-    elbo = recon_loss + kl_div
+        # predict zy from zn and zs
+        disc_input_c_y = get_disc_input(generator, encoding_c, invariant_to="y")
+        disc_loss_distinguish_y, _ = disc_distinguish.routine(disc_input_c_y, encs_c.zy)
+        disc_loss_distinguish += disc_loss_distinguish_y
+        logging_dict["Loss Distinguisher 2"] = disc_loss_distinguish_y.item()
 
     elbo *= ARGS.elbo_weight
     disc_loss *= ARGS.pred_s_weight
+    disc_loss_distinguish *= ARGS.distinguish_weight
 
-    gen_loss = elbo - disc_loss
+    gen_loss = elbo - disc_loss - disc_loss_distinguish
 
     # Update the generator's parameters
     generator.zero_grad()
@@ -205,9 +257,10 @@ def train(
         x_c, x_t = to_device(x_c, x_t)
 
         # Train the discriminator on its own for a number of iterations
-        update_disc(x_c=x_c, x_t=x_t, generator=generator, discriminator=discriminator)
+        update_disc(x_c, x_t, generator, discriminator, disc_distinguish)
 
         gen_loss, logging_dict = update(
+            x_c=x_c,
             x_t=x_t,
             generator=generator,
             discriminator=discriminator,
@@ -369,8 +422,7 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
             variational=ARGS.vae,
         )
     zs_dim = round(ARGS.zs_frac * enc_shape[0])
-    zy_dim = 0
-    # zy_dim = round(ARGS.zy_frac * enc_shape[0]) if ARGS.three_way_split else 0
+    zy_dim = zs_dim if ARGS.three_way_split else 0
     zn_dim = enc_shape[0] - zs_dim - zy_dim
     encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim, zn=zn_dim)
     LOGGER.info("Encoding shape: {}, {}", enc_shape, encoding_size)
