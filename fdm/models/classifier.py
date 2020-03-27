@@ -13,8 +13,7 @@ __all__ = ["Classifier", "Regressor"]
 
 
 class Classifier(ModelBase):
-    """ Wrapper for classifier models.
-    """
+    """Wrapper for classifier models."""
 
     def __init__(self, model, num_classes: int, optimizer_kwargs: Optional[Dict] = None):
         """Build classifier model.

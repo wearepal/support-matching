@@ -13,7 +13,7 @@ from tqdm import tqdm
 import wandb
 from ethicml.algorithms.inprocess import LR
 from ethicml.evaluators import run_metrics
-from ethicml.metrics import NMI, PPV, TNR, TPR, Accuracy, ProbPos
+from ethicml.metrics import TNR, TPR, Accuracy, ProbPos, RenyiCorrelation
 from ethicml.utility import DataTuple, Prediction
 from fdm.configs import VaeArgs, BaseArgs
 from fdm.data import DatasetTriplet, get_data_tuples
@@ -82,26 +82,26 @@ def compute_metrics(
         metrics = run_metrics(
             predictions,
             actual,
-            metrics=[Accuracy(), TPR(), TNR(), PPV(), NMI(base="y"), NMI(base="s")],
-            per_sens_metrics=[ProbPos(), TPR(), TNR(), PPV(), NMI(base="y"), NMI(base="s")],
+            metrics=[Accuracy(), TPR(), TNR(), RenyiCorrelation()],
+            per_sens_metrics=[ProbPos(), TPR(), TNR()],
         )
-        logging_dict = {
-            f"{name} Accuracy": metrics["Accuracy"],
-            f"{name} TPR": metrics["TPR"],
-            f"{name} TNR": metrics["TNR"],
-            f"{name} PPV": metrics["PPV"],
-            f"{name} P(Y=1|s=0)": metrics["prob_pos_sex_Male_0.0"],
-            f"{name} P(Y=1|s=1)": metrics["prob_pos_sex_Male_1.0"],
-            f"{name} P(Y=1|s=0) Ratio s0/s1": metrics["prob_pos_sex_Male_0.0/sex_Male_1.0"],
-            f"{name} P(Y=1|s=0) Diff s0-s1": metrics["prob_pos_sex_Male_0.0-sex_Male_1.0"],
-            f"{name} TPR|s=1": metrics["TPR_sex_Male_1.0"],
-            f"{name} TPR|s=0": metrics["TPR_sex_Male_0.0"],
-            f"{name} TPR Ratio s0/s1": metrics["TPR_sex_Male_0.0/sex_Male_1.0"],
-            f"{name} TPR Diff s0-s1": metrics["TPR_sex_Male_0.0/sex_Male_1.0"],
-            f"{name} PPV Ratio s0/s1": metrics["PPV_sex_Male_0.0/sex_Male_1.0"],
-            f"{name} TNR Ratio s0/s1": metrics["TNR_sex_Male_0.0/sex_Male_1.0"],
-        }
-        wandb_log(args, logging_dict, step=step)
+        # logging_dict = {
+        #     f"{name} Accuracy": metrics["Accuracy"],
+        #     f"{name} TPR": metrics["TPR"],
+        #     f"{name} TNR": metrics["TNR"],
+        #     f"{name} PPV": metrics["PPV"],
+        #     f"{name} P(Y=1|s=0)": metrics["prob_pos_sex_Male_0.0"],
+        #     f"{name} P(Y=1|s=1)": metrics["prob_pos_sex_Male_1.0"],
+        #     f"{name} P(Y=1|s=0) Ratio s0/s1": metrics["prob_pos_sex_Male_0.0/sex_Male_1.0"],
+        #     f"{name} P(Y=1|s=0) Diff s0-s1": metrics["prob_pos_sex_Male_0.0-sex_Male_1.0"],
+        #     f"{name} TPR|s=1": metrics["TPR_sex_Male_1.0"],
+        #     f"{name} TPR|s=0": metrics["TPR_sex_Male_0.0"],
+        #     f"{name} TPR Ratio s0/s1": metrics["TPR_sex_Male_0.0/sex_Male_1.0"],
+        #     f"{name} TPR Diff s0-s1": metrics["TPR_sex_Male_0.0/sex_Male_1.0"],
+        #     f"{name} PPV Ratio s0/s1": metrics["PPV_sex_Male_0.0/sex_Male_1.0"],
+        #     f"{name} TNR Ratio s0/s1": metrics["TNR_sex_Male_0.0/sex_Male_1.0"],
+        # }
+        wandb_log(args, metrics, step=step)
     else:
         metrics = run_metrics(predictions, actual, metrics=[Accuracy()], per_sens_metrics=[])
         wandb_log(args, {f"{name} Accuracy": metrics["Accuracy"]}, step=step)

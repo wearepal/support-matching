@@ -1,11 +1,11 @@
 import argparse
-
-import torch
-
-from typing import Optional, Literal, List, Set
-from ethicml.data import GenfacesAttributes
+from typing import Optional, Literal, List
 
 from tap import Tap
+import torch
+
+from ethicml.data import GenfacesAttributes
+
 
 __all__ = ["VaeArgs", "BaseArgs", "CELEBATTRS"]
 
@@ -72,7 +72,7 @@ class BaseArgs(Tap):
     mixing_factor: float = 0.0  # How much of context should be mixed into training?
     context_pcnt: float = 0.4
     test_pcnt: float = 0.2
-    filter_labels: Optional[Set[int]] = None
+    filter_labels: List[int] = []
 
     # Adult data set feature settings
     drop_native: bool = True

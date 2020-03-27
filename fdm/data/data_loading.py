@@ -1,6 +1,7 @@
 from typing import NamedTuple
 
-from torch.utils.data import Dataset, random_split
+import numpy as np
+from torch.utils.data import Dataset, random_split, Subset
 from torchvision import transforms
 from torchvision.datasets import MNIST
 from ethicml.data import create_genfaces_dataset, create_celeba_dataset
@@ -9,7 +10,7 @@ from ethicml.vision.data import LdColorizer
 from fdm.configs import BaseArgs
 
 from .adult import load_adult_data
-from .dataset_wrappers import LdAugmentedDataset, filter_by_labels
+from .dataset_wrappers import LdAugmentedDataset
 from .misc import shrink_dataset
 from .transforms import NoisyDequantize, Quantize
 
@@ -44,18 +45,28 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         if args.input_noise:
             base_aug.append(NoisyDequantize(int(args.quant_level)))
         train_data = MNIST(root=args.root, download=True, train=True)
+        test_data = MNIST(root=args.root, download=True, train=False)
+
+        num_classes = 10
+        if args.filter_labels:
+            num_classes = len(args.filter_labels)
+            num_classes = 1 if num_classes == 2 else num_classes
+
+            def _filter(dataset: MNIST):
+                targets: np.ndarray[np.int64] = dataset.targets.numpy()
+                final_mask = np.zeros_like(targets, dtype=np.bool_)
+                for index, label in enumerate(args.filter_labels):
+                    mask = targets == label
+                    targets = np.where(mask, index, targets)
+                    final_mask |= mask
+                dataset.targets = targets
+                return Subset(dataset, final_mask.nonzero()[0])
+
+            train_data, test_data = _filter(train_data), _filter(test_data)
 
         context_len = round(args.context_pcnt * len(train_data))
         train_len = len(train_data) - context_len
         context_data, train_data = random_split(train_data, lengths=(context_len, train_len))
-
-        test_data = MNIST(root=args.root, download=True, train=False)
-
-        num_classes = 10
-        if args.filter_labels is not None:
-            train_data = filter_by_labels(train_data, args.filter_labels)
-            test_data = filter_by_labels(test_data, args.filter_labels)
-            num_classes = len(args.filter_labels)
 
         colorizer = LdColorizer(
             scale=args.scale,

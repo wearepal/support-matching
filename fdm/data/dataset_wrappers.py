@@ -1,3 +1,4 @@
+from __future__ import annotations
 import random
 from pathlib import Path
 from typing import TYPE_CHECKING, List, Optional, Tuple, Dict, Union, Callable, Set
@@ -271,6 +272,6 @@ def filter_by_labels(
     """Filter samples from a dataset by labels."""
     indices: List[int] = []
     for _, _, y in dataset:
-        if (label := y.numpy()) in labels:
-            indices.append(int(label))
+        if (label := int(y.numpy())) in labels:
+            indices.append(label)
     return Subset(dataset, indices)
