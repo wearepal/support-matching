@@ -74,6 +74,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             black=args.black,
             binarize=args.binarize,
             greyscale=args.greyscale,
+            color_indices=args.filter_labels or None,
         )
 
         context_data = LdAugmentedDataset(
