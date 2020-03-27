@@ -2,7 +2,7 @@ import argparse
 
 import torch
 
-from typing import Optional, Literal, List
+from typing import Optional, Literal, List, Set
 from ethicml.data import GenfacesAttributes
 
 from tap import Tap
@@ -72,6 +72,7 @@ class BaseArgs(Tap):
     mixing_factor: float = 0.0  # How much of context should be mixed into training?
     context_pcnt: float = 0.4
     test_pcnt: float = 0.2
+    filter_labels: Optional[Set[int]] = None
 
     # Adult data set feature settings
     drop_native: bool = True

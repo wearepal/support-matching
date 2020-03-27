@@ -9,7 +9,7 @@ from ethicml.vision.data import LdColorizer
 from fdm.configs import BaseArgs
 
 from .adult import load_adult_data
-from .dataset_wrappers import LdAugmentedDataset
+from .dataset_wrappers import LdAugmentedDataset, filter_by_labels
 from .misc import shrink_dataset
 from .transforms import NoisyDequantize, Quantize
 
@@ -51,6 +51,12 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
 
         test_data = MNIST(root=args.root, download=True, train=False)
 
+        num_classes = 10
+        if args.filter_labels is not None:
+            train_data = filter_by_labels(train_data, args.filter_labels)
+            test_data = filter_by_labels(test_data, args.filter_labels)
+            num_classes = len(args.filter_labels)
+
         colorizer = LdColorizer(
             scale=args.scale,
             background=args.background,
@@ -62,27 +68,27 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         context_data = LdAugmentedDataset(
             context_data,
             ld_augmentations=colorizer,
-            num_classes=10,
+            num_classes=num_classes,
             li_augmentation=True,
             base_augmentations=data_aug + base_aug,
         )
         train_data = LdAugmentedDataset(
             train_data,
             ld_augmentations=colorizer,
-            num_classes=10,
+            num_classes=num_classes,
             li_augmentation=False,
             base_augmentations=data_aug + base_aug,
         )
         test_data = LdAugmentedDataset(
             test_data,
             ld_augmentations=colorizer,
-            num_classes=10,
+            num_classes=num_classes,
             li_augmentation=True,
             base_augmentations=base_aug,
         )
 
-        args._y_dim = 10
-        args._s_dim = 10
+        args._y_dim = num_classes
+        args._s_dim = num_classes
 
     elif args.dataset == "celeba":
 

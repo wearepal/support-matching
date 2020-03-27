@@ -1,6 +1,6 @@
 import random
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Tuple, Dict, Union, Callable
+from typing import TYPE_CHECKING, List, Optional, Tuple, Dict, Union, Callable, Set
 
 import numpy as np
 import pandas as pd
@@ -263,3 +263,14 @@ class TripletDataset(Dataset):
         target = self.target[index]
 
         return img, sens, target
+
+
+def filter_by_labels(
+    dataset: Dataset[Tuple[torch.Tensor, torch.Tensor, torch.Tensor]], labels: Set[int]
+) -> Subset:
+    """Filter samples from a dataset by labels."""
+    indices: List[int] = []
+    for _, _, y in dataset:
+        if (label := y.numpy()) in labels:
+            indices.append(int(label))
+    return Subset(dataset, indices)
