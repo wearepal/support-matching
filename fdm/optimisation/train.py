@@ -258,8 +258,9 @@ def train(
 
         x_c, x_t = to_device(x_c, x_t)
 
-        # Train the discriminator on its own for a number of iterations
-        update_disc(x_c, x_t, generator, discriminator, disc_distinguish)
+        if itr >= ARGS.warmup_steps:
+            # Train the discriminator on its own for a number of iterations
+            update_disc(x_c, x_t, generator, discriminator, disc_distinguish)
 
         gen_loss, logging_dict = update(
             x_c=x_c,
