@@ -29,6 +29,9 @@ class Reconstructions(NamedTuple):
     all: Tensor
     rand_s: Tensor  # reconstruction with random s
     rand_y: Tensor  # reconstruction with random y
+    zero_s: Tensor
+    zero_y: Tensor
+    just_s: Tensor
 
 
 class AutoEncoder(nn.Module):
@@ -76,12 +79,19 @@ class AutoEncoder(nn.Module):
         zs_m = torch.cat([torch.randn_like(zs), zy, zn], dim=1)
         return self.decode(zs_m)
 
-    def decode_and_mask(self, z: Tensor, discretize: bool = False) -> Reconstructions:
-        zs_m, zy_m = self.mask(z, random=True)
-        recon_all = self.decode(z, discretize=discretize)
-        recon_rand_s = self.decode(zs_m, discretize=discretize)
-        recon_rand_y = self.decode(zy_m, discretize=discretize)
-        return Reconstructions(all=recon_all, rand_s=recon_rand_s, rand_y=recon_rand_y)
+    def all_recons(self, z: Tensor, discretize: bool = False) -> Reconstructions:
+        rand_s, rand_y = self.mask(z, random=True)
+        zero_s, zero_y = self.mask(z)
+        zs, zy, zn = self.split_encoding(z)
+        just_s = torch.cat([zs, torch.zeros_like(zy), torch.zeros_like(zn)], dim=1)
+        return Reconstructions(
+            all=self.decode(z, discretize=discretize),
+            rand_s=self.decode(rand_s, discretize=discretize),
+            rand_y=self.decode(rand_y, discretize=discretize),
+            zero_s=self.decode(zero_s, discretize=discretize),
+            zero_y=self.decode(zero_y, discretize=discretize),
+            just_s=self.decode(just_s, discretize=discretize),
+        )
 
     def forward(self, inputs, reverse: bool = True):
         if reverse:
@@ -104,6 +114,7 @@ class AutoEncoder(nn.Module):
         return SplitEncoding(zs=zs, zy=zy, zn=zn)
 
     def mask(self, z: Tensor, random: bool = False) -> Tuple[Tensor, Tensor]:
+        """Split the encoding and mask out zs and zy. This is a cheap function."""
         zs, zy, zn = self.split_encoding(z)
         if random:
             zs_m = torch.cat([torch.randn_like(zs), zy, zn], dim=1)

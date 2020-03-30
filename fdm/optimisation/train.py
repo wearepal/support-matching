@@ -316,13 +316,16 @@ def log_recons(generator: AutoEncoder, x_t: Tensor, itr: int, prefix: Optional[s
     else:
         encoding = generator.encode(x_t[:64])
 
-    recon = generator.decode_and_mask(encoding, discretize=True)
+    recon = generator.all_recons(encoding, discretize=True)
 
     log_images(ARGS, x_t[:64], "original_x", step=itr, prefix=prefix)
     log_images(ARGS, recon.all, "reconstruction_all", step=itr, prefix=prefix)
     log_images(ARGS, recon.rand_s, "reconstruction_rand_s", step=itr, prefix=prefix)
+    log_images(ARGS, recon.zero_s, "reconstruction_zero_s", step=itr, prefix=prefix)
+    log_images(ARGS, recon.just_s, "reconstruction_just_s", step=itr, prefix=prefix)
     if ARGS.three_way_split:
         log_images(ARGS, recon.rand_y, "reconstruction_rand_2", step=itr, prefix=prefix)
+        log_images(ARGS, recon.zero_y, "reconstruction_zero_2", step=itr, prefix=prefix)
 
 
 def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
