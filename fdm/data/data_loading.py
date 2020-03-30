@@ -50,7 +50,6 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         num_classes = 10
         if args.filter_labels:
             num_classes = len(args.filter_labels)
-            num_classes = 1 if num_classes == 2 else num_classes
 
             def _filter(dataset: MNIST):
                 targets: np.ndarray[np.int64] = dataset.targets.numpy()
@@ -99,8 +98,8 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             base_augmentations=base_aug,
         )
 
-        args._y_dim = num_classes
-        args._s_dim = num_classes
+        args._y_dim = 1 if num_classes == 2 else num_classes
+        args._s_dim = 1 if num_classes == 2 else num_classes
 
     elif args.dataset == "celeba":
 
