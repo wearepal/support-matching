@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Literal
+from typing import Dict, Optional, Tuple, Literal, Sequence
 
 import numpy as np
 import pandas as pd
@@ -19,7 +19,7 @@ from fdm.configs import VaeArgs, BaseArgs
 from fdm.data import DatasetTriplet, get_data_tuples
 from fdm.models import Classifier, AutoEncoder
 from fdm.models.configs import fc_net, mp_32x32_net, mp_64x64_net
-from fdm.utils import wandb_log
+from fdm.utils import wandb_log, product
 
 from .utils import log_images
 
@@ -108,15 +108,22 @@ def compute_metrics(
     return metrics
 
 
-def fit_classifier(args: BaseArgs, input_dim, train_data, train_on_recon, pred_s, test_data=None):
-
+def fit_classifier(
+    args: BaseArgs,
+    input_shape: Sequence[int],
+    train_data: DataLoader,
+    train_on_recon: bool,
+    pred_s: bool,
+    test_data: Optional[DataLoader] = None,
+):
+    input_dim = input_shape[0]
     if args.dataset == "cmnist" and train_on_recon:
         clf_fn = mp_32x32_net
     elif args.dataset in ("celeba", "ssrp", "genfaces") and train_on_recon:
         clf_fn = mp_64x64_net
     else:
         clf_fn = fc_net
-        input_dim = (input_dim,)
+        input_dim = product(input_shape)
     clf = clf_fn(input_dim, target_dim=args._y_dim)
 
     n_classes = args._y_dim if args._y_dim > 1 else 2
@@ -153,7 +160,7 @@ def evaluate(
     pred_s: bool = False,
     save_to_csv: Optional[Path] = None,
 ):
-    input_dim = next(iter(train_data))[0].shape[0]
+    input_shape = next(iter(train_data))[0].shape
 
     if args.dataset in ("cmnist", "celeba", "ssrp", "genfaces"):
 
@@ -166,7 +173,7 @@ def evaluate(
 
         clf: Classifier = fit_classifier(
             args,
-            input_dim,
+            input_shape,
             train_data=train_loader,
             train_on_recon=eval_on_recon,
             pred_s=pred_s,

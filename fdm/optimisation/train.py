@@ -112,6 +112,7 @@ def update(
     discriminator: Classifier,
     recon_loss_fn,
     disc_distinguish: Optional[Regressor],
+    pred_s_weight: float,
 ) -> Tuple[Tensor, Dict[str, float]]:
     """Compute all losses.
 
@@ -191,7 +192,7 @@ def update(
             logging_dict["Loss Distinguisher 2"] = disc_loss_distinguish_y.item()
 
     elbo *= ARGS.elbo_weight
-    disc_loss *= ARGS.pred_s_weight
+    disc_loss *= pred_s_weight
     disc_loss_distinguish *= ARGS.distinguish_weight
 
     gen_loss = elbo - disc_loss - disc_loss_distinguish
@@ -201,16 +202,15 @@ def update(
     gen_loss.backward()
     generator.step()
 
-    logging_dict.update(
-        {
-            "ELBO": elbo.item(),
-            "Loss Adversarial": disc_loss.item(),
-            "Accuracy Disc": disc_acc_inv_s,
-            "KL divergence": kl_div.item(),
-            "Loss Reconstruction": recon_loss.item(),
-            "Loss Generator": gen_loss.item(),
-        }
-    )
+    final_logging = {
+        "ELBO": elbo.item(),
+        "Loss Adversarial": disc_loss.item(),
+        "Accuracy Disc": disc_acc_inv_s,
+        "KL divergence": kl_div.item(),
+        "Loss Reconstruction": recon_loss.item(),
+        "Loss Generator": gen_loss.item(),
+    }
+    logging_dict.update(final_logging)
 
     return gen_loss, logging_dict
 
@@ -258,9 +258,11 @@ def train(
 
         x_c, x_t = to_device(x_c, x_t)
 
+        pred_s_weight = 0.0
         if itr >= ARGS.warmup_steps:
             # Train the discriminator on its own for a number of iterations
             update_disc(x_c, x_t, generator, discriminator, disc_distinguish)
+            pred_s_weight = ARGS.pred_s_weight
 
         gen_loss, logging_dict = update(
             x_c=x_c,
@@ -269,6 +271,7 @@ def train(
             discriminator=discriminator,
             recon_loss_fn=recon_loss_fn,
             disc_distinguish=disc_distinguish,
+            pred_s_weight=pred_s_weight,
         )
 
         # Log losses
