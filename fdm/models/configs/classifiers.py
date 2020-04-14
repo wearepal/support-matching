@@ -1,4 +1,4 @@
-from typing import Protocol, Union
+from typing import Protocol, Union, Sequence
 
 import numpy as np
 import torch.nn as nn
@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from torchvision.models import resnet50
 
 from fdm.models.resnet import ResidualNet
+from fdm.utils import product
 
 __all__ = [
     "linear_resnet",
@@ -231,7 +232,7 @@ def residual_64x64_net(input_dim, target_dim, batch_norm=False):
     return nn.Sequential(*layers)
 
 
-def fc_net(input_shape, target_dim, hidden_dims=None):
+def fc_net(input_shape: Sequence[int], target_dim, hidden_dims=None):
     hidden_dims = hidden_dims or []
 
     def fc_block(in_dim, out_dim):
@@ -241,7 +242,7 @@ def fc_net(input_shape, target_dim, hidden_dims=None):
         return _block
 
     layers = [nn.Flatten()]
-    input_dim = int(np.product(input_shape))
+    input_dim: int = product(input_shape)
 
     for output_dim in hidden_dims:
         layers.extend(fc_block(input_dim, output_dim))

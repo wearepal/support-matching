@@ -214,7 +214,7 @@ class Regressor(Classifier):
     def __init__(self, model, optimizer_kwargs: Optional[Dict] = None):
         """Build classifier model.
 
-        Args:).
+        Args:
             model: nn.Module. Classifier model to wrap around.
             optimizer_args: Dictionary. Arguments to pass to the optimizer.
 

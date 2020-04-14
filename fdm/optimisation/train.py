@@ -50,6 +50,7 @@ def update_disc(
     generator: AutoEncoder,
     discriminator: Classifier,
     disc_distinguish: Optional[Regressor],
+    warmup: bool = False,
 ) -> Tuple[Tensor, float]:
     """Train the discriminator while keeping the generator constant.
 
@@ -64,6 +65,7 @@ def update_disc(
 
     ones = x_c.new_ones((x_c.size(0),))
     zeros = x_t.new_zeros((x_t.size(0),))
+    # in case of the three-way split, we have to check more than one invariance
     invariances: List[Literal["s", "y"]] = ["s", "y"] if ARGS.three_way_split else ["s"]
 
     for _ in range(ARGS.num_disc_updates):
@@ -75,7 +77,6 @@ def update_disc(
 
         disc_loss = x_c.new_zeros(())
         disc_loss_distinguish = x_c.new_zeros(())
-        # in case of the three-way split, we have to check more than one invariance
         for invariance in invariances:
             disc_input_t = get_disc_input(generator, encoding_t, invariant_to=invariance)
             disc_input_t = disc_input_t.detach()
@@ -87,18 +88,23 @@ def update_disc(
             disc_loss_true, disc_acc_true = discriminator.routine(disc_input_c, ones)
             disc_loss_false, disc_acc_false = discriminator.routine(disc_input_t, zeros)
             disc_loss += disc_loss_true + disc_loss_false
-            if ARGS.three_way_split and not ARGS.train_on_recon:
+            if ARGS.three_way_split:
                 assert disc_distinguish is not None
+                # the distinguisher is always applied to the encoding (regardless of the other disc)
                 encs = generator.split_encoding(encoding_c)
                 target_enc = encs.zs if invariance == "s" else encs.zy
+                # take the encoding with `target_enc` masked out
+                zs_m, zy_m = generator.mask(encoding_c)
+                invariant_enc = zs_m if invariance == "s" else zy_m
                 # predict target_enc from the encoding that should be invariant of it
-                disc_loss_distinguish_c, _ = disc_distinguish.routine(disc_input_c, target_enc)
+                disc_loss_distinguish_c, _ = disc_distinguish.routine(invariant_enc, target_enc)
                 disc_loss_distinguish += disc_loss_distinguish_c
-        discriminator.zero_grad()
-        disc_loss.backward()
-        discriminator.step()
+        if not warmup:
+            discriminator.zero_grad()
+            disc_loss.backward()
+            discriminator.step()
 
-        if disc_distinguish is not None:
+        if disc_distinguish is not None and (not ARGS.distinguish_warmup or not warmup):
             disc_distinguish.zero_grad()
             disc_loss_distinguish.backward()
             disc_distinguish.step()
@@ -170,30 +176,31 @@ def update(
     disc_loss, disc_acc_inv_s = discriminator.routine(disc_input, zeros)
 
     disc_loss_distinguish = x_t.new_zeros(())
-    if ARGS.three_way_split:
+    if ARGS.three_way_split and (not ARGS.distinguish_warmup or pred_s_weight != 0):
         disc_input_y = get_disc_input(generator, encoding, invariant_to="y")
         disc_loss_y, disc_acc_inv_y = discriminator.routine(disc_input_y, zeros)
         disc_loss += disc_loss_y
         logging_dict["Accuracy Disc 2"] = disc_acc_inv_y
 
-        if not ARGS.train_on_recon:
-            assert disc_distinguish is not None
-            encs_c = generator.split_encoding(encoding_c)
-            # predict zs from zn and zy
-            disc_input_c = get_disc_input(generator, encoding_c, invariant_to="s")
-            disc_loss_distinguish_s, _ = disc_distinguish.routine(disc_input_c, encs_c.zs)
-            disc_loss_distinguish += disc_loss_distinguish_s
-            logging_dict["Loss Distinguisher 1"] = disc_loss_distinguish_s.item()
-
-            # predict zy from zn and zs
-            disc_input_c_y = get_disc_input(generator, encoding_c, invariant_to="y")
-            disc_loss_distinguish_y, _ = disc_distinguish.routine(disc_input_c_y, encs_c.zy)
-            disc_loss_distinguish += disc_loss_distinguish_y
-            logging_dict["Loss Distinguisher 2"] = disc_loss_distinguish_y.item()
+        assert disc_distinguish is not None
+        encs_c = generator.split_encoding(encoding_c)
+        zs_m, zy_m = generator.mask(encoding_c)
+        # predict zs from zn and zy (i.e. zs masked out) and predict zy from zn and zs
+        tasks = [
+            (zs_m, encs_c.zs, "Loss Distinguisher 1"), (zy_m, encs_c.zy, "Loss Distinguisher 2")
+        ]
+        for (invariant, target, loss_name) in tasks:
+            loss_dist, _ = disc_distinguish.routine(invariant, target)
+            disc_loss_distinguish += loss_dist * ARGS.distinguish_weight
+            logging_dict[loss_name] = loss_dist.item()
+    elif ARGS.three_way_split:
+        # TODO: remove the need for this workaround
+        logging_dict.update(
+            {"Accuracy Disc 2": 0.0, "Loss Distinguisher 1": 0.0, "Loss Distinguisher 2": 0.0}
+        )
 
     elbo *= ARGS.elbo_weight
     disc_loss *= pred_s_weight
-    disc_loss_distinguish *= ARGS.distinguish_weight
 
     gen_loss = elbo - disc_loss - disc_loss_distinguish
 
@@ -258,11 +265,9 @@ def train(
 
         x_c, x_t = to_device(x_c, x_t)
 
-        pred_s_weight = 0.0
-        if itr >= ARGS.warmup_steps:
-            # Train the discriminator on its own for a number of iterations
-            update_disc(x_c, x_t, generator, discriminator, disc_distinguish)
-            pred_s_weight = ARGS.pred_s_weight
+        pred_s_weight = 0.0 if itr < ARGS.warmup_steps else ARGS.pred_s_weight
+        # Train the discriminator on its own for a number of iterations
+        update_disc(x_c, x_t, generator, discriminator, disc_distinguish, itr < ARGS.warmup_steps)
 
         gen_loss, logging_dict = update(
             x_c=x_c,
@@ -510,12 +515,12 @@ def main(raw_args: Optional[List[str]] = None) -> AutoEncoder:
     discriminator.to(args._device)
 
     disc_distinguish = None
-    if args.three_way_split and not ARGS.train_on_recon:  # for now, only with train on encodings
+    if args.three_way_split:  # this is always trained on encodings
         disc_dist_fn = fc_net
         disc_dist_kwargs = {"hidden_dims": args.disc_hidden_dims}
         output_dim = product((encoding_size.zy,) + enc_shape[1:])
         disc_distinguish = Regressor(
-            disc_dist_fn(disc_input_shape, output_dim, **disc_dist_kwargs), disc_optimizer_kwargs,
+            disc_dist_fn(enc_shape, output_dim, **disc_dist_kwargs), disc_optimizer_kwargs,
         )
         disc_distinguish.to(args._device)
 

@@ -108,6 +108,7 @@ class BaseArgs(Tap):
     seed: int = 42
     data_split_seed: int = 888
     warmup_steps: int = 0
+    distinguish_warmup: bool = False
     gamma: float = 1.0  # Gamma value for Exponential Learning Rate scheduler.
     train_on_recon: bool = False  # whether to train the discriminator on recons or encodings
     recon_detach: bool = True  # Whether to apply the stop gradient operator to the reconstruction.
