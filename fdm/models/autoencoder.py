@@ -191,3 +191,6 @@ class VAE(AutoEncoder):
             return sample, posterior
         else:
             return sample
+
+#     def mask(self, z: Tensor, random: bool = False) -> Tuple[Tensor, Tensor]:
+#         return super().mask(z, random=False)

@@ -1,4 +1,4 @@
-from typing import Protocol, Union, Sequence
+from typing import Protocol, Union, Sequence, Optional
 
 import numpy as np
 import torch.nn as nn
@@ -232,7 +232,9 @@ def residual_64x64_net(input_dim, target_dim, batch_norm=False):
     return nn.Sequential(*layers)
 
 
-def fc_net(input_shape: Sequence[int], target_dim, hidden_dims=None):
+def fc_net(
+    input_dim: Union[int, Sequence[int]], target_dim, hidden_dims: Optional[Sequence[int]] = None
+):
     hidden_dims = hidden_dims or []
 
     def fc_block(in_dim, out_dim):
@@ -242,7 +244,8 @@ def fc_net(input_shape: Sequence[int], target_dim, hidden_dims=None):
         return _block
 
     layers = [nn.Flatten()]
-    input_dim: int = product(input_shape)
+    if not isinstance(input_dim, int):
+        input_dim = product(input_dim)
 
     for output_dim in hidden_dims:
         layers.extend(fc_block(input_dim, output_dim))
