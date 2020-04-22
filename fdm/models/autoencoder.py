@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Literal, NamedTuple, Optional, Tuple, Union, overload
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union, overload
 
 import torch
 import torch.distributions as td
@@ -8,30 +8,9 @@ from torch import Tensor
 
 from fdm.utils import to_discrete
 
-from .base import ModelBase
+from .base import ModelBase, EncodingSize, SplitEncoding, Reconstructions
 
-__all__ = ["AutoEncoder", "VAE", "EncodingSize", "SplitEncoding", "Reconstructions"]
-
-
-class EncodingSize(NamedTuple):
-    zs: int
-    zy: int
-    zn: int
-
-
-class SplitEncoding(NamedTuple):
-    zs: Tensor
-    zy: Tensor
-    zn: Tensor
-
-
-class Reconstructions(NamedTuple):
-    all: Tensor
-    rand_s: Tensor  # reconstruction with random s
-    rand_y: Tensor  # reconstruction with random y
-    zero_s: Tensor
-    zero_y: Tensor
-    just_s: Tensor
+__all__ = ["AutoEncoder", "VAE"]
 
 
 class AutoEncoder(nn.Module):
@@ -39,7 +18,7 @@ class AutoEncoder(nn.Module):
         self,
         encoder: nn.Module,
         decoder: nn.Module,
-        encoding_size: EncodingSize,
+        encoding_size: Optional[EncodingSize],
         feature_group_slices: Optional[Dict[str, List[slice]]] = None,
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
     ):
@@ -50,11 +29,9 @@ class AutoEncoder(nn.Module):
         self.encoding_size = encoding_size
         self.feature_group_slices = feature_group_slices
 
-    def encode(self, inputs: Tensor) -> Tensor:
+    def encode(self, inputs: Tensor, stochastic: bool = False) -> Tensor:
+        del stochastic
         return self.encoder(inputs)
-
-    def encode_and_split(self, inputs: Tensor) -> SplitEncoding:
-        return self.split_encoding(self.encode(inputs))
 
     def decode(self, z, discretize: bool = False):
         decoding = self.decoder(z)
@@ -73,11 +50,6 @@ class AutoEncoder(nn.Module):
                     decoding[:, group_slice] = one_hot
 
         return decoding
-
-    def generate_recon_rand_s(self, inputs: Tensor) -> Tensor:
-        zs, zy, zn = self.encode_and_split(inputs)
-        zs_m = torch.cat([torch.randn_like(zs), zy, zn], dim=1)
-        return self.decode(zs_m)
 
     def all_recons(self, z: Tensor, discretize: bool = False) -> Reconstructions:
         rand_s, rand_y = self.mask(z, random=True)
@@ -108,6 +80,7 @@ class AutoEncoder(nn.Module):
         self.decoder.step()
 
     def split_encoding(self, z: Tensor) -> SplitEncoding:
+        assert self.encoding_size is not None
         zs, zy, zn = z.split(
             (self.encoding_size.zs, self.encoding_size.zy, self.encoding_size.zn), dim=1
         )
@@ -135,7 +108,7 @@ class VAE(AutoEncoder):
         self,
         encoder: nn.Module,
         decoder: nn.Module,
-        encoding_size: EncodingSize,
+        encoding_size: Optional[EncodingSize],
         std_transform: Literal["softplus", "exp"],
         feature_group_slices: Optional[Dict[str, List[slice]]] = None,
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
@@ -175,7 +148,7 @@ class VAE(AutoEncoder):
         ...
 
     def encode(
-        self, x: Tensor, return_posterior: bool = False, stochastic: bool = True
+        self, x: Tensor, return_posterior: bool = False, stochastic: bool = False
     ) -> Union[Tuple[Tensor, td.Distribution], Tensor]:
         loc, scale = self.encoder(x).chunk(2, dim=1)
 
@@ -191,6 +164,7 @@ class VAE(AutoEncoder):
             return sample, posterior
         else:
             return sample
+
 
 #     def mask(self, z: Tensor, random: bool = False) -> Tuple[Tensor, Tensor]:
 #         return super().mask(z, random=False)

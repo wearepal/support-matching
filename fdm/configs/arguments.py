@@ -1,5 +1,5 @@
 import argparse
-from typing import Optional, Literal, List
+from typing import Optional, Literal, List, Dict
 
 from tap import Tap
 import torch
@@ -192,6 +192,29 @@ class VaeArgs(BaseArgs):
     three_way_split: bool = False
     std_transform: Literal["softplus", "exp"] = "exp"
 
+    # INN settings
+    use_inn: bool = False
+    inn_levels: int = 1
+    inn_level_depth: int = 1
+    inn_reshape_method: Literal["squeeze", "haar"] = "squeeze"
+    inn_coupling_channels: int = 256
+    inn_coupling_depth: int = 1
+    inn_glow: bool = True
+    inn_batch_norm: bool = False
+    inn_bn_lag: float = 0  # fraction of current statistics to incorporate into moving average
+    inn_factor_splits: Dict[str, str] = {}
+    inn_idf: bool = False
+    inn_scaling: Literal["none", "exp", "sigmoid0.5", "add2_sigmoid"] = "sigmoid0.5"
+    inn_spectral_norm: bool = False
+    inn_oxbow_net: bool = False
+    inn_lr: float = 3e-4
+    nll_weight: float = 1e-2
+    recon_stability_weight: float = 0
+    path_to_ae: str = ""
+    ae_epochs: int = 5
+    num_discs: int = 1
+    disc_reset_prob: float = 0.0
+
     # Discriminator settings
     disc_hidden_dims: List[int] = [256]
 
@@ -203,6 +226,12 @@ class VaeArgs(BaseArgs):
     pred_s_weight: float = 1
     num_disc_updates: int = 1
     distinguish_weight: float = 1
+
+    def add_arguments(self):
+        # this is a very complicated argument that has to be specified manually
+        self.add_argument(
+            "--inn-factor-splits", action=StoreDictKeyPair, nargs="+", default={}, type=str
+        )
 
     def process_args(self):
         if self.recon_loss is None:

@@ -1,8 +1,32 @@
+from typing import NamedTuple
+
+from torch import Tensor
 import torch.nn as nn
 
 from fdm.utils.optimizers import RAdam
 
-__all__ = ["ModelBase"]
+__all__ = ["ModelBase", "EncodingSize", "SplitEncoding", "Reconstructions"]
+
+
+class EncodingSize(NamedTuple):
+    zs: int
+    zy: int
+    zn: int
+
+
+class SplitEncoding(NamedTuple):
+    zs: Tensor
+    zy: Tensor
+    zn: Tensor
+
+
+class Reconstructions(NamedTuple):
+    all: Tensor
+    rand_s: Tensor  # reconstruction with random s
+    rand_y: Tensor  # reconstruction with random y
+    zero_s: Tensor
+    zero_y: Tensor
+    just_s: Tensor
 
 
 class ModelBase(nn.Module):
