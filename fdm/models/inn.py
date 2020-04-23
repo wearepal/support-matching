@@ -1,14 +1,15 @@
-from typing import Dict, List, Optional, Sequence, Tuple, overload
+from typing import Dict, Optional, Sequence, Tuple, overload
 
 import torch
 import torch.distributions as td
 from torch import Tensor
+from torch.utils.data import DataLoader
 
 from fdm.configs import VaeArgs
 from fdm.layers import Bijector
 from fdm.utils import DLogistic, MixtureDistribution, product  # to_discrete, logistic_distribution
 
-from .autoencoder import AutoEncoder, VAE
+from .autoencoder import AutoEncoder
 from .base import ModelBase, SplitEncoding, EncodingSize, Reconstructions
 
 __all__ = ["PartitionedAeInn"]
@@ -38,6 +39,7 @@ class PartitionedAeInn(ModelBase):
         Returns:
             None
         """
+        super().__init__(model, optimizer_kwargs=optimizer_args)
         self.input_shape = input_shape
         self.base_density: td.Distribution
 
@@ -75,8 +77,6 @@ class PartitionedAeInn(ModelBase):
         zn_dim: int = self.output_dim - zs_dim - zy_dim
         self.encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim, zn=zn_dim)
         self.autoencoder = autoencoder
-
-        super().__init__(model, optimizer_kwargs=optimizer_args)
 
     def decode_with_ae_enc(self, z, discretize: bool = False) -> Tuple[Tensor, Tensor]:
         ae_enc, _ = self.model(z, sum_ldj=None, reverse=True)
@@ -187,10 +187,10 @@ class PartitionedAeInn(ModelBase):
         else:
             return self.encode(inputs)
 
-    def fit_ae(self, train_data, epochs, device, loss_fn=torch.nn.MSELoss()):
+    def fit_ae(self, train_data: DataLoader, epochs: int, device, loss_fn, kl_weight: float):
         print("===> Fitting Auto-encoder to the training data....")
         self.autoencoder.train()
-        self.autoencoder.fit(train_data, epochs, device, loss_fn)
+        self.autoencoder.fit(train_data, epochs, device, loss_fn, kl_weight)
         self.autoencoder.eval()
 
     def train(self):

@@ -4,7 +4,9 @@ import torch
 import torch.distributions as td
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.data import DataLoader
 from torch import Tensor
+from tqdm import tqdm
 
 from fdm.utils import to_discrete
 
@@ -102,6 +104,37 @@ class AutoEncoder(nn.Module):
             zy_m = torch.cat([zs, torch.zeros_like(zy), zn], dim=1)
         return zs_m, zy_m
 
+    def fit(self, train_data: DataLoader, epochs: int, device, loss_fn, kl_weight: float):
+        self.train()
+
+        with tqdm(total=epochs * len(train_data)) as pbar:
+            for _ in range(epochs):
+
+                for x, _, _ in train_data:
+
+                    x = x.to(device)
+
+                    self.zero_grad()
+                    _, loss, _ = self.routine(x, recon_loss_fn=loss_fn, kl_weight=kl_weight)
+                    # loss /= x[0].nelement()
+
+                    loss.backward()
+                    self.step()
+
+                    pbar.update()
+                    pbar.set_postfix(AE_loss=loss.detach().cpu().numpy())
+
+    def routine(
+        self, x: Tensor, recon_loss_fn, kl_weight: float
+    ) -> Tuple[Tensor, Tensor, Dict[str, float]]:
+        del kl_weight
+        encoding = self.encode(x)
+
+        recon_all = self.decode(encoding)
+        recon_loss = recon_loss_fn(recon_all, x)
+        recon_loss /= x.size(0)
+        return encoding, recon_loss, {"Loss reconstruction": recon_loss.item()}
+
 
 class VAE(AutoEncoder):
     def __init__(
@@ -165,6 +198,20 @@ class VAE(AutoEncoder):
         else:
             return sample
 
+    # def mask(self, z: Tensor, random: bool = False) -> Tuple[Tensor, Tensor]:
+    #     return super().mask(z, random=False)
 
-#     def mask(self, z: Tensor, random: bool = False) -> Tuple[Tensor, Tensor]:
-#         return super().mask(z, random=False)
+    def routine(
+        self, x: Tensor, recon_loss_fn, kl_weight: float
+    ) -> Tuple[Tensor, Tensor, Dict[str, float]]:
+        encoding, posterior = self.encode(x, return_posterior=True, stochastic=True)
+        kl_div = self.compute_divergence(encoding, posterior)
+        kl_div /= x.size(0)
+        kl_div *= kl_weight
+
+        recon_all = self.decode(encoding)
+        recon_loss = recon_loss_fn(recon_all, x)
+        recon_loss /= x.size(0)
+        elbo = recon_loss + kl_div
+        logging_dict = {"Loss Reconstruction": recon_loss.item(), "KL divergence": kl_div}
+        return encoding, elbo, logging_dict

@@ -145,42 +145,15 @@ def update(
     logging_dict = {}
 
     # ================================ recon loss for training set ================================
-    if ARGS.vae:
-        generator = cast(VAE, generator)
-        encoding, posterior = generator.encode(x_t, return_posterior=True, stochastic=True)
-        kl_div = generator.compute_divergence(encoding, posterior)
-        kl_div /= x_t.size(0)
-        kl_div *= ARGS.kl_weight
-    else:
-        encoding = generator.encode(x_t)  # normal AE
-        kl_div = x_t.new_zeros(())
-
-    recon_all = generator.decode(encoding)
-    recon_loss = recon_loss_fn(recon_all, x_t)
-    recon_loss /= x_t.size(0)
-    elbo = recon_loss + kl_div
+    encoding, elbo, logging_dict_elbo = generator.routine(x_t, recon_loss_fn, ARGS.kl_weight)
 
     # ================================ recon loss for context set =================================
     # we need a reconstruction loss for x_c because...
     # ...when we train on encodings, the network will otherwise just falsify encodings for x_c
     # ...when we train on recons, the GAN loss has it too easy to distinguish the two
-    if ARGS.vae:
-        generator = cast(VAE, generator)
-        encoding_c, posterior_c = generator.encode(x_c, return_posterior=True, stochastic=True)
-        kl_div_c = generator.compute_divergence(encoding_c, posterior_c)
-        kl_div_c /= x_c.size(0)
-        kl_div_c *= ARGS.kl_weight
-    else:
-        encoding_c = generator.encode(x_c)  # normal AE
-        kl_div_c = x_c.new_zeros(())
-
-    recon_all_c = generator.decode(encoding_c)
-    recon_loss_c = recon_loss_fn(recon_all_c, x_c)
-    recon_loss_c /= x_c.size(0)
-    recon_loss += recon_loss_c  # for logging
-    kl_div += kl_div_c  # for logging
-    elbo += recon_loss_c + kl_div_c
-    elbo *= 0.5  # take average of the two recon losses
+    encoding_c, elbo_c, logging_dict_elbo_c = generator.routine(x_c, recon_loss_fn, ARGS.kl_weight)
+    logging_dict.update({k: v + logging_dict_elbo_c[k] for k, v in logging_dict_elbo.items()})
+    elbo = 0.5 * (elbo + elbo_c)  # take average of the two recon losses
 
     # ==================================== adversarial losses =====================================
     disc_input = get_disc_input(generator, encoding, invariant_to="s")
@@ -226,8 +199,6 @@ def update(
         "ELBO": elbo.item(),
         "Loss Adversarial": disc_loss.item(),
         "Accuracy Disc": disc_acc_inv_s,
-        "KL divergence": kl_div.item(),
-        "Loss Reconstruction": recon_loss.item(),
         "Loss Generator": gen_loss.item(),
     }
     logging_dict.update(final_logging)

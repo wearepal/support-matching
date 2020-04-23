@@ -6,8 +6,8 @@ import torch.nn.functional as F
 from torch import Tensor
 from typing_extensions import Literal
 
-from nosinn.utils import RoundSTE, sum_except_batch
-from nosinn.utils.typechecks import is_probability
+from fdm.utils import RoundSTE, sum_except_batch
+from fdm.utils.typechecks import is_probability
 
 from ..conv import BottleneckConvBlock
 from ..resnet import ConvResidualNet

@@ -48,7 +48,6 @@ def update_disc_on_inn(
                 disc_input_c = get_disc_input(args, inn, encoding_c, invariant_to=invariance)
                 disc_input_c = disc_input_c.detach()
 
-            disc_loss = x_c.new_zeros(())
             for disc in disc_ensemble:
                 # discriminator is trained to distinguish `disc_input_c` and `disc_input_t`
                 disc_loss_true, disc_acc_true = disc.routine(disc_input_c, ones)
@@ -87,10 +86,7 @@ def update_inn(
     # ================================ NLL loss for training set ================================
     # the following code is also in inn.routine() but we need to access ae_enc directly
     zero = x_t.new_zeros((x_t.size(0), 1))
-    if do_recon_stability:  # and isinstance(inn, PartitionedAeInn):
-        enc, sum_ldj, ae_enc = inn.encode_with_ae_enc(x_t, sum_ldj=zero)
-    # else:
-    #     enc, sum_ldj = inn.forward(x_t, logdet=zero, reverse=False)
+    enc, sum_ldj, ae_enc = inn.encode_with_ae_enc(x_t, sum_ldj=zero)
     nll = inn.nll(enc, sum_ldj)
 
     # ================================ NLL loss for context set =================================

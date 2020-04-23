@@ -3,8 +3,8 @@ from typing import Optional
 import torch
 from torch import Tensor
 
-from nosinn.layers.inn import Bijector
-from nosinn.utils import is_positive_int
+from fdm.utils import is_positive_int
+from .bijector import Bijector
 
 __all__ = ["RandomPermutation", "ReversePermutation"]
 
