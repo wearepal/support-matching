@@ -86,39 +86,42 @@ def update_inn(
     # ================================ NLL loss for training set ================================
     # the following code is also in inn.routine() but we need to access ae_enc directly
     zero = x_t.new_zeros((x_t.size(0), 1))
-    enc, sum_ldj, ae_enc = inn.encode_with_ae_enc(x_t, sum_ldj=zero)
-    nll = inn.nll(enc, sum_ldj)
+    enc_t, sum_ldj_t, ae_enc_t = inn.encode_with_ae_enc(x_t, sum_ldj=zero)
+    nll = inn.nll(enc_t, sum_ldj_t)
 
     # ================================ NLL loss for context set =================================
     # we need a NLL loss for x_c because...
     # ...when we train on encodings, the network will otherwise just falsify encodings for x_c
     # ...when we train on recons, the GAN loss has it too easy to distinguish the two
     zero = x_c.new_zeros((x_c.size(0), 1))
-    enc_c, sum_ldj_c, _ = inn.encode_with_ae_enc(x_c, sum_ldj=zero)
+    enc_c, sum_ldj_c, ae_enc_c = inn.encode_with_ae_enc(x_c, sum_ldj=zero)
     nll += inn.nll(enc_c, sum_ldj_c)
     nll *= 0.5  # take average of the two nll losses
 
     # =================================== recon stability loss ====================================
     recon_loss = x_t.new_zeros(())
     if do_recon_stability and isinstance(inn, PartitionedAeInn):
-        disc_input, ae_recon = get_disc_input(args, inn, enc, invariant_to="s", with_ae_enc=True)
-        disc_input_y, ae_recon_y = get_disc_input(
-            args, inn, enc, invariant_to="y", with_ae_enc=True
+        disc_input_s, ae_recon_s = get_disc_input(
+            args, inn, enc_c, invariant_to="s", with_ae_enc=True, random=False
         )
-        recon_loss += args.recon_stability_weight * F.mse_loss(ae_recon, ae_enc)
-        recon_loss += args.recon_stability_weight * F.mse_loss(ae_recon_y, ae_enc)
+        disc_input_y, ae_recon_y = get_disc_input(
+            args, inn, enc_c, invariant_to="y", with_ae_enc=True, random=False
+        )
+        recon_loss += args.recon_stability_weight * F.mse_loss(ae_recon_s, ae_enc_c)
+        recon_loss += args.recon_stability_weight * F.mse_loss(ae_recon_y, ae_enc_c)
     else:
-        disc_input = get_disc_input(args, inn, enc, invariant_to="s")
-        disc_input_y = get_disc_input(args, inn, enc, invariant_to="y")
+        disc_input_s = get_disc_input(args, inn, enc_c, invariant_to="s", random=False)
+        disc_input_y = get_disc_input(args, inn, enc_c, invariant_to="y", random=False)
 
     # ==================================== adversarial losses =====================================
+    # ones = x_c.new_ones((x_c.size(0),))
     zeros = x_t.new_zeros((x_t.size(0),))
 
     # discriminators
     disc_loss = x_t.new_zeros(())
     disc_acc_inv_s = 0.0
     for disc in disc_ensemble:
-        disc_loss_k, disc_acc_k = disc.routine(disc_input, zeros)
+        disc_loss_k, disc_acc_k = disc.routine(disc_input_s, zeros)
         disc_loss += disc_loss_k
         disc_acc_inv_s += disc_acc_k
     disc_loss /= args.num_discs
@@ -140,7 +143,7 @@ def update_inn(
     disc_loss *= pred_s_weight
     recon_loss *= args.recon_stability_weight
 
-    gen_loss = nll + recon_loss - disc_loss
+    gen_loss = nll + recon_loss + disc_loss
 
     # Update the generator's parameters
     inn.zero_grad()
@@ -166,10 +169,11 @@ def get_disc_input(
     encoding: Tensor,
     invariant_to: Literal["s", "y"] = "s",
     with_ae_enc: bool = False,
+    random: bool = True,
 ) -> Tensor:
     """Construct the input that the discriminator expects."""
     if args.train_on_recon:
-        zs_m, zy_m = inn.mask(encoding, random=True)
+        zs_m, zy_m = inn.mask(encoding, random=random)
         if with_ae_enc:
             return inn.decode_with_ae_enc(zs_m if invariant_to == "s" else zy_m)
         else:
