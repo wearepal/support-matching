@@ -62,11 +62,9 @@ class PartitionedAeInn(ModelBase):
             # else:
             self.base_density = td.Normal(0, 1.0)  # args.inn_base_density_std)
         x_dim: int = input_shape[0]
-        z_channels: int = x_dim
 
         self.x_dim: int = x_dim
         if len(input_shape) < 2:
-            z_channels += args._s_dim
             self.output_dim = self.input_shape[0]
         else:
             self.x_dim = x_dim

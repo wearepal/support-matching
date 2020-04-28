@@ -186,6 +186,9 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
         autoencoder = build_ae(
             ARGS, encoder, decoder, encoding_size=None, feature_group_slices=feature_group_slices
         )
+        if product(enc_shape) == enc_shape[0]:
+            is_image_data = False
+            print("Encoding will not be treated as image data.")
         generator = build_inn(
             args=ARGS,
             autoencoder=autoencoder,
@@ -408,7 +411,7 @@ def train(
         # Log images
         if itr % ARGS.log_freq == 0:
             with torch.set_grad_enabled(False):
-                log_recons(generator=generator, x_t=x_t, itr=itr)
+                log_recons(generator=generator, x=x_c, itr=itr)
 
     time_for_epoch = time.time() - start_epoch_time
     assert loss_meters is not None
@@ -597,12 +600,12 @@ def to_device(*tensors: Tensor) -> Union[Tensor, Tuple[Tensor, ...]]:
     return moved[0] if len(moved) == 1 else tuple(moved)
 
 
-def log_recons(generator: AutoEncoder, x_t: Tensor, itr: int, prefix: Optional[str] = None):
+def log_recons(generator: AutoEncoder, x: Tensor, itr: int, prefix: Optional[str] = None):
     """Log reconstructed images"""
-    encoding = generator.encode(x_t[:64], stochastic=False)
+    encoding = generator.encode(x[:64], stochastic=False)
     recon = generator.all_recons(encoding, discretize=True)
 
-    log_images(ARGS, x_t[:64], "original_x", step=itr, prefix=prefix)
+    log_images(ARGS, x[:64], "original_x", step=itr, prefix=prefix)
     log_images(ARGS, recon.all, "reconstruction_all", step=itr, prefix=prefix)
     log_images(ARGS, recon.rand_s, "reconstruction_rand_s", step=itr, prefix=prefix)
     log_images(ARGS, recon.zero_s, "reconstruction_zero_s", step=itr, prefix=prefix)
