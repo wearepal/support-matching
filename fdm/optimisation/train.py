@@ -1,9 +1,10 @@
 """Main training file"""
+from __future__ import annotations
 import time
 from itertools import islice
 from logging import Logger
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple, Union, Literal
+from typing import Callable, Dict, List, Optional, Tuple, Union, Literal, NamedTuple
 
 import git
 import numpy as np
@@ -11,7 +12,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 import wandb
 
 from fdm.configs import VaeArgs
@@ -46,7 +47,7 @@ from .evaluation import log_metrics
 from .loss import MixedLoss, PixelCrossEntropy, VGGLoss
 from .utils import get_data_dim, log_images, restore_model, save_model
 from .build import build_inn, build_ae
-from .inn_training import update_inn, update_disc_on_inn
+from .inn_training import update_inn, update_disc_on_inn, InnComponents
 
 __all__ = ["main"]
 
@@ -114,13 +115,13 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
         num_workers=ARGS.num_workers,
         pin_memory=True,
     )
-    # tesr_loader = DataLoader(
-    #     datasets.test,
-    #     shuffle=False,
-    #     batch_size=ARGS.test_batch_size,
-    #     num_workers=ARGS.num_workers,
-    #     pin_memory=True,
-    # )
+    test_loader = DataLoader(
+        datasets.test,
+        shuffle=False,
+        batch_size=ARGS.test_batch_size,
+        num_workers=ARGS.num_workers,
+        pin_memory=True,
+    )
 
     # ==== construct networks ====
     input_shape = get_data_dim(context_loader)
@@ -233,9 +234,7 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
         disc_kwargs["hidden_dims"] = args.disc_hidden_dims
         disc_input_shape = (product(disc_input_shape),)  # fc_net first flattens the input
 
-    disc_distinguish = None
-    disc_ensemble = None
-    discriminator = None
+    components: Union[AeComponents, InnComponents]
     if not ARGS.use_inn:
         discriminator = build_discriminator(
             input_shape=disc_input_shape,
@@ -248,6 +247,7 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
 
         discriminator.apply(_spectral_norm)
 
+        disc_distinguish = None
         if ARGS.three_way_split:  # this is always trained on encodings
             disc_dist_fn = fc_net
             disc_dist_kwargs = {"hidden_dims": args.disc_hidden_dims}
@@ -256,6 +256,12 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
                 disc_dist_fn(enc_shape, output_dim, **disc_dist_kwargs), disc_optimizer_kwargs,
             )
             disc_distinguish.to(args._device)
+        components = AeComponents(
+            generator=generator,
+            discriminator=discriminator,
+            disc_distinguish=disc_distinguish,
+            recon_loss_fn=recon_loss_fn,
+        )
     else:
         disc_list = []
         for k in range(ARGS.num_discs):
@@ -269,6 +275,30 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
             disc_list.append(disc)
         disc_ensemble = nn.ModuleList(disc_list)
         disc_ensemble.to(args._device)
+
+        # classifier for y
+        class_kwargs = {}
+        if is_image_data:
+            if args.dataset == "cmnist":
+                class_fn = strided_28x28_net
+            else:
+                class_fn = residual_64x64_net
+            class_kwargs["batch_norm"] = False
+        else:
+            class_fn = fc_net
+            class_kwargs["hidden_dims"] = args.disc_hidden_dims
+        predictor = None
+        if ARGS.pred_weight > 0:
+            predictor = build_discriminator(
+                input_shape=input_shape,
+                target_dim=args._y_dim,  # real vs fake
+                model_fn=class_fn,
+                model_kwargs=class_kwargs,
+                optimizer_kwargs=disc_optimizer_kwargs,
+            )
+            predictor.to(args._device)
+            predictor.fit(Subset(datasets.context, np.arange(100)), 50, ARGS._device, test_loader)
+        components = InnComponents(inn=generator, disc_ensemble=disc_ensemble, predictor=predictor,)
 
     start_epoch = 1  # start at 1 so that the val_freq works correctly
     # Resume from checkpoint
@@ -296,14 +326,10 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
             break
 
         itr = train(
-            generator=generator,
-            discriminator=discriminator,
-            disc_ensemble=disc_ensemble,
-            disc_distinguish=disc_distinguish,
+            components=components,
             context_data=context_loader,
             train_data=train_loader,
             epoch=epoch,
-            recon_loss_fn=recon_loss_fn,
         )
 
         # if epoch % ARGS.val_freq == 0:
@@ -341,17 +367,11 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
 
 
 def train(
-    generator: Generator,
-    discriminator: Optional[Classifier],
-    disc_ensemble: Optional[nn.ModuleList],
-    disc_distinguish: Optional[Regressor],
+    components: Union[AeComponents, InnComponents],
     context_data: DataLoader,
     train_data: DataLoader,
     epoch: int,
-    recon_loss_fn,
 ) -> int:
-    generator.train()
-
     total_loss_meter = AverageMeter()
     loss_meters: Optional[Dict[str, AverageMeter]] = None
 
@@ -369,30 +389,15 @@ def train(
 
         pred_s_weight = 0.0 if itr < ARGS.warmup_steps else ARGS.pred_s_weight
         # Train the discriminator on its own for a number of iterations
-        if isinstance(generator, AutoEncoder):
-            assert discriminator is not None
-            update_disc(
-                x_c, x_t, generator, discriminator, disc_distinguish, itr < ARGS.warmup_steps
-            )
+        if components.type == "ae":
+            update_disc(x_c, x_t, components, itr < ARGS.warmup_steps)
             gen_loss, logging_dict = update(
-                x_c=x_c,
-                x_t=x_t,
-                generator=generator,
-                discriminator=discriminator,
-                recon_loss_fn=recon_loss_fn,
-                disc_distinguish=disc_distinguish,
-                pred_s_weight=pred_s_weight,
+                x_c=x_c, x_t=x_t, ae=components, pred_s_weight=pred_s_weight
             )
         else:
-            assert disc_ensemble is not None
-            update_disc_on_inn(ARGS, x_c, x_t, generator, disc_ensemble, itr < ARGS.warmup_steps)
+            update_disc_on_inn(ARGS, x_c, x_t, components, itr < ARGS.warmup_steps)
             gen_loss, logging_dict = update_inn(
-                args=ARGS,
-                x_c=x_c,
-                x_t=x_t,
-                inn=generator,
-                disc_ensemble=disc_ensemble,
-                pred_s_weight=pred_s_weight,
+                args=ARGS, x_c=x_c, x_t=x_t, models=components, pred_s_weight=pred_s_weight
             )
 
         # Log losses
@@ -411,6 +416,7 @@ def train(
         # Log images
         if itr % ARGS.log_freq == 0:
             with torch.set_grad_enabled(False):
+                generator = components.generator if components.type == "ae" else components.inn
                 log_recons(generator=generator, x=x_c, itr=itr)
 
     time_for_epoch = time.time() - start_epoch_time
@@ -427,13 +433,18 @@ def train(
     return itr
 
 
+class AeComponents(NamedTuple):
+    """Things needed to run the INN model."""
+
+    generator: AutoEncoder
+    discriminator: Classifier
+    disc_distinguish: Optional[Regressor]
+    recon_loss_fn: Callable
+    type: Literal["ae"] = "ae"
+
+
 def update_disc(
-    x_c: Tensor,
-    x_t: Tensor,
-    generator: AutoEncoder,
-    discriminator: Classifier,
-    disc_distinguish: Optional[Regressor],
-    warmup: bool = False,
+    x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False,
 ) -> Tuple[Tensor, float]:
     """Train the discriminator while keeping the generator constant.
 
@@ -441,10 +452,10 @@ def update_disc(
         x_c: x from the context set
         x_t: x from the training set
     """
-    generator.eval()
-    discriminator.train()
-    if disc_distinguish is not None:
-        disc_distinguish.train()
+    ae.generator.eval()
+    ae.discriminator.train()
+    if ae.disc_distinguish is not None:
+        ae.disc_distinguish.train()
 
     ones = x_c.new_ones((x_c.size(0),))
     zeros = x_t.new_zeros((x_t.size(0),))
@@ -452,56 +463,50 @@ def update_disc(
     invariances: List[Literal["s", "y"]] = ["s", "y"] if ARGS.three_way_split else ["s"]
 
     for _ in range(ARGS.num_disc_updates):
-        encoding_t = generator.encode(x_t, stochastic=True)
-        encoding_c = generator.encode(x_c, stochastic=True)
+        encoding_t = ae.generator.encode(x_t, stochastic=True)
+        encoding_c = ae.generator.encode(x_c, stochastic=True)
         disc_input_c: Tensor
         if ARGS.train_on_recon:
-            disc_input_c = generator.decode(encoding_c).detach()  # just reconstruct
+            disc_input_c = ae.generator.decode(encoding_c).detach()  # just reconstruct
 
         disc_loss = x_c.new_zeros(())
         disc_loss_distinguish = x_c.new_zeros(())
         for invariance in invariances:
-            disc_input_t = get_disc_input(generator, encoding_t, invariant_to=invariance)
+            disc_input_t = get_disc_input(ae.generator, encoding_t, invariant_to=invariance)
             disc_input_t = disc_input_t.detach()
             if not ARGS.train_on_recon:
-                disc_input_c = get_disc_input(generator, encoding_c, invariant_to=invariance)
+                disc_input_c = get_disc_input(ae.generator, encoding_c, invariant_to=invariance)
                 disc_input_c = disc_input_c.detach()
 
             # discriminator is trained to distinguish `disc_input_c` and `disc_input_t`
-            disc_loss_true, disc_acc_true = discriminator.routine(disc_input_c, ones)
-            disc_loss_false, disc_acc_false = discriminator.routine(disc_input_t, zeros)
+            disc_loss_true, disc_acc_true = ae.discriminator.routine(disc_input_c, ones)
+            disc_loss_false, disc_acc_false = ae.discriminator.routine(disc_input_t, zeros)
             disc_loss += disc_loss_true + disc_loss_false
             if ARGS.three_way_split:
-                assert disc_distinguish is not None
+                assert ae.disc_distinguish is not None
                 # the distinguisher is always applied to the encoding (regardless of the other disc)
-                encs = generator.split_encoding(encoding_c)
+                encs = ae.generator.split_encoding(encoding_c)
                 target_enc = encs.zs if invariance == "s" else encs.zy
                 # take the encoding with `target_enc` masked out
-                zs_m, zy_m = generator.mask(encoding_c)
+                zs_m, zy_m = ae.generator.mask(encoding_c)
                 invariant_enc = zs_m if invariance == "s" else zy_m
                 # predict target_enc from the encoding that should be invariant of it
-                disc_loss_distinguish_c, _ = disc_distinguish.routine(invariant_enc, target_enc)
+                disc_loss_distinguish_c, _ = ae.disc_distinguish.routine(invariant_enc, target_enc)
                 disc_loss_distinguish += disc_loss_distinguish_c
         if not warmup:
-            discriminator.zero_grad()
+            ae.discriminator.zero_grad()
             disc_loss.backward()
-            discriminator.step()
+            ae.discriminator.step()
 
-        if disc_distinguish is not None and (not ARGS.distinguish_warmup or not warmup):
-            disc_distinguish.zero_grad()
+        if ae.disc_distinguish is not None and (not ARGS.distinguish_warmup or not warmup):
+            ae.disc_distinguish.zero_grad()
             disc_loss_distinguish.backward()
-            disc_distinguish.step()
+            ae.disc_distinguish.step()
     return disc_loss, 0.5 * (disc_acc_true + disc_acc_false)  # statistics from last step
 
 
 def update(
-    x_c: Tensor,
-    x_t: Tensor,
-    generator: AutoEncoder,
-    discriminator: Classifier,
-    recon_loss_fn,
-    disc_distinguish: Optional[Regressor],
-    pred_s_weight: float,
+    x_c: Tensor, x_t: Tensor, ae: AeComponents, pred_s_weight: float,
 ) -> Tuple[Tensor, Dict[str, float]]:
     """Compute all losses.
 
@@ -509,45 +514,47 @@ def update(
         x_t: x from the training set
     """
     # Compute losses for the generator.
-    discriminator.eval()
-    if disc_distinguish is not None:
-        disc_distinguish.eval()
-    generator.train()
+    ae.discriminator.eval()
+    if ae.disc_distinguish is not None:
+        ae.disc_distinguish.eval()
+    ae.generator.train()
     logging_dict = {}
 
     # ================================ recon loss for training set ================================
-    encoding, elbo, logging_dict_elbo = generator.routine(x_t, recon_loss_fn, ARGS.kl_weight)
+    encoding, elbo, logging_dict_elbo = ae.generator.routine(x_t, ae.recon_loss_fn, ARGS.kl_weight)
 
     # ================================ recon loss for context set =================================
     # we need a reconstruction loss for x_c because...
     # ...when we train on encodings, the network will otherwise just falsify encodings for x_c
     # ...when we train on recons, the GAN loss has it too easy to distinguish the two
-    encoding_c, elbo_c, logging_dict_elbo_c = generator.routine(x_c, recon_loss_fn, ARGS.kl_weight)
+    encoding_c, elbo_c, logging_dict_elbo_c = ae.generator.routine(
+        x_c, ae.recon_loss_fn, ARGS.kl_weight
+    )
     logging_dict.update({k: v + logging_dict_elbo_c[k] for k, v in logging_dict_elbo.items()})
     elbo = 0.5 * (elbo + elbo_c)  # take average of the two recon losses
 
     # ==================================== adversarial losses =====================================
-    disc_input = get_disc_input(generator, encoding, invariant_to="s")
+    disc_input = get_disc_input(ae.generator, encoding, invariant_to="s")
     zeros = x_t.new_zeros((x_t.size(0),))
-    disc_loss, disc_acc_inv_s = discriminator.routine(disc_input, zeros)
+    disc_loss, disc_acc_inv_s = ae.discriminator.routine(disc_input, zeros)
 
     disc_loss_distinguish = x_t.new_zeros(())
     if ARGS.three_way_split and (not ARGS.distinguish_warmup or pred_s_weight != 0):
-        disc_input_y = get_disc_input(generator, encoding, invariant_to="y")
-        disc_loss_y, disc_acc_inv_y = discriminator.routine(disc_input_y, zeros)
+        disc_input_y = get_disc_input(ae.generator, encoding, invariant_to="y")
+        disc_loss_y, disc_acc_inv_y = ae.discriminator.routine(disc_input_y, zeros)
         disc_loss += disc_loss_y
         logging_dict["Accuracy Disc 2"] = disc_acc_inv_y
 
-        assert disc_distinguish is not None
-        encs_c = generator.split_encoding(encoding_c)
-        zs_m, zy_m = generator.mask(encoding_c)
+        assert ae.disc_distinguish is not None
+        encs_c = ae.generator.split_encoding(encoding_c)
+        zs_m, zy_m = ae.generator.mask(encoding_c)
         # predict zs from zn and zy (i.e. zs masked out) and predict zy from zn and zs
         tasks = [
             (zs_m, encs_c.zs, "Loss Distinguisher 1"),
             (zy_m, encs_c.zy, "Loss Distinguisher 2"),
         ]
         for (invariant, target, loss_name) in tasks:
-            loss_dist, _ = disc_distinguish.routine(invariant, target)
+            loss_dist, _ = ae.disc_distinguish.routine(invariant, target)
             disc_loss_distinguish += loss_dist * ARGS.distinguish_weight
             logging_dict[loss_name] = loss_dist.item()
     elif ARGS.three_way_split:
@@ -562,9 +569,9 @@ def update(
     gen_loss = elbo - disc_loss - disc_loss_distinguish
 
     # Update the generator's parameters
-    generator.zero_grad()
+    ae.generator.zero_grad()
     gen_loss.backward()
-    generator.step()
+    ae.generator.step()
 
     final_logging = {
         "ELBO": elbo.item(),
@@ -600,7 +607,12 @@ def to_device(*tensors: Tensor) -> Union[Tensor, Tuple[Tensor, ...]]:
     return moved[0] if len(moved) == 1 else tuple(moved)
 
 
-def log_recons(generator: AutoEncoder, x: Tensor, itr: int, prefix: Optional[str] = None):
+def log_recons(
+    generator: Union[AutoEncoder, PartitionedAeInn],
+    x: Tensor,
+    itr: int,
+    prefix: Optional[str] = None,
+):
     """Log reconstructed images"""
     encoding = generator.encode(x[:64], stochastic=False)
     recon = generator.all_recons(encoding, discretize=True)

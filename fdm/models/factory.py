@@ -1,4 +1,4 @@
-from typing import Dict, Tuple, Union, List, Optional
+from typing import Tuple, Union, List, Optional, Mapping
 
 from fdm import layers
 from fdm.configs import VaeArgs
@@ -12,7 +12,7 @@ def build_discriminator(
     input_shape: Tuple[int, ...],
     target_dim: int,
     model_fn: ModelFn,
-    model_kwargs: Dict[str, Union[float, str, bool]],
+    model_kwargs: Mapping[str, Union[float, str, bool]],
     optimizer_kwargs=None,
 ) -> Classifier:
     in_dim = input_shape[0]

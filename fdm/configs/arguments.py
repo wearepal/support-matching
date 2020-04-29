@@ -6,7 +6,6 @@ import torch
 
 from ethicml.data import GenfacesAttributes
 
-
 __all__ = ["VaeArgs", "BaseArgs", "CELEBATTRS"]
 
 CELEBATTRS = Literal[
@@ -227,6 +226,7 @@ class VaeArgs(BaseArgs):
     pred_s_weight: float = 1
     num_disc_updates: int = 1
     distinguish_weight: float = 1
+    pred_weight: float = 1
 
     def add_arguments(self):
         # this is a very complicated argument that has to be specified manually

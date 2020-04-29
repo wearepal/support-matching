@@ -1,6 +1,5 @@
-from typing import Protocol, Union, Sequence, Optional
+from typing import Protocol, Union, Sequence, Optional, List
 
-import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import resnet50
@@ -30,7 +29,7 @@ class ModelFn(Protocol):
 class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1, batch_norm=True):
         super(ResidualBlock, self).__init__()
-        block = []
+        block: List[nn.Module] = []
 
         if batch_norm:
             block += [nn.BatchNorm2d(in_channels)]
