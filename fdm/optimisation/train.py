@@ -188,13 +188,15 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
             ARGS, encoder, decoder, encoding_size=None, feature_group_slices=feature_group_slices
         )
         if product(enc_shape) == enc_shape[0]:
-            is_image_data = False
+            is_enc_image_data = False
             print("Encoding will not be treated as image data.")
+        else:
+            is_enc_image_data = is_image_data
         generator = build_inn(
             args=ARGS,
             autoencoder=autoencoder,
             ae_loss_fn=recon_loss_fn,
-            is_image_data=is_image_data,
+            is_image_data=is_enc_image_data,
             save_dir=save_dir,
             ae_enc_shape=enc_shape,
             context_loader=context_loader,
@@ -288,7 +290,7 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
             class_fn = fc_net
             class_kwargs["hidden_dims"] = args.disc_hidden_dims
         predictor = None
-        if ARGS.pred_weight > 0:
+        if ARGS.train_on_recon and ARGS.pred_weight > 0:
             predictor = build_discriminator(
                 input_shape=input_shape,
                 target_dim=args._y_dim,  # real vs fake
