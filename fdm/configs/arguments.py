@@ -174,6 +174,8 @@ class BaseArgs(Tap):
             values = [value[1:-1]]
         else:
             values = value.split()
+        if len(values) == 1 and values[0] in ("true", "false"):
+            values = [values[0].title()]
         if self._underscores_to_dashes:
             key = key.replace("_", "-")
         return [f"--{key}"] + values
