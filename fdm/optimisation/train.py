@@ -237,6 +237,7 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
         disc_input_shape = (product(disc_input_shape),)  # fc_net first flattens the input
 
     components: Union[AeComponents, InnComponents]
+    disc: Classifier
     if not ARGS.use_inn:
         discriminator = build_discriminator(
             input_shape=disc_input_shape,
@@ -322,6 +323,7 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
     super_val_freq = ARGS.super_val_freq or ARGS.val_freq
 
     itr = 0
+    disc: nn.Module
     # Train generator for N epochs
     for epoch in range(start_epoch, start_epoch + ARGS.epochs):
         if n_vals_without_improvement > ARGS.early_stopping > 0:
@@ -355,8 +357,8 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
             log_metrics(ARGS, model=generator, data=datasets, step=itr)
             save_model(args, save_dir, model=generator, epoch=epoch, sha=sha)
 
-        if disc_ensemble is not None and ARGS.disc_reset_prob > 0:
-            for k, disc in enumerate(disc_ensemble):
+        if isinstance(components, InnComponents) and ARGS.disc_reset_prob > 0:
+            for k, disc in enumerate(components.disc_ensemble):
                 if np.random.uniform() < ARGS.disc_reset_prob:
                     LOGGER.info("Reinitializing discriminator {}", k)
                     disc.reset_parameters()
