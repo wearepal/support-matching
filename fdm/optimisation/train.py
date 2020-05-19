@@ -420,8 +420,13 @@ def train(
         # Log images
         if itr % ARGS.log_freq == 0:
             with torch.set_grad_enabled(False):
-                generator = components.generator if components.type == "ae" else components.inn
-                log_recons(generator=generator, x=x_c, itr=itr)
+                if components.type == "ae":
+                    generator = components.generator
+                    x_log = x_t
+                else:
+                    generator = components.inn
+                    x_log = x_c
+                log_recons(generator=generator, x=x_log, itr=itr)
 
     time_for_epoch = time.time() - start_epoch_time
     assert loss_meters is not None
