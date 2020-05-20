@@ -103,7 +103,9 @@ def compute_metrics(
         # }
         wandb_log(args, metrics, step=step)
     else:
-        metrics = run_metrics(predictions, actual, metrics=[Accuracy()], per_sens_metrics=[])
+        metrics = run_metrics(
+            predictions, actual, metrics=[Accuracy(), RenyiCorrelation()], per_sens_metrics=[]
+        )
         wandb_log(args, {f"{name} Accuracy": metrics["Accuracy"]}, step=step)
     return metrics
 
