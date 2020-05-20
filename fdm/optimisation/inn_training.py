@@ -35,7 +35,7 @@ def update_disc_on_inn(
     ones = x_c.new_ones((x_c.size(0),))
     zeros = x_t.new_zeros((x_t.size(0),))
     # in case of the three-way split, we have to check more than one invariance
-    invariances: List[Literal["s", "y"]] = ["s", "y"]
+    invariances: List[Literal["s", "y"]] = ["s", "y"] if args.three_way_split else ["s"]
 
     for _ in range(args.num_disc_updates):
         encoding_t = models.inn.encode(x_t, stochastic=args.stochastic)
@@ -85,7 +85,8 @@ def update_inn(
     """
     # Compute losses for the generator.
     models.disc_ensemble.eval()
-    models.predictor.eval()
+    if models.predictor is not None:
+        models.predictor.eval()
     models.inn.train()
     logging_dict = {}
     do_recon_stability = args.train_on_recon and args.recon_stability_weight > 0
@@ -109,54 +110,49 @@ def update_inn(
     nll += models.inn.nll(enc_c, sum_ldj_c)
     nll *= 0.5  # take average of the two nll losses
 
-    # =================================== recon stability loss ====================================
-    recon_loss = x_t.new_zeros(())
-    if do_recon_stability and isinstance(models.inn, PartitionedAeInn):
-        disc_input_s, ae_recon_s = get_disc_input(
-            args, models.inn, enc_c, invariant_to="s", with_ae_enc=True, random=False
-        )
-        disc_input_y, ae_recon_y = get_disc_input(
-            args, models.inn, enc_c, invariant_to="y", with_ae_enc=True, random=False
-        )
-        recon_loss += args.recon_stability_weight * F.mse_loss(ae_recon_s, ae_enc_c)
-        recon_loss += args.recon_stability_weight * F.mse_loss(ae_recon_y, ae_enc_c)
-    else:
-        disc_input_s = get_disc_input(args, models.inn, enc_c, invariant_to="s", random=False)
-        disc_input_y = get_disc_input(args, models.inn, enc_c, invariant_to="y", random=False)
+    invariances: List[Literal["s", "y"]] = ["s", "y"] if args.three_way_split else ["s"]
 
-    # ==================================== adversarial losses =====================================
     # ones = x_c.new_ones((x_c.size(0),))
     zeros = x_c.new_zeros((x_c.size(0),))
 
-    # discriminators
+    recon_loss = x_t.new_zeros(())
     disc_loss = x_t.new_zeros(())
-    disc_acc_inv_s = 0.0
-    for disc in models.disc_ensemble:
-        disc_loss_k, disc_acc_k = disc.routine(disc_input_s, zeros)
-        disc_loss += disc_loss_k
-        disc_acc_inv_s += disc_acc_k
-    disc_loss /= args.num_discs
-    disc_acc_inv_s /= args.num_discs
-
-    # discriminators
-    disc_loss_y = x_t.new_zeros(())
-    disc_acc_inv_y = 0.0
-    for disc in models.disc_ensemble:
-        disc_loss_k, disc_acc_k = disc.routine(disc_input_y, zeros)
-        disc_loss_y += disc_loss_k
-        disc_acc_inv_y += disc_acc_k
-    disc_loss_y /= args.num_discs
-    disc_acc_inv_y /= args.num_discs
-
-    disc_loss += disc_loss_y
-
     pred_loss = x_t.new_zeros(())
     if args.train_on_recon and args.pred_weight > 0:
         assert models.predictor is not None
         pred_original, _ = models.predictor.routine(x_c, zeros)
-        pred_changed_s, _ = models.predictor.routine(disc_input_s, zeros)
-        pred_changed_y, _ = models.predictor.routine(disc_input_y, zeros)
-        pred_loss += (pred_original - pred_changed_s).abs() + (pred_original + pred_changed_y).abs()
+
+    for invariance in invariances:
+        # ================================= recon stability loss ==================================
+        if do_recon_stability and isinstance(models.inn, PartitionedAeInn):
+            disc_input_inv, ae_recon_inv = get_disc_input(
+                args, models.inn, enc_c, invariant_to=invariance, with_ae_enc=True, random=False
+            )
+            recon_loss += args.recon_stability_weight * F.mse_loss(ae_recon_inv, ae_enc_c)
+        else:
+            disc_input_inv = get_disc_input(
+                args, models.inn, enc_c, invariant_to=invariance, random=False
+            )
+
+        # ================================== adversarial losses ===================================
+        # discriminators
+        disc_loss_i = x_t.new_zeros(())
+        disc_acc_inv = 0.0
+        for disc in models.disc_ensemble:
+            disc_loss_k, disc_acc_k = disc.routine(disc_input_inv, zeros)
+            disc_loss_i += disc_loss_k
+            disc_acc_inv += disc_acc_k
+        disc_loss_i /= args.num_discs
+        disc_acc_inv /= args.num_discs
+        logging_dict[f"Accuracy Disc {invariance}"] = disc_acc_inv
+
+        disc_loss += disc_loss_i
+
+        # some weird predictor loss
+        if args.train_on_recon and args.pred_weight > 0:
+            assert models.predictor is not None
+            pred_changed, _ = models.predictor.routine(disc_input_inv, zeros)
+            pred_loss += (pred_original - pred_changed).abs()
 
     nll *= args.nll_weight
     disc_loss *= pred_s_weight
@@ -172,8 +168,6 @@ def update_inn(
 
     final_logging = {
         "Loss Adversarial": disc_loss.item(),
-        "Accuracy Disc": disc_acc_inv_s,
-        "Accuracy Disc 2": disc_acc_inv_y,
         "Loss NLL": nll.item(),
         "Loss Reconstruction": recon_loss.item(),
         "Loss Generator": gen_loss.item(),

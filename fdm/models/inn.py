@@ -71,7 +71,7 @@ class PartitionedAeInn(ModelBase):
             self.output_dim = product(self.input_shape)
 
         zs_dim: int = round(args.zs_frac * self.output_dim)
-        zy_dim: int = zs_dim
+        zy_dim: int = zs_dim if args.three_way_split else 0
         zn_dim: int = self.output_dim - zs_dim - zy_dim
         self.encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim, zn=zn_dim)
         self.autoencoder = autoencoder

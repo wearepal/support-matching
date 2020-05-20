@@ -183,7 +183,7 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
 
     generator: Generator
     if ARGS.use_inn:
-        assert ARGS.three_way_split, "for now, INN can only do three way split"
+        # assert ARGS.three_way_split, "for now, INN can only do three way split"
         autoencoder = build_ae(
             ARGS, encoder, decoder, encoding_size=None, feature_group_slices=feature_group_slices
         )
