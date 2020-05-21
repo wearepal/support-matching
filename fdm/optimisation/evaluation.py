@@ -31,12 +31,18 @@ def log_sample_images(args, data, name, step):
 
 
 def log_metrics(
-    args: VaeArgs, model, data: DatasetTriplet, step: int, save_to_csv: Optional[Path] = None,
+    args: VaeArgs,
+    model,
+    data: DatasetTriplet,
+    step: int,
+    save_to_csv: Optional[Path] = None,
+    run_baselines: bool = False,
 ):
     """Compute and log a variety of metrics."""
     model.eval()
-    print("Baselines...")
-    baseline_metrics(args, data, step)
+    if run_baselines:
+        print("Baselines...")
+        baseline_metrics(args, data, step)
 
     print("Encoding training set...")
     train_inv_s = encode_dataset(

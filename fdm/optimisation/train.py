@@ -310,7 +310,7 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
         generator, start_epoch = restore_model(ARGS, Path(ARGS.resume), generator)
         if ARGS.evaluate:
             log_metrics(
-                ARGS, model=generator, data=datasets, save_to_csv=Path(ARGS.save_dir), step=0
+                ARGS, generator, datasets, 0, save_to_csv=Path(ARGS.save_dir), run_baselines=True
             )
             return generator
 
@@ -354,7 +354,8 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
         #         n_vals_without_improvement,
         #     )
         if ARGS.super_val and epoch % super_val_freq == 0:
-            log_metrics(ARGS, model=generator, data=datasets, step=itr)
+            first_time = epoch == super_val_freq
+            log_metrics(ARGS, model=generator, data=datasets, step=itr, run_baselines=first_time)
             save_model(args, save_dir, model=generator, epoch=epoch, sha=sha)
 
         if isinstance(components, InnComponents) and ARGS.disc_reset_prob > 0:
