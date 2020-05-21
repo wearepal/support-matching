@@ -11,7 +11,7 @@ from torch import Tensor
 from tqdm import tqdm
 
 import wandb
-from ethicml.algorithms.inprocess import LR
+from ethicml.algorithms import inprocess as algos
 from ethicml.evaluators import run_metrics
 from ethicml.metrics import TNR, TPR, Accuracy, ProbPos, RenyiCorrelation
 from ethicml.utility import DataTuple, Prediction
@@ -33,8 +33,11 @@ def log_sample_images(args, data, name, step):
 def log_metrics(
     args: VaeArgs, model, data: DatasetTriplet, step: int, save_to_csv: Optional[Path] = None,
 ):
-    """Compute and log a variety of metrics"""
+    """Compute and log a variety of metrics."""
     model.eval()
+    print("Baselines...")
+    baseline_metrics(args, data, step)
+
     print("Encoding training set...")
     train_inv_s = encode_dataset(
         args, data.train, model, recons=args.eval_on_recon, invariant_to="s"
@@ -73,6 +76,27 @@ def log_metrics(
         )
 
 
+def baseline_metrics(args: VaeArgs, data: DatasetTriplet, step: int) -> Dict[str, float]:
+    if args.dataset not in ("cmnist", "celeba", "ssrp", "genfaces"):
+        train_data = data.train
+        test_data = data.test
+        if not isinstance(train_data, DataTuple):
+            train_data, test_data = get_data_tuples(train_data, test_data)
+
+        train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=False)
+
+        # clf = algos.SVM(kernel="linear")
+        # clf = algos.Majority()
+        # clf = algos.Kamiran(classifier="LR")
+        clf = algos.LR()
+        preds = clf.run(train_data, test_data)
+
+        actual = test_data
+        name = "LR baseline"
+        return compute_metrics(args, preds, actual, name, run_all=args._y_dim == 1, step=step)
+    return {}
+
+
 def compute_metrics(
     args: BaseArgs, predictions: Prediction, actual, name: str, step: int, run_all=False
 ) -> Dict[str, float]:
@@ -107,6 +131,9 @@ def compute_metrics(
             predictions, actual, metrics=[Accuracy(), RenyiCorrelation()], per_sens_metrics=[]
         )
         wandb_log(args, {f"{name} Accuracy": metrics["Accuracy"]}, step=step)
+    print(f"Results for {name}:")
+    print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
+    print()  # empty line
     return metrics
 
 
@@ -193,7 +220,7 @@ def evaluate(
             train_data, test_data = get_data_tuples(train_data, test_data)
 
         train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=pred_s)
-        clf = LR()
+        clf = algos.LR()
         preds = clf.run(train_data, test_data)
         actual = test_data
 
@@ -201,9 +228,6 @@ def evaluate(
     full_name += "_s" if pred_s else "_y"
     full_name += "_on_recons" if eval_on_recon else "_on_encodings"
     metrics = compute_metrics(args, preds, actual, full_name, run_all=args._y_dim == 1, step=step)
-    print(f"Results for {full_name}:")
-    print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
-    print()  # empty line
 
     if save_to_csv is not None and args.results_csv:
         assert isinstance(save_to_csv, Path)
