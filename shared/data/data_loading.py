@@ -1,21 +1,19 @@
 from pathlib import Path
-from typing import NamedTuple, Callable, Literal, Tuple
+from typing import Literal, NamedTuple, Tuple
 
 import numpy as np
-from PIL import Image
 import torch
 import torch.nn.functional as F
 from torch import Tensor
-from torch.utils.data import Dataset, random_split, Subset, TensorDataset
+from torch.utils.data import Dataset, Subset, TensorDataset, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
-from ethicml.data import create_genfaces_dataset, create_celeba_dataset
-from ethicml.vision.data import LdColorizer
 
+from ethicml.data import create_celeba_dataset, create_genfaces_dataset
+from ethicml.vision.data import LdColorizer
 from shared.configs import BaseArgs
 
 from .adult import load_adult_data
-from .dataset_wrappers import LdAugmentedDataset
 from .misc import shrink_dataset
 from .transforms import NoisyDequantize, Quantize
 
