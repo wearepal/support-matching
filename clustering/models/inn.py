@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Dict, Optional, Sequence, Tuple, overload
 
 import torch
@@ -5,24 +7,24 @@ import torch.distributions as td
 from torch import Tensor
 from torch.utils.data import DataLoader
 
+from clustering.configs import ClusterArgs
+from clustering.layers import Bijector
 from shared.utils import DLogistic, MixtureDistribution, prod  # to_discrete, logistic_distribution
-from fdm.configs import VaeArgs
-from fdm.layers import Bijector
 
 from .autoencoder import AutoEncoder
-from .base import ModelBase, SplitEncoding, EncodingSize, Reconstructions
+from .base import Encoder, ModelBase
 
-__all__ = ["PartitionedAeInn"]
+__all__ = ["AeInn"]
 
 
-class PartitionedAeInn(ModelBase):
+class AeInn(ModelBase, Encoder):
     """Wrapper for classifier models."""
 
     model: Bijector
 
     def __init__(
         self,
-        args: VaeArgs,
+        args: ClusterArgs,
         model: Bijector,
         autoencoder: AutoEncoder,
         input_shape: Sequence[int],
@@ -71,9 +73,9 @@ class PartitionedAeInn(ModelBase):
             self.output_dim = prod(self.input_shape)
 
         zs_dim: int = round(args.zs_frac * self.output_dim)
-        zy_dim: int = zs_dim if args.three_way_split else 0
+        zy_dim: int = zs_dim
         zn_dim: int = self.output_dim - zs_dim - zy_dim
-        self.encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim, zn=zn_dim)
+        # self.encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim, zn=zn_dim)
         self.autoencoder = autoencoder
 
     def decode_with_ae_enc(self, z, discretize: bool = False) -> Tuple[Tensor, Tensor]:
@@ -121,48 +123,6 @@ class PartitionedAeInn(ModelBase):
         # else:
         nll = -log_px / z.nelement()
         return nll
-
-    def split_encoding(self, z: Tensor) -> SplitEncoding:
-        zs, zy, zn = z.split(
-            (self.encoding_size.zs, self.encoding_size.zy, self.encoding_size.zn), dim=1
-        )
-        return SplitEncoding(zs=zs, zy=zy, zn=zn)
-
-    def mask(self, zs: Tensor, random: bool = False) -> Tuple[Tensor, Tensor]:
-        """Split the encoding and mask out zs and zy. This is a cheap function."""
-        split = self.split_encoding(zs)
-        if random:
-            # the question here is whether to have one random number per sample
-            # or whether to also have distinct random numbers for all the dimensions of zs.
-            # if we don't expect s to be complicated, then the former should suffice
-            rand_zs = torch.randn(
-                (split.zs.size(0),) + (split.zs.dim() - 1) * (1,), device=split.zs.device
-            )
-            zs_m = torch.cat([rand_zs + torch.zeros_like(split.zs), split.zy, split.zn], dim=1)
-            rand_zy = torch.randn(
-                (split.zy.size(0),) + (split.zy.dim() - 1) * (1,), device=split.zy.device
-            )
-            zy_m = torch.cat([split.zs, rand_zy + torch.zeros_like(split.zy), split.zn], dim=1)
-        else:
-            zs_m = torch.cat([torch.zeros_like(split.zs), split.zy, split.zn], dim=1)
-            zy_m = torch.cat([split.zs, torch.zeros_like(split.zy), split.zn], dim=1)
-        return zs_m, zy_m
-
-    def all_recons(self, z: Tensor, discretize: bool = False) -> Reconstructions:
-        rand_s, rand_y = self.mask(z, random=True)
-        zero_s, zero_y = self.mask(z)
-        splits = self.split_encoding(z)
-        just_s = torch.cat(
-            [splits.zs, torch.zeros_like(splits.zy), torch.zeros_like(splits.zn)], dim=1
-        )
-        return Reconstructions(
-            all=self.decode(z, discretize=discretize),
-            rand_s=self.decode(rand_s, discretize=discretize),
-            rand_y=self.decode(rand_y, discretize=discretize),
-            zero_s=self.decode(zero_s, discretize=discretize),
-            zero_y=self.decode(zero_y, discretize=discretize),
-            just_s=self.decode(just_s, discretize=discretize),
-        )
 
     def routine(self, data: torch.Tensor) -> Tuple[Tensor, Tensor]:
         """Training routine for the Split INN.

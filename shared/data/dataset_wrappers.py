@@ -101,7 +101,7 @@ class LdAugmentedDataset(Dataset):
         if self.correlation < 1:
             flip_prob = torch.rand(s.shape)
             indexes = flip_prob > self.correlation
-            s[indexes] = s[indexes][torch.randperm(indexes.size(0))]
+            s[indexes] = torch.randint(size=(indexes.sum(),), low=0, high=self.num_classes)
 
         x = self._augment(x, s)
 

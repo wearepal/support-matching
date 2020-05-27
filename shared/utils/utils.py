@@ -7,7 +7,7 @@ import numpy as np
 import torch
 
 import wandb
-from fdm.configs import BaseArgs
+from shared.configs import BaseArgs
 
 LOGGER = None
 
@@ -17,7 +17,7 @@ __all__ = [
     "count_parameters",
     "get_logger",
     "inf_generator",
-    "product",
+    "prod",
     "random_seed",
     "readable_duration",
     "save_checkpoint",
@@ -158,7 +158,7 @@ def random_seed(seed_value, use_cuda) -> None:
         torch.backends.cudnn.benchmark = False
 
 
-def product(seq: Sequence[T]) -> T:
+def prod(seq: Sequence[T]) -> T:
     if not seq:
         raise ValueError("seq cannot be empty")
     result = seq[0]

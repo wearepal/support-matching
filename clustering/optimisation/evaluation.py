@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Literal, Sequence
+from typing import Dict, Optional, Tuple, Sequence
 
 import numpy as np
 import pandas as pd
@@ -11,15 +11,15 @@ from torch import Tensor
 from tqdm import tqdm
 
 import wandb
-from ethicml.algorithms import inprocess as algos
+from ethicml.algorithms.inprocess import LR
 from ethicml.evaluators import run_metrics
 from ethicml.metrics import TNR, TPR, Accuracy, ProbPos, RenyiCorrelation
 from ethicml.utility import DataTuple, Prediction
 from shared.data import DatasetTriplet, get_data_tuples
-from shared.utils import wandb_log
-from fdm.configs import VaeArgs
-from fdm.models import Classifier, AutoEncoder
-from fdm.models.configs import fc_net, mp_32x32_net, mp_64x64_net
+from shared.utils import wandb_log, prod
+from clustering.configs import ClusterArgs
+from clustering.models import Classifier, Encoder
+from clustering.models.configs import fc_net, mp_32x32_net, mp_64x64_net
 
 from .utils import log_images
 
@@ -31,19 +31,10 @@ def log_sample_images(args, data, name, step):
 
 
 def log_metrics(
-    args: VaeArgs,
-    model,
-    data: DatasetTriplet,
-    step: int,
-    save_to_csv: Optional[Path] = None,
-    run_baselines: bool = False,
+    args: ClusterArgs, model, data: DatasetTriplet, step: int, save_to_csv: Optional[Path] = None,
 ):
-    """Compute and log a variety of metrics."""
+    """Compute and log a variety of metrics"""
     model.eval()
-    if run_baselines:
-        print("Baselines...")
-        baseline_metrics(args, data, step)
-
     print("Encoding training set...")
     train_inv_s = encode_dataset(
         args, data.train, model, recons=args.eval_on_recon, invariant_to="s"
@@ -82,29 +73,8 @@ def log_metrics(
         )
 
 
-def baseline_metrics(args: VaeArgs, data: DatasetTriplet, step: int) -> Dict[str, float]:
-    if args.dataset not in ("cmnist", "celeba", "ssrp", "genfaces"):
-        train_data = data.train
-        test_data = data.test
-        if not isinstance(train_data, DataTuple):
-            train_data, test_data = get_data_tuples(train_data, test_data)
-
-        train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=False)
-
-        # clf = algos.SVM(kernel="linear")
-        # clf = algos.Majority()
-        # clf = algos.Kamiran(classifier="LR")
-        clf = algos.LR()
-        preds = clf.run(train_data, test_data)
-
-        actual = test_data
-        name = "LR baseline"
-        return compute_metrics(args, preds, actual, name, run_all=args._y_dim == 1, step=step)
-    return {}
-
-
 def compute_metrics(
-    args: VaeArgs, predictions: Prediction, actual, name: str, step: int, run_all=False
+    args: ClusterArgs, predictions: Prediction, actual, name: str, step: int, run_all=False
 ) -> Dict[str, float]:
     """Compute accuracy and fairness metrics and log them"""
 
@@ -133,18 +103,13 @@ def compute_metrics(
         # }
         wandb_log(args, metrics, step=step)
     else:
-        metrics = run_metrics(
-            predictions, actual, metrics=[Accuracy(), RenyiCorrelation()], per_sens_metrics=[]
-        )
+        metrics = run_metrics(predictions, actual, metrics=[Accuracy()], per_sens_metrics=[])
         wandb_log(args, {f"{name} Accuracy": metrics["Accuracy"]}, step=step)
-    print(f"Results for {name}:")
-    print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
-    print()  # empty line
     return metrics
 
 
 def fit_classifier(
-    args: VaeArgs,
+    args: ClusterArgs,
     input_shape: Sequence[int],
     train_data: DataLoader,
     train_on_recon: bool,
@@ -158,7 +123,7 @@ def fit_classifier(
         clf_fn = mp_64x64_net
     else:
         clf_fn = fc_net
-        input_dim = product(input_shape)
+        input_dim = prod(input_shape)
     clf = clf_fn(input_dim, target_dim=args._y_dim)
 
     n_classes = args._y_dim if args._y_dim > 1 else 2
@@ -186,7 +151,7 @@ def make_tuple_from_data(train, test, pred_s):
 
 
 def evaluate(
-    args: VaeArgs,
+    args: ClusterArgs,
     step: int,
     train_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
     test_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
@@ -226,7 +191,7 @@ def evaluate(
             train_data, test_data = get_data_tuples(train_data, test_data)
 
         train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=pred_s)
-        clf = algos.LR()
+        clf = LR()
         preds = clf.run(train_data, test_data)
         actual = test_data
 
@@ -234,6 +199,9 @@ def evaluate(
     full_name += "_s" if pred_s else "_y"
     full_name += "_on_recons" if eval_on_recon else "_on_encodings"
     metrics = compute_metrics(args, preds, actual, full_name, run_all=args._y_dim == 1, step=step)
+    print(f"Results for {full_name}:")
+    print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
+    print()  # empty line
 
     if save_to_csv is not None and args.results_csv:
         assert isinstance(save_to_csv, Path)
@@ -257,14 +225,10 @@ def evaluate(
 
 
 def encode_dataset(
-    args: VaeArgs,
-    data: Dataset,
-    generator: AutoEncoder,
-    recons: bool,
-    invariant_to: Literal["s", "y"] = "s",
+    args: ClusterArgs, data: Dataset, generator: Encoder,
 ) -> Dataset[Tuple[Tensor, Tensor, Tensor]]:
     print("Encoding dataset...", flush=True)  # flush to avoid conflict with tqdm
-    all_x_m = []
+    all_enc = []
     all_s = []
     all_y = []
 
@@ -280,27 +244,13 @@ def encode_dataset(
             all_y.append(y)
 
             enc = generator.encode(x, stochastic=False)
-            if recons:
-                zs_m, zy_m = generator.mask(enc, random=True)
-                z_m = zs_m if invariant_to == "s" else zy_m
-                x_m = generator.decode(z_m, discretize=True)
+            all_enc.append(enc.detach().cpu())
 
-                if args.dataset in ("celeba", "ssrp", "genfaces"):
-                    x_m = 0.5 * x_m + 0.5
-                if x.dim() > 2:
-                    x_m = x_m.clamp(min=0, max=1)
-            else:
-                zs_m, zy_m = generator.mask(enc)
-                # `zs_m` has zs zeroed out
-                x_m = zs_m if invariant_to == "s" else zy_m
-
-            all_x_m.append(x_m.detach().cpu())
-
-    all_x_m = torch.cat(all_x_m, dim=0)
+    all_enc = torch.cat(all_enc, dim=0)
     all_s = torch.cat(all_s, dim=0)
     all_y = torch.cat(all_y, dim=0)
 
-    encoded_dataset = TensorDataset(all_x_m, all_s, all_y)
+    encoded_dataset = TensorDataset(all_enc, all_s, all_y)
     print("Done.")
 
     return encoded_dataset

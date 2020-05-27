@@ -6,8 +6,8 @@ import torchvision
 from torch import nn
 
 import wandb
+from shared.utils import wandb_log
 from fdm.configs import VaeArgs
-from fdm.utils import wandb_log
 
 __all__ = ["get_data_dim", "log_images", "save_model", "restore_model"]
 

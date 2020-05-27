@@ -7,7 +7,7 @@ from torchvision.datasets import MNIST
 from ethicml.data import create_genfaces_dataset, create_celeba_dataset
 from ethicml.vision.data import LdColorizer
 
-from fdm.configs import BaseArgs
+from shared.configs import BaseArgs
 
 from .adult import load_adult_data
 from .dataset_wrappers import LdAugmentedDataset
@@ -89,6 +89,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             num_classes=num_classes,
             li_augmentation=False,
             base_augmentations=data_aug + base_aug,
+            correlation=args.color_correlation,
         )
         test_data = LdAugmentedDataset(
             test_data,

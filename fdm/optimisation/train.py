@@ -15,8 +15,18 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Subset
 import wandb
 
+from shared.data import DatasetTriplet, load_dataset
+from shared.utils import (
+    AverageMeter,
+    count_parameters,
+    get_logger,
+    inf_generator,
+    prod,
+    random_seed,
+    readable_duration,
+    wandb_log,
+)
 from fdm.configs import VaeArgs
-from fdm.data import DatasetTriplet, load_dataset
 from fdm.models import (
     AutoEncoder,
     Classifier,
@@ -31,16 +41,6 @@ from fdm.models.configs import (
     fc_net,
     strided_28x28_net,
     residual_64x64_net,
-)
-from fdm.utils import (
-    AverageMeter,
-    count_parameters,
-    get_logger,
-    inf_generator,
-    product,
-    random_seed,
-    readable_duration,
-    wandb_log,
 )
 
 from .evaluation import log_metrics
@@ -187,7 +187,7 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
         autoencoder = build_ae(
             ARGS, encoder, decoder, encoding_size=None, feature_group_slices=feature_group_slices
         )
-        if product(enc_shape) == enc_shape[0]:
+        if prod(enc_shape) == enc_shape[0]:
             is_enc_image_data = False
             print("Encoding will not be treated as image data.")
         else:
@@ -234,7 +234,7 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
     else:
         disc_fn = fc_net
         disc_kwargs["hidden_dims"] = args.disc_hidden_dims
-        disc_input_shape = (product(disc_input_shape),)  # fc_net first flattens the input
+        disc_input_shape = (prod(disc_input_shape),)  # fc_net first flattens the input
 
     components: Union[AeComponents, InnComponents]
     disc: Classifier
@@ -254,7 +254,7 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
         if ARGS.three_way_split:  # this is always trained on encodings
             disc_dist_fn = fc_net
             disc_dist_kwargs = {"hidden_dims": args.disc_hidden_dims}
-            output_dim = product((encoding_size.zy,) + enc_shape[1:])
+            output_dim = prod((encoding_size.zy,) + enc_shape[1:])
             disc_distinguish = Regressor(
                 disc_dist_fn(enc_shape, output_dim, **disc_dist_kwargs), disc_optimizer_kwargs,
             )

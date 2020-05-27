@@ -1,25 +1,25 @@
 """Definition of the Adult dataset"""
-from typing import NamedTuple, Optional, Tuple
+from typing import NamedTuple, Tuple
 
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
 
-from ethicml.data import Adult, load_data
+from ethicml.data import adult, load_data, Dataset
 from ethicml.preprocessing import (
     BalancedTestSplit,
     ProportionalSplit,
     get_biased_subset,
 )
 from ethicml.utility import DataTuple
-from fdm.configs import BaseArgs
+from shared.configs import BaseArgs
 
 from .dataset_wrappers import DataTupleDataset
 
 __all__ = ["get_data_tuples", "load_adult_data", "pytorch_data_to_dataframe"]
 
-ADULT_DATASET: Adult = None  # type: ignore[assignment]
+ADULT_DATASET: Dataset = None  # type: ignore[assignment]
 
 
 class DataTupleTriplet(NamedTuple):
@@ -32,7 +32,7 @@ class DataTupleTriplet(NamedTuple):
 
 def load_adult_data(args: BaseArgs,) -> Tuple[DataTupleDataset, DataTupleDataset, DataTupleDataset]:
     global ADULT_DATASET
-    ADULT_DATASET = Adult(binarize_nationality=args.drop_native)
+    ADULT_DATASET = adult(binarize_nationality=args.drop_native)
     data = load_data(ADULT_DATASET, ordered=True, generate_dummies=True)
 
     disc_feature_groups = ADULT_DATASET.disc_feature_groups

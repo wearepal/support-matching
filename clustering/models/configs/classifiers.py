@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import resnet50
 
-from fdm.models.resnet import ResidualNet
+from clustering.models.resnet import ResidualNet
 from shared.utils import prod
 
 __all__ = [

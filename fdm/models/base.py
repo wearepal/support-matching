@@ -3,7 +3,7 @@ from typing import NamedTuple
 from torch import Tensor
 import torch.nn as nn
 
-from fdm.utils.optimizers import RAdam
+from shared.utils.optimizers import RAdam
 
 __all__ = ["ModelBase", "EncodingSize", "SplitEncoding", "Reconstructions"]
 

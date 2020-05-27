@@ -1,3 +1,5 @@
+from typing import NewType
+
 __all__ = [
     "is_bool",
     "is_int",
@@ -8,6 +10,13 @@ __all__ = [
     "is_probability",
 ]
 
+Probability = NewType("Probability", float)
+
+
+def assert_probability(x: float) -> Probability:
+    assert is_probability(x)
+    return Probability(x)
+
 
 def is_bool(x):
     return isinstance(x, bool)
@@ -17,7 +26,7 @@ def is_int(x):
     return isinstance(x, int)
 
 
-def is_probability(x):
+def is_probability(x: float):
     return 0.0 <= x <= 1.0
 
 

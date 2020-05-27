@@ -1,7 +1,15 @@
 import torch
+from torch import Tensor, jit
 from torch.nn import functional as F
 
-__all__ = ["RoundSTE", "logit", "sum_except_batch", "to_discrete"]
+__all__ = [
+    "RoundSTE",
+    "dot_product",
+    "logit",
+    "normalized_softmax",
+    "sum_except_batch",
+    "to_discrete",
+]
 
 
 class RoundSTE(torch.autograd.Function):
@@ -31,3 +39,15 @@ def logit(p, eps=1e-8):
 
 def sum_except_batch(x, keepdim: bool = False):
     return x.flatten(start_dim=1).sum(-1, keepdim=keepdim)
+
+
+def dot_product(x: Tensor, y: Tensor, keepdim: bool = False) -> Tensor:
+    return torch.sum(x * y, dim=-1, keepdim=keepdim)
+
+
+@jit.script
+def normalized_softmax(logits: Tensor) -> Tensor:
+    max_logits, _ = logits.max(dim=1, keepdim=True)
+    unnormalized = torch.exp(logits - max_logits)
+    norm = torch.sqrt(dot_product(unnormalized, unnormalized, keepdim=True))
+    return unnormalized / norm

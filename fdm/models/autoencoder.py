@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from torch import Tensor
 from tqdm import tqdm
 
-from fdm.utils import to_discrete
+from shared.utils import to_discrete
 
 from .base import ModelBase, EncodingSize, SplitEncoding, Reconstructions
 
