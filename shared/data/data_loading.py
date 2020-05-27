@@ -1,8 +1,11 @@
 from pathlib import Path
-from typing import NamedTuple
+from typing import NamedTuple, Callable, Literal, Tuple
 
 import numpy as np
+from PIL import Image
 import torch
+import torch.nn.functional as F
+from torch import Tensor
 from torch.utils.data import Dataset, random_split, Subset, TensorDataset
 from torchvision import transforms
 from torchvision.datasets import MNIST
@@ -34,18 +37,14 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
 
     # =============== get whole dataset ===================
     if args.dataset == "cmnist":
-        base_aug = [transforms.ToTensor()]
-        data_aug = []
-        if args.rotate_data:
-            data_aug.append(transforms.RandomAffine(degrees=15))
-        if args.shift_data:
-            data_aug.append(transforms.RandomAffine(degrees=0, translate=(0.11, 0.11)))
+        augs = []
         if args.padding > 0:
-            base_aug.insert(0, transforms.Pad(args.padding))
+            augs.append(lambda x: F.pad(x, (args.padding, args.padding)))
         if args.quant_level != "8":
-            base_aug.append(Quantize(int(args.quant_level)))
+            augs.append(Quantize(int(args.quant_level)))
         if args.input_noise:
-            base_aug.append(NoisyDequantize(int(args.quant_level)))
+            augs.append(NoisyDequantize(int(args.quant_level)))
+
         train_data = MNIST(root=args.root, download=True, train=True)
         test_data = MNIST(root=args.root, download=True, train=False)
 
@@ -65,10 +64,6 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
 
             train_data, test_data = _filter(train_data), _filter(test_data)
 
-        context_len = round(args.context_pcnt * len(train_data))
-        train_len = len(train_data) - context_len
-        context_data, train_data = random_split(train_data, lengths=(context_len, train_len))
-
         colorizer = LdColorizer(
             scale=args.scale,
             background=args.background,
@@ -78,28 +73,43 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             color_indices=args.filter_labels or None,
         )
 
-        context_data = LdAugmentedDataset(
-            context_data,
-            ld_augmentations=colorizer,
-            num_classes=num_classes,
-            li_augmentation=True,
-            base_augmentations=data_aug + base_aug,
+        test_data = (test_data.data, test_data.targets)
+        context_len = round(args.context_pcnt * len(train_data))
+        train_len = len(train_data) - context_len
+        split_sizes = (context_len, train_len)
+        shuffle_inds = torch.randperm(len(train_data))
+        context_data, train_data = tuple(
+            zip(
+                *(
+                    train_data.data[shuffle_inds].split(split_sizes),
+                    train_data.targets[shuffle_inds].split(split_sizes),
+                )
+            )
         )
-        train_data = LdAugmentedDataset(
-            train_data,
-            ld_augmentations=colorizer,
-            num_classes=num_classes,
-            li_augmentation=False,
-            base_augmentations=data_aug + base_aug,
-            correlation=args.color_correlation,
+
+        def _colorize_subset(
+            _subset: Tuple[Tensor, Tensor],
+            _correlation: float,
+            _decorr_op: Literal["random", "shift"],
+        ) -> TensorDataset:
+            x, y = _subset
+            x = x.unsqueeze(1).expand(-1, 3, -1, -1) / 255.0
+            for aug in augs:
+                x = aug(x)
+            s = y.clone()
+            indexes = torch.rand(s.shape) > _correlation
+            if _decorr_op == "random":
+                s[indexes] = torch.randint_like(s[indexes], low=0, high=10)
+            else:
+                s[indexes] = torch.fmod(s[indexes] + 1, num_classes)
+            x_col = colorizer(x, s)
+            return TensorDataset(x_col, s, y)
+
+        train_data = _colorize_subset(
+            train_data, _correlation=args.color_correlation, _decorr_op="shift",
         )
-        test_data = LdAugmentedDataset(
-            test_data,
-            ld_augmentations=colorizer,
-            num_classes=num_classes,
-            li_augmentation=True,
-            base_augmentations=base_aug,
-        )
+        test_data = _colorize_subset(test_data, _correlation=0, _decorr_op="random")
+        context_data = _colorize_subset(context_data, _correlation=0, _decorr_op="random")
 
         args._y_dim = 1 if num_classes == 2 else num_classes
         args._s_dim = 1 if num_classes == 2 else num_classes
