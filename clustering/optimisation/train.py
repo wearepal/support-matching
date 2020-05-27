@@ -255,6 +255,7 @@ def main(raw_args: Optional[List[str]] = None) -> Model:
     path = save_model(args, save_dir, model=model.bundle, epoch=epoch, sha=sha)
     bundle, _ = restore_model(args, path, model=model.bundle)
     model = Model(bundle=bundle, method=method, train_encoder=ARGS.finetune_encoder)
+    validate(model, val_loader, results_dir=save_dir)
     # log_metrics(ARGS, model=model, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr)
     return model
 
@@ -315,7 +316,9 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
     return itr
 
 
-def validate(model: Model, val_data: DataLoader) -> Tuple[float, Dict[str, float]]:
+def validate(
+    model: Model, val_data: DataLoader, results_dir: Optional[Path] = None
+) -> Tuple[float, Dict[str, float]]:
     model.eval()
     to_cluster = ARGS.cluster
     y_count = ARGS._y_dim if ARGS._y_dim > 1 else 2
@@ -328,6 +331,8 @@ def validate(model: Model, val_data: DataLoader) -> Tuple[float, Dict[str, float
         num_clusters = s_count * y_count
     counts = np.zeros((num_clusters, num_clusters), dtype=np.int64)
     num_total = 0
+    if results_dir is not None:
+        cluster_ids: List[np.ndarray] = []
 
     with torch.set_grad_enabled(False):
         for (x_v, s_v, y_v) in val_data:
@@ -336,9 +341,28 @@ def validate(model: Model, val_data: DataLoader) -> Tuple[float, Dict[str, float
             preds = logits.argmax(dim=-1).detach().cpu().numpy()
             counts = count_occurances(counts, preds, s_v, y_v, s_count, to_cluster)
             num_total += y_v.size(0)
+            if results_dir is not None:
+                cluster_ids.append(preds)
 
     # find best assignment for cluster to classes
-    return find_assignment(counts, num_total)
+    best_acc, best_ass, logging_dict = find_assignment(counts, num_total)
+
+    if results_dir is not None:
+        cluster_ids_np = np.concatenate(cluster_ids, axis=0)
+        class_ids = best_ass[cluster_ids_np]  # use the best assignment to get the class IDs
+        to_save: Dict[str, np.ndarray] = {}
+        if to_cluster == "s":
+            to_save["s"] = class_ids
+        elif to_cluster == "y":
+            to_save["y"] = class_ids
+        else:
+            # class_id = y * s_count + s
+            to_save["s"] = class_ids % s_count
+            to_save["y"] = class_ids // s_count
+        save_path = results_dir / "cluster_results.npz"
+        np.savez_compressed(save_path, **to_save)
+        LOGGER.info("Saved results in {}", save_path)
+    return best_acc, logging_dict
 
 
 def to_device(*tensors: Tensor) -> Union[Tensor, Tuple[Tensor, ...]]:

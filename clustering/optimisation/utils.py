@@ -108,10 +108,13 @@ def count_occurances(
 
 def find_assignment(counts: np.ndarray, num_total: int):
     """Find an assignment of cluster to class such that the overall accuracy is maximized."""
-    row_ind, _, result = lapjv(-counts)
+    # row_ind maps from class ID to cluster ID: cluster_id = row_ind[class_id]
+    # col_ind maps from cluster ID to class ID: class_id = row_ind[cluster_id]
+    row_ind, col_ind, result = lapjv(-counts)
     best_acc = -result[0] / num_total
+    assignment = (f"{class_id}->{cluster_id}" for class_id, cluster_id in enumerate(row_ind))
     logging_dict = {
         "Best acc": best_acc,
-        "Assignment": ", ".join(f"{i}->{j}" for i, j in enumerate(row_ind)),
+        "Assignment": ", ".join(assignment),
     }
-    return best_acc, logging_dict
+    return best_acc, col_ind, logging_dict

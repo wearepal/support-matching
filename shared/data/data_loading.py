@@ -1,7 +1,9 @@
+from pathlib import Path
 from typing import NamedTuple
 
 import numpy as np
-from torch.utils.data import Dataset, random_split, Subset
+import torch
+from torch.utils.data import Dataset, random_split, Subset, TensorDataset
 from torchvision import transforms
 from torchvision.datasets import MNIST
 from ethicml.data import create_genfaces_dataset, create_celeba_dataset
@@ -201,6 +203,17 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         context_data, train_data, test_data = load_adult_data(args)
         args._y_dim = 1
         args._s_dim = 1
+    elif args.dataset == "npzfile":
+        npzfile = Path(args.npzfile_location)
+        s = None
+        y = None
+        with npzfile.open("rb") as fp:
+            data = np.load(fp)
+            if "s" in data:
+                s = data["s"]
+            if "y" in data:
+                y = data["y"]
+        raise RuntimeError("the rest is not implemented yet")
     else:
         raise ValueError("Invalid choice of dataset.")
 

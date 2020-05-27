@@ -53,7 +53,7 @@ CELEBATTRS = Literal[
 class BaseArgs(TypedFlags):
     """General data set settings."""
 
-    dataset: Literal["adult", "cmnist", "celeba", "genfaces"] = "cmnist"
+    dataset: Literal["adult", "cmnist", "celeba", "genfaces", "npzfile"] = "cmnist"
 
     data_pcnt: float = 1.0  # data pcnt should be a real value > 0, and up to 1
     biased_train: bool = True  # if True, make the training set biased, dependent on mixing factor
@@ -88,6 +88,9 @@ class BaseArgs(TypedFlags):
     # GenFaces settings
     genfaces_sens_attr: GenfacesAttributes = "gender"
     genfaces_target_attr: GenfacesAttributes = "emotion"
+
+    # NpzFile settings
+    npzfile_location: str = ""
 
     # General settings
     use_wandb: bool = True
