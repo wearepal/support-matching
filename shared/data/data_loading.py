@@ -97,7 +97,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             s = y.clone()
             indexes = torch.rand(s.shape) > _correlation
             if _decorr_op == "random":
-                s[indexes] = torch.randint_like(s[indexes], low=0, high=10)
+                s[indexes] = torch.randint_like(s[indexes], low=0, high=num_classes)
             else:
                 s[indexes] = torch.fmod(s[indexes] + 1, num_classes)
             x_col = colorizer(x, s)
