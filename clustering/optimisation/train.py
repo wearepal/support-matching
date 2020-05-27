@@ -72,7 +72,7 @@ def main(raw_args: Optional[List[str]] = None) -> Model:
     ARGS = args
 
     if ARGS.use_wandb:
-        wandb.init(project="clustering", config=args.as_dict())
+        wandb.init(project="fcm", config=args.as_dict())
 
     save_dir = Path(ARGS.save_dir) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)

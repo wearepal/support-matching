@@ -68,7 +68,7 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha
 
-    args = VaeArgs(explicit_bool=True, underscores_to_dashes=True, fromfile_prefix_chars="@")
+    args = VaeArgs(fromfile_prefix_chars="@")
     args.parse_args(raw_args)
     use_gpu = torch.cuda.is_available() and args.gpu >= 0
     random_seed(args.seed, use_gpu)
@@ -76,16 +76,15 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
     # ==== initialize globals ====
     global ARGS, LOGGER
     ARGS = args
-    args_dict = args.as_dict()
 
     if ARGS.use_wandb:
-        wandb.init(project="fdm", config=args_dict)
+        wandb.init(project="fdm", config=args.as_dict())
 
     save_dir = Path(ARGS.save_dir) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
     LOGGER = get_logger(logpath=save_dir / "logs", filepath=Path(__file__).resolve())
-    LOGGER.info("Namespace(" + ", ".join(f"{k}={args_dict[k]}" for k in sorted(args_dict)) + ")")
+    LOGGER.info(str(ARGS))
     LOGGER.info("Save directory: {}", save_dir.resolve())
     # ==== check GPU ====
     ARGS._device = torch.device(
