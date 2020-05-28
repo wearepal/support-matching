@@ -85,8 +85,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             )
         )
 
-        if args.downsampling_props:
-
+        if args.subsample:
             def _downsample(_data, _targets):
                 for _target, _prop in args.subsample.items():
                     assert 0 <= _prop <= 1
