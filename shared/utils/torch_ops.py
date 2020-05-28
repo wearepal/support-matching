@@ -8,6 +8,7 @@ __all__ = [
     "normalized_softmax",
     "sum_except_batch",
     "to_discrete",
+    "dot_product",
 ]
 
 
@@ -38,6 +39,10 @@ def logit(p, eps=1e-8):
 
 def sum_except_batch(x, keepdim: bool = False):
     return x.flatten(start_dim=1).sum(-1, keepdim=keepdim)
+
+
+def dot_product(x: Tensor, y: Tensor, keepdim: bool = False) -> Tensor:
+    return torch.sum(x * y, dim=-1, keepdim=keepdim)
 
 
 @jit.script
