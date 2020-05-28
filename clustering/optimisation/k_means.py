@@ -24,13 +24,11 @@ def train(
     # create data loader with one giant batch
     data_loader = DataLoader(encoded, batch_size=len(encoded), shuffle=False)
     encoded, s, y = next(iter(data_loader))
-    preds = run_kmeans_faiss(encoded, nmb_clusters=num_clusters, cuda=args._device != "cpu", n_iter=args.epochs, verbose=True)
+    preds = run_kmeans_faiss(encoded, nmb_clusters=num_clusters, cuda=str(args._device) != "cpu", n_iter=args.epochs, verbose=True)
     # preds, _ = run_kmeans_torch(encoded, num_clusters, device=args._device, n_iter=args.epochs, verbose=True)
-    if isinstance(preds, Tensor):
-        preds = preds.cpu().numpy()
     counts = np.zeros((num_clusters, num_clusters), dtype=np.int64)
-    counts = count_occurances(counts, preds, s, y, s_count, args.cluster)
-    _, logging_dict = find_assignment(counts, preds.size(0))
+    counts = count_occurances(counts, preds.cpu().numpy(), s, y, s_count, args.cluster)
+    _, _, logging_dict = find_assignment(counts, preds.size(0))
     prepared = (
         f"{k}: {v:.5g}" if isinstance(v, float) else f"{k}: {v}" for k, v in logging_dict.items()
     )
@@ -79,11 +77,10 @@ def run_kmeans_torch(
     return c, c
 
 
-def run_kmeans_faiss(x: Union[np.ndarray, Tensor], nmb_clusters: int, n_iter: int, cuda: bool, verbose: bool = False):
-
+def run_kmeans_faiss(x: Union[np.ndarray, Tensor], nmb_clusters: int, n_iter: int, cuda: bool, verbose: bool = False) -> Tensor:
     if isinstance(x, torch.Tensor):
         x = x.numpy()
-
+    x = np.reshape(x, (x.shape[0], -1))
     n_data, d = x.shape
 
     if cuda:
@@ -106,6 +103,6 @@ def run_kmeans_faiss(x: Union[np.ndarray, Tensor], nmb_clusters: int, n_iter: in
         kmeans.train(x)
         _, I = kmeans.index.search(x, 1)
 
-    I = np.squeeze(I)
+    I = torch.as_tensor(I, dtype=torch.long).squeeze()
     
     return I
