@@ -1,4 +1,6 @@
 from setuptools import find_packages, setup
+import subprocess
+import sys
 
 setup(
     name="fdm",
@@ -15,7 +17,6 @@ setup(
         "numpy >= 1.15",
         "pandas >= 0.24",
         "pillow < 7.0",
-        "pykeops",
         "scikit-image >= 0.14",
         "scikit-learn >= 0.20",
         "scipy >= 1.2.1",
@@ -26,3 +27,8 @@ setup(
         "wandb == 0.8.27",
     ],
 )
+
+try:
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'faiss-gpu'])
+except:
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'faiss-cpu'])
