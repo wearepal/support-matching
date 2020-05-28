@@ -62,7 +62,7 @@ class Encoder(nn.Module):
         """Encode the given input."""
 
     @abstractmethod
-    def fit(self, train_data: DataLoader, epochs: int, device: torch.device):
+    def fit(self, train_data: DataLoader, epochs: int, device: torch.device, use_wandb: bool):
         """Train the encoder on the given data."""
 
     @abstractmethod

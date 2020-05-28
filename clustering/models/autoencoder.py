@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from torch import Tensor
 from tqdm import tqdm
 
-from shared.utils import to_discrete
+from shared.utils import to_discrete, wandb_log
 
 from .base import ModelBase, Encoder
 
@@ -70,9 +70,15 @@ class AutoEncoder(Encoder):
         self.encoder.step(grads)
         self.decoder.step(grads)
 
-    def fit(self, train_data: DataLoader, epochs: int, device):
+    def fit(self, train_data: DataLoader, epochs: int, device: torch.device, use_wandb: bool):
         self.train()
 
+        step = 0
+        use_wandb_ = use_wandb
+
+        class _Namespace:
+            use_wandb: bool = use_wandb_
+        args = _Namespace()
         with tqdm(total=epochs * len(train_data)) as pbar:
             for _ in range(epochs):
 
@@ -87,8 +93,11 @@ class AutoEncoder(Encoder):
                     loss.backward()
                     self.step()
 
+                    enc_loss = loss.detach().cpu().numpy()
                     pbar.update()
-                    pbar.set_postfix(AE_loss=loss.detach().cpu().numpy())
+                    pbar.set_postfix(AE_loss=enc_loss)
+                    step += 1
+                    wandb_log(args, {"enc_loss": enc_loss}, step)
 
     def routine(self, x: Tensor) -> Tuple[Tensor, Tensor, Dict[str, float]]:
         encoding = self.encode(x)

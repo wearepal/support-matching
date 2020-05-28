@@ -40,7 +40,7 @@ def build_ae(
             input_shape,
             args.init_channels,
             encoding_dim=args.enc_channels,
-            levels=args.levels,
+            levels=args.enc_levels,
             variational=variational,
         )
 

@@ -100,7 +100,7 @@ def count_occurances(
     else:
         class_id = y * s_count + s
     indices, batch_counts = np.unique(
-        np.stack([class_id.numpy(), preds]), axis=1, return_counts=True
+        np.stack([class_id.numpy().astype(np.int64), preds]), axis=1, return_counts=True
     )
     counts[tuple(indices)] += batch_counts
     return counts
