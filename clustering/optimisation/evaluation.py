@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Sequence
+from typing import Dict, Optional, Tuple, Sequence, List
 
 import numpy as np
 import pandas as pd
@@ -18,10 +18,12 @@ from ethicml.utility import DataTuple, Prediction
 from shared.data import DatasetTriplet, get_data_tuples
 from shared.utils import wandb_log, prod
 from clustering.configs import ClusterArgs
-from clustering.models import Classifier, Encoder
+from clustering.models import Classifier, Encoder, Model
 from clustering.models.configs import fc_net, mp_32x32_net, mp_64x64_net
 
 from .utils import log_images
+
+__all__ = ["classify_dataset", "encode_dataset"]
 
 
 def log_sample_images(args, data, name, step):
@@ -254,3 +256,30 @@ def encode_dataset(
     print("Done.")
 
     return encoded_dataset
+
+
+def classify_dataset(args: ClusterArgs, model: Model, data: Dataset, results_dir: Path) -> Path:
+    """Determine the class of every sample in the given dataset and save them to a file."""
+    model.eval()
+    cluster_ids: List[Tensor] = []
+
+    data_loader = DataLoader(
+        data, batch_size=args.encode_batch_size, pin_memory=True, shuffle=False, num_workers=4
+    )
+
+    with torch.set_grad_enabled(False):
+        for (x, _, _) in data_loader:
+            x = x.to(args._device, non_blocking=True)
+            logits = model(x)
+            preds = logits.argmax(dim=-1).detach().cpu()
+            cluster_ids.append(preds)
+
+    cluster_ids: Tensor = torch.cat(cluster_ids, dim=0)
+    save_path = results_dir / "cluster_results.pth"
+    save_dict = {
+        "args": args.as_dict(),
+        "cluster_ids": cluster_ids,
+    }
+    torch.save(save_dict, save_path)
+    print("Saved results in {}", save_path)
+    return save_path

@@ -39,7 +39,7 @@ from clustering.models import (
 )
 from clustering.models.configs import fc_net
 
-from .evaluation import log_metrics
+from .evaluation import classify_dataset
 from .utils import get_data_dim, restore_model, save_model, find_assignment, count_occurances
 from .build import build_ae
 from .k_means import train as train_k_means
@@ -50,7 +50,7 @@ ARGS: ClusterArgs = None  # type: ignore[assignment]
 LOGGER: Logger = None  # type: ignore[assignment]
 
 
-def main(raw_args: Optional[List[str]] = None) -> Model:
+def main(raw_args: Optional[List[str]] = None) -> Tuple[Model, Path]:
     """Main function
 
     Args:
@@ -212,8 +212,8 @@ def main(raw_args: Optional[List[str]] = None) -> Model:
         bundle, start_epoch = restore_model(ARGS, Path(ARGS.resume), model.bundle)
         model = Model(bundle=bundle, method=method, train_encoder=ARGS.finetune_encoder)
         if ARGS.evaluate:
-            log_metrics(ARGS, model=model, data=datasets, save_to_csv=Path(ARGS.save_dir), step=0)
-            return model
+            pth_path = classify_dataset(ARGS, model, datasets.context, save_dir)
+            return model, pth_path
 
     # Logging
     # wandb.set_model_graph(str(generator))
@@ -260,9 +260,9 @@ def main(raw_args: Optional[List[str]] = None) -> Model:
     path = save_model(args, save_dir, model=model.bundle, epoch=epoch, sha=sha)
     bundle, _ = restore_model(args, path, model=model.bundle)
     model = Model(bundle=bundle, method=method, train_encoder=ARGS.finetune_encoder)
-    validate(model, val_loader, results_dir=save_dir)
-    # log_metrics(ARGS, model=model, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr)
-    return model
+    validate(model, val_loader)
+    pth_path = classify_dataset(ARGS, model, datasets.context, save_dir)
+    return model, pth_path
 
 
 def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch: int) -> int:
