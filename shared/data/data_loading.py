@@ -71,7 +71,6 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             color_indices=args.filter_labels or None,
         )
 
-
         test_data = (test_data.data, test_data.targets)
         context_len = round(args.context_pcnt * len(train_data))
         train_len = len(train_data) - context_len
@@ -87,7 +86,10 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         )
 
         if args.subsample:
-            def _subsample_by_class(_data: Tensor, _targets: Tensor, _target_props: Dict[int, float]) -> Tuple[Tensor, Tensor]:
+
+            def _subsample_by_class(
+                _data: Tensor, _targets: Tensor, _target_props: Dict[int, float]
+            ) -> Tuple[Tensor, Tensor]:
                 for _target, _prop in _target_props.items():
                     assert 0 <= _prop <= 1
                     _indexes = _targets == int(_target)
@@ -99,7 +101,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
                 return _data, _targets
 
             context_data = _subsample_by_class(*context_data, args.subsample)
-            test_data = _subsample_by_class(*test_data. args.subsample)
+            test_data = _subsample_by_class(*test_data.args.subsample)
 
         def _colorize_subset(
             _subset: Tuple[Tensor, Tensor],
