@@ -30,6 +30,6 @@ setup(
 )
 
 try:
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'faiss-gpu'])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "faiss-gpu"])
 except:
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'faiss-cpu'])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "faiss-cpu"])
