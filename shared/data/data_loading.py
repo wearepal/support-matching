@@ -85,6 +85,21 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             )
         )
 
+        if args.downsampling_props:
+            def _downsample(_data, _targets):
+                for _target, _prop in args.downsampling_props.items():
+                    assert 0 <= _prop <= 1
+                    _indexes = _targets == int(_target)
+                    _n_matches = len(_indexes.nonzero())
+                    _to_keep = torch.randperm(_n_matches) < (round(_prop * (_n_matches - 1)))
+                    _indexes[_indexes.nonzero()[[_to_keep]]] = False
+                    _data = _data[~_indexes]
+                    _targets = _targets[~_targets]
+                return _data, _targets
+
+            context_data = _downsample(*context_data)
+            test_data = _downsample(*test_data)
+
         def _colorize_subset(
             _subset: Tuple[Tensor, Tensor],
             _correlation: float,
