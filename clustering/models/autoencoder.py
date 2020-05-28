@@ -78,6 +78,7 @@ class AutoEncoder(Encoder):
 
         class _Namespace:
             use_wandb: bool = use_wandb_
+
         args = _Namespace()
         with tqdm(total=epochs * len(train_data)) as pbar:
             for _ in range(epochs):

@@ -24,7 +24,13 @@ def train(
     # create data loader with one giant batch
     data_loader = DataLoader(encoded, batch_size=len(encoded), shuffle=False)
     encoded, s, y = next(iter(data_loader))
-    preds = run_kmeans_faiss(encoded, nmb_clusters=num_clusters, cuda=args._device != "cpu", n_iter=args.epochs, verbose=True)
+    preds = run_kmeans_faiss(
+        encoded,
+        nmb_clusters=num_clusters,
+        cuda=args._device != "cpu",
+        n_iter=args.epochs,
+        verbose=True,
+    )
     # preds, _ = run_kmeans_torch(encoded, num_clusters, device=args._device, n_iter=args.epochs, verbose=True)
     if isinstance(preds, Tensor):
         preds = preds.cpu().numpy()
@@ -79,7 +85,9 @@ def run_kmeans_torch(
     return c, c
 
 
-def run_kmeans_faiss(x: Union[np.ndarray, Tensor], nmb_clusters: int, n_iter: int, cuda: bool, verbose: bool = False):
+def run_kmeans_faiss(
+    x: Union[np.ndarray, Tensor], nmb_clusters: int, n_iter: int, cuda: bool, verbose: bool = False
+):
 
     if isinstance(x, torch.Tensor):
         x = x.numpy()
@@ -107,5 +115,5 @@ def run_kmeans_faiss(x: Union[np.ndarray, Tensor], nmb_clusters: int, n_iter: in
         _, I = kmeans.index.search(x, 1)
 
     I = np.squeeze(I)
-    
+
     return I
