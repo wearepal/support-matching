@@ -53,7 +53,7 @@ def main():
         for k, v in flags.items():
             cmd += f" --{k.replace('_', '-')}"
             if isinstance(v, str):
-                cmd += f" \"{v}\""
+                cmd += f' "{v}"'
             elif isinstance(v, list):
                 if v:
                     cmd += " " + " ".join(str(value) for value in v)
