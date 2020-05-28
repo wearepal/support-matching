@@ -101,7 +101,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
                 return _data, _targets
 
             context_data = _subsample_by_class(*context_data, args.subsample)
-            test_data = _subsample_by_class(*test_data.args.subsample)
+            test_data = _subsample_by_class(*test_data, args.subsample)
 
         def _colorize_subset(
             _subset: Tuple[Tensor, Tensor],
