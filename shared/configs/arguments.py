@@ -1,4 +1,4 @@
-from typing import Literal, List
+from typing import Literal, List, Dict
 
 from typed_flags import TypedFlags
 
@@ -78,7 +78,7 @@ class BaseArgs(TypedFlags):
     color_correlation: float = 1.0
     padding: int = 2  # by how many pixels to pad the cmnist images by
     quant_level: Literal["3", "5", "8"] = "8"  # number of bits that encode color
-    downsampling_props: dict = {}
+    subsample: Dict[int, float] = {}
     input_noise: bool = True  # add uniform noise to the input
     filter_labels: List[int] = []
 
