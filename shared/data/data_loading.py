@@ -50,17 +50,17 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         if args.filter_labels:
             num_classes = len(args.filter_labels)
 
-            def _filter(dataset: MNIST):
-                targets: np.ndarray[np.int64] = dataset.targets.numpy()
-                final_mask = np.zeros_like(targets, dtype=np.bool_)
+            def _filter_(dataset: MNIST):
+                final_mask = torch.zeros_like(dataset.targets).bool()
                 for index, label in enumerate(args.filter_labels):
-                    mask = targets == label
-                    targets = np.where(mask, index, targets)
+                    mask = dataset.targets == label
+                    dataset.targets[mask] = index
                     final_mask |= mask
-                dataset.targets = targets
-                return Subset(dataset, final_mask.nonzero()[0])
+                dataset.data = dataset.data[final_mask]
+                dataset.targets = dataset.targets[final_mask]
 
-            train_data, test_data = _filter(train_data), _filter(test_data)
+            _filter_(train_data)
+            _filter_(test_data)
 
         colorizer = LdColorizer(
             scale=args.scale,
@@ -70,6 +70,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             greyscale=args.greyscale,
             color_indices=args.filter_labels or None,
         )
+
 
         test_data = (test_data.data, test_data.targets)
         context_len = round(args.context_pcnt * len(train_data))
@@ -86,8 +87,8 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         )
 
         if args.subsample:
-            def _downsample(_data, _targets):
-                for _target, _prop in args.subsample.items():
+            def _subsample_by_class(_data: Tensor, _targets: Tensor, _target_props: Dict[int, float]) -> Tuple[Tensor, Tensor]:
+                for _target, _prop in _target_props.items():
                     assert 0 <= _prop <= 1
                     _indexes = _targets == int(_target)
                     _n_matches = len(_indexes.nonzero())
@@ -97,8 +98,8 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
                     _targets = _targets[~_targets]
                 return _data, _targets
 
-            context_data = _downsample(*context_data)
-            test_data = _downsample(*test_data)
+            context_data = _subsample_by_class(*context_data, args.subsample)
+            test_data = _subsample_by_class(*test_data. args.subsample)
 
         def _colorize_subset(
             _subset: Tuple[Tensor, Tensor],
