@@ -56,11 +56,14 @@ LOGGER: Logger = None  # type: ignore[assignment]
 Generator = Union[AutoEncoder, PartitionedAeInn]
 
 
-def main(raw_args: Optional[List[str]] = None) -> Generator:
+def main(
+    raw_args: Optional[List[str]] = None, cluster_label_file: Optional[Path] = None
+) -> Generator:
     """Main function
 
     Args:
         raw_args: commandline arguments
+        cluster_label_file: path to a pth file with cluster IDs
 
     Returns:
         the trained generator
@@ -72,7 +75,7 @@ def main(raw_args: Optional[List[str]] = None) -> Generator:
     args.parse_args(raw_args)
     use_gpu = torch.cuda.is_available() and args.gpu >= 0
     random_seed(args.seed, use_gpu)
-    datasets: DatasetTriplet = load_dataset(args)
+    datasets: DatasetTriplet = load_dataset(args, cluster_label_file=cluster_label_file)
     # ==== initialize globals ====
     global ARGS, LOGGER
     ARGS = args

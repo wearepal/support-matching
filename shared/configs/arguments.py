@@ -90,6 +90,9 @@ class BaseArgs(TypedFlags):
     genfaces_sens_attr: GenfacesAttributes = "gender"
     genfaces_target_attr: GenfacesAttributes = "emotion"
 
+    # Cluster settings
+    cluster_label_file: str = ""
+
     # General settings
     use_wandb: bool = True
 

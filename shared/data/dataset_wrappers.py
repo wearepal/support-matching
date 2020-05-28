@@ -6,11 +6,13 @@ from typing import TYPE_CHECKING, List, Optional, Tuple, Dict, Union, Callable, 
 import numpy as np
 import pandas as pd
 import torch
-from torch.utils.data import DataLoader, Dataset, Subset
+from torch.utils.data import DataLoader, Dataset, Subset, IterableDataset
 from torchvision import transforms
 from ethicml.utility import DataTuple
 
 from .misc import RandomSampler, grouped_features_indexes, set_transform
+
+__all__ = ["StackedDataset"]
 
 
 class LdAugmentedDataset(Dataset):
@@ -275,3 +277,29 @@ def filter_by_labels(
         if (label := int(y.numpy())) in labels:
             indices.append(label)
     return Subset(dataset, indices)
+
+
+class StackedDataset(Dataset):
+    r"""Dataset as a stack of multiple datasets.
+
+    Arguments:
+        datasets (sequence): List of datasets to be stacked
+    """
+
+    def __init__(self, *datasets: Dataset):
+        super().__init__()
+        assert len(datasets) > 0, "datasets should not be an empty iterable"
+        self.datasets = list(datasets)
+        self.length = len(self.datasets[0])
+        for d in self.datasets:
+            assert not isinstance(d, IterableDataset), "doesn't support IterableDataset"
+            assert len(d) == self.length, "All datasets need to be of equal length"
+
+    def __len__(self) -> int:
+        return self.length
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, ...]:
+        sample = ()
+        for d in self.datasets:
+            sample += d[idx]
+        return sample
