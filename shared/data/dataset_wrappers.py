@@ -1,16 +1,21 @@
 from __future__ import annotations
 import random
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Tuple, Dict, Union, Callable, Set
+from typing import TYPE_CHECKING, List, Optional, Tuple, Dict, Union, Callable, Set, Sequence, Final
 
 import numpy as np
 import pandas as pd
 import torch
+from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms
 from ethicml.utility import DataTuple
 
 from .misc import RandomSampler, grouped_features_indexes, set_transform
+from kornia.geometry import rotate
+
+
+__all__ = ["LdAugmentedDataset", "DataTupleDataset", "RotationPrediction"]
 
 
 class LdAugmentedDataset(Dataset):
@@ -275,3 +280,54 @@ def filter_by_labels(
         if (label := int(y.numpy())) in labels:
             indices.append(label)
     return Subset(dataset, indices)
+
+
+class RotationPrediction(Dataset):
+
+    _pos_angles: Final = torch.as_tensor([[0.0], [90.0], [180.0], [270.0]])
+    _pos_labels: Final = torch.as_tensor([[0], [1], [2], [3]])
+    target_dim = 4
+
+    def __init__(
+        self,
+        dataset: Dataset,
+        apply_all: bool = True,
+        transform: Optional[List[Callable[[Tensor], Tensor]]] = None,
+    ) -> None:
+        """ 
+        Args:
+            dataset (Dataset): Dataset from which to draw samples.
+            apply_all (bool, optional): Whether to apply the full set of rotations
+            to each sample or to sample a single rotation randomly. In the former case,
+            the batch is tiled; this needs to be heeded when selecting the batch size.
+            Defaults to False.
+            transform (Optional[List[Callable[Tensor]]], optional): Transformations to apply
+            to the feature samples. Defaults to None.
+        """
+        super().__init__()
+        self.dataset = dataset
+        self.apply_all = apply_all
+
+    def _sample_angles(self) -> Tuple[Tensor, Tensor]:
+        if self.apply_all:
+            y = self._pos_labels
+            angles = self._pos_angles
+        else:
+            y = torch.randint(size=(1,), low=0, high=4)
+            angles = self._pos_angles[y]
+        return y, angles.squeeze()
+    
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor]:
+        x = self.dataset[index]
+        if isinstance(x, Sequence):
+            x = x[0]
+        x = x.unsqueeze(0)
+        if self.apply_all:
+            x = x.repeat_interleave(self.target_dim, dim=0)
+        y, angles = self._sample_angles()
+        x = rotate(x, angles)
+
+        return x, y

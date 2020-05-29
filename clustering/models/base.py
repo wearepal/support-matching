@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 import torch
 from torch import Tensor
@@ -21,12 +21,12 @@ class ModelBase(nn.Module):
     def __init__(self, model: nn.Module, optimizer_kwargs=None):
         super().__init__()
         self.model = model
-        self._reset_optimizer(optimizer_kwargs)
+        self.optimizer_kwargs = optimizer_kwargs or self.defaul_kwargs["optimizer_kwargs"]
+        self._reset_optimizer(self.optimizer_kwargs)
 
     def _reset_optimizer(self, optimizer_kwargs) -> None:
-        optimizer_kwargs = optimizer_kwargs or self.default_kwargs["optimizer_kwargs"]
         self.optimizer = RAdam(
-            filter(lambda p: p.requires_grad, self.model.parameters()), **optimizer_kwargs,
+            filter(lambda p: p.requires_grad, self.model.parameters()), **self.optimizer_kwargs,
         )
 
     def reset_parameters(self):
@@ -47,13 +47,13 @@ class ModelBase(nn.Module):
     def forward(self, inputs):
         return self.model(inputs)
 
-    def freeze_initial_layers(self, num_layers: int, optimizer_kwargs) -> None:
+    def freeze_initial_layers(self, num_layers: int, optimizer_kwargs: Optional[Dict[str, Any]] = None) -> None:
         assert isinstance(self.model, nn.Sequential), "model isn't indexable"
         print(f"Freezing {num_layers} out of {len(self.model)} layers.")
         for block in self.model[:num_layers]:
             for parameter in block.parameters():
                 parameter.requires_grad_(False)
-        self._reset_optimizer(optimizer_kwargs)
+        self._reset_optimizer(optimizer_kwargs or self.optimizer_kwargs)
 
 
 class Encoder(nn.Module):

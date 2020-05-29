@@ -43,7 +43,7 @@ class ClusterArgs(BaseArgs):
     with_supervision: bool = True
 
     # Encoder settings
-    encoder: Literal["ae", "vae"] = "ae"
+    encoder: Literal["ae", "vae", "rotnet"] = "ae"
     enc_levels: int = 4
     enc_channels: int = 64
     init_channels: int = 32

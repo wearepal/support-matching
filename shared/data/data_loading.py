@@ -3,6 +3,7 @@ from typing import Literal, NamedTuple, Tuple, Optional
 
 import torch
 import torch.nn.functional as F
+import torch.nn as nn
 from torch import Tensor
 from torch.utils.data import Dataset, TensorDataset, random_split
 from torchvision import transforms
@@ -36,9 +37,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
     if args.dataset == "cmnist":
         augs = []
         if args.padding > 0:
-            augs.append(
-                lambda x: F.pad(x, (args.padding, args.padding, args.padding, args.padding))
-            )
+            augs.append(nn.ConstantPad2d(padding=args.padding, value=0))
         if args.quant_level != "8":
             augs.append(Quantize(int(args.quant_level)))
         if args.input_noise:

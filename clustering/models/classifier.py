@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union, Sequence
 
 import torch
 import torch.nn as nn
@@ -160,13 +160,10 @@ class Classifier(ModelBase):
         pbar = trange(epochs)
         for epoch in pbar:
             self.model.train()
-
-            for x, s, y in train_data:
-
-                if pred_s:
-                    target = s
-                else:
-                    target = y
+            import pdb; pdb.set_trace()
+            for x, target in train_data:
+                if isinstance(target, Sequence):
+                    target = target[1] if pred_s else target[2]
 
                 x = x.to(device, non_blocking=True)
                 target = target.to(device, non_blocking=True)
