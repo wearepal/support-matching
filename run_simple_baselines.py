@@ -60,6 +60,7 @@ class BaselineArgs(BaseArgs):
     weight_decay = 1e-8
     eta: float = 0.5
     gpu: int = 0
+    save: str = "experiments/baseline"
 
     # Misc settings
     method: BASELINE_METHODS = "dro"
