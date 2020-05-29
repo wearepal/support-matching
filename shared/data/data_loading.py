@@ -15,7 +15,6 @@ from shared.configs import BaseArgs
 from .adult import load_adult_data
 from .misc import shrink_dataset
 from .transforms import NoisyDequantize, Quantize
-from .dataset_wrappers import StackedDataset
 
 __all__ = ["DatasetTriplet", "load_dataset"]
 
@@ -28,7 +27,7 @@ class DatasetTriplet(NamedTuple):
     y_dim: int
 
 
-def load_dataset(args: BaseArgs, cluster_label_file: Optional[Path] = None) -> DatasetTriplet:
+def load_dataset(args: BaseArgs) -> DatasetTriplet:
     context_data: Dataset
     test_data: Dataset
     train_data: Dataset
@@ -238,27 +237,6 @@ def load_dataset(args: BaseArgs, cluster_label_file: Optional[Path] = None) -> D
         context_data = shrink_dataset(context_data, args.data_pcnt)
         train_data = shrink_dataset(train_data, args.data_pcnt)
         test_data = shrink_dataset(test_data, args.data_pcnt)
-
-    if cluster_label_file is not None or args.cluster_label_file:
-        lf = cluster_label_file if cluster_label_file is not None else Path(args.cluster_label_file)
-        data = torch.load(lf, map_location=torch.device("cpu"))
-        saved_args = data["args"]
-        assert saved_args["dataset"] == args.dataset, f'{saved_args["dataset"]} != {args.dataset}'
-        assert (
-            saved_args["data_pcnt"] == args.data_pcnt
-        ), f'{saved_args["data_pcnt"]} != {args.data_pcnt}'
-        assert (
-            saved_args["data_split_seed"] == args.data_split_seed
-        ), f'{saved_args["data_split_seed"]} != {args.data_split_seed}'
-        assert (
-            saved_args["context_pcnt"] == args.context_pcnt
-        ), f'{saved_args["context_pcnt"]} != {args.context_pcnt}'
-        assert (
-            saved_args["test_pcnt"] == args.test_pcnt
-        ), f'{saved_args["test_pcnt"]} != {args.test_pcnt}'
-        cluster_ids = TensorDataset(data["cluster_ids"])
-        context_data = StackedDataset(context_data, cluster_ids)
-        args.cluster_label_file = str(lf)
 
     return DatasetTriplet(
         context=context_data,
