@@ -258,7 +258,7 @@ def encode_dataset(
     return encoded_dataset
 
 
-def classify_dataset(args: ClusterArgs, model: Model, data: Dataset, results_dir: Path) -> Path:
+def classify_dataset(args: ClusterArgs, model: Model, data: Dataset) -> Tensor:
     """Determine the class of every sample in the given dataset and save them to a file."""
     model.eval()
     cluster_ids: List[Tensor] = []
@@ -274,12 +274,4 @@ def classify_dataset(args: ClusterArgs, model: Model, data: Dataset, results_dir
             preds = logits.argmax(dim=-1).detach().cpu()
             cluster_ids.append(preds)
 
-    cluster_ids: Tensor = torch.cat(cluster_ids, dim=0)
-    save_path = results_dir / "cluster_results.pth"
-    save_dict = {
-        "args": args.as_dict(),
-        "cluster_ids": cluster_ids,
-    }
-    torch.save(save_dict, save_path)
-    print("Saved results in {}", save_path)
-    return save_path
+    return torch.cat(cluster_ids, dim=0)

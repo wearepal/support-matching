@@ -3,13 +3,13 @@ from typing import Tuple
 
 import torch
 import torchvision
-from torch import nn
+from torch import nn, Tensor
 
 import wandb
 from shared.utils import wandb_log
 from fdm.configs import VaeArgs
 
-__all__ = ["get_data_dim", "log_images", "save_model", "restore_model"]
+__all__ = ["get_data_dim", "log_images", "save_model", "restore_model", "weight_for_balance"]
 
 
 def get_data_dim(data_loader) -> Tuple[int, ...]:
@@ -69,3 +69,11 @@ def restore_model(args: VaeArgs, filename: Path, model: nn.Module):
 
     model.load_state_dict(chkpt["model"])
     return model, chkpt["epoch"]
+
+
+def weight_for_balance(cluster_ids: Tensor):
+    unique, counts = torch.unique(cluster_ids, sorted=False, return_counts=True)
+    n_clusters = int(unique.max() + 1)
+    weights = torch.zeros((n_clusters,))
+    weights[unique] = 1 / counts.float()  # the higher the count the lower the weight to balance out
+    return weights[cluster_ids], counts.size(0), int(counts.min())

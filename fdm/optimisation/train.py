@@ -4,7 +4,7 @@ import time
 from itertools import islice
 from logging import Logger
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple, Union, Literal, NamedTuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Literal, NamedTuple
 
 import git
 import numpy as np
@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Subset, WeightedRandomSampler
 import wandb
 
 from shared.data import DatasetTriplet, load_dataset
@@ -21,11 +21,13 @@ from shared.utils import (
     count_parameters,
     get_logger,
     inf_generator,
+    load_results,
     prod,
     random_seed,
     readable_duration,
     wandb_log,
 )
+from shared.models.configs import conv_autoencoder, fc_autoencoder
 from fdm.configs import VaeArgs
 from fdm.models import (
     AutoEncoder,
@@ -35,17 +37,11 @@ from fdm.models import (
     Regressor,
     PartitionedAeInn,
 )
-from fdm.models.configs import (
-    conv_autoencoder,
-    fc_autoencoder,
-    fc_net,
-    strided_28x28_net,
-    residual_64x64_net,
-)
+from fdm.models.configs import fc_net, strided_28x28_net, residual_64x64_net
 
 from .evaluation import log_metrics
 from .loss import MixedLoss, PixelCrossEntropy, VGGLoss
-from .utils import get_data_dim, log_images, restore_model, save_model
+from .utils import get_data_dim, log_images, restore_model, save_model, weight_for_balance
 from .build import build_inn, build_ae
 from .inn_training import update_inn, update_disc_on_inn, InnComponents
 
@@ -76,7 +72,7 @@ def main(
     args = VaeArgs(fromfile_prefix_chars="@").parse_args(raw_args, known_only=known_only)
     use_gpu = torch.cuda.is_available() and args.gpu >= 0
     random_seed(args.seed, use_gpu)
-    datasets: DatasetTriplet = load_dataset(args, cluster_label_file=cluster_label_file)
+    datasets: DatasetTriplet = load_dataset(args)
     # ==== initialize globals ====
     global ARGS, LOGGER
     ARGS = args
@@ -104,12 +100,26 @@ def main(
         len(datasets.test),
     )
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
+    dataloader_args: Dict[str, Any]
+
+    if cluster_label_file is not None or args.cluster_label_file:
+        lf = cluster_label_file if cluster_label_file is not None else Path(args.cluster_label_file)
+        cluster_ids = load_results(ARGS, lf)
+        weights, n_clusters, min_count = weight_for_balance(cluster_ids)
+        # we subsample the larger clusters rather than supersample the smaller clusters
+        sample_with_replacement = False
+        epoch_len = n_clusters * min_count
+        sampler = WeightedRandomSampler(weights, epoch_len, replacement=sample_with_replacement)
+        dataloader_args = dict(sampler=sampler)
+    else:
+        dataloader_args = dict(shuffle=True)
+
     context_loader = DataLoader(
         datasets.context,
-        shuffle=True,
         batch_size=ARGS.batch_size,
         num_workers=ARGS.num_workers,
         pin_memory=True,
+        **dataloader_args,
     )
     train_loader = DataLoader(
         datasets.train,
@@ -337,7 +347,6 @@ def main(
             context_data=context_loader,
             train_data=train_loader,
             epoch=epoch,
-            balance_batch=bool(ARGS.cluster_label_file),
         )
 
         # if epoch % ARGS.val_freq == 0:
@@ -380,7 +389,6 @@ def train(
     context_data: DataLoader,
     train_data: DataLoader,
     epoch: int,
-    balance_batch: bool,
 ) -> int:
     total_loss_meter = AverageMeter()
     loss_meters: Optional[Dict[str, AverageMeter]] = None
@@ -393,8 +401,8 @@ def train(
     # FIXME: Should move from epoch- to iteration-based training.
     data_iterator = islice(zip(inf_generator(context_data), inf_generator(train_data)), epoch_len)
 
-    for itr, (context_sample, (x_t, _, _)) in enumerate(data_iterator, start=start_itr):
-        x_c = context_sample[0]
+    for itr, ((x_c, _, _), (x_t, _, _)) in enumerate(data_iterator, start=start_itr):
+
         x_c, x_t = to_device(x_c, x_t)
 
         pred_s_weight = 0.0 if itr < ARGS.warmup_steps else ARGS.pred_s_weight

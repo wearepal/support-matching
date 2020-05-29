@@ -20,6 +20,7 @@ from shared.utils import (
     prod,
     random_seed,
     readable_duration,
+    save_results,
     wandb_log,
 )
 from clustering.configs import ClusterArgs
@@ -211,7 +212,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
         bundle, start_epoch = restore_model(ARGS, Path(ARGS.resume), model.bundle)
         model = Model(bundle=bundle, method=method, train_encoder=ARGS.finetune_encoder)
         if ARGS.evaluate:
-            pth_path = classify_dataset(ARGS, model, datasets.context, save_dir)
+            pth_path = save_results(ARGS, classify_dataset(ARGS, model, datasets.context), save_dir)
             return model, pth_path
 
     # Logging
@@ -260,7 +261,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
     bundle, _ = restore_model(args, path, model=model.bundle)
     model = Model(bundle=bundle, method=method, train_encoder=ARGS.finetune_encoder)
     validate(model, val_loader)
-    pth_path = classify_dataset(ARGS, model, datasets.context, save_dir)
+    pth_path = save_results(ARGS, classify_dataset(ARGS, model, datasets.context), save_dir)
     return model, pth_path
 
 

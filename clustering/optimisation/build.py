@@ -4,9 +4,9 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
+from shared.models.configs import conv_autoencoder, fc_autoencoder
 from clustering.configs import ClusterArgs
 from clustering.models import AutoEncoder, VAE
-from clustering.models.configs import conv_autoencoder, fc_autoencoder
 from .loss import MixedLoss, PixelCrossEntropy, VGGLoss
 
 __all__ = ["build_ae"]
