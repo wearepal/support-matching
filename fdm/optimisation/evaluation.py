@@ -16,10 +16,10 @@ from ethicml.evaluators import run_metrics
 from ethicml.metrics import TNR, TPR, Accuracy, ProbPos, RenyiCorrelation
 from ethicml.utility import DataTuple, Prediction
 from shared.data import DatasetTriplet, get_data_tuples
+from shared.models.configs.classifiers import mp_32x32_net, fc_net, mp_64x64_net
 from shared.utils import wandb_log
 from fdm.configs import VaeArgs
 from fdm.models import Classifier, AutoEncoder
-from fdm.models.configs import fc_net, mp_32x32_net, mp_64x64_net
 
 from .utils import log_images
 

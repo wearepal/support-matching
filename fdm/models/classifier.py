@@ -3,6 +3,7 @@ from typing import Dict, Optional, Tuple, Union
 import torch
 import torch.nn.functional as F
 from torch import Tensor
+from torch.nn.modules.loss import _Loss
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader, Dataset
 from tqdm import trange
@@ -15,7 +16,13 @@ __all__ = ["Classifier", "Regressor"]
 class Classifier(ModelBase):
     """Wrapper for classifier models."""
 
-    def __init__(self, model, num_classes: int, optimizer_kwargs: Optional[Dict] = None):
+    def __init__(
+        self,
+        model,
+        num_classes: int,
+        optimizer_kwargs: Optional[Dict] = None,
+        criterion: Optional[Union[str, _Loss]] = None,
+    ):
         """Build classifier model.
 
         Args:).
@@ -26,29 +33,35 @@ class Classifier(ModelBase):
         Returns:
             None
         """
+        super().__init__(model, optimizer_kwargs=optimizer_kwargs)
         if num_classes < 2:
             raise ValueError(
                 f"Invalid number of classes: must equal 2 or more," f" {num_classes} given."
             )
-        if num_classes == 2:
-            self.criterion = "bce"
+        if criterion is None:
+            if num_classes == 2:
+                self.criterion = "bce"
+            else:
+                self.criterion = "ce"
         else:
-            self.criterion = "ce"
-
-        super().__init__(model, optimizer_kwargs=optimizer_kwargs)
+            self.criterion = criterion
 
     def apply_criterion(self, logits: Tensor, targets: Tensor) -> Tensor:
-        if self.criterion == "bce":
-            if targets.dtype != torch.float32:
-                targets = targets.float()
-            logits = logits.view(-1, 1)
-            targets = targets.view(-1, 1)
-            return F.binary_cross_entropy_with_logits(logits, targets, reduction="none")
-        else:
-            targets = targets.view(-1)
-            if targets.dtype != torch.long:
-                targets = targets.long()
-            return F.cross_entropy(logits, targets, reduction="none")
+        if isinstance(self.criterion, str):
+            if self.criterion == "bce":
+                if targets.dtype != torch.float32:
+                    targets = targets.float()
+                logits = logits.view(-1, 1)
+                targets = targets.view(-1, 1)
+                return F.binary_cross_entropy_with_logits(logits, targets, reduction="none")
+            elif self.criterion == "ce":
+                targets = targets.view(-1)
+                if targets.dtype != torch.long:
+                    targets = targets.long()
+                return F.cross_entropy(logits, targets, reduction="none")
+            else:
+                raise NotImplementedError("Only 'bce' and 'ce' losses are implemented using str.")
+        return self.criterion(logits, targets)
 
     def predict(self, inputs: Tensor, top: int = 1) -> Tensor:
         """Make prediction.

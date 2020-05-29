@@ -9,14 +9,7 @@ import wandb
 from shared.utils import wandb_log
 from fdm.configs import VaeArgs
 
-__all__ = ["get_data_dim", "log_images", "save_model", "restore_model", "weight_for_balance"]
-
-
-def get_data_dim(data_loader) -> Tuple[int, ...]:
-    x = next(iter(data_loader))[0]
-    x_dim = x.shape[1:]
-
-    return tuple(x_dim)
+__all__ = ["log_images", "save_model", "restore_model", "weight_for_balance"]
 
 
 def log_images(

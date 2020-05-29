@@ -1,7 +1,7 @@
 import logging
 import os
 import random
-from typing import Any, Dict, Sequence, TypeVar, Iterable, Iterator
+from typing import Any, Dict, Sequence, TypeVar, Iterable, Iterator, Tuple
 
 import numpy as np
 import torch
@@ -22,9 +22,17 @@ __all__ = [
     "readable_duration",
     "save_checkpoint",
     "wandb_log",
+    "get_data_dim",
 ]
 
 T = TypeVar("T")
+
+
+def get_data_dim(data_loader) -> Tuple[int, ...]:
+    x = next(iter(data_loader))[0]
+    x_dim = x.shape[1:]
+
+    return tuple(x_dim)
 
 
 def wandb_log(args: BaseArgs, row: Dict[str, Any], step: int, commit: bool = True):
