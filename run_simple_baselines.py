@@ -59,6 +59,7 @@ class BaselineArgs(BaseArgs):
     num_workers: int = 0
     weight_decay = 1e-8
     eta: float = 0.5
+    gpu: int = 0
 
     # Misc settings
     method: BASELINE_METHODS = "dro"
