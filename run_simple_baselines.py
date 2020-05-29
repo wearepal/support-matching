@@ -60,7 +60,7 @@ class BaselineArgs(BaseArgs):
     weight_decay = 1e-8
     eta: float = 0.5
     gpu: int = 0
-    save: str = "experiments/baseline"
+    save_dir: str = "experiments/baseline"
 
     # Misc settings
     method: BASELINE_METHODS = "dro"
@@ -255,7 +255,7 @@ def run_baseline(args: BaselineArgs):
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
     print()
 
-    if args.save is not None:
+    if args.save_dir is not None:
         save_to_csv = Path(args.save_dir)
         save_to_csv.mkdir(exist_ok=True)
 
