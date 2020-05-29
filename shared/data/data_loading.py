@@ -37,7 +37,9 @@ def load_dataset(args: BaseArgs, cluster_label_file: Optional[Path] = None) -> D
     if args.dataset == "cmnist":
         augs = []
         if args.padding > 0:
-            augs.append(lambda x: F.pad(x, (args.padding, args.padding)))
+            augs.append(
+                lambda x: F.pad(x, (args.padding, args.padding, args.padding, args.padding))
+            )
         if args.quant_level != "8":
             augs.append(Quantize(int(args.quant_level)))
         if args.input_noise:
@@ -256,6 +258,7 @@ def load_dataset(args: BaseArgs, cluster_label_file: Optional[Path] = None) -> D
         ), f'{saved_args["test_pcnt"]} != {args.test_pcnt}'
         cluster_ids = TensorDataset(data["cluster_ids"])
         context_data = StackedDataset(context_data, cluster_ids)
+        args.cluster_label_file = str(lf)
 
     return DatasetTriplet(
         context=context_data,

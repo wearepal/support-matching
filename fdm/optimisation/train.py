@@ -57,7 +57,9 @@ Generator = Union[AutoEncoder, PartitionedAeInn]
 
 
 def main(
-    raw_args: Optional[List[str]] = None, cluster_label_file: Optional[Path] = None
+    raw_args: Optional[List[str]] = None,
+    known_only: bool = False,
+    cluster_label_file: Optional[Path] = None,
 ) -> Generator:
     """Main function
 
@@ -71,8 +73,7 @@ def main(
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha
 
-    args = VaeArgs(fromfile_prefix_chars="@")
-    args.parse_args(raw_args)
+    args = VaeArgs(fromfile_prefix_chars="@").parse_args(raw_args, known_only=known_only)
     use_gpu = torch.cuda.is_available() and args.gpu >= 0
     random_seed(args.seed, use_gpu)
     datasets: DatasetTriplet = load_dataset(args, cluster_label_file=cluster_label_file)
@@ -303,7 +304,7 @@ def main(
             )
             predictor.to(args._device)
             predictor.fit(Subset(datasets.context, np.arange(100)), 50, ARGS._device, test_loader)
-        components = InnComponents(inn=generator, disc_ensemble=disc_ensemble, predictor=predictor,)
+        components = InnComponents(inn=generator, disc_ensemble=disc_ensemble, predictor=predictor)
 
     start_epoch = 1  # start at 1 so that the val_freq works correctly
     # Resume from checkpoint
@@ -336,6 +337,7 @@ def main(
             context_data=context_loader,
             train_data=train_loader,
             epoch=epoch,
+            balance_batch=bool(ARGS.cluster_label_file),
         )
 
         # if epoch % ARGS.val_freq == 0:
@@ -378,6 +380,7 @@ def train(
     context_data: DataLoader,
     train_data: DataLoader,
     epoch: int,
+    balance_batch: bool,
 ) -> int:
     total_loss_meter = AverageMeter()
     loss_meters: Optional[Dict[str, AverageMeter]] = None
@@ -390,8 +393,8 @@ def train(
     # FIXME: Should move from epoch- to iteration-based training.
     data_iterator = islice(zip(inf_generator(context_data), inf_generator(train_data)), epoch_len)
 
-    for itr, ((x_c, _, _), (x_t, _, _)) in enumerate(data_iterator, start=start_itr):
-
+    for itr, (context_sample, (x_t, _, _)) in enumerate(data_iterator, start=start_itr):
+        x_c = context_sample[0]
         x_c, x_t = to_device(x_c, x_t)
 
         pred_s_weight = 0.0 if itr < ARGS.warmup_steps else ARGS.pred_s_weight
