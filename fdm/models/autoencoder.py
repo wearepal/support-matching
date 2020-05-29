@@ -67,7 +67,7 @@ class AutoEncoder(nn.Module):
             just_s=self.decode(just_s, discretize=discretize),
         )
 
-    def forward(self, inputs, reverse: bool = True):
+    def forward(self, inputs, reverse: bool = False):
         if reverse:
             return self.decode(inputs)
         else:

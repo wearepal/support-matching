@@ -18,13 +18,13 @@ def build_classifier(
     in_dim = input_shape[0]
 
     num_classes = target_dim if target_dim > 1 else 2
-    discriminator = Classifier(
+    classifier = Classifier(
         model_fn(in_dim, target_dim, **model_kwargs),
         num_classes=num_classes,
         optimizer_kwargs=optimizer_kwargs,
     )
 
-    return discriminator
+    return classifier
 
 
 def build_fc_inn(

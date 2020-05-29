@@ -42,7 +42,7 @@ class Method:
     @staticmethod
     def supervised_loss(bundle: Bundle, x: Tensor, y: Tensor) -> Tuple[Tensor, LoggingDict]:
         # default implementation
-        z = bundle.encoder.encode(x)
+        z = bundle.encoder(x)
         loss, _ = bundle.classifier.routine(z, y)
         return loss, {"Classification Loss": loss.item()}
 
@@ -75,7 +75,7 @@ class PseudoLabelEnc(Method):
 
     @staticmethod
     def unsupervised_loss(bundle: Bundle, x: Tensor) -> Tuple[Tensor, LoggingDict]:
-        z = bundle.encoder.encode(x)
+        z = bundle.encoder(x)
         raw_preds = bundle.classifier(z)
         # normalize output for cosine similarity
         preds = normalized_softmax(raw_preds)

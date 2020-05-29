@@ -3,17 +3,22 @@ from __future__ import annotations
 import time
 from logging import Logger
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+import types
+from typing import Dict, List, Optional, Tuple, Union, cast
 
 import git
 import numpy as np
 from sklearn.metrics import confusion_matrix
 import torch
 from torch import Tensor
+import torch.nn as nn
 from torch.utils.data import DataLoader
+from torchvision.models import resnet18, resnet50, ResNet
 import wandb
 
-from shared.data import DatasetTriplet, load_dataset
+from shared.data.dataset_wrappers import RotationPrediction
+from shared.data.data_loading import load_dataset, DatasetTriplet
+from shared.data.misc import adaptive_collate
 from shared.utils import (
     AverageMeter,
     count_parameters,
@@ -38,6 +43,7 @@ from clustering.models import (
     PseudoLabelOutput,
     RankingStatistics,
     build_classifier,
+    Classifier
 )
 from clustering.models.configs import fc_net
 
@@ -103,6 +109,18 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
         num_workers=ARGS.num_workers,
         pin_memory=True,
     )
+    if args.encoder == "rotnet":
+        enc_train_loader = DataLoader(
+            RotationPrediction(datasets.context, apply_all=True),
+            shuffle=True,
+            batch_size=context_batch_size,
+            num_workers=ARGS.num_workers,
+            pin_memory=True,
+            collate_fn=adaptive_collate,
+        )
+    else:
+        enc_train_loader = context_loader
+        
     train_loader = DataLoader(
         datasets.train,
         shuffle=True,
@@ -148,9 +166,29 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
     enc_shape: Tuple[int, ...]
     if ARGS.encoder in ("ae", "vae"):
         encoder, enc_shape = build_ae(ARGS, input_shape, feature_group_slices)
+    else:
+        if len(input_shape) < 2:
+            raise ValueError("RotNet can only be applied to image data.")
+        enc_optimizer_kwargs = {"lr": args.enc_lr, "weight_decay": args.enc_wd}
+        enc_kwargs = {"pretrained": False, "num_classes": 4, "zero_init_residual": True}
+        net = resnet18(**enc_kwargs) if args.dataset == "cmnist" else resnet50(**enc_kwargs)
+
+        encoder = Classifier(
+            model=net,
+            num_classes=4,
+            optimizer_kwargs=enc_optimizer_kwargs,
+        )
+        enc_shape = (512,)
+        encoder.to(args._device)
+        
     LOGGER.info("Encoding shape: {}", enc_shape)
 
     if args.enc_path:
+        if args.encoder == "rotnet":
+            encoder = encoder.model
+            encoder.model.fc = nn.Identity()
+            for param in encoder.parameters():
+                param.requires_grad_(False)
         save_dict = torch.load(args.enc_path, map_location=lambda storage, loc: storage)
         encoder.load_state_dict(save_dict["encoder"])
         if "args" in save_dict:
@@ -159,14 +197,19 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
             assert args.enc_levels == args_encoder["levels"]
     else:
         encoder.fit(
-            context_loader, epochs=args.enc_epochs, device=args._device, use_wandb=ARGS.use_wandb
+            enc_train_loader, epochs=args.enc_epochs, device=args._device
         )
+        if args.encoder == "rotnet":
+            encoder = encoder.model
+            encoder.fc = nn.Identity()
+            for param in encoder.parameters():
+                param.requires_grad_(False)
         # the args names follow the convention of the standalone VAE commandline args
-        args_encoder = {"encoder_type": args.encoder, "levels": args.enc_levels}
-        torch.save({"encoder": encoder.state_dict(), "args": args_encoder}, save_dir / "encoder")
-        if ARGS.use_wandb:
-            LOGGER.info("Stopping here because W&B will be messed up...")
-            return
+    args_encoder = {"encoder_type": args.encoder, "levels": args.enc_levels}
+    torch.save({"encoder": encoder.state_dict(), "args": args_encoder}, save_dir / "encoder")
+    if ARGS.use_wandb:
+        LOGGER.info("Stopping here because W&B will be messed up...")
+        return
 
     if ARGS.method == "kmeans":
         train_k_means(ARGS, encoder, datasets.context, num_clusters, s_count)
