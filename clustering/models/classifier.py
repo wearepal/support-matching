@@ -160,7 +160,6 @@ class Classifier(ModelBase):
         pbar = trange(epochs)
         for epoch in pbar:
             self.model.train()
-            import pdb; pdb.set_trace()
             for x, target in train_data:
                 if isinstance(target, Sequence):
                     target = target[1] if pred_s else target[2]

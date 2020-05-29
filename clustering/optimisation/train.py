@@ -205,19 +205,19 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
             for param in encoder.parameters():
                 param.requires_grad_(False)
         # the args names follow the convention of the standalone VAE commandline args
-    args_encoder = {"encoder_type": args.encoder, "levels": args.enc_levels}
-    torch.save({"encoder": encoder.state_dict(), "args": args_encoder}, save_dir / "encoder")
-    if ARGS.use_wandb:
-        LOGGER.info("Stopping here because W&B will be messed up...")
-        return
+        args_encoder = {"encoder_type": args.encoder, "levels": args.enc_levels}
+        torch.save({"encoder": encoder.state_dict(), "args": args_encoder}, save_dir / "encoder")
+        if ARGS.use_wandb:
+            LOGGER.info("Stopping here because W&B will be messed up...")
+            return
 
-    if ARGS.method == "kmeans":
-        train_k_means(ARGS, encoder, datasets.context, num_clusters, s_count)
-        return
-    if ARGS.finetune_encoder:
-        encoder.freeze_initial_layers(
-            ARGS.freeze_layers, {"lr": ARGS.finetune_lr, "weight_decay": ARGS.weight_decay}
-        )
+        if ARGS.method == "kmeans":
+            train_k_means(ARGS, encoder, datasets.context, num_clusters, s_count)
+            return
+        if ARGS.finetune_encoder:
+            encoder.freeze_initial_layers(
+                ARGS.freeze_layers, {"lr": ARGS.finetune_lr, "weight_decay": ARGS.weight_decay}
+            )
 
     # ================================= labeler =================================
     labeler: Labeler
