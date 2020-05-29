@@ -206,12 +206,12 @@ class VAE(AutoEncoder):
     ) -> Tuple[Tensor, Tensor, Dict[str, float]]:
         encoding, posterior = self.encode(x, return_posterior=True, stochastic=True)
         kl_div = self.compute_divergence(encoding, posterior)
-        kl_div /= x.size(0)
+        kl_div /= x.nelement()
         kl_div *= kl_weight
 
         recon_all = self.decode(encoding)
         recon_loss = recon_loss_fn(recon_all, x)
-        recon_loss /= x.size(0)
+        recon_loss /= x.nelement()
         elbo = recon_loss + kl_div
         logging_dict = {"Loss Reconstruction": recon_loss.item(), "KL divergence": kl_div}
         return encoding, elbo, logging_dict
