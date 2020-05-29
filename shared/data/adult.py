@@ -30,7 +30,7 @@ class DataTupleTriplet(NamedTuple):
     train: DataTuple
 
 
-def load_adult_data(args: BaseArgs,) -> Tuple[DataTupleDataset, DataTupleDataset, DataTupleDataset]:
+def load_adult_data(args: BaseArgs) -> Tuple[DataTupleDataset, DataTupleDataset, DataTupleDataset]:
     global ADULT_DATASET
     ADULT_DATASET = adult(binarize_nationality=args.drop_native)
     data = load_data(ADULT_DATASET, ordered=True, generate_dummies=True)

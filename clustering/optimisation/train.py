@@ -50,7 +50,7 @@ ARGS: ClusterArgs = None  # type: ignore[assignment]
 LOGGER: Logger = None  # type: ignore[assignment]
 
 
-def main(raw_args: Optional[List[str]] = None) -> Tuple[Model, Path]:
+def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tuple[Model, Path]:
     """Main function
 
     Args:
@@ -62,8 +62,7 @@ def main(raw_args: Optional[List[str]] = None) -> Tuple[Model, Path]:
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha
 
-    args = ClusterArgs(fromfile_prefix_chars="@")
-    args.parse_args(raw_args)
+    args = ClusterArgs(fromfile_prefix_chars="@").parse_args(raw_args, known_only=known_only)
     use_gpu = torch.cuda.is_available() and args.gpu >= 0
     random_seed(args.seed, use_gpu)
     datasets: DatasetTriplet = load_dataset(args)
