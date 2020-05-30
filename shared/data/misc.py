@@ -16,7 +16,7 @@ __all__ = [
     "group_features",
     "set_transform",
     "grouped_features_indexes",
-    "adaptive_collate"
+    "adaptive_collate",
 ]
 
 

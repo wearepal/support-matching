@@ -8,3 +8,4 @@ from .labelers import *
 from .methods import *
 from .model import *
 from .resnet import *
+from .selfsupervised import *

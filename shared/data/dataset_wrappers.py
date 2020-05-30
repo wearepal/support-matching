@@ -3,6 +3,7 @@ import random
 from pathlib import Path
 from typing import TYPE_CHECKING, List, Optional, Tuple, Dict, Union, Callable, Set, Sequence, Final
 
+from kornia.geometry import rotate
 import numpy as np
 import pandas as pd
 import torch
@@ -12,7 +13,6 @@ from torchvision import transforms
 from ethicml.utility import DataTuple
 
 from .misc import RandomSampler, grouped_features_indexes, set_transform
-from kornia.geometry import rotate
 
 
 __all__ = ["LdAugmentedDataset", "DataTupleDataset", "RotationPrediction"]
@@ -316,7 +316,7 @@ class RotationPrediction(Dataset):
             y = torch.randint(size=(1,), low=0, high=4)
             angles = self._pos_angles[y]
         return y, angles.squeeze()
-    
+
     def __len__(self):
         return len(self.dataset)
 

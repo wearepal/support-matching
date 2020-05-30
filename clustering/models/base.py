@@ -47,7 +47,9 @@ class ModelBase(nn.Module):
     def forward(self, inputs):
         return self.model(inputs)
 
-    def freeze_initial_layers(self, num_layers: int, optimizer_kwargs: Optional[Dict[str, Any]] = None) -> None:
+    def freeze_initial_layers(
+        self, num_layers: int, optimizer_kwargs: Optional[Dict[str, Any]] = None
+    ) -> None:
         assert isinstance(self.model, nn.Sequential), "model isn't indexable"
         print(f"Freezing {num_layers} out of {len(self.model)} layers.")
         for block in self.model[:num_layers]:

@@ -61,7 +61,7 @@ class PseudoLabelEncNoNorm(Method):
 
     @staticmethod
     def unsupervised_loss(bundle: Bundle, x: Tensor) -> Tuple[Tensor, LoggingDict]:
-        z = bundle.encoder.encode(x)
+        z = bundle.encoder(x)
         raw_preds = bundle.classifier(z)
         # only do softmax but no real normalization
         preds = F.softmax(raw_preds, dim=-1)
@@ -89,7 +89,7 @@ class PseudoLabelOutput(Method):
 
     @staticmethod
     def unsupervised_loss(bundle: Bundle, x: Tensor) -> Tuple[Tensor, LoggingDict]:
-        z = bundle.encoder.encode(x)
+        z = bundle.encoder(x)
         raw_pred = bundle.classifier(z)
         preds = normalized_softmax(raw_pred)
         pseudo_label, mask = bundle.labeler(preds)  # base the pseudo labels on the predictions

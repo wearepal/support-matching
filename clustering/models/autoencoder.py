@@ -56,7 +56,7 @@ class AutoEncoder(Encoder):
 
         return decoding
 
-    def forward(self, inputs, reverse: bool = True):
+    def forward(self, inputs, reverse: bool = False):
         if reverse:
             return self.decode(inputs)
         else:
