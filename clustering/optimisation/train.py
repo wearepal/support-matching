@@ -3,8 +3,7 @@ from __future__ import annotations
 import time
 from logging import Logger
 from pathlib import Path
-import types
-from typing import Dict, List, Optional, Tuple, Union, cast
+from typing import Dict, List, Optional, Tuple, Union
 
 import git
 import numpy as np
@@ -13,7 +12,7 @@ import torch
 from torch import Tensor
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from torchvision.models import resnet18, resnet50, ResNet
+from torchvision.models import resnet18, resnet50
 import wandb
 
 from shared.data.dataset_wrappers import RotationPrediction
@@ -43,7 +42,6 @@ from clustering.models import (
     PseudoLabelOutput,
     RankingStatistics,
     build_classifier,
-    Classifier
 )
 from clustering.models.configs import fc_net
 
@@ -180,7 +178,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
         )
         enc_shape = (512,)
         encoder.to(args._device)
-        
+
     LOGGER.info("Encoding shape: {}", enc_shape)
 
     if args.enc_path:
@@ -197,7 +195,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
             assert args.enc_levels == args_encoder["levels"]
     else:
         encoder.fit(
-            enc_train_loader, epochs=args.enc_epochs, device=args._device
+            enc_train_loader, epochs=args.enc_epochs, device=args._device, use_wandb=ARGS.use_wandb
         )
         if args.encoder == "rotnet":
             encoder = encoder.model
@@ -211,13 +209,13 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
             LOGGER.info("Stopping here because W&B will be messed up...")
             return
 
-        if ARGS.method == "kmeans":
-            train_k_means(ARGS, encoder, datasets.context, num_clusters, s_count)
-            return
-        if ARGS.finetune_encoder:
-            encoder.freeze_initial_layers(
-                ARGS.freeze_layers, {"lr": ARGS.finetune_lr, "weight_decay": ARGS.weight_decay}
-            )
+    if ARGS.method == "kmeans":
+        train_k_means(ARGS, encoder, datasets.context, num_clusters, s_count)
+        return
+    if ARGS.finetune_encoder:
+        encoder.freeze_initial_layers(
+            ARGS.freeze_layers, {"lr": ARGS.finetune_lr, "weight_decay": ARGS.weight_decay}
+        )
 
     # ================================= labeler =================================
     labeler: Labeler
