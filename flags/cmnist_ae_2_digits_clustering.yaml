@@ -12,3 +12,4 @@ enc_epochs: 90
 cl_hidden_dims:
 epochs: 100
 method: "pl_enc_no_norm"
+padding: 2
