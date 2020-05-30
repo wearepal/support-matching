@@ -26,7 +26,7 @@ class ModelBase(nn.Module):
 
     def _reset_optimizer(self, optimizer_kwargs) -> None:
         self.optimizer = RAdam(
-            filter(lambda p: p.requires_grad, self.model.parameters()), **self.optimizer_kwargs,
+            filter(lambda p: p.requires_grad, self.model.parameters()), **optimizer_kwargs,
         )
 
     def reset_parameters(self):
