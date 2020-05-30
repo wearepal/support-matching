@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import git
 import numpy as np
+from sklearn.metrics import confusion_matrix
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
@@ -130,6 +131,16 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
     LOGGER.info(
         "Number of clusters: {}, accuracy computed with respect to {}", num_clusters, ARGS.cluster
     )
+    mappings: List[str] = []
+    for i in range(num_clusters):
+        if ARGS.cluster == "s":
+            mappings.append(f"{i}: s = {i}")
+        elif ARGS.cluster == "y":
+            mappings.append(f"{i}: y = {i}")
+        else:
+            # class_id = y * s_count + s
+            mappings.append(f"{i}: (y = {i // s_count}, s = {i % s_count})")
+    LOGGER.info("class IDs:\n\t" + "\n\t".join(mappings))
     feature_group_slices = getattr(datasets.context, "feature_group_slices", None)
 
     # ================================= encoder =================================
@@ -334,17 +345,27 @@ def validate(model: Model, val_data: DataLoader) -> Tuple[float, Dict[str, Union
         num_clusters = s_count * y_count
     counts = np.zeros((num_clusters, num_clusters), dtype=np.int64)
     num_total = 0
+    cluster_ids: List[np.ndarray] = []
+    class_ids: List[Tensor] = []
 
     with torch.set_grad_enabled(False):
         for (x_v, s_v, y_v) in val_data:
             x_v = to_device(x_v)
             logits = model(x_v)
             preds = logits.argmax(dim=-1).detach().cpu().numpy()
-            counts = count_occurances(counts, preds, s_v, y_v, s_count, to_cluster)
+            counts, class_id = count_occurances(counts, preds, s_v, y_v, s_count, to_cluster)
             num_total += y_v.size(0)
+            cluster_ids.append(preds)
+            class_ids.append(class_id)
 
     # find best assignment for cluster to classes
-    return find_assignment(counts, num_total)
+    best_acc, best_ass, logging_dict = find_assignment(counts, num_total)
+    cluster_ids_np = np.concatenate(cluster_ids, axis=0)
+    pred_class_ids = best_ass[cluster_ids_np]  # use the best assignment to get the class IDs
+    true_class_ids = torch.cat(class_ids).numpy()
+    conf_mat = confusion_matrix(true_class_ids, pred_class_ids, normalize="all")
+    logging_dict["confusion matrix"] = f"\n{conf_mat}\n"
+    return best_acc, logging_dict
 
 
 def to_device(*tensors: Tensor) -> Union[Tensor, Tuple[Tensor, ...]]:

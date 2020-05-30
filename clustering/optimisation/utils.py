@@ -1,3 +1,4 @@
+from __future__ import annotations
 from pathlib import Path
 from typing import Tuple, Literal, Union, Dict
 
@@ -88,7 +89,7 @@ def count_occurances(
     y: Tensor,
     s_count: int,
     to_cluster: Literal["s", "y", "both"],
-) -> np.ndarray:
+) -> Tuple[np.ndarray, Tensor]:
     """Count how often cluster IDs coincide with the class IDs.
 
     All possible combinations are accounted for.
@@ -103,21 +104,20 @@ def count_occurances(
         np.stack([class_id.numpy().astype(np.int64), preds]), axis=1, return_counts=True
     )
     counts[tuple(indices)] += batch_counts
-    return counts
+    return counts, class_id
 
 
 def find_assignment(
     counts: np.ndarray, num_total: int
-) -> Tuple[float, Dict[str, Union[float, str]]]:
+) -> Tuple[float, np.ndarray[np.int64], Dict[str, Union[float, str]]]:
     """Find an assignment of cluster to class such that the overall accuracy is maximized."""
     # row_ind maps from class ID to cluster ID: cluster_id = row_ind[class_id]
     # col_ind maps from cluster ID to class ID: class_id = row_ind[cluster_id]
     row_ind, col_ind, result = lapjv(-counts)
-    del col_ind
     best_acc = -result[0] / num_total
     assignment = (f"{class_id}->{cluster_id}" for class_id, cluster_id in enumerate(row_ind))
     logging_dict = {
         "Best acc": best_acc,
-        "Assignment": ", ".join(assignment),
+        "class ID -> cluster ID": ", ".join(assignment),
     }
-    return best_acc, logging_dict
+    return best_acc, col_ind, logging_dict
