@@ -132,7 +132,12 @@ def fit_classifier(
     clf: Classifier = Classifier(clf, num_classes=n_classes, optimizer_kwargs={"lr": args.eval_lr})
     clf.to(args._device)
     clf.fit(
-        train_data, test_data=test_data, epochs=args.eval_epochs, device=args._device, pred_s=pred_s
+        train_data,
+        test_data=test_data,
+        epochs=args.eval_epochs,
+        device=args._device,
+        use_wandb=False,
+        pred_s=pred_s,
     )
 
     return clf
