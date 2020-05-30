@@ -1,8 +1,6 @@
-from pathlib import Path
-from typing import Literal, NamedTuple, Tuple, Optional
+from typing import Literal, NamedTuple, Tuple
 
 import torch
-import torch.nn.functional as F
 import torch.nn as nn
 from torch import Tensor
 from torch.utils.data import Dataset, TensorDataset, random_split

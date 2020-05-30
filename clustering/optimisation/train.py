@@ -10,7 +10,6 @@ import numpy as np
 from sklearn.metrics import confusion_matrix
 import torch
 from torch import Tensor
-import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision.models import resnet18, resnet50
 import wandb
@@ -41,6 +40,7 @@ from clustering.models import (
     PseudoLabelEncNoNorm,
     PseudoLabelOutput,
     RankingStatistics,
+    SelfSupervised,
     build_classifier,
 )
 from clustering.models.configs import fc_net
@@ -118,7 +118,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
         )
     else:
         enc_train_loader = context_loader
-        
+
     train_loader = DataLoader(
         datasets.train,
         shuffle=True,
@@ -171,11 +171,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
         enc_kwargs = {"pretrained": False, "num_classes": 4, "zero_init_residual": True}
         net = resnet18(**enc_kwargs) if args.dataset == "cmnist" else resnet50(**enc_kwargs)
 
-        encoder = Classifier(
-            model=net,
-            num_classes=4,
-            optimizer_kwargs=enc_optimizer_kwargs,
-        )
+        encoder = SelfSupervised(model=net, num_classes=4, optimizer_kwargs=enc_optimizer_kwargs)
         enc_shape = (512,)
         encoder.to(args._device)
 
@@ -183,10 +179,8 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
 
     if args.enc_path:
         if args.encoder == "rotnet":
-            encoder = encoder.model
-            encoder.model.fc = nn.Identity()
-            for param in encoder.parameters():
-                param.requires_grad_(False)
+            assert isinstance(encoder, SelfSupervised)
+            encoder = encoder.get_encoder()
         save_dict = torch.load(args.enc_path, map_location=lambda storage, loc: storage)
         encoder.load_state_dict(save_dict["encoder"])
         if "args" in save_dict:
@@ -198,10 +192,8 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
             enc_train_loader, epochs=args.enc_epochs, device=args._device, use_wandb=ARGS.use_wandb
         )
         if args.encoder == "rotnet":
-            encoder = encoder.model
-            encoder.fc = nn.Identity()
-            for param in encoder.parameters():
-                param.requires_grad_(False)
+            assert isinstance(encoder, SelfSupervised)
+            encoder = encoder.get_encoder()
         # the args names follow the convention of the standalone VAE commandline args
         args_encoder = {"encoder_type": args.encoder, "levels": args.enc_levels}
         torch.save({"encoder": encoder.state_dict(), "args": args_encoder}, save_dir / "encoder")
