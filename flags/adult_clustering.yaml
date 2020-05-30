@@ -8,3 +8,4 @@ enc_levels: 0
 recon_loss: mixed
 enc_lr: 1e-2
 init_channels: 61
+lr: 1e-2
