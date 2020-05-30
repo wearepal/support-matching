@@ -257,7 +257,7 @@ def run_baseline(args: BaselineArgs):
 
     if args.save_dir is not None:
         save_to_csv = Path(args.save_dir)
-        save_to_csv.mkdir(exist_ok=True)
+        save_to_csv.mkdir(exist_ok=True, parents=True)
 
         assert isinstance(save_to_csv, Path)
         results_path = save_to_csv / full_name
