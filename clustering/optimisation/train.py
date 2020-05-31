@@ -10,7 +10,7 @@ import numpy as np
 from sklearn.metrics import confusion_matrix
 import torch
 from torch import Tensor
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, ConcatDataset
 from torchvision.models import resnet18, resnet50
 import wandb
 
@@ -107,17 +107,24 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
         num_workers=ARGS.num_workers,
         pin_memory=True,
     )
+    enc_train_data = ConcatDataset([datasets.context, datasets.train])
     if args.encoder == "rotnet":
         enc_train_loader = DataLoader(
-            RotationPrediction(datasets.context, apply_all=True),
+            RotationPrediction(enc_train_data, apply_all=True),
             shuffle=True,
-            batch_size=context_batch_size,
+            batch_size=ARGS.batch_size,
             num_workers=ARGS.num_workers,
             pin_memory=True,
             collate_fn=adaptive_collate,
         )
     else:
-        enc_train_loader = context_loader
+        enc_train_loader = DataLoader(
+            enc_train_data,
+            shuffle=True,
+            batch_size=ARGS.batch_size,
+            num_workers=ARGS.num_workers,
+            pin_memory=True,
+        )
 
     train_loader = DataLoader(
         datasets.train,
