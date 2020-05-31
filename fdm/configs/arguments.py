@@ -39,7 +39,6 @@ class VaeArgs(BaseArgs):
     super_val_freq: int = 0  # how often to do super val, if 0, do it together with the normal val
     val_freq: int = 5
     log_freq: int = 50
-    root: str = "data"
     use_wandb: bool = True
     results_csv: str = ""  # name of CSV file to save results to
     feat_attr: bool = False
@@ -105,3 +104,9 @@ class VaeArgs(BaseArgs):
             raise ValueError("2*zs_frac must be less than or equal 1")
         if self.super_val_freq < 0:
             raise ValueError("frequency cannot be negative")
+
+    def convert_arg_line_to_args(self, arg_line: str) -> List[str]:
+        """Parse each line like a YAML file."""
+        if arg_line.startswith(("b_", "d_")):
+            arg_line = arg_line[2:]
+        return super().convert_arg_line_to_args(arg_line)

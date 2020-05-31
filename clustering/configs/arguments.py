@@ -84,3 +84,9 @@ class ClusterArgs(BaseArgs):
         super().process_args()
         if self.super_val_freq < 0:
             raise ValueError("frequency cannot be negative")
+
+    def convert_arg_line_to_args(self, arg_line: str) -> List[str]:
+        """Parse each line like a YAML file."""
+        if arg_line.startswith(("b_", "c_")):
+            arg_line = arg_line[2:]
+        return super().convert_arg_line_to_args(arg_line)

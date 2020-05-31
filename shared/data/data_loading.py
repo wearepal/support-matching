@@ -1,5 +1,5 @@
 import platform
-from typing import Literal, NamedTuple, Tuple
+from typing import Literal, NamedTuple, Tuple, Dict
 
 import torch
 import torch.nn as nn
@@ -97,11 +97,12 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
                     _to_keep = torch.randperm(_n_matches) < (round(_prop * (_n_matches - 1)))
                     _indexes[_indexes.nonzero()[_to_keep]] = False
                     _data = _data[~_indexes]
-                    _targets = _targets[~_targets]
+                    _targets = _targets[~_indexes]
                 return _data, _targets
 
             context_data = _subsample_by_class(*context_data, args.subsample)
-            test_data = _subsample_by_class(*test_data, args.subsample)
+            # test data remains balanced
+            # test_data = _subsample_by_class(*test_data, args.subsample)
 
         def _colorize_subset(
             _subset: Tuple[Tensor, Tensor],

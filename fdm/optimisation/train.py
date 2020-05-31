@@ -73,6 +73,8 @@ def main(
     use_gpu = torch.cuda.is_available() and args.gpu >= 0
     random_seed(args.seed, use_gpu)
     datasets: DatasetTriplet = load_dataset(args)
+    if cluster_label_file is not None:
+        args.cluster_label_file = str(cluster_label_file)
     # ==== initialize globals ====
     global ARGS, LOGGER
     ARGS = args
@@ -102,9 +104,8 @@ def main(
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
     dataloader_args: Dict[str, Any]
 
-    if cluster_label_file is not None or args.cluster_label_file:
-        lf = cluster_label_file if cluster_label_file is not None else Path(args.cluster_label_file)
-        cluster_ids = load_results(ARGS, lf)
+    if ARGS.cluster_label_file:
+        cluster_ids = load_results(ARGS, Path(ARGS.cluster_label_file))
         weights, n_clusters, min_count = weight_for_balance(cluster_ids)
         # we subsample the larger clusters rather than supersample the smaller clusters
         sample_with_replacement = False
