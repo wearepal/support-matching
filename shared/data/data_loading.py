@@ -1,3 +1,4 @@
+import platform
 from typing import Literal, NamedTuple, Tuple
 
 import torch
@@ -30,6 +31,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
     context_data: Dataset
     test_data: Dataset
     train_data: Dataset
+    data_root = args.root or find_data_dir()
 
     # =============== get whole dataset ===================
     if args.dataset == "cmnist":
@@ -41,8 +43,8 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         if args.input_noise:
             augs.append(NoisyDequantize(int(args.quant_level)))
 
-        train_data = MNIST(root=args.root, download=True, train=True)
-        test_data = MNIST(root=args.root, download=True, train=False)
+        train_data = MNIST(root=data_root, download=True, train=True)
+        test_data = MNIST(root=data_root, download=True, train=False)
 
         num_classes = 10
         if args.filter_labels:
@@ -146,7 +148,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
 
         unbiased_pcnt = args.test_pcnt + args.context_pcnt
         unbiased_data = create_celeba_dataset(
-            root=args.root,
+            root=data_root,
             sens_attr_name=args.celeba_sens_attr,
             target_attr_name=args.celeba_target_attr,
             biased=False,
@@ -162,7 +164,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         context_data, test_data = random_split(unbiased_data, lengths=(context_len, test_len))
 
         train_data = create_celeba_dataset(
-            root=args.root,
+            root=data_root,
             sens_attr_name=args.celeba_sens_attr,
             target_attr_name=args.celeba_target_attr,
             biased=True,
@@ -193,7 +195,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
 
         unbiased_pcnt = args.test_pcnt + args.context_pcnt
         unbiased_data = create_genfaces_dataset(
-            root=args.root,
+            root=data_root,
             sens_attr_name=args.genfaces_sens_attr,
             target_attr_name=args.genfaces_target_attr,
             biased=False,
@@ -209,7 +211,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         context_data, test_data = random_split(unbiased_data, lengths=(context_len, test_len))
 
         train_data = create_genfaces_dataset(
-            root=args.root,
+            root=data_root,
             sens_attr_name=args.genfaces_sens_attr,
             target_attr_name=args.genfaces_target_attr,
             biased=True,
@@ -242,3 +244,14 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         s_dim=args._s_dim,
         y_dim=args._y_dim,
     )
+
+
+def find_data_dir() -> str:
+    """Find data directory for the current machine based on predefined mappings."""
+    data_dirs = {
+        "fear": "/mnt/data0/data",
+        "turing": "/srv/galene0/shared/data",
+        "m900382.inf.susx.ac.uk": "/Users/tk324/PycharmProjects/NoSINN/data",
+    }
+    name_of_machine = platform.node()  # name of machine as reported by operating system
+    return data_dirs.get(name_of_machine, "data")
