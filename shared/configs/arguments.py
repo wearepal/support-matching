@@ -61,7 +61,7 @@ class BaseArgs(TypedFlags):
     context_pcnt: float = 0.4
     test_pcnt: float = 0.2
     data_split_seed: int = 888
-    root: str = "data"
+    root: str = ""
 
     # Adult data set feature settings
     drop_native: bool = True
