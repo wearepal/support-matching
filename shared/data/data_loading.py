@@ -97,7 +97,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
                     _to_keep = torch.randperm(_n_matches) < (round(_prop * (_n_matches - 1)))
                     _indexes[_indexes.nonzero()[_to_keep]] = False
                     _data = _data[~_indexes]
-                    _targets = _targets[~_targets]
+                    _targets = _targets[~_indexes]
                 return _data, _targets
 
             context_data = _subsample_by_class(*context_data, args.subsample)
