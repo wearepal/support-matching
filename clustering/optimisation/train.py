@@ -204,6 +204,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
         # the args names follow the convention of the standalone VAE commandline args
         args_encoder = {"encoder_type": args.encoder, "levels": args.enc_levels}
         torch.save({"encoder": encoder.state_dict(), "args": args_encoder}, save_dir / "encoder")
+        LOGGER.info("To make use of this encoder:\n--enc-path {}", save_dir.resolve() / "encoder")
         if ARGS.use_wandb:
             LOGGER.info("Stopping here because W&B will be messed up...")
             return

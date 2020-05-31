@@ -16,7 +16,7 @@ def save_results(args: BaseArgs, cluster_ids: torch.Tensor, results_dir: Path) -
         "cluster_ids": cluster_ids,
     }
     torch.save(save_dict, save_path)
-    print(f"Saved results in {save_path}")
+    print(f"Saved results in {save_path.resolve()}")
     return save_path
 
 

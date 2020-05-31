@@ -1,4 +1,12 @@
+# ===== dataset flags =====
 dataset: "cmnist"
+filter_labels: 2 4
+padding: 2
+context_pcnt: 0.66666666
+subsample:
+        0: 0.5
+
+# ===== disentangling flags =====
 three_way: False
 train_on_recon: True
 eval_on_recon: True
@@ -14,5 +22,3 @@ zs_frac: 0.0469
 num_disc_updates: 3
 log_freq: 50
 disc_hidden_dims: 256 256
-filter_labels: 2 4
-padding: 2
