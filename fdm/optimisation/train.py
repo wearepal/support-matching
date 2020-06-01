@@ -56,7 +56,7 @@ Generator = Union[AutoEncoder, PartitionedAeInn]
 
 def main(
     raw_args: Optional[List[str]] = None,
-    known_only: bool = False,
+    known_only: bool = True,  # TODO: find a way for known_only=False to work
     cluster_label_file: Optional[Path] = None,
 ) -> Generator:
     """Main function
@@ -107,7 +107,7 @@ def main(
     dataloader_args: Dict[str, Any]
 
     if ARGS.cluster_label_file:
-        cluster_ids = load_results(ARGS, Path(ARGS.cluster_label_file))
+        cluster_ids = load_results(ARGS)
         weights, n_clusters, min_count = weight_for_balance(cluster_ids)
         # we subsample the larger clusters rather than supersample the smaller clusters
         sample_with_replacement = False
