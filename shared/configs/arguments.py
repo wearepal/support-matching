@@ -76,7 +76,7 @@ class BaseArgs(TypedFlags):
     rotate_data: bool = False
     shift_data: bool = False
     color_correlation: float = 1.0
-    padding: int = 0  # by how many pixels to pad the cmnist images by
+    padding: int = 2  # by how many pixels to pad the cmnist images by
     quant_level: Literal["3", "5", "8"] = "8"  # number of bits that encode color
     subsample: Dict[int, float] = {}
     input_noise: bool = True  # add uniform noise to the input

@@ -56,9 +56,7 @@ def save_model(
     save_dict = {
         "args": args.as_dict(),
         "sha": sha,
-        "encoder": model.encoder.state_dict(),
-        "labeler": model.labeler.state_dict(),
-        "classifier": model.classifier.state_dict(),
+        "model": model.state_dict(),
         "epoch": epoch,
     }
 
@@ -71,10 +69,10 @@ def restore_model(args: ClusterArgs, filename: Path, model: Model) -> Tuple[Mode
     chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
     args_chkpt = chkpt["args"]
     assert args.enc_levels == args_chkpt["enc_levels"]
-
-    model.encoder.load_state_dict(chkpt["encoder"])
-    model.labeler.load_state_dict(chkpt["labeler"])
-    model.classifier.load_state_dict(chkpt["classifier"])
+    model.load_state_dict(chkpt["model"])
+    # model.encoder.load_state_dict(chkpt["encoder"])
+    # model.pseudo_labeler.load_state_dict(chkpt["pseudo_labeler"])
+    # model.classifier.load_state_dict(chkpt["classifier"])
     return model, chkpt["epoch"]
 
 
