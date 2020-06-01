@@ -17,7 +17,8 @@ import wandb
 from shared.data.dataset_wrappers import RotationPrediction
 from shared.data.data_loading import load_dataset, DatasetTriplet
 from shared.data.misc import adaptive_collate
-from shared.models.configs.classifiers import fc_net
+from shared.models.configs.classifiers import fc_net, mp_64x64_net, mp_32x32_net
+from clustering.models.configs.classifiers import mp_28x28_net
 from shared.utils import (
     AverageMeter,
     count_parameters,
@@ -34,9 +35,10 @@ from clustering.models import (
     Classifier,
     CosineSimThreshold,
     Encoder,
-    Labeler,
+    PseudoLabeler,
     Method,
     Model,
+    MultiHeadModel,
     PseudoLabelEnc,
     PseudoLabelEncNoNorm,
     PseudoLabelOutput,
@@ -218,29 +220,13 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
         )
 
     # ================================= labeler =================================
-    labeler: Labeler
-    if ARGS.labeler == "ranking":
-        labeler = RankingStatistics(k_num=ARGS.k_num)
-    elif ARGS.labeler == "cosine":
-        labeler = CosineSimThreshold(
+    labeler: PseudoLabeler
+    if ARGS.pseudo_labeler == "ranking":
+        pseudo_labeler = RankingStatistics(k_num=ARGS.k_num)
+    elif ARGS.pseudo_labeler == "cosine":
+        pseudo_labeler = CosineSimThreshold(
             upper_threshold=ARGS.upper_threshold, lower_threshold=ARGS.lower_threshold
         )
-
-    # ================================= classifier =================================
-    classifier: Classifier
-    disc_optimizer_kwargs = {"lr": ARGS.lr, "weight_decay": ARGS.weight_decay}
-    disc_kwargs = {}
-    disc_fn = fc_net
-    disc_kwargs["hidden_dims"] = args.cl_hidden_dims
-    disc_input_shape = (prod(enc_shape),)  # fc_net first flattens the input
-    classifier = build_classifier(
-        input_shape=disc_input_shape,
-        target_dim=num_clusters,
-        model_fn=disc_fn,
-        model_kwargs=disc_kwargs,
-        optimizer_kwargs=disc_optimizer_kwargs,
-    )
-    classifier.to(args._device)
 
     # ================================= method =================================
     method: Method
@@ -251,13 +237,68 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
     elif ARGS.method == "pl_enc_no_norm":
         method = PseudoLabelEncNoNorm()
 
-    model = Model(
-        encoder=encoder,
-        labeler=labeler,
-        classifier=classifier,
-        method=method,
-        train_encoder=ARGS.finetune_encoder,
+    # ================================= classifier =================================
+    clf_optimizer_kwargs = {"lr": ARGS.lr, "weight_decay": ARGS.weight_decay}
+    clf_kwargs = {}
+    clf_fn = fc_net
+    clf_kwargs["hidden_dims"] = args.cl_hidden_dims
+    clf_input_shape = (prod(enc_shape),)  # fc_net first flattens the input
+
+    classifier = build_classifier(
+        input_shape=clf_input_shape,
+        target_dim=s_count if ARGS.use_multi_head else num_clusters,
+        model_fn=clf_fn,
+        model_kwargs=clf_kwargs,
+        optimizer_kwargs=clf_optimizer_kwargs,
+        num_heads=y_count if ARGS.use_multi_head else 1,
     )
+    classifier.to(args._device)
+
+    if ARGS.use_multi_head:
+        labeler_kwargs = {}
+        if args.dataset == "cmnist":
+            labeler_fn = mp_32x32_net
+        elif args.dataset == "celeba":
+            labeler_fn = mp_64x64_net
+        else:
+            labeler_fn = fc_net
+            labeler_kwargs["hidden_dims"] = args.labeler_hidden_dims
+
+        labeler_optimizer_kwargs = {"lr": ARGS.labeler_lr, "weight_decay": ARGS.labeler_wd}
+        clf_fn = fc_net
+        clf_kwargs["hidden_dims"] = args.cl_hidden_dims
+        labeler: Classifier = build_classifier(
+            input_shape=input_shape,
+            target_dim=s_count,
+            model_fn=labeler_fn,
+            model_kwargs=labeler_kwargs,
+            optimizer_kwargs=labeler_optimizer_kwargs,
+        )
+        labeler.to(args._device)
+        LOGGER.info("Fitting the labeler to the labeled data.")
+        labeler.fit(
+            train_loader,
+            epochs=ARGS.labeler_epochs,
+            device=ARGS._device,
+            use_wandb=ARGS.labeler_wandb,
+        )
+        labeler.eval()
+        model = MultiHeadModel(
+            encoder=encoder,
+            classifiers=classifier,
+            method=method,
+            pseudo_labeler=pseudo_labeler,
+            labeler=labeler,
+            train_encoder=ARGS.finetune_encoder,
+        )
+    else:
+        model = Model(
+            encoder=encoder,
+            classifier=classifier,
+            method=method,
+            pseudo_labeler=pseudo_labeler,
+            train_encoder=ARGS.finetune_encoder,
+        )
 
     start_epoch = 1  # start at 1 so that the val_freq works correctly
     # Resume from checkpoint
@@ -270,10 +311,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
 
     # Logging
     # wandb.set_model_graph(str(generator))
-    num_parameters = 0
-    num_parameters += count_parameters(model.encoder)
-    num_parameters += count_parameters(model.labeler)
-    num_parameters += count_parameters(model.classifier)
+    num_parameters = count_parameters(model)
     LOGGER.info("Number of trainable parameters: {}", num_parameters)
 
     # best_loss = float("inf")
@@ -337,7 +375,7 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
 
         x_c, x_t, y_t = to_device(x_c, x_t, y_t)
 
-        if ARGS.with_supervision:
+        if ARGS.with_supervision and not ARGS.use_multi_head:
             loss_sup, logging_sup = model.supervised_loss(x_t, y_t)
         else:
             loss_sup = x_t.new_zeros(())

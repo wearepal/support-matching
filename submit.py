@@ -37,7 +37,7 @@ OPTIONS: Dict[str, Union[List[str], List[int], List[float], List[bool], List[Lis
     finetune_lr=[1e-6, 1e-5],
     freeze_layers=[2, 3],
     lr=[1e-3, 1e-2],
-    labeler=["ranking", "cosine"],
+    pseudo_labeler=["ranking", "cosine"],
 )
 
 

@@ -7,10 +7,10 @@ import torch.nn as nn
 
 from shared.utils import dot_product
 
-__all__ = ["Labeler", "RankingStatistics", "CosineSimThreshold"]
+__all__ = ["PseudoLabeler", "RankingStatistics", "CosineSimThreshold"]
 
 
-class Labeler(nn.Module):
+class PseudoLabeler(nn.Module):
     """Base class for labelers."""
 
     def forward(self, z: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore[override]
@@ -21,7 +21,7 @@ class Labeler(nn.Module):
         return self.__call__(z)
 
 
-class RankingStatistics(Labeler):
+class RankingStatistics(PseudoLabeler):
     def __init__(self, k_num: int):
         super().__init__()
         self.k_num = k_num
@@ -35,7 +35,7 @@ class RankingStatistics(Labeler):
         return labels, torch.ones_like(labels)
 
 
-class CosineSimThreshold(Labeler):
+class CosineSimThreshold(PseudoLabeler):
     def __init__(self, upper_threshold: float, lower_threshold: float):
         super().__init__()
         self.upper_threshold = upper_threshold
