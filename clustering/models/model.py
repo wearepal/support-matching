@@ -97,23 +97,21 @@ class MultiHeadModel(nn.Module):
         self, x: Tensor, y: Optional[Tensor] = None
     ) -> Iterator[Tuple[Tensor, Tensor]]:
         if y is None:
-            # with torch.no_grad():
-            y = x.new_ones(x.size(0))
-                # y = self.labeler(x).argmax(dim=-1)
+            with torch.no_grad():
+                y = self.labeler(x).argmax(dim=-1)
         for i in range(len(self.classifiers)):
             mask = y == i
             if len(mask.nonzero()) > 0:
                 yield x[mask], y[mask], mask
 
     def supervised_loss(self, x: Tensor, y: Tensor) -> Tuple[Tensor, LoggingDict]:
-        loss = torch.zeros(())
+        loss = 0
         for i, (x_i, _, _) in enumerate(self._split_by_label(x, y=y)):
-            loss_i, _ = self.method.supervised_loss(self.encoder, self.classifiers[i], x, y)
+            loss_i, _ = self.method.supervised_loss(self.encoder, self.classifiers[i], x_i, y)
             loss += loss_i
         return loss, {"Loss supervised": loss.item()}
 
     def unsupervised_loss(self, x: Tensor) -> Tuple[Tensor, LoggingDict]:
-        # loss = torch.zeros(())
         loss = 0
         for i, (x_i, _, _) in enumerate(self._split_by_label(x)):
             loss_i, _ = self.method.unsupervised_loss(
