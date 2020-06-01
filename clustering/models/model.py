@@ -105,14 +105,14 @@ class MultiHeadModel(nn.Module):
                 yield x[mask], y[mask], mask
 
     def supervised_loss(self, x: Tensor, y: Tensor) -> Tuple[Tensor, LoggingDict]:
-        loss = x.new_zeros(0)
+        loss = 0
         for i, (x_i, y_i, _) in enumerate(self._split_by_label(x, y=y)):
             loss_i, _ = self.method.supervised_loss(self.encoder, self.classifiers[i], x_i, y_i)
             loss += loss_i
         return loss, {"Loss supervised": loss.item()}
 
     def unsupervised_loss(self, x: Tensor) -> Tuple[Tensor, LoggingDict]:
-        loss = x.new_zeros(0)
+        loss = 0
         for i, (x_i, _, _) in enumerate(self._split_by_label(x)):
             loss_i, _ = self.method.unsupervised_loss(
                 encoder=self.encoder,
