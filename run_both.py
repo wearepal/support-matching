@@ -26,7 +26,7 @@ def main():
         clust_args = [arg.replace("--c-", "--").replace("--b-", "--") for arg in raw_args]
         run([sys.executable, "run_cl.py"] + clust_args + clf_flag, check=True)
         dis_args = [arg.replace("--d-", "--").replace("--b-", "--") for arg in raw_args]
-        run([sys.executable, "run.py"] + dis_args + clf_flag, check=True)
+        run([sys.executable, "run_d.py"] + dis_args + clf_flag, check=True)
 
 
 if __name__ == "__main__":
