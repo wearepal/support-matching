@@ -7,8 +7,8 @@ import torch
 from torch import Tensor
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from torch.optim import Adam
 
-from shared.utils.optimizers import RAdam
 
 __all__ = ["ModelBase", "Encoder"]
 
@@ -16,7 +16,7 @@ __all__ = ["ModelBase", "Encoder"]
 class ModelBase(nn.Module):
 
     default_kwargs = dict(optimizer_kwargs=dict(lr=1e-3, weight_decay=0))
-    optimizer: RAdam
+    optimizer: Adam
 
     def __init__(self, model: nn.Module, optimizer_kwargs=None):
         super().__init__()
@@ -25,7 +25,7 @@ class ModelBase(nn.Module):
         self._reset_optimizer(self.optimizer_kwargs)
 
     def _reset_optimizer(self, optimizer_kwargs) -> None:
-        self.optimizer = RAdam(
+        self.optimizer = Adam(
             filter(lambda p: p.requires_grad, self.model.parameters()), **optimizer_kwargs,
         )
 
