@@ -82,7 +82,7 @@ def main(
     ARGS = args
 
     if ARGS.use_wandb:
-        wandb.init(project="fdm", config=args.as_dict())
+        wandb.init(entity="predictive-analytics-lab", project="fdm", config=args.as_dict())
 
     save_dir = Path(ARGS.save_dir) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
