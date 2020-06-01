@@ -275,6 +275,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
             optimizer_kwargs=labeler_optimizer_kwargs,
         )
         labeler.to(args._device)
+        LOGGER.info("Fitting the labeler to the labeled data.")
         labeler.fit(
             train_loader,
             epochs=ARGS.labeler_epochs,
