@@ -9,7 +9,7 @@ from torch.nn import functional as F
 from shared.utils import dot_product, normalized_softmax
 
 from .base import Encoder
-from .labelers import PseudoLabeler
+from .pseudo_labelers import PseudoLabeler
 from .classifier import Classifier
 
 __all__ = [

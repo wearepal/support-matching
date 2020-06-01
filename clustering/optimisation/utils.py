@@ -70,9 +70,6 @@ def restore_model(args: ClusterArgs, filename: Path, model: Model) -> Tuple[Mode
     args_chkpt = chkpt["args"]
     assert args.enc_levels == args_chkpt["enc_levels"]
     model.load_state_dict(chkpt["model"])
-    # model.encoder.load_state_dict(chkpt["encoder"])
-    # model.pseudo_labeler.load_state_dict(chkpt["pseudo_labeler"])
-    # model.classifier.load_state_dict(chkpt["classifier"])
     return model, chkpt["epoch"]
 
 
