@@ -18,7 +18,6 @@ from shared.data.dataset_wrappers import RotationPrediction
 from shared.data.data_loading import load_dataset, DatasetTriplet
 from shared.data.misc import adaptive_collate
 from shared.models.configs.classifiers import fc_net, mp_64x64_net, mp_32x32_net
-from clustering.models.configs.classifiers import mp_28x28_net
 from shared.utils import (
     AverageMeter,
     count_parameters,
@@ -220,7 +219,6 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
         )
 
     # ================================= labeler =================================
-    labeler: PseudoLabeler
     if ARGS.pseudo_labeler == "ranking":
         pseudo_labeler = RankingStatistics(k_num=ARGS.k_num)
     elif ARGS.pseudo_labeler == "cosine":
@@ -254,6 +252,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
     )
     classifier.to(args._device)
 
+    model: Union[Model, MultiHeadModel]
     if ARGS.use_multi_head:
         labeler_kwargs = {}
         if args.dataset == "cmnist":
