@@ -56,7 +56,7 @@ ARGS: ClusterArgs = None  # type: ignore[assignment]
 LOGGER: Logger = None  # type: ignore[assignment]
 
 
-def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tuple[Model, Path]:
+def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple[Model, Path]:
     """Main function
 
     Args:
