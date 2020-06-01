@@ -31,8 +31,8 @@ class Model:
     def supervised_loss(self, x: Tensor, y: Tensor) -> Tuple[Tensor, LoggingDict]:
         return self.method.supervised_loss(self.encoder, self.classifier, x, y)
 
-    def unsupervised_loss(self, x: Tensor) -> Tuple[Tensor, LoggingDict]:
-        return self.method.unsupervised_loss(self.encoder, self.labeler, self.classifier, x)
+    def unsupervised_loss(self, z: Tensor, raw_preds: Tensor) -> Tuple[Tensor, LoggingDict]:
+        return self.method.unsupervised_loss(self.labeler, z=z, raw_preds=raw_preds)
 
     def __call__(self, x: Tensor) -> Tensor:
         return self.method.predict(self.encoder, self.classifier, x)
@@ -57,3 +57,9 @@ class Model:
     def eval(self) -> None:
         self.encoder.eval()
         self.classifier.eval()
+
+    def encode(self, x: Tensor) -> Tensor:
+        return self.encoder(x)
+
+    def classify(self, z: Tensor) -> Tensor:
+        return self.classifier(z)

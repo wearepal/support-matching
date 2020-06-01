@@ -342,7 +342,9 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
         else:
             loss_sup = x_t.new_zeros(())
             logging_sup = {}
-        loss_unsup, logging_unsup = model.unsupervised_loss(x_c)
+        z = model.encode(x_c)
+        raw_preds = model.classify(z)
+        loss_unsup, logging_unsup = model.unsupervised_loss(z=z, raw_preds=raw_preds)
         loss = loss_sup + loss_unsup
 
         model.zero_grad()
