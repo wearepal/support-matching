@@ -106,8 +106,8 @@ class MultiHeadModel(nn.Module):
 
     def supervised_loss(self, x: Tensor, y: Tensor) -> Tuple[Tensor, LoggingDict]:
         loss = 0
-        for i, (x_i, _, _) in enumerate(self._split_by_label(x, y=y)):
-            loss_i, _ = self.method.supervised_loss(self.encoder, self.classifiers[i], x_i, y)
+        for i, (x_i, y_i, _) in enumerate(self._split_by_label(x, y=y)):
+            loss_i, _ = self.method.supervised_loss(self.encoder, self.classifiers[i], x_i, y_i)
             loss += loss_i
         return loss, {"Loss supervised": loss.item()}
 
