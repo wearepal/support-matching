@@ -16,6 +16,7 @@ from torch.utils.data import DataLoader, Subset, WeightedRandomSampler
 import wandb
 
 from shared.data import DatasetTriplet, load_dataset
+from shared.models.configs.classifiers import fc_net
 from shared.utils import (
     AverageMeter,
     count_parameters,
@@ -26,6 +27,7 @@ from shared.utils import (
     random_seed,
     readable_duration,
     wandb_log,
+    get_data_dim,
 )
 from shared.models.configs import conv_autoencoder, fc_autoencoder
 from fdm.configs import VaeArgs
@@ -37,11 +39,11 @@ from fdm.models import (
     Regressor,
     PartitionedAeInn,
 )
-from fdm.models.configs import fc_net, strided_28x28_net, residual_64x64_net
+from fdm.models.configs import strided_28x28_net, residual_64x64_net
 
 from .evaluation import log_metrics
 from .loss import MixedLoss, PixelCrossEntropy, VGGLoss
-from .utils import get_data_dim, log_images, restore_model, save_model, weight_for_balance
+from .utils import log_images, restore_model, save_model, weight_for_balance
 from .build import build_inn, build_ae
 from .inn_training import update_inn, update_disc_on_inn, InnComponents
 

@@ -14,20 +14,12 @@ from clustering.models import Bundle
 from clustering.configs import ClusterArgs
 
 __all__ = [
-    "get_data_dim",
     "log_images",
     "save_model",
     "restore_model",
     "count_occurances",
     "find_assignment",
 ]
-
-
-def get_data_dim(data_loader) -> Tuple[int, ...]:
-    x = next(iter(data_loader))[0]
-    x_dim = x.shape[1:]
-
-    return tuple(x_dim)
 
 
 def log_images(

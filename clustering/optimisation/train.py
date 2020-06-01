@@ -17,6 +17,7 @@ import wandb
 from shared.data.dataset_wrappers import RotationPrediction
 from shared.data.data_loading import load_dataset, DatasetTriplet
 from shared.data.misc import adaptive_collate
+from shared.models.configs.classifiers import fc_net
 from shared.utils import (
     AverageMeter,
     count_parameters,
@@ -26,6 +27,7 @@ from shared.utils import (
     readable_duration,
     save_results,
     wandb_log,
+    get_data_dim,
 )
 from clustering.configs import ClusterArgs
 from clustering.models import (
@@ -43,10 +45,9 @@ from clustering.models import (
     SelfSupervised,
     build_classifier,
 )
-from clustering.models.configs import fc_net
 
 from .evaluation import classify_dataset
-from .utils import get_data_dim, restore_model, save_model, find_assignment, count_occurances
+from .utils import restore_model, save_model, find_assignment, count_occurances
 from .build import build_ae
 from .k_means import train as train_k_means
 
