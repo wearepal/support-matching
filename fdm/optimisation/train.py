@@ -39,7 +39,7 @@ from fdm.models import (
     Regressor,
     PartitionedAeInn,
 )
-from fdm.models.configs import fc_net, strided_28x28_net, residual_64x64_net
+from fdm.models.configs import strided_28x28_net, residual_64x64_net
 
 from .evaluation import log_metrics
 from .loss import MixedLoss, PixelCrossEntropy, VGGLoss
