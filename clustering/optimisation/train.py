@@ -228,17 +228,20 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
 
     # ================================= classifier =================================
     classifier: Classifier
-    disc_optimizer_kwargs = {"lr": ARGS.lr, "weight_decay": ARGS.weight_decay}
-    disc_kwargs = {}
-    disc_fn = fc_net
-    disc_kwargs["hidden_dims"] = args.cl_hidden_dims
-    disc_input_shape = (prod(enc_shape),)  # fc_net first flattens the input
+    clf_optimizer_kwargs = {"lr": ARGS.lr, "weight_decay": ARGS.weight_decay}
+    clf_kwargs = {}
+    clf_fn = fc_net
+    clf_kwargs["hidden_dims"] = args.cl_hidden_dims
+    disc_input_shape = (prod(enc_shape),) 
+    # If the classifier is multi-headed, tile its output dimensions by the number of y values
+    # fc_net first flattens the input
     classifier = build_classifier(
         input_shape=disc_input_shape,
-        target_dim=num_clusters,
-        model_fn=disc_fn,
-        model_kwargs=disc_kwargs,
-        optimizer_kwargs=disc_optimizer_kwargs,
+        target_dim=s_count if ARGS.use_multi_head else num_clusters,
+        model_fn=clf_fn,
+        model_kwargs=clf_kwargs,
+        optimizer_kwargs=clf_optimizer_kwargs,
+        num_heads=y_count if ARGS.use_multi_head else 1
     )
     classifier.to(args._device)
 

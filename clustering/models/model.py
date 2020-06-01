@@ -1,5 +1,5 @@
 """Bundle of all parts."""
-from typing import Tuple, final
+from typing import Tuple, final, Optional, Sequence
 from torch import Tensor
 
 from .methods import Bundle, Method, LoggingDict
@@ -25,7 +25,7 @@ class Model:
     def __call__(self, x: Tensor) -> Tensor:
         return self.method.predict(self.bundle, x)
 
-    def step(self, grads=None) -> None:
+    def step(self, grads: Optional[Sequence[Tensor]] = None) -> None:
         self.bundle.classifier.step(grads)
         if self.train_encoder:
             self.bundle.encoder.step(grads)

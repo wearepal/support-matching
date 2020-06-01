@@ -2,7 +2,7 @@ from typing import Tuple, Union, List, Optional, Mapping
 
 from clustering import layers
 from clustering.configs import ClusterArgs
-from clustering.models import Classifier
+from clustering.models import Classifier, LdClassifierEnsemble
 from clustering.models.configs import ModelFn
 
 __all__ = ["build_classifier", "build_fc_inn", "build_conv_inn"]
@@ -14,15 +14,30 @@ def build_classifier(
     model_fn: ModelFn,
     model_kwargs: Mapping[str, Union[float, str, bool]],
     optimizer_kwargs=None,
-) -> Classifier:
+    num_heads: int = 1
+) -> Union[LdClassifierEnsemble, Classifier]:
     in_dim = input_shape[0]
 
     num_classes = target_dim if target_dim > 1 else 2
-    classifier = Classifier(
-        model_fn(in_dim, target_dim, **model_kwargs),
-        num_classes=num_classes,
-        optimizer_kwargs=optimizer_kwargs,
-    )
+    
+    if num_heads > 1:
+        heads: List[Classifier] = []
+        for _ in range(num_heads):
+            heads.append(
+                Classifier(
+                    model_fn(in_dim, target_dim, **model_kwargs),
+                    num_classes=num_classes,
+                    optimizer_kwargs=optimizer_kwargs
+                    )
+                )
+        classifier = LdClassifierEnsemble(heads)
+    else:
+        classifier = Classifier(
+            model_fn(in_dim, target_dim, **model_kwargs),
+            num_classes=num_classes,
+            num_heads=num_heads,
+            optimizer_kwargs=optimizer_kwargs,
+        )
 
     return classifier
 

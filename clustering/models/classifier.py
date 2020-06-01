@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Tuple, Union, Sequence
+from typing import Dict, Optional, Tuple, Union, Sequence, Iterator
 
 import torch
 import torch.nn as nn
@@ -11,7 +11,7 @@ from tqdm import trange
 from shared.utils import wandb_log
 from clustering.models.base import ModelBase
 
-__all__ = ["Classifier", "Regressor"]
+__all__ = ["Classifier", "Regressor", "LdClassifierEnsemble"]
 
 
 class Classifier(ModelBase):
@@ -124,10 +124,10 @@ class Classifier(ModelBase):
         Returns:
             Tuple of classification loss (Tensor) and accuracy (float)
         """
-        outputs = super().__call__(data)
-        loss = self.apply_criterion(outputs, targets)
+        logits = super().__call__(data)
+        loss = self.apply_criterion(logits, targets)
         loss = loss.mean()
-        acc = self.compute_accuracy(outputs, targets)
+        acc = self.compute_accuracy(logits, targets)
 
         return loss, acc
 
@@ -237,3 +237,35 @@ class Regressor(Classifier):
 
     def compute_accuracy(self, outputs: Tensor, targets: Tensor, top: int = 1) -> float:
         return 0
+    
+
+class LdClassifierEnsemble(nn.Module):
+
+    def __init__(self, classifiers: Sequence[Classifier]):
+        super().__init__()
+        self.classifiers: nn.ModuleList = nn.ModuleList(classifiers)
+  
+    def _partition_inputs(self, x: Tensor, y: Tensor) -> Iterator[Tuple[Tensor, Tensor]]:
+        for i in range(len(self.classifiers)):
+            mask = y == i
+            if len(mask.nonzero()) >= 1:
+                yield x[mask], y[mask]
+
+    def step(self, grads: Optional[Sequence[Tensor]] = None) -> None:
+        for clf in self.classifiers:
+            clf.step(grads)
+
+    def routine(self, x: Tensor, y: Tensor) -> Tensor:
+        loss = 0
+        acc = 0
+        for i, (x_i, y_i) in enumerate(self._partition_inputs(x, y)):
+            loss_i, acc_i = self.classifiers[i].routine(x_i, torch.zeros_like(y_i))
+            loss += loss_i
+            acc += acc_i * x_i.size(0)
+        acc /= x.size(0)
+
+        return loss, acc
+
+    def forward(self, x: Tensor) -> Tensor:
+        return torch.cat([clf(x) for clf in self.classifiers], dim=1)
+
