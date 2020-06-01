@@ -113,7 +113,8 @@ class MultiHeadModel(nn.Module):
         return loss, {"Loss supervised": loss.item()}
 
     def unsupervised_loss(self, x: Tensor) -> Tuple[Tensor, LoggingDict]:
-        loss = torch.zeros(())
+        # loss = torch.zeros(())
+        loss = 0
         for i, (x_i, _, _) in enumerate(self._split_by_label(x)):
             loss_i, _ = self.method.unsupervised_loss(
                 encoder=self.encoder,
