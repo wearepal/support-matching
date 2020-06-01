@@ -97,8 +97,9 @@ class MultiHeadModel(nn.Module):
         self, x: Tensor, y: Optional[Tensor] = None
     ) -> Iterator[Tuple[Tensor, Tensor]]:
         if y is None:
+            y = torch.zeros_like(y)
             # with torch.no_grad():
-            y = self.labeler(x).argmax(dim=-1)
+            # y = self.labeler(x).argmax(dim=-1)
         for i in range(len(self.classifiers)):
             mask = y == i
             if len(mask.nonzero()) > 0:
