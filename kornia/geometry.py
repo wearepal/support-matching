@@ -21,12 +21,10 @@ def convert_affinematrix_to_homography(A: torch.Tensor) -> torch.Tensor:
         >>> output = kornia.convert_affinematrix_to_homography(input)  # Bx3x3
     """
     if not isinstance(A, torch.Tensor):
-        raise TypeError("Input type is not a torch.Tensor. Got {}".format(
-            type(A)))
+        raise TypeError("Input type is not a torch.Tensor. Got {}".format(type(A)))
     if not (len(A.shape) == 3 and A.shape[-2:] == (2, 3)):
-        raise ValueError("Input matrix must be a Bx2x3 tensor. Got {}"
-                         .format(A.shape))
-    H: torch.Tensor = torch.nn.functional.pad(A, [0, 0, 0, 1], "constant", value=0.)
+        raise ValueError("Input matrix must be a Bx2x3 tensor. Got {}".format(A.shape))
+    H: torch.Tensor = torch.nn.functional.pad(A, [0, 0, 0, 1], "constant", value=0.0)
     H[..., -1, -1] += 1.0
     return H
 
@@ -41,9 +39,7 @@ def normal_transform_pixel(height: int, width: int) -> torch.Tensor:
     Shape:
         Output: :math:`(1, 3, 3)`
     """
-    tr_mat = torch.tensor([[1.0, 0.0, -1.0],
-                           [0.0, 1.0, -1.0],
-                           [0.0, 0.0, 1.0]])  # 3x3
+    tr_mat = torch.tensor([[1.0, 0.0, -1.0], [0.0, 1.0, -1.0], [0.0, 0.0, 1.0]])  # 3x3
 
     tr_mat[0, 0] = tr_mat[0, 0] * 2.0 / (width - 1.0)
     tr_mat[1, 1] = tr_mat[1, 1] * 2.0 / (height - 1.0)
@@ -52,8 +48,9 @@ def normal_transform_pixel(height: int, width: int) -> torch.Tensor:
     return tr_mat
 
 
-def normalize_homography(dst_pix_trans_src_pix: torch.Tensor,
-                         dsize_src: Tuple[int, int], dsize_dst: Tuple[int, int]) -> torch.Tensor:
+def normalize_homography(
+    dst_pix_trans_src_pix: torch.Tensor, dsize_src: Tuple[int, int], dsize_dst: Tuple[int, int]
+) -> torch.Tensor:
     r"""Normalize a given homography in pixels to [-1, 1].
     Args:
         dst_pix_trans_src_pix (torch.Tensor): homography/ies from source to destiantion to be
@@ -66,12 +63,18 @@ def normalize_homography(dst_pix_trans_src_pix: torch.Tensor,
         Output: :math:`(B, 3, 3)`
     """
     if not torch.is_tensor(dst_pix_trans_src_pix):
-        raise TypeError("Input dst_pix_trans_src_pix type is not a torch.Tensor. Got {}"
-                        .format(type(dst_pix_trans_src_pix)))
+        raise TypeError(
+            "Input dst_pix_trans_src_pix type is not a torch.Tensor. Got {}".format(
+                type(dst_pix_trans_src_pix)
+            )
+        )
 
     if not (len(dst_pix_trans_src_pix.shape) == 3 or dst_pix_trans_src_pix.shape[-2:] == (3, 3)):
-        raise ValueError("Input dst_pix_trans_src_pix must be a Bx3x3 tensor. Got {}"
-                         .format(dst_pix_trans_src_pix.shape))
+        raise ValueError(
+            "Input dst_pix_trans_src_pix must be a Bx3x3 tensor. Got {}".format(
+                dst_pix_trans_src_pix.shape
+            )
+        )
 
     # source and destination sizes
     src_h, src_w = dsize_src
@@ -80,11 +83,9 @@ def normalize_homography(dst_pix_trans_src_pix: torch.Tensor,
     device: torch.device = dst_pix_trans_src_pix.device
     dtype: torch.dtype = dst_pix_trans_src_pix.dtype
     # compute the transformation pixel/norm for src/dst
-    src_norm_trans_src_pix: torch.Tensor = normal_transform_pixel(
-        src_h, src_w).to(device, dtype)
+    src_norm_trans_src_pix: torch.Tensor = normal_transform_pixel(src_h, src_w).to(device, dtype)
     src_pix_trans_src_norm = torch.inverse(src_norm_trans_src_pix)
-    dst_norm_trans_dst_pix: torch.Tensor = normal_transform_pixel(
-        dst_h, dst_w).to(device, dtype)
+    dst_norm_trans_dst_pix: torch.Tensor = normal_transform_pixel(dst_h, dst_w).to(device, dtype)
     # compute chain transformations
     dst_norm_trans_src_norm: torch.Tensor = (
         dst_norm_trans_dst_pix @ (dst_pix_trans_src_pix @ src_pix_trans_src_norm)
@@ -92,10 +93,14 @@ def normalize_homography(dst_pix_trans_src_pix: torch.Tensor,
     return dst_norm_trans_src_norm
 
 
-def warp_affine(src: torch.Tensor, M: torch.Tensor,
-                dsize: Tuple[int, int], flags: str = 'bilinear',
-                padding_mode: str = 'zeros',
-                align_corners: bool = False) -> torch.Tensor:
+def warp_affine(
+    src: torch.Tensor,
+    M: torch.Tensor,
+    dsize: Tuple[int, int],
+    flags: str = 'bilinear',
+    padding_mode: str = 'zeros',
+    align_corners: bool = False,
+) -> torch.Tensor:
     r"""Applies an affine transformation to a tensor.
     The function warp_affine transforms the source tensor using
     the specified matrix:
@@ -121,35 +126,36 @@ def warp_affine(src: torch.Tensor, M: torch.Tensor,
        tutorials/warp_affine.html>`__.
     """
     if not torch.is_tensor(src):
-        raise TypeError("Input src type is not a torch.Tensor. Got {}"
-                        .format(type(src)))
+        raise TypeError("Input src type is not a torch.Tensor. Got {}".format(type(src)))
 
     if not torch.is_tensor(M):
-        raise TypeError("Input M type is not a torch.Tensor. Got {}"
-                        .format(type(M)))
+        raise TypeError("Input M type is not a torch.Tensor. Got {}".format(type(M)))
 
     if not len(src.shape) == 4:
-        raise ValueError("Input src must be a BxCxHxW tensor. Got {}"
-                         .format(src.shape))
+        raise ValueError("Input src must be a BxCxHxW tensor. Got {}".format(src.shape))
 
     if not (len(M.shape) == 3 or M.shape[-2:] == (2, 3)):
-        raise ValueError("Input M must be a Bx2x3 tensor. Got {}"
-                         .format(M.shape))
+        raise ValueError("Input M must be a Bx2x3 tensor. Got {}".format(M.shape))
     B, C, H, W = src.size()
     dsize_src = (H, W)
     out_size = dsize
     # we generate a 3x3 transformation matrix from 2x3 affine
     M_3x3: torch.Tensor = convert_affinematrix_to_homography(M)
-    dst_norm_trans_src_norm: torch.Tensor = normalize_homography(
-        M_3x3, dsize_src, out_size)
+    dst_norm_trans_src_norm: torch.Tensor = normalize_homography(M_3x3, dsize_src, out_size)
     src_norm_trans_dst_norm = torch.inverse(dst_norm_trans_src_norm)
-    grid = F.affine_grid(src_norm_trans_dst_norm[:, :2, :],  # type: ignore
-                         [B, C, out_size[0], out_size[1]],
-                         align_corners=align_corners)
-    return F.grid_sample(src, grid,  # type: ignore
-                         align_corners=align_corners,
-                         mode=flags,
-                         padding_mode=padding_mode)
+    grid = F.affine_grid(
+        src_norm_trans_dst_norm[:, :2, :],  # type: ignore
+        [B, C, out_size[0], out_size[1]],
+        align_corners=align_corners,
+    )
+    return F.grid_sample(
+        src,
+        grid,  # type: ignore
+        align_corners=align_corners,
+        mode=flags,
+        padding_mode=padding_mode,
+    )
+
 
 def deg2rad(tensor: torch.Tensor) -> torch.Tensor:
     r"""Function that converts angles from degrees to radians.
@@ -162,10 +168,9 @@ def deg2rad(tensor: torch.Tensor) -> torch.Tensor:
         >>> output = kornia.deg2rad(input)
     """
     if not isinstance(tensor, torch.Tensor):
-        raise TypeError("Input type is not a torch.Tensor. Got {}".format(
-            type(tensor)))
+        raise TypeError("Input type is not a torch.Tensor. Got {}".format(type(tensor)))
 
-    return tensor * pi.to(tensor.device).type(tensor.dtype) / 180.
+    return tensor * pi.to(tensor.device).type(tensor.dtype) / 180.0
 
 
 def angle_to_rotation_matrix(angle: torch.Tensor) -> torch.Tensor:
@@ -188,9 +193,8 @@ def angle_to_rotation_matrix(angle: torch.Tensor) -> torch.Tensor:
 
 
 def get_rotation_matrix2d(
-        center: torch.Tensor,
-        angle: torch.Tensor,
-        scale: torch.Tensor) -> torch.Tensor:
+    center: torch.Tensor, angle: torch.Tensor, scale: torch.Tensor
+) -> torch.Tensor:
     r"""Calculates an affine matrix of 2D rotation.
     The function calculates the following matrix:
     .. math::
@@ -226,26 +230,23 @@ def get_rotation_matrix2d(
                  [-0.7071,  0.7071,  0.0000]]])
     """
     if not torch.is_tensor(center):
-        raise TypeError("Input center type is not a torch.Tensor. Got {}"
-                        .format(type(center)))
+        raise TypeError("Input center type is not a torch.Tensor. Got {}".format(type(center)))
     if not torch.is_tensor(angle):
-        raise TypeError("Input angle type is not a torch.Tensor. Got {}"
-                        .format(type(angle)))
+        raise TypeError("Input angle type is not a torch.Tensor. Got {}".format(type(angle)))
     if not torch.is_tensor(scale):
-        raise TypeError("Input scale type is not a torch.Tensor. Got {}"
-                        .format(type(scale)))
+        raise TypeError("Input scale type is not a torch.Tensor. Got {}".format(type(scale)))
     if not (len(center.shape) == 2 and center.shape[1] == 2):
-        raise ValueError("Input center must be a Bx2 tensor. Got {}"
-                         .format(center.shape))
+        raise ValueError("Input center must be a Bx2 tensor. Got {}".format(center.shape))
     if not len(angle.shape) == 1:
-        raise ValueError("Input angle must be a B tensor. Got {}"
-                         .format(angle.shape))
+        raise ValueError("Input angle must be a B tensor. Got {}".format(angle.shape))
     if not len(scale.shape) == 1:
-        raise ValueError("Input scale must be a B tensor. Got {}"
-                         .format(scale.shape))
+        raise ValueError("Input scale must be a B tensor. Got {}".format(scale.shape))
     if not (center.shape[0] == angle.shape[0] == scale.shape[0]):
-        raise ValueError("Inputs must have same batch size dimension. Got center {}, angle {} and scale {}"
-                         .format(center.shape, angle.shape, scale.shape))
+        raise ValueError(
+            "Inputs must have same batch size dimension. Got center {}, angle {} and scale {}".format(
+                center.shape, angle.shape, scale.shape
+            )
+        )
     # convert angle and apply scale
     scaled_rotation: torch.Tensor = angle_to_rotation_matrix(angle) * scale.view(-1, 1, 1)
     alpha: torch.Tensor = scaled_rotation[:, 0, 0]
@@ -257,9 +258,8 @@ def get_rotation_matrix2d(
 
     # create output tensor
     batch_size: int = center.shape[0]
-    one = torch.tensor(1.).to(center.device)
-    M: torch.Tensor = torch.zeros(
-        batch_size, 2, 3, device=center.device, dtype=center.dtype)
+    one = torch.tensor(1.0).to(center.device)
+    M: torch.Tensor = torch.zeros(batch_size, 2, 3, device=center.device, dtype=center.dtype)
     M[..., 0:2, 0:2] = scaled_rotation
     M[..., 0, 2] = (one - alpha) * x - beta * y
     M[..., 1, 2] = beta * x + (one - alpha) * y
@@ -275,13 +275,12 @@ def _compute_tensor_center(tensor: torch.Tensor) -> torch.Tensor:
     center_x: float = float(width - 1) / 2
     center_y: float = float(height - 1) / 2
     center: torch.Tensor = torch.tensor(
-        [center_x, center_y],
-        device=tensor.device, dtype=tensor.dtype)
+        [center_x, center_y], device=tensor.device, dtype=tensor.dtype
+    )
     return center
 
 
-def _compute_rotation_matrix(angle: torch.Tensor,
-                             center: torch.Tensor) -> torch.Tensor:
+def _compute_rotation_matrix(angle: torch.Tensor, center: torch.Tensor) -> torch.Tensor:
     """Computes a pure affine rotation matrix."""
     scale: torch.Tensor = torch.ones_like(angle)
     matrix: torch.Tensor = get_rotation_matrix2d(center, angle, scale)
@@ -291,8 +290,10 @@ def _compute_rotation_matrix(angle: torch.Tensor,
 # based on:
 # https://github.com/anibali/tvl/blob/master/src/tvl/transforms.py#L166
 
-def affine(tensor: torch.Tensor, matrix: torch.Tensor, mode: str = 'bilinear',
-           align_corners: bool = False) -> torch.Tensor:
+
+def affine(
+    tensor: torch.Tensor, matrix: torch.Tensor, mode: str = 'bilinear', align_corners: bool = False
+) -> torch.Tensor:
     r"""Apply an affine transformation to the image.
 
     Args:
@@ -317,8 +318,9 @@ def affine(tensor: torch.Tensor, matrix: torch.Tensor, mode: str = 'bilinear',
     # warp the input tensor
     height: int = tensor.shape[-2]
     width: int = tensor.shape[-1]
-    warped: torch.Tensor = warp_affine(tensor, matrix, (height, width), mode,
-                                       align_corners=align_corners)
+    warped: torch.Tensor = warp_affine(
+        tensor, matrix, (height, width), mode, align_corners=align_corners
+    )
 
     # return in the original shape
     if is_unbatched:
@@ -330,25 +332,28 @@ def affine(tensor: torch.Tensor, matrix: torch.Tensor, mode: str = 'bilinear',
 # based on:
 # https://github.com/anibali/tvl/blob/master/src/tvl/transforms.py#L185
 
-def rotate(tensor: torch.Tensor, angle: torch.Tensor,
-           center: Union[None, torch.Tensor] = None, mode: str = 'bilinear',
-           align_corners: bool = False) -> torch.Tensor:
+
+def rotate(
+    tensor: torch.Tensor,
+    angle: torch.Tensor,
+    center: Union[None, torch.Tensor] = None,
+    mode: str = 'bilinear',
+    align_corners: bool = False,
+) -> torch.Tensor:
     r"""Rotate the image anti-clockwise about the centre.
 
     See :class:`~kornia.Rotate` for details.
     """
     if not torch.is_tensor(tensor):
-        raise TypeError("Input tensor type is not a torch.Tensor. Got {}"
-                        .format(type(tensor)))
+        raise TypeError("Input tensor type is not a torch.Tensor. Got {}".format(type(tensor)))
     if not torch.is_tensor(angle):
-        raise TypeError("Input angle type is not a torch.Tensor. Got {}"
-                        .format(type(angle)))
+        raise TypeError("Input angle type is not a torch.Tensor. Got {}".format(type(angle)))
     if center is not None and not torch.is_tensor(angle):
-        raise TypeError("Input center type is not a torch.Tensor. Got {}"
-                        .format(type(center)))
+        raise TypeError("Input center type is not a torch.Tensor. Got {}".format(type(center)))
     if len(tensor.shape) not in (3, 4,):
-        raise ValueError("Invalid tensor shape, we expect CxHxW or BxCxHxW. "
-                         "Got: {}".format(tensor.shape))
+        raise ValueError(
+            "Invalid tensor shape, we expect CxHxW or BxCxHxW. " "Got: {}".format(tensor.shape)
+        )
 
     # compute the rotation center
     if center is None:
@@ -379,9 +384,12 @@ class Rotate(nn.Module):
         torch.Tensor: The rotated tensor.
     """
 
-    def __init__(self, angle: torch.Tensor,
-                 center: Union[None, torch.Tensor] = None,
-                 align_corners: bool = False) -> None:
+    def __init__(
+        self,
+        angle: torch.Tensor,
+        center: Union[None, torch.Tensor] = None,
+        align_corners: bool = False,
+    ) -> None:
         super(Rotate, self).__init__()
         self.angle: torch.Tensor = angle
         self.center: Union[None, torch.Tensor] = center

@@ -1,0 +1,17 @@
+﻿command,python run_both.py @flags/cmnist_ae_2_digits.yaml  --b-super-val-freq 20 --b-super-val True --b-num-disc-updates 3 --b-disc-hidden 256 256 --b-warmup-steps 1000
+Accuracy,0.493
+TPR,0.5031
+TNR,0.4835
+Renyi preds and s,1
+prob_pos_sex_Male_0.0,0
+prob_pos_sex_Male_1.0,1
+prob_pos_sex_Male_0.0-sex_Male_1.0,1
+prob_pos_sex_Male_0.0/sex_Male_1.0,0
+TPR_sex_Male_0.0,0
+TPR_sex_Male_1.0,1
+TPR_sex_Male_0.0-sex_Male_1.0,1
+TPR_sex_Male_0.0/sex_Male_1.0,0
+TNR_sex_Male_0.0,1
+TNR_sex_Male_1.0,0
+TNR_sex_Male_0.0-sex_Male_1.0,1
+TNR_sex_Male_0.0/sex_Male_1.0,0
