@@ -1,11 +1,19 @@
-dataset: "adult"
+# ====== dataset ======
+dataset: adult
+drop_native: true
+mixing_factor: 0.0
+input_noise: false
+
+# ====== encoder ======
 enc_channels: 35
 enc_epochs: 100
+enc_lr: 1e-2
+enc_levels: 0
+recon_loss: mixed
+init_channels: 61
+
+# ===== clustering ====
 cl_hidden_dims:
 epochs: 200
 val_freq: 10
-enc_levels: 0
-recon_loss: mixed
-enc_lr: 1e-2
-init_channels: 61
 lr: 1e-2
