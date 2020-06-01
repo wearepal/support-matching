@@ -4,7 +4,7 @@ from .base import *
 from .classifier import *
 from .factory import *
 from .inn import *
-from .labelers import *
+from .pseudo_labelers import *
 from .methods import *
 from .model import *
 from .resnet import *

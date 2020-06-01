@@ -63,8 +63,8 @@ class ClusterArgs(BaseArgs):
     finetune_wd: float = 0
     freeze_layers: int = 0
 
-    # Labeler
-    labeler: Literal["ranking", "cosine"] = "ranking"
+    # PseudoLabeler
+    pseudo_labeler: Literal["ranking", "cosine"] = "ranking"
     k_num: int = 5
     lower_threshold: float = 0.5
     upper_threshold: float = 0.5
@@ -73,6 +73,7 @@ class ClusterArgs(BaseArgs):
     cl_hidden_dims: List[int] = [256]
     lr: float = 1e-3
     weight_decay: float = 0
+    use_multi_head: bool = False
 
     # Method
     method: Literal["pl_enc", "pl_output", "pl_enc_no_norm", "kmeans"] = "pl_enc"
@@ -80,6 +81,13 @@ class ClusterArgs(BaseArgs):
     _device: torch.device
     _s_dim: int
     _y_dim: int
+
+    #  Labeler
+    labeler_lr: float = 1e-3
+    labeler_wd: float = 0
+    labeler_hidden_dims = [100, 100]
+    labeler_epochs: int = 100
+    labeler_wandb: bool = False
 
     def process_args(self):
         super().process_args()
