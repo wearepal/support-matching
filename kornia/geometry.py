@@ -97,8 +97,8 @@ def warp_affine(
     src: torch.Tensor,
     M: torch.Tensor,
     dsize: Tuple[int, int],
-    flags: str = 'bilinear',
-    padding_mode: str = 'zeros',
+    flags: str = "bilinear",
+    padding_mode: str = "zeros",
     align_corners: bool = False,
 ) -> torch.Tensor:
     r"""Applies an affine transformation to a tensor.
@@ -292,7 +292,7 @@ def _compute_rotation_matrix(angle: torch.Tensor, center: torch.Tensor) -> torch
 
 
 def affine(
-    tensor: torch.Tensor, matrix: torch.Tensor, mode: str = 'bilinear', align_corners: bool = False
+    tensor: torch.Tensor, matrix: torch.Tensor, mode: str = "bilinear", align_corners: bool = False
 ) -> torch.Tensor:
     r"""Apply an affine transformation to the image.
 
@@ -337,7 +337,7 @@ def rotate(
     tensor: torch.Tensor,
     angle: torch.Tensor,
     center: Union[None, torch.Tensor] = None,
-    mode: str = 'bilinear',
+    mode: str = "bilinear",
     align_corners: bool = False,
 ) -> torch.Tensor:
     r"""Rotate the image anti-clockwise about the centre.

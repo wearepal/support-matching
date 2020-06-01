@@ -10,7 +10,7 @@ from torch import Tensor
 import wandb
 
 from shared.utils import wandb_log
-from clustering.models import Bundle
+from clustering.models import Model
 from clustering.configs import ClusterArgs
 
 __all__ = [
@@ -47,7 +47,7 @@ def log_images(
 
 
 def save_model(
-    args: ClusterArgs, save_dir: Path, model: Bundle, epoch: int, sha: str, best: bool = False,
+    args: ClusterArgs, save_dir: Path, model: Model, epoch: int, sha: str, best: bool = False,
 ) -> Path:
     if best:
         filename = save_dir / "checkpt_best.pth"
@@ -56,7 +56,9 @@ def save_model(
     save_dict = {
         "args": args.as_dict(),
         "sha": sha,
-        "model": model.state_dict(),
+        "encoder": model.encoder.state_dict(),
+        "labeler": model.labeler.state_dict(),
+        "classifier": model.classifier.state_dict(),
         "epoch": epoch,
     }
 
@@ -65,12 +67,14 @@ def save_model(
     return filename
 
 
-def restore_model(args: ClusterArgs, filename: Path, model: Bundle) -> Tuple[Bundle, int]:
+def restore_model(args: ClusterArgs, filename: Path, model: Model) -> Tuple[Model, int]:
     chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
     args_chkpt = chkpt["args"]
     assert args.enc_levels == args_chkpt["enc_levels"]
 
-    model.load_state_dict(chkpt["model"])
+    model.encoder.load_state_dict(chkpt["encoder"])
+    model.labeler.load_state_dict(chkpt["labeler"])
+    model.classifier.load_state_dict(chkpt["classifier"])
     return model, chkpt["epoch"]
 
 

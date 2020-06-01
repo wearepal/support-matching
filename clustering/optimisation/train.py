@@ -31,7 +31,6 @@ from shared.utils import (
 )
 from clustering.configs import ClusterArgs
 from clustering.models import (
-    Bundle,
     Classifier,
     CosineSimThreshold,
     Encoder,
@@ -253,7 +252,9 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
         method = PseudoLabelEncNoNorm()
 
     model = Model(
-        bundle=Bundle(encoder=encoder, labeler=labeler, classifier=classifier),
+        encoder=encoder,
+        labeler=labeler,
+        classifier=classifier,
         method=method,
         train_encoder=ARGS.finetune_encoder,
     )
@@ -262,15 +263,18 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
     # Resume from checkpoint
     if ARGS.resume is not None:
         LOGGER.info("Restoring generator from checkpoint")
-        bundle, start_epoch = restore_model(ARGS, Path(ARGS.resume), model.bundle)
-        model = Model(bundle=bundle, method=method, train_encoder=ARGS.finetune_encoder)
+        model, start_epoch = restore_model(ARGS, Path(ARGS.resume), model)
         if ARGS.evaluate:
             pth_path = save_results(ARGS, classify_dataset(ARGS, model, datasets.context), save_dir)
             return model, pth_path
 
     # Logging
     # wandb.set_model_graph(str(generator))
-    LOGGER.info("Number of trainable parameters: {}", count_parameters(model.bundle))
+    num_parameters = 0
+    num_parameters += count_parameters(model.encoder)
+    num_parameters += count_parameters(model.labeler)
+    num_parameters += count_parameters(model.classifier)
+    LOGGER.info("Number of trainable parameters: {}", num_parameters)
 
     # best_loss = float("inf")
     best_acc = 0.0
@@ -290,7 +294,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
 
             if val_acc > best_acc:
                 best_acc = val_acc
-                save_model(args, save_dir, model.bundle, epoch=epoch, sha=sha, best=True)
+                save_model(args, save_dir, model, epoch=epoch, sha=sha, best=True)
                 n_vals_without_improvement = 0
             else:
                 n_vals_without_improvement += 1
@@ -310,9 +314,8 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
         #     save_model(args, save_dir, model=model.bundle, epoch=epoch, sha=sha)
 
     LOGGER.info("Training has finished.")
-    path = save_model(args, save_dir, model=model.bundle, epoch=epoch, sha=sha)
-    bundle, _ = restore_model(args, path, model=model.bundle)
-    model = Model(bundle=bundle, method=method, train_encoder=ARGS.finetune_encoder)
+    path = save_model(args, save_dir, model=model, epoch=epoch, sha=sha)
+    model, _ = restore_model(args, path, model=model)
     validate(model, val_loader)
     pth_path = save_results(ARGS, classify_dataset(ARGS, model, datasets.context), save_dir)
     return model, pth_path
