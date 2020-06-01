@@ -86,6 +86,8 @@ class ClusterArgs(BaseArgs):
     labeler_lr: float = 1e-3
     labeler_wd: float = 0
     labeler_hidden_dims = [100, 100]
+    labeler_epochs: int = 100
+    labeler_wandb: bool = False
 
     def process_args(self):
         super().process_args()

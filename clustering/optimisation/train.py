@@ -267,7 +267,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
         labeler_optimizer_kwargs = {"lr": ARGS.labeler_lr, "weight_decay": ARGS.labeler_wd}
         clf_fn = fc_net
         clf_kwargs["hidden_dims"] = args.cl_hidden_dims
-        labeler = build_classifier(
+        labeler: Classifier = build_classifier(
             input_shape=input_shape,
             target_dim=s_count,
             model_fn=labeler_fn,
@@ -275,7 +275,13 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
             optimizer_kwargs=labeler_optimizer_kwargs,
         )
         labeler.to(args._device)
-
+        labeler.fit(
+            train_loader,
+            epochs=ARGS.labeler_epochs,
+            device=ARGS._device,
+            use_wandb=ARGS.labeler_wandb,
+        )
+        labeler.eval()
         model = MultiHeadModel(
             encoder=encoder,
             classifiers=classifier,

@@ -146,7 +146,7 @@ class MultiHeadModel(nn.Module):
         self.classifiers.eval()
 
     def forward(self, x: Tensor) -> Tensor:
-        outputs = torch.zeros(x.size(0), self.classifiers[0])
+        outputs = torch.zeros(x.size(0), self.classifiers[0].num_classes)
         for i, (x_i, _, mask) in enumerate(self._split_by_label(x)):
             z_i = self.encoder(x_i)
             outputs[mask] = self.classifiers[i](z_i)
