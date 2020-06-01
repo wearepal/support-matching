@@ -35,7 +35,6 @@ def build_classifier(
         classifier = Classifier(
             model_fn(in_dim, target_dim, **model_kwargs),
             num_classes=num_classes,
-            num_heads=num_heads,
             optimizer_kwargs=optimizer_kwargs,
         )
 
