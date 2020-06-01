@@ -374,7 +374,7 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
 
         x_c, x_t, y_t = to_device(x_c, x_t, y_t)
 
-        if ARGS.with_supervision:
+        if ARGS.with_supervision and not ARGS.use_multi_head:
             loss_sup, logging_sup = model.supervised_loss(x_t, y_t)
         else:
             loss_sup = x_t.new_zeros(())
