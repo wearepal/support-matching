@@ -14,12 +14,12 @@ def build_classifier(
     model_fn: ModelFn,
     model_kwargs: Mapping[str, Union[float, str, bool]],
     optimizer_kwargs=None,
-    num_heads: int = 1
+    num_heads: int = 1,
 ) -> Union[LdClassifierEnsemble, Classifier]:
     in_dim = input_shape[0]
 
     num_classes = target_dim if target_dim > 1 else 2
-    
+
     if num_heads > 1:
         heads: List[Classifier] = []
         for _ in range(num_heads):
@@ -27,9 +27,9 @@ def build_classifier(
                 Classifier(
                     model_fn(in_dim, target_dim, **model_kwargs),
                     num_classes=num_classes,
-                    optimizer_kwargs=optimizer_kwargs
-                    )
+                    optimizer_kwargs=optimizer_kwargs,
                 )
+            )
         classifier = LdClassifierEnsemble(heads)
     else:
         classifier = Classifier(

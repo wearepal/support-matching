@@ -232,8 +232,8 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
     clf_kwargs = {}
     clf_fn = fc_net
     clf_kwargs["hidden_dims"] = args.cl_hidden_dims
-    disc_input_shape = (prod(enc_shape),) 
-    # If the classifier is multi-headed, tile its output dimensions by the number of y values
+    disc_input_shape = (prod(enc_shape),)
+    #  If the classifier is multi-headed, tile its output dimensions by the number of y values
     # fc_net first flattens the input
     classifier = build_classifier(
         input_shape=disc_input_shape,
@@ -241,7 +241,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
         model_fn=clf_fn,
         model_kwargs=clf_kwargs,
         optimizer_kwargs=clf_optimizer_kwargs,
-        num_heads=y_count if ARGS.use_multi_head else 1
+        num_heads=y_count if ARGS.use_multi_head else 1,
     )
     classifier.to(args._device)
 

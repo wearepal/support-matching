@@ -237,14 +237,13 @@ class Regressor(Classifier):
 
     def compute_accuracy(self, outputs: Tensor, targets: Tensor, top: int = 1) -> float:
         return 0
-    
+
 
 class LdClassifierEnsemble(nn.Module):
-
     def __init__(self, classifiers: Sequence[Classifier]):
         super().__init__()
         self.classifiers: nn.ModuleList = nn.ModuleList(classifiers)
-  
+
     def _partition_inputs(self, x: Tensor, y: Tensor) -> Iterator[Tuple[Tensor, Tensor]]:
         for i in range(len(self.classifiers)):
             mask = y == i
@@ -268,4 +267,3 @@ class LdClassifierEnsemble(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         return torch.cat([clf(x) for clf in self.classifiers], dim=1)
-

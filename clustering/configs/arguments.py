@@ -71,7 +71,7 @@ class ClusterArgs(BaseArgs):
 
     # Classifier
     cl_hidden_dims: List[int] = [256]
-    use_multi_head: bool = False    # Whether to use a multi-headed (y-specific) classifier
+    use_multi_head: bool = False  #  Whether to use a multi-headed (y-specific) classifier
     lr: float = 1e-3
     weight_decay: float = 0
 
