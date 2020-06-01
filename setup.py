@@ -13,7 +13,6 @@ setup(
     install_requires=[
         "EthicML @ git+https://github.com/predictive-analytics-lab/EthicML.git",
         "gitpython",
-        "kornia",
         "lapjv",
         "numpy >= 1.15",
         "pandas >= 0.24",
