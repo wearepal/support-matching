@@ -12,7 +12,7 @@ from typing_extensions import Literal
 
 from ethicml.algorithms.inprocess import compute_instance_weights
 from ethicml.evaluators import run_metrics
-from ethicml.metrics import TPR, Accuracy, ProbPos
+from ethicml.metrics import TPR, Accuracy, ProbPos, RenyiCorrelation
 from ethicml.utility import DataTuple, Prediction
 from ethicml import implementations
 
@@ -248,7 +248,7 @@ def run_baseline(args: BaselineArgs):
     metrics = run_metrics(
         preds,
         ground_truths,
-        metrics=[Accuracy()],
+        metrics=[Accuracy(), RenyiCorrelation()],
         per_sens_metrics=[ProbPos(), TPR()] if args.dataset != "cmnist" else [],
     )
     print(f"Results for {full_name}:")
