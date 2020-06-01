@@ -57,6 +57,7 @@ class ClusterArgs(BaseArgs):
     enc_epochs: int = 100
     enc_lr: float = 1e-3
     enc_wd: float = 0
+    enc_wandb: bool = False
     finetune_encoder: bool = False
     finetune_lr: float = 1e-6
     finetune_wd: float = 0
