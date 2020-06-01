@@ -1,8 +1,11 @@
-"""Bundle of all parts."""
+"""Model that contains all."""
 from typing import Tuple, final
 from torch import Tensor
 
-from .methods import Bundle, Method, LoggingDict
+from .base import Encoder
+from .classifier import Classifier
+from .labelers import Labeler
+from .methods import Method, LoggingDict
 
 __all__ = ["Model"]
 
@@ -11,37 +14,46 @@ __all__ = ["Model"]
 class Model:
     """This class brings everything together into one model object."""
 
-    def __init__(self, bundle: Bundle, method: Method, train_encoder: bool):
-        self.bundle = bundle
+    def __init__(
+        self,
+        encoder: Encoder,
+        labeler: Labeler,
+        classifier: Classifier,
+        method: Method,
+        train_encoder: bool,
+    ):
+        self.encoder = encoder
+        self.labeler = labeler
+        self.classifier = classifier
         self.method = method
         self.train_encoder = train_encoder
 
     def supervised_loss(self, x: Tensor, y: Tensor) -> Tuple[Tensor, LoggingDict]:
-        return self.method.supervised_loss(self.bundle, x, y)
+        return self.method.supervised_loss(self.encoder, self.classifier, x, y)
 
     def unsupervised_loss(self, x: Tensor) -> Tuple[Tensor, LoggingDict]:
-        return self.method.unsupervised_loss(self.bundle, x)
+        return self.method.unsupervised_loss(self.encoder, self.labeler, self.classifier, x)
 
     def __call__(self, x: Tensor) -> Tensor:
-        return self.method.predict(self.bundle, x)
+        return self.method.predict(self.encoder, self.classifier, x)
 
     def step(self, grads=None) -> None:
-        self.bundle.classifier.step(grads)
+        self.classifier.step(grads)
         if self.train_encoder:
-            self.bundle.encoder.step(grads)
+            self.encoder.step(grads)
 
     def zero_grad(self) -> None:
-        self.bundle.classifier.zero_grad()
+        self.classifier.zero_grad()
         if self.train_encoder:
-            self.bundle.encoder.zero_grad()
+            self.encoder.zero_grad()
 
     def train(self) -> None:
-        self.bundle.classifier.train()
+        self.classifier.train()
         if self.train_encoder:
-            self.bundle.encoder.train()
+            self.encoder.train()
         else:
-            self.bundle.encoder.eval()
+            self.encoder.eval()
 
     def eval(self) -> None:
-        self.bundle.encoder.eval()
-        self.bundle.classifier.eval()
+        self.encoder.eval()
+        self.classifier.eval()

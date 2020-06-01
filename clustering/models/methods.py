@@ -1,9 +1,9 @@
 """Definition of loss and so on."""
 from abc import abstractmethod
-from typing import Tuple, Dict, final
+from typing import Tuple, Dict
 
 import torch
-from torch import Tensor, nn, jit
+from torch import Tensor, jit
 from torch.nn import functional as F
 
 from shared.utils import dot_product, normalized_softmax
@@ -13,7 +13,6 @@ from .labelers import Labeler
 from .classifier import Classifier
 
 __all__ = [
-    "Bundle",
     "LoggingDict",
     "Method",
     "PseudoLabelEnc",
@@ -24,48 +23,40 @@ __all__ = [
 LoggingDict = Dict[str, float]
 
 
-@final
-class Bundle(nn.Module):
-    """Dumb object that simply holds three other objects."""
-
-    def __init__(self, encoder: Encoder, labeler: Labeler, classifier: Classifier):
-        super().__init__()
-        self.encoder = encoder
-        self.labeler = labeler
-        self.classifier = classifier
-
-    def forward(self):
-        raise NotImplementedError()
-
-
 class Method:
     @staticmethod
-    def supervised_loss(bundle: Bundle, x: Tensor, y: Tensor) -> Tuple[Tensor, LoggingDict]:
+    def supervised_loss(
+        encoder: Encoder, classifier: Classifier, x: Tensor, y: Tensor
+    ) -> Tuple[Tensor, LoggingDict]:
         # default implementation
-        z = bundle.encoder(x)
-        loss, _ = bundle.classifier.routine(z, y)
+        z = encoder(x)
+        loss, _ = classifier.routine(z, y)
         return loss, {"Classification Loss": loss.item()}
 
     @abstractmethod
-    def unsupervised_loss(self, bundle: Bundle, x: Tensor) -> Tuple[Tensor, LoggingDict]:
+    def unsupervised_loss(
+        self, encoder: Encoder, labeler: Labeler, classifier: Classifier, x: Tensor
+    ) -> Tuple[Tensor, LoggingDict]:
         """Unsupervised loss."""
 
     @staticmethod
-    def predict(bundle: Bundle, x: Tensor) -> Tensor:
+    def predict(encoder: Encoder, classifier: Classifier, x: Tensor) -> Tensor:
         # default implementation
-        return bundle.classifier(bundle.encoder.encode(x))
+        return classifier(encoder.encode(x))
 
 
 class PseudoLabelEncNoNorm(Method):
     """Base the pseudo labels on the encodings."""
 
     @staticmethod
-    def unsupervised_loss(bundle: Bundle, x: Tensor) -> Tuple[Tensor, LoggingDict]:
-        z = bundle.encoder(x)
-        raw_preds = bundle.classifier(z)
+    def unsupervised_loss(
+        encoder: Encoder, labeler: Labeler, classifier: Classifier, x: Tensor
+    ) -> Tuple[Tensor, LoggingDict]:
+        z = encoder(x)
+        raw_preds = classifier(z)
         # only do softmax but no real normalization
         preds = F.softmax(raw_preds, dim=-1)
-        pseudo_label, mask = bundle.labeler(z)  # base the pseudo labels on the encoding
+        pseudo_label, mask = labeler(z)  # base the pseudo labels on the encoding
         loss = _cosine_and_bce(preds, pseudo_label, mask)
         return loss, {"Loss unsupervised": loss.item()}
 
@@ -74,12 +65,14 @@ class PseudoLabelEnc(Method):
     """Base the pseudo labels on the encodings."""
 
     @staticmethod
-    def unsupervised_loss(bundle: Bundle, x: Tensor) -> Tuple[Tensor, LoggingDict]:
-        z = bundle.encoder(x)
-        raw_preds = bundle.classifier(z)
+    def unsupervised_loss(
+        encoder: Encoder, labeler: Labeler, classifier: Classifier, x: Tensor
+    ) -> Tuple[Tensor, LoggingDict]:
+        z = encoder(x)
+        raw_preds = classifier(z)
         # normalize output for cosine similarity
         preds = normalized_softmax(raw_preds)
-        pseudo_label, mask = bundle.labeler(z)  # base the pseudo labels on the encoding
+        pseudo_label, mask = labeler(z)  # base the pseudo labels on the encoding
         loss = _cosine_and_bce(preds, pseudo_label, mask)
         return loss, {"Loss unsupervised": loss.item()}
 
@@ -88,11 +81,13 @@ class PseudoLabelOutput(Method):
     """Base the pseudo labels on the output of the classifier."""
 
     @staticmethod
-    def unsupervised_loss(bundle: Bundle, x: Tensor) -> Tuple[Tensor, LoggingDict]:
-        z = bundle.encoder(x)
-        raw_pred = bundle.classifier(z)
+    def unsupervised_loss(
+        encoder: Encoder, labeler: Labeler, classifier: Classifier, x: Tensor
+    ) -> Tuple[Tensor, LoggingDict]:
+        z = encoder(x)
+        raw_pred = classifier(z)
         preds = normalized_softmax(raw_pred)
-        pseudo_label, mask = bundle.labeler(preds)  # base the pseudo labels on the predictions
+        pseudo_label, mask = labeler(preds)  # base the pseudo labels on the predictions
         loss = _cosine_and_bce(preds, pseudo_label, mask)
         return loss, {"Loss unsupervised": loss.item()}
 
