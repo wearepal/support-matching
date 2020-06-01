@@ -247,7 +247,7 @@ class LdClassifierEnsemble(nn.Module):
     def _partition_inputs(self, x: Tensor, y: Tensor) -> Iterator[Tuple[Tensor, Tensor]]:
         for i in range(len(self.classifiers)):
             mask = y == i
-            if len(mask.nonzero()) >= 1:
+            if len(mask.nonzero()) > 0:
                 yield x[mask], y[mask]
 
     def step(self, grads: Optional[Sequence[Tensor]] = None) -> None:
