@@ -78,7 +78,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
     ARGS = args
 
     if ARGS.use_wandb:
-        wandb.init(project="fcm", config=args.as_dict())
+        wandb.init(entity="predictive-analytics-lab", project="fcm", config=args.as_dict())
 
     save_dir = Path(ARGS.save_dir) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
