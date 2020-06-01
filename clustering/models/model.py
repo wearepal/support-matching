@@ -97,9 +97,8 @@ class MultiHeadModel(nn.Module):
         self, x: Tensor, y: Optional[Tensor] = None
     ) -> Iterator[Tuple[Tensor, Tensor]]:
         if y is None:
-            y = torch.zeros_like(y)
-            # with torch.no_grad():
-            # y = self.labeler(x).argmax(dim=-1)
+            with torch.no_grad():
+                y = self.labeler(x).argmax(dim=-1)
         for i in range(len(self.classifiers)):
             mask = y == i
             if len(mask.nonzero()) > 0:
@@ -147,9 +146,11 @@ class MultiHeadModel(nn.Module):
         self.classifiers.eval()
 
     def forward(self, x: Tensor) -> Tensor:
-        outputs = torch.zeros(x.size(0), self.classifiers[0].num_classes)
+        y_dim, s_dim = len(self.classifiers), self.classifiers[0].num_classes
+        outputs = x.new_zeros(x.size(0), y_dim, s_dim)
         for i, (x_i, _, mask) in enumerate(self._split_by_label(x)):
             z_i = self.encoder(x_i)
-            outputs[mask] = self.classifiers[i](z_i)
+            outputs[mask, i, :] = self.classifiers[i](z_i)
+        outputs = outputs.view(x.size(0), -1)
 
         return outputs
