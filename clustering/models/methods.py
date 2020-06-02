@@ -29,11 +29,13 @@ class Method:
         encoder: Encoder, classifier: Classifier, x: Tensor, class_id: Tensor, ce_weight: float = 1.0, bce_weight: float = 1
     ) -> Tuple[Tensor, LoggingDict]:
 
+        logging_dict = {}
+
         if ce_weight or bce_weight:
+            loss = 0
             z = encoder(x)
             logits = classifier(z)
             loss = torch.zeros(())
-            logging_dict = {}
             if ce_weight:
                 ce_loss = classifier.apply_criterion(logits=logits, targets=class_id).mean()
                 loss += ce_loss
@@ -45,6 +47,8 @@ class Method:
                 bce_loss = _cosine_and_bce(preds, label, mask)
                 loss += bce_weight * bce_loss
                 logging_dict["Loss supervised (BCE)"] = bce_loss.item()
+        else:
+            loss = torch.tensor(0.0, device=x.dtype)
 
         return loss, logging_dict
 
