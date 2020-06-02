@@ -105,14 +105,14 @@ class MultiHeadModel(nn.Module):
                 yield x[mask], y[mask], mask
 
     def supervised_loss(self, x: Tensor, y: Tensor) -> Tuple[Tensor, LoggingDict]:
-        loss = torch.zeros(())
-        for i, (x_i, _, _) in enumerate(self._split_by_label(x, y=y)):
-            loss_i, _ = self.method.supervised_loss(self.encoder, self.classifiers[i], x, y)
+        loss = 0
+        for i, (x_i, y_i, _) in enumerate(self._split_by_label(x, y=y)):
+            loss_i, _ = self.method.supervised_loss(self.encoder, self.classifiers[i], x_i, y_i)
             loss += loss_i
         return loss, {"Loss supervised": loss.item()}
 
     def unsupervised_loss(self, x: Tensor) -> Tuple[Tensor, LoggingDict]:
-        loss = torch.zeros(())
+        loss = 0
         for i, (x_i, _, _) in enumerate(self._split_by_label(x)):
             loss_i, _ = self.method.unsupervised_loss(
                 encoder=self.encoder,
@@ -146,9 +146,11 @@ class MultiHeadModel(nn.Module):
         self.classifiers.eval()
 
     def forward(self, x: Tensor) -> Tensor:
-        outputs = torch.zeros(x.size(0), self.classifiers[0].num_classes)
+        y_dim, s_dim = len(self.classifiers), self.classifiers[0].num_classes
+        outputs = x.new_zeros(x.size(0), y_dim, s_dim)
         for i, (x_i, _, mask) in enumerate(self._split_by_label(x)):
             z_i = self.encoder(x_i)
-            outputs[mask] = self.classifiers[i](z_i)
+            outputs[mask, i, :] = self.classifiers[i](z_i)
+        outputs = outputs.view(x.size(0), -1)
 
         return outputs

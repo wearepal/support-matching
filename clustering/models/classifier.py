@@ -181,6 +181,7 @@ class Classifier(ModelBase):
                 loss.backward()
                 self.optimizer.step()
                 wandb_log(args, {"loss": loss.item()}, step=step)
+                pbar.set_postfix(epoch=epoch + 1, train_loss=loss.item(), train_acc=acc)
 
             if test_data is not None:
 
