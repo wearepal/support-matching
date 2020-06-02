@@ -370,12 +370,12 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
     data_iterator = zip(context_data, train_data)
     model.train()
 
-    for itr, ((x_c, _, _), (x_t, _, y_t)) in enumerate(data_iterator, start=start_itr):
+    for itr, ((x_c, s_c, y_c), (x_t, s_t, y_t)) in enumerate(data_iterator, start=start_itr):
 
         x_c, x_t, y_t = to_device(x_c, x_t, y_t)
 
         if ARGS.with_supervision:
-            loss_sup, logging_sup = model.supervised_loss(x_t, y_t)
+            loss_sup, logging_sup = model.supervised_loss(x_t, y_t, ARGS.ce_loss)
         else:
             loss_sup = x_t.new_zeros(())
             logging_sup = {}
