@@ -18,7 +18,6 @@ b_color_correlation: 1
 b_context_pcnt: 0.6667
 b_data_pcnt: 1
 b_data_split_seed: 888
-b_distinguish_warmup: False
 b_drop_discrete: False
 b_drop_native: True
 b_early_stopping: 30
@@ -31,7 +30,6 @@ b_eval_on_recon: True
 b_evaluate: False
 b_recon_loss: l2
 b_feat_attr: False
-b_gamma: 1
 b_genfaces_sens_attr: "gender"
 b_genfaces_target_attr: "emotion"
 b_gpu: 0
@@ -40,7 +38,6 @@ b_lr: 0.001
 b_mixing_factor: 0
 b_num_workers:  4
 b_quant_level: 8
-b_recon_detach: True
 b_results_csv:
 b_resume: []
 b_root:
@@ -58,6 +55,9 @@ b_vgg_weight: 0
 b_weight_decay: 0
 b_init_channels: 32
 b_input_noise: True
+b_kl_weight: 1
+b_std_transform: exp
+b_log_freq: 50
 
 
 
@@ -65,11 +65,7 @@ b_input_noise: True
 # ===== clustering flags =====
 c_encoder: "ae"
 c_enc_levels: 4
-c_enc_chan: 16
 c_enc_epochs: 90
-c_kl_weight: 1
-c_std_transform: exp
-c_log_freq: 50
 c_cl_hidden_dims:
 c_epochs: 100
 c_method: "pl_enc_no_norm"
@@ -89,9 +85,9 @@ c_labeler: "ranking"
 c_lower_threshold: 0.5
 c_super_val: False
 c_super_val_freq: 0
-c_train_on_recon: False
+#c_train_on_recon: False
 c_upper_threshold: 0.5
-c_warmup_steps: 0
+#c_warmup_steps: 0
 c_with_supervision: True
 
 # --- clustering flags ---
@@ -103,15 +99,11 @@ c_with_supervision: True
 d_three_way: False
 d_train_on_recon: True
 d_levels: 4
-d_enc_chan: 16
 d_vae: False
 d_pred_s_weight: 2
-d_kl_weight: 1
-d_std_transform: exp
 # this makes zs channels be 1
 d_zs_frac: 0.0469
 d_num_disc_updates: 3
-d_log_freq: 50
 d_disc_hidden_dims: 256 256
 
 # --- fdm args ---
@@ -119,8 +111,10 @@ d_ae_epochs: 5
 #d_cluster_label_file: /srv/galene0/pal/fair-dist-matching/experiments/finn/1590954939.980953/cluster_results.pth
 d_disc_lr: 0.001
 d_disc_reset_prob: 0
+d_distinguish_warmup: False
 d_distinguish_weight: 1
 d_epochs: 250
+d_gamma: 1
 d_inn_batch_norm: False
 d_inn_bn_lag: 0
 d_inn_coupling_channels: 256
@@ -138,6 +132,7 @@ d_nll_weight: 0.01
 d_num_discs: 1
 d_path_to_ae:
 d_pred_weight: 1
+d_recon_detach: True
 d_recon_stability_weight: 0
 d_super_val: True
 d_super_val_freq: 20
