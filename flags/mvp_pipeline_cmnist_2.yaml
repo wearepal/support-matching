@@ -81,7 +81,7 @@ c_finetune_lr: 0.000001
 c_finetune_wd: 0
 c_freeze_layers: 0
 c_k_num: 5
-c_labeler: "ranking"
+c_pseudo_labeler: "ranking"
 c_lower_threshold: 0.5
 c_super_val: False
 c_super_val_freq: 0
