@@ -11,7 +11,7 @@ for scale in "${scales[@]}"; do
     for seed in "${seeds[@]}"; do
         for eta in "${etas[@]}"; do
             echo $seed
-            python run_simple_baslines.py \
+            python run_simple_baselines.py \
             --method dro \
             --gpu 1 \
             --filter-labels 2 4 \
