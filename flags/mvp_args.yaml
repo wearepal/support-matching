@@ -4,8 +4,8 @@ b_filter_labels: 2 4
 b_padding: 2
 #b_context_pcnt: 0.66666666
 b_subsample:
-        0: 0.5
-​
+    0: 0.5
+
 # --- flags that are used in clusetering and fdm
 b_background: False
 b_batch_size: 128
@@ -56,10 +56,8 @@ b_input_noise: True
 b_kl_weight: 1
 b_std_transform: exp
 b_log_freq: 50
-​
-​
-​
-​
+
+
 # ===== clustering flags =====
 c_encoder: "ae"
 c_enc_levels: 4
@@ -67,7 +65,7 @@ c_enc_epochs: 90
 c_cl_hidden_dims:
 c_epochs: 100
 c_method: "pl_enc_no_norm"
-​
+
 # --- encoder flags ---
 c_cluster: both
 c_cluster_label_file: ""
@@ -79,7 +77,7 @@ c_finetune_lr: 0.000001
 c_finetune_wd: 0
 c_freeze_layers: 0
 c_k_num: 5
-c_pseudo_labeler: "ranking"
+c_labeler: "ranking"
 c_lower_threshold: 0.5
 c_super_val: False
 c_super_val_freq: 0
@@ -87,12 +85,12 @@ c_super_val_freq: 0
 c_upper_threshold: 0.5
 #c_warmup_steps: 0
 c_with_supervision: True
-​
+
 # --- clustering flags ---
 #c_enc_path: /srv/galene0/pal/fair-dist-matching/experiments/finn/1590951542.6321526/encoder
-​
-​
-​
+
+
+
 # ===== disentangling flags =====
 d_three_way: False
 d_train_on_recon: True
@@ -103,7 +101,7 @@ d_pred_s_weight: 2
 d_zs_frac: 0.0469
 d_num_disc_updates: 3
 d_disc_hidden_dims: 256 256
-​
+
 # --- fdm args ---
 d_ae_epochs: 5
 #d_cluster_label_file: /srv/galene0/pal/fair-dist-matching/experiments/finn/1590954939.980953/cluster_results.pth
