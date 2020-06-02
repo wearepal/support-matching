@@ -35,7 +35,7 @@ class Method:
             loss = 0
             z = encoder(x)
             logits = classifier(z)
-            loss = torch.zeros(())
+
             if ce_weight:
                 ce_loss = classifier.apply_criterion(logits=logits, targets=class_id).mean()
                 loss += ce_loss
