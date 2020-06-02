@@ -80,6 +80,8 @@ class AutoEncoder(Encoder):
             use_wandb: bool = use_wandb_
 
         args = _Namespace()
+        enc_sched = torch.optim.lr_scheduler.StepLR(self.encoder.optimizer, 30, 0.1)
+        dec_sched = torch.optim.lr_scheduler.StepLR(self.decoder.optimizer, 30, 0.1)
         with tqdm(total=epochs * len(train_data)) as pbar:
             for _ in range(epochs):
 
@@ -88,17 +90,22 @@ class AutoEncoder(Encoder):
                     x = x.to(device)
 
                     self.zero_grad()
-                    _, loss, _ = self.routine(x)
+                    _, loss, logging_dict = self.routine(x)
                     # loss /= x[0].nelement()
 
                     loss.backward()
                     self.step()
 
-                    enc_loss = loss.detach().cpu().numpy()
+                    enc_loss = loss.item()
                     pbar.update()
                     pbar.set_postfix(AE_loss=enc_loss)
-                    step += 1
-                    wandb_log(args, {"enc_loss": enc_loss}, step)
+                    if use_wandb_:
+                        step += 1
+                        logging_dict.update({"loss": enc_loss})
+                        wandb_log(args, logging_dict, step)
+                enc_sched.step()
+                dec_sched.step()
+        print(f"Final result from encoder training: {logging_dict}")
 
     def routine(self, x: Tensor) -> Tuple[Tensor, Tensor, Dict[str, float]]:
         encoding = self.encode(x)
@@ -178,5 +185,5 @@ class VAE(AutoEncoder):
         recon_loss = self.recon_loss_fn(recon_all, x)
         recon_loss /= x.size(0)
         elbo = recon_loss + kl_div
-        logging_dict = {"Loss Reconstruction": recon_loss.item(), "KL divergence": kl_div}
+        logging_dict = {"Loss Reconstruction": recon_loss.item(), "KL divergence": kl_div.item()}
         return encoding, elbo, logging_dict
