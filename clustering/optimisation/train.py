@@ -280,6 +280,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
             epochs=ARGS.labeler_epochs,
             device=ARGS._device,
             use_wandb=ARGS.labeler_wandb,
+            test_data=val_loader,
         )
         labeler.eval()
         model = MultiHeadModel(
@@ -327,7 +328,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
         itr = train(model=model, context_data=context_loader, train_data=train_loader, epoch=epoch)
 
         if epoch % ARGS.val_freq == 0:
-            val_acc, val_log = validate(model, val_loader)
+            val_acc, val_log = validate(model, context_loader)  # val_loader
 
             if val_acc > best_acc:
                 best_acc = val_acc
@@ -353,7 +354,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
     LOGGER.info("Training has finished.")
     path = save_model(args, save_dir, model=model, epoch=epoch, sha=sha)
     model, _ = restore_model(args, path, model=model)
-    validate(model, val_loader)
+    validate(model, context_loader)  # val_loader)
     pth_path = save_results(ARGS, classify_dataset(ARGS, model, datasets.context), save_dir)
     return model, pth_path
 

@@ -20,6 +20,8 @@ encoder: vae
 epochs: 100
 lower-threshold: 0.3
 upper-threshold: 0.7
+# the encoder settings above do not seem to recreate this encoder
+enc-path: /its/home/tk324/dev/fair-dist-matching/experiments/finn/1591052263.8719523/encoder
 method: pl_enc_no_norm
 cl-hidden-dims: 30
 labeler-hidden-dims:

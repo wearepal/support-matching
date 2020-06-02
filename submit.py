@@ -9,35 +9,45 @@ from subprocess import run
 from time import sleep
 from typing import Dict, List, Union, Tuple
 
-BASE_CMD = "qsub -pe smpslots {} python.job {}"
+# BASE_CMD = "qsub -pe smpslots {} python.job {}"
+BASE_CMD = "python {}"
 SLOTS = 6
-SCRIPT = "run.py"
+SCRIPT = "run_cl.py"
 EMPTY_LIST: List[int] = []  # needed for type hints
 BASE_FLAGS: Dict[str, Union[str, int, float, bool, List[int]]] = dict(
-    dataset="cmnist",
-    enc_levels=4,
-    enc_chan=16,
-    recon_loss="l2",
-    encoder="ae",
-    kl_weight=1,
-    std_transform="exp",
-    log_freq=50,
-    filter_labels=[2, 4],
-    context_pcnt=0.66666666,
-    enc_epochs=90,
+    dataset="adult",
+    drop_native=True,
+    mixing_factor=0.0,
+    input_noise=False,
+    # ====== encoder ======,
+    enc_channels=35,
+    enc_epochs=100,
+    enc_lr=1e-2,
+    enc_levels=0,
+    recon_loss="mixed",
+    init_channels=61,
+    kl_weight=0.01,
+    # ===== clustering ====,
+    val_freq=100,
+    lr=1e-2,
+    use_multi_head=True,
+    encoder="vae",
     epochs=100,
     lower_threshold=0.3,
     upper_threshold=0.7,
-    enc_path="/mnt/data/tk324/fair-cluster-matching/experiments/finn/1590522332.9774063/encoder",
+    enc_path="/its/home/tk324/dev/fair-dist-matching/experiments/finn/1591052263.8719523/encoder",
+    gpu=-1,
 )
 OPTIONS: Dict[str, Union[List[str], List[int], List[float], List[bool], List[List[int]]]] = dict(
     method=["pl_enc_no_norm", "pl_output"],
     cl_hidden_dims=[[30], EMPTY_LIST],
+    labeler_hidden_dims=[[30], EMPTY_LIST],
     finetune_encoder=[True, False],
-    finetune_lr=[1e-6, 1e-5],
-    freeze_layers=[2, 3],
+    finetune_lr=[1e-5],
     lr=[1e-3, 1e-2],
     pseudo_labeler=["ranking", "cosine"],
+    weight_decay=[1e-4, 0],
+    k_num=[5, 3],
 )
 
 
@@ -49,7 +59,7 @@ def main():
     print(f"{len(option_dicts)} combinations.")
     for i, option_dict in enumerate(option_dicts, start=1):
         flags = {**BASE_FLAGS, **option_dict}
-        cmd = BASE_CMD.format(SLOTS, SCRIPT)
+        cmd = BASE_CMD.format(SCRIPT) # SLOTS, SCRIPT)
         for k, v in flags.items():
             cmd += f" --{k.replace('_', '-')}"
             if isinstance(v, str):
