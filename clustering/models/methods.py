@@ -1,6 +1,6 @@
 """Definition of loss and so on."""
 from abc import abstractmethod
-from typing import Tuple, Dict, Optional
+from typing import Tuple, Dict
 
 import torch
 from torch import Tensor, jit
