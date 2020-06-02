@@ -26,9 +26,14 @@ LoggingDict = Dict[str, float]
 class Method:
     @staticmethod
     def supervised_loss(
-        encoder: Encoder, classifier: Classifier, x: Tensor, class_id: Tensor, ce_weight: float = 1.0, bce_weight: float = 1
+        encoder: Encoder,
+        classifier: Classifier,
+        x: Tensor,
+        class_id: Tensor,
+        ce_weight: float = 1.0,
+        bce_weight: float = 1.0,
     ) -> Tuple[Tensor, LoggingDict]:
-        
+
         loss = torch.tensor(0.0, device=x.device)
         logging_dict = {}
 
