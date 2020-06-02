@@ -17,7 +17,7 @@ for scale in "${scales[@]}"; do
             --eta $eta \
             --seed $seed \
             --scale $scale \
-            --save-dir experiments/cmnist/10digits/$seed/$eta/$scale $@
+            --save-dir experiments/cmnist/baseline/dro/10digits/$seed/$eta/$scale $@
             sleep 1
         done
     done
