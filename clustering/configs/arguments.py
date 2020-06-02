@@ -85,7 +85,7 @@ class ClusterArgs(BaseArgs):
     #  Labeler
     labeler_lr: float = 1e-3
     labeler_wd: float = 0
-    labeler_hidden_dims = [100, 100]
+    labeler_hidden_dims: List[int] = [100, 100]
     labeler_epochs: int = 100
     labeler_wandb: bool = False
 
