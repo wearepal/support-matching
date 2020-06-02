@@ -32,9 +32,11 @@ class Model(nn.Module):
         self.pseudo_labeler = pseudo_labeler
         self.train_encoder = train_encoder
 
-    def supervised_loss(self, x: Tensor, y: Tensor, ce: bool = False) -> Tuple[Tensor, LoggingDict]:
+    def supervised_loss(
+        self, x: Tensor, class_id: Tensor, ce: bool = False
+    ) -> Tuple[Tensor, LoggingDict]:
         return self.method.supervised_loss(
-            encoder=self.encoder, classifier=self.classifier, x=x, y=y, ce=ce
+            encoder=self.encoder, classifier=self.classifier, x=x, class_id=class_id, ce=ce
         )
 
     def unsupervised_loss(self, x: Tensor) -> Tuple[Tensor, LoggingDict]:
@@ -95,7 +97,7 @@ class MultiHeadModel(nn.Module):
 
     def _split_by_label(
         self, x: Tensor, y: Optional[Tensor] = None
-    ) -> Iterator[Tuple[Tensor, Tensor]]:
+    ) -> Iterator[Tuple[Tensor, Tensor, Tensor]]:
         if y is None:
             with torch.no_grad():
                 y = self.labeler(x).argmax(dim=-1)
@@ -104,10 +106,15 @@ class MultiHeadModel(nn.Module):
             if len(mask.nonzero()) > 0:
                 yield x[mask], y[mask], mask
 
-    def supervised_loss(self, x: Tensor, y: Tensor, ce: bool = False) -> Tuple[Tensor, LoggingDict]:
+    def supervised_loss(
+        self, x: Tensor, class_id: Tensor, ce: bool = False
+    ) -> Tuple[Tensor, LoggingDict]:
+        raise RuntimeError("this is broken")
         loss = 0
-        for i, (x_i, y_i, _) in enumerate(self._split_by_label(x, y=y)):
-            loss_i, _ = self.method.supervised_loss(self.encoder, self.classifiers[i], x_i, y_i, ce=ce)
+        for i, (x_i, y_i, _) in enumerate(self._split_by_label(x, class_id=class_id)):
+            loss_i, _ = self.method.supervised_loss(
+                self.encoder, self.classifiers[i], x_i, y_i, ce=ce
+            )
             loss += loss_i
         return loss, {"Loss supervised": loss.item()}
 
