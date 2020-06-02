@@ -43,15 +43,15 @@ class Method:
             logits = classifier(z)
 
             if ce_weight:
-                ce_loss = classifier.apply_criterion(logits=logits, targets=class_id).mean()
-                loss += ce_loss * ce_weight
+                ce_loss = ce_weight * classifier.apply_criterion(logits=logits, targets=class_id).mean()
+                loss += ce_loss
                 logging_dict["Loss supervised (CE)"] = ce_loss.item()
             if bce_weight:
                 preds = F.softmax(logits, dim=-1)
                 label = (class_id.unsqueeze(1) == class_id).float()
                 mask = torch.ones_like(label)
-                bce_loss = _cosine_and_bce(preds, label, mask)
-                loss += bce_weight * bce_loss
+                bce_loss = bce_weight * _cosine_and_bce(preds, label, mask)
+                loss += bce_loss
                 logging_dict["Loss supervised (BCE)"] = bce_loss.item()
 
         return loss, logging_dict
