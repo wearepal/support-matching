@@ -195,8 +195,9 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
             assert args.encoder == args_encoder["encoder_type"]
             assert args.enc_levels == args_encoder["levels"]
     else:
+        enc_wandb = False
         encoder.fit(
-            enc_train_loader, epochs=args.enc_epochs, device=args._device, use_wandb=ARGS.use_wandb
+            enc_train_loader, epochs=args.enc_epochs, device=args._device, use_wandb=enc_wandb
         )
         if args.encoder == "rotnet":
             assert isinstance(encoder, SelfSupervised)
@@ -205,7 +206,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
         args_encoder = {"encoder_type": args.encoder, "levels": args.enc_levels}
         torch.save({"encoder": encoder.state_dict(), "args": args_encoder}, save_dir / "encoder")
         LOGGER.info("To make use of this encoder:\n--enc-path {}", save_dir.resolve() / "encoder")
-        if ARGS.use_wandb:
+        if enc_wandb:
             LOGGER.info("Stopping here because W&B will be messed up...")
             return
 
