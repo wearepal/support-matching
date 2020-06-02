@@ -9,16 +9,15 @@ for scale in "${scales[@]}"; do
     echo $scale
     for seed in "${seeds[@]}"; do
         echo $seed
-        qsub -pe smpslots $slots python-ot.job run_both.py @flags/cmnist_ae_2_digits.yaml \
+        qsub -pe smpslots $slots python-ot.job run_both.py @flags/pipeline_cmnist_2.yaml \
         --b-super-val-freq 20 \
         --b-super-val True \
-        --b-num-disc-updates 3 \
-        --b-disc-hidden 256 256 \
-        --b-warmup-steps 1000 \
+        --b-gpu 0 \
+        --c-use-wandb False \
         --b-seed $seed \
         --b-scale $scale \
         --d-results cmnist_2digits_$seed\_$scale.csv \
-        --b-save-dir experiments/cmnist/$seed/$scale $@
+        --b-save-dir experiments/cmnist/2digits/$seed/$scale $@
         sleep 1
     done
 done

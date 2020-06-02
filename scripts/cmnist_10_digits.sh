@@ -9,16 +9,19 @@ for scale in "${scales[@]}"; do
     echo $scale
     for seed in "${seeds[@]}"; do
         echo $seed
-        qsub -pe smpslots $slots python-ot.job run_both.py @flags/cmnist_ae_2_digits.yaml \
+        qsub -pe smpslots $slots python-ot.job run_both.py @flags/pipeline_cmnist_2.yaml \
+        --b-enc-channels 18 \
+        --b-filter-labels \
+        --d-zs-frac 0.05555 \
+        --b-subsample 0=0.3 1=0.4 2=0.5 3=0.6 4=0.7 5=0.8 6=0.9 \
         --b-super-val-freq 20 \
         --b-super-val True \
-        --b-num-disc-updates 3 \
-        --b-disc-hidden 256 256 \
-        --b-warmup-steps 1000 \
+        --gpu 0 \
+        --c-use-wandb False \
         --b-seed $seed \
         --b-scale $scale \
-        --d-results cmnist_2digits_$seed\_$scale.csv \
-        --b-save-dir experiments/cmnist/$seed/$scale $@
+        --d-results cmnist_10digits_$seed\_$scale.csv \
+        --b-save-dir experiments/cmnist/10digits/$seed/$scale $@
         sleep 1
     done
 done
