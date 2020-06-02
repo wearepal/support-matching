@@ -47,7 +47,7 @@ b_scale: 0.02
 b_seed: 42
 b_shift_data: False
 b_stochastic: False
-b_test_batch_size: []
+b_test_batch_size:
 b_test_pcnt: 0.2
 b_use_wandb: True
 b_val_freq: 5
