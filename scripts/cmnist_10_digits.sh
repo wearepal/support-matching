@@ -16,8 +16,7 @@ for scale in "${scales[@]}"; do
         --b-subsample 0=0.3 1=0.4 2=0.5 3=0.6 4=0.7 5=0.8 6=0.9 \
         --b-super-val-freq 20 \
         --b-super-val True \
-        --gpu 0 \
-        --c-use-wandb False \
+        --b-gpu 0 \
         --b-seed $seed \
         --b-scale $scale \
         --d-results cmnist_10digits_$seed\_$scale.csv \
