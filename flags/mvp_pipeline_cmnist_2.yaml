@@ -71,7 +71,7 @@ c_method: "pl_enc_no_norm"
 
 # --- encoder flags ---
 c_cluster: both
-c_cluster_label_file:
+c_cluster_label_file: ""
 c_enc_lr: 0.001
 c_enc_path:
 c_enc_wd: 0
