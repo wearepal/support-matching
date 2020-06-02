@@ -24,6 +24,7 @@ LoggingDict = Dict[str, float]
 
 
 class Method:
+
     @staticmethod
     def supervised_loss(
         encoder: Encoder,
