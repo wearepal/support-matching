@@ -1,6 +1,6 @@
 """Definition of loss and so on."""
 from abc import abstractmethod
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 
 import torch
 from torch import Tensor, jit
@@ -24,31 +24,22 @@ LoggingDict = Dict[str, float]
 
 
 class Method:
+    @staticmethod
     def supervised_loss(
-        self, encoder: Encoder, classifier: Classifier, x: Tensor, class_id: Tensor, ce: bool = True
+        encoder: Encoder, classifier: Classifier, x: Tensor, class_id: Tensor, bce_weight: float = 1
     ) -> Tuple[Tensor, LoggingDict]:
-        loss_fn = self._ce_loss if ce else self._bce_loss
-        return loss_fn(encoder=encoder, classifier=classifier, x=x, class_id=class_id)
-
-    @staticmethod
-    def _ce_loss(
-        encoder: Encoder, classifier: Classifier, x: Tensor, class_id: Tensor
-    ) -> Tuple[Tensor, LoggingDict]:
-        # default implementation
         z = encoder(x)
-        loss, _ = classifier.routine(z, class_id)
-        return loss, {"Loss supervised (CE)": loss.item()}
+        logits = classifier(z)
+        ce_loss = classifier.apply_criterion(logits=logits, targets=class_id).mean()
+        logging_dict = {"Loss supervised (CE)": ce_loss.item()}
+        if bce_weight > 0:
+            preds = F.softmax(logits, dim=-1)
+            label = (class_id.unsqueeze(1) == class_id).float()
+            mask = torch.ones_like(label)
+            bce_loss = _cosine_and_bce(preds, label, mask)
+            logging_dict["Loss supervised (BCE)"] = bce_loss.item()
 
-    @staticmethod
-    def _bce_loss(encoder: Encoder, classifier: Classifier, x: Tensor, class_id: Tensor):
-        z = encoder(x)
-        raw_preds = classifier(z)
-        # only do softmax but no real normalization
-        preds = F.softmax(raw_preds, dim=-1)
-        label = (class_id.unsqueeze(1) == class_id).float()
-        mask = torch.ones_like(label)
-        loss = _cosine_and_bce(preds, label, mask)
-        return loss, {"Loss supervised (BCE)": loss.item()}
+        return ce_loss + bce_loss, logging_dict
 
     @abstractmethod
     def unsupervised_loss(
@@ -76,6 +67,16 @@ class PseudoLabelEncNoNorm(Method):
         pseudo_label, mask = pseudo_labeler(z)  # base the pseudo labels on the encoding
         loss = _cosine_and_bce(preds, pseudo_label, mask)
         return loss, {"Loss unsupervised": loss.item()}
+
+    def _bce_loss(encoder: Encoder, classifier: Classifier, x: Tensor, class_id: Tensor):
+        z = encoder(x)
+        raw_preds = classifier(z)
+        # only do softmax but no real normalization
+        preds = F.softmax(raw_preds, dim=-1)
+        label = (class_id.unsqueeze(1) == class_id).float()
+        mask = torch.ones_like(label)
+        loss = _cosine_and_bce(preds, label, mask)
+        return loss, {"Loss supervised (BCE)": loss.item()}
 
 
 class PseudoLabelEnc(Method):
