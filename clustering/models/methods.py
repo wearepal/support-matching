@@ -24,7 +24,6 @@ LoggingDict = Dict[str, float]
 
 
 class Method:
-
     @staticmethod
     def supervised_loss(
         encoder: Encoder,
@@ -43,7 +42,9 @@ class Method:
             logits = classifier(z)
 
             if ce_weight:
-                ce_loss = ce_weight * classifier.apply_criterion(logits=logits, targets=class_id).mean()
+                ce_loss = (
+                    ce_weight * classifier.apply_criterion(logits=logits, targets=class_id).mean()
+                )
                 loss += ce_loss
                 logging_dict["Loss supervised (CE)"] = ce_loss.item()
             if bce_weight:
