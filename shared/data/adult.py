@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
-
 from ethicml.data import adult, load_data, Dataset
 from ethicml.preprocessing import (
     BalancedTestSplit,
@@ -14,6 +13,7 @@ from ethicml.preprocessing import (
 )
 from ethicml.utility import DataTuple
 from shared.configs import BaseArgs
+from ethicml.preprocessing.domain_adaptation import make_valid_variable_name, query_dt
 
 from .dataset_wrappers import DataTupleDataset
 
@@ -28,6 +28,57 @@ class DataTupleTriplet(NamedTuple):
     context: DataTuple
     test: DataTuple
     train: DataTuple
+
+
+def _random_split(data: DataTuple, first_pcnt: float, seed: int) -> Tuple[DataTuple, DataTuple]:
+    if len(data) == 0:
+        return data, data
+    splitter = ProportionalSplit(train_percentage=first_pcnt, start_seed=seed)
+    return splitter(data)[0:2]
+
+
+def get_invisible_demographics(
+    data: DataTuple, unbiased_pcnt: float, seed: int = 42, data_efficient: bool = True,
+) -> Tuple[DataTuple, DataTuple]:
+    """Split the given data into a biased subset and a normal subset.
+
+    The two subsets don't generally sum up to the whole set.
+
+    Args:
+        data: data in form of a DataTuple
+        unbiased_pcnt: how much of the data should be reserved for the unbiased subset
+        seed: random seed for the splitting
+        data_efficient: if True, try to keep as many data points as possible
+
+    Returns:
+        biased and unbiased dataset
+    """
+    assert 0 <= unbiased_pcnt <= 1, f"unbiased_pcnt: {unbiased_pcnt}"
+    s_name = data.s.columns[0]
+    y_name = data.y.columns[0]
+    s_name = make_valid_variable_name(s_name)
+    y_name = make_valid_variable_name(y_name)
+    s_values = np.unique(data.s.to_numpy())
+    y_values = np.unique(data.y.to_numpy())
+    s_0, s_1 = s_values
+    y_0, y_1 = s_values
+
+    normal_subset, for_biased_subset = _random_split(data, first_pcnt=unbiased_pcnt, seed=seed)
+
+    # two groups are missing (all males or all females)
+    # one_s_only = query_dt(
+    #    for_biased_subset, f"({s_name} == {s_1})"
+    # )
+    # one group is missing
+    one_s_only = query_dt(
+        for_biased_subset,
+        f"({s_name} == {s_0} & {y_name} == {y_0}) | ({s_name} == {s_0} & {y_name} == {y_1}) | ({s_name} == {s_1} & {y_name} == {y_1})",
+    )
+    print("ensuring that only one group is missing")
+
+    one_s_only = one_s_only.replace(name=f"{data.name})")
+    normal_subset = normal_subset.replace(name=f"{data.name})")
+    return one_s_only, normal_subset
 
 
 def load_adult_data(args: BaseArgs) -> Tuple[DataTupleDataset, DataTupleDataset, DataTupleDataset]:
@@ -77,9 +128,9 @@ def load_adult_data(args: BaseArgs) -> Tuple[DataTupleDataset, DataTupleDataset,
 def biased_split(args: BaseArgs, data: DataTuple) -> DataTupleTriplet:
     """Split the dataset such that the training set is biased."""
     if args.biased_train:
-        train_tuple, unbiased = get_biased_subset(
+        train_tuple, unbiased = get_invisible_demographics(  # get_biased_subset(
             data=data,
-            mixing_factor=args.mixing_factor,
+            # mixing_factor=args.mixing_factor,
             unbiased_pcnt=args.test_pcnt + args.context_pcnt,
             seed=args.data_split_seed,
             data_efficient=True,
