@@ -39,7 +39,7 @@ b_mixing_factor: 0
 b_num_workers:  4
 b_quant_level: 8
 b_results_csv: ""
-b_resume: []
+b_resume: ""
 b_root: ""
 b_rotate_data: False
 b_save_dir: experiments/finn
