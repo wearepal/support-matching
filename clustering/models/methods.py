@@ -68,16 +68,6 @@ class PseudoLabelEncNoNorm(Method):
         loss = _cosine_and_bce(preds, pseudo_label, mask)
         return loss, {"Loss unsupervised": loss.item()}
 
-    def _bce_loss(encoder: Encoder, classifier: Classifier, x: Tensor, class_id: Tensor):
-        z = encoder(x)
-        raw_preds = classifier(z)
-        # only do softmax but no real normalization
-        preds = F.softmax(raw_preds, dim=-1)
-        label = (class_id.unsqueeze(1) == class_id).float()
-        mask = torch.ones_like(label)
-        loss = _cosine_and_bce(preds, label, mask)
-        return loss, {"Loss supervised (BCE)": loss.item()}
-
 
 class PseudoLabelEnc(Method):
     """Base the pseudo labels on the encodings."""
