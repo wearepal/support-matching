@@ -44,7 +44,7 @@ class Method:
 
             if ce_weight:
                 ce_loss = classifier.apply_criterion(logits=logits, targets=class_id).mean()
-                loss += ce_loss
+                loss += ce_loss * ce_weight
                 logging_dict["Loss supervised (CE)"] = ce_loss.item()
             if bce_weight:
                 preds = F.softmax(logits, dim=-1)
