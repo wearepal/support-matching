@@ -32,9 +32,9 @@ class Model(nn.Module):
         self.pseudo_labeler = pseudo_labeler
         self.train_encoder = train_encoder
 
-    def supervised_loss(self, x: Tensor, y: Tensor) -> Tuple[Tensor, LoggingDict]:
+    def supervised_loss(self, x: Tensor, y: Tensor, ce: bool = False) -> Tuple[Tensor, LoggingDict]:
         return self.method.supervised_loss(
-            encoder=self.encoder, classifier=self.classifier, x=x, y=y
+            encoder=self.encoder, classifier=self.classifier, x=x, y=y, ce=ce
         )
 
     def unsupervised_loss(self, x: Tensor) -> Tuple[Tensor, LoggingDict]:
@@ -104,10 +104,10 @@ class MultiHeadModel(nn.Module):
             if len(mask.nonzero()) > 0:
                 yield x[mask], y[mask], mask
 
-    def supervised_loss(self, x: Tensor, y: Tensor) -> Tuple[Tensor, LoggingDict]:
+    def supervised_loss(self, x: Tensor, y: Tensor, ce: bool = False) -> Tuple[Tensor, LoggingDict]:
         loss = 0
         for i, (x_i, y_i, _) in enumerate(self._split_by_label(x, y=y)):
-            loss_i, _ = self.method.supervised_loss(self.encoder, self.classifiers[i], x_i, y_i)
+            loss_i, _ = self.method.supervised_loss(self.encoder, self.classifiers[i], x_i, y_i, ce=ce)
             loss += loss_i
         return loss, {"Loss supervised": loss.item()}
 

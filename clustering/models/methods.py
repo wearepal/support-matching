@@ -24,14 +24,33 @@ LoggingDict = Dict[str, float]
 
 
 class Method:
-    @staticmethod
+
     def supervised_loss(
+        self, encoder: Encoder, classifier: Classifier, x: Tensor, y: Tensor, ce: bool = True
+    ) -> Tuple[Tensor, LoggingDict]:
+        loss_fn = self._ce_loss if ce else self._bce_loss
+        return loss_fn(encoder=encoder, classifier=classifier, x=x, y=y)
+
+    @staticmethod
+    def _ce_loss(
         encoder: Encoder, classifier: Classifier, x: Tensor, y: Tensor
     ) -> Tuple[Tensor, LoggingDict]:
         # default implementation
         z = encoder(x)
         loss, _ = classifier.routine(z, y)
-        return loss, {"Classification Loss": loss.item()}
+        return loss, {"Loss supervised (CE)": loss.item()}
+
+    @staticmethod
+    def _bce_loss(encoder: Encoder, classifier: Classifier, x: Tensor, y: Tensor):
+        z = encoder(x)
+        raw_preds = classifier(z)
+        # only do softmax but no real normalization
+        preds = F.softmax(raw_preds, dim=-1)
+        label = y.unsqueeze(1) == y
+        mask = torch.ones_like(label)
+        loss = _cosine_and_bce(preds, label, mask)
+        return loss, {"Loss supervised (BCE)": loss.item()}
+
 
     @abstractmethod
     def unsupervised_loss(

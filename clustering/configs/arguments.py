@@ -65,6 +65,7 @@ class ClusterArgs(BaseArgs):
 
     # PseudoLabeler
     pseudo_labeler: Literal["ranking", "cosine"] = "ranking"
+    ce_loss: bool
     k_num: int = 5
     lower_threshold: float = 0.5
     upper_threshold: float = 0.5
