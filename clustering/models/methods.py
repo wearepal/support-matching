@@ -30,16 +30,17 @@ class Method:
     ) -> Tuple[Tensor, LoggingDict]:
         z = encoder(x)
         logits = classifier(z)
-        ce_loss = classifier.apply_criterion(logits=logits, targets=class_id).mean()
-        logging_dict = {"Loss supervised (CE)": ce_loss.item()}
+        loss = classifier.apply_criterion(logits=logits, targets=class_id).mean()
+        logging_dict = {"Loss supervised (CE)": loss.item()}
         if bce_weight > 0:
             preds = F.softmax(logits, dim=-1)
             label = (class_id.unsqueeze(1) == class_id).float()
             mask = torch.ones_like(label)
             bce_loss = _cosine_and_bce(preds, label, mask)
+            loss += bce_weight * bce_loss
             logging_dict["Loss supervised (BCE)"] = bce_loss.item()
 
-        return ce_loss + bce_loss, logging_dict
+        return loss, logging_dict
 
     @abstractmethod
     def unsupervised_loss(
