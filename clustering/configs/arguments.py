@@ -70,7 +70,7 @@ class ClusterArgs(BaseArgs):
     upper_threshold: float = 0.5
 
     # Classifier
-    cl_hidden_dims: List[int] = [256]
+    cl_hidden_dims: List[int] = [100, 100]
     lr: float = 1e-3
     weight_decay: float = 0
     use_multi_head: bool = False
