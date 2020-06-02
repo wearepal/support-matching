@@ -205,8 +205,6 @@ class Classifier(ModelBase):
                 avg_test_acc /= len(test_data)
 
                 pbar.set_postfix(epoch=epoch + 1, avg_test_acc=avg_test_acc)
-            else:
-                pbar.set_postfix(epoch=epoch + 1)
 
             if scheduler is not None:
                 scheduler.step(epoch)
