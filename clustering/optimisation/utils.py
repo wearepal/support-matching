@@ -19,6 +19,7 @@ __all__ = [
     "restore_model",
     "count_occurances",
     "find_assignment",
+    "get_class_id",
 ]
 
 
@@ -85,12 +86,7 @@ def count_occurances(
 
     All possible combinations are accounted for.
     """
-    if to_cluster == "s":
-        class_id = s
-    elif to_cluster == "y":
-        class_id = y
-    else:
-        class_id = y * s_count + s
+    class_id = get_class_id(s=s, y=y, s_count=s_count, to_cluster=to_cluster)
     indices, batch_counts = np.unique(
         np.stack([class_id.numpy().astype(np.int64), preds]), axis=1, return_counts=True
     )
@@ -112,3 +108,15 @@ def find_assignment(
         "class ID -> cluster ID": ", ".join(assignment),
     }
     return best_acc, col_ind, logging_dict
+
+
+def get_class_id(
+    *, s: Tensor, y: Tensor, s_count: int, to_cluster: Literal["s", "y", "both"]
+) -> Tensor:
+    if to_cluster == "s":
+        class_id = s
+    elif to_cluster == "y":
+        class_id = y
+    else:
+        class_id = y * s_count + s
+    return class_id
