@@ -24,31 +24,38 @@ LoggingDict = Dict[str, float]
 
 
 class Method:
+    @staticmethod
     def supervised_loss(
-        self, encoder: Encoder, classifier: Classifier, x: Tensor, class_id: Tensor, ce: bool = True
+        encoder: Encoder,
+        classifier: Classifier,
+        x: Tensor,
+        class_id: Tensor,
+        ce_weight: float = 1.0,
+        bce_weight: float = 1.0,
     ) -> Tuple[Tensor, LoggingDict]:
-        loss_fn = self._ce_loss if ce else self._bce_loss
-        return loss_fn(encoder=encoder, classifier=classifier, x=x, class_id=class_id)
 
-    @staticmethod
-    def _ce_loss(
-        encoder: Encoder, classifier: Classifier, x: Tensor, class_id: Tensor
-    ) -> Tuple[Tensor, LoggingDict]:
-        # default implementation
-        z = encoder(x)
-        loss, _ = classifier.routine(z, class_id)
-        return loss, {"Loss supervised (CE)": loss.item()}
+        loss = torch.tensor(0.0, device=x.device)
+        logging_dict = {}
 
-    @staticmethod
-    def _bce_loss(encoder: Encoder, classifier: Classifier, x: Tensor, class_id: Tensor):
-        z = encoder(x)
-        raw_preds = classifier(z)
-        # only do softmax but no real normalization
-        preds = F.softmax(raw_preds, dim=-1)
-        label = (class_id.unsqueeze(1) == class_id).float()
-        mask = torch.ones_like(label)
-        loss = _cosine_and_bce(preds, label, mask)
-        return loss, {"Loss supervised (BCE)": loss.item()}
+        if ce_weight or bce_weight:
+            z = encoder(x)
+            logits = classifier(z)
+
+            if ce_weight:
+                ce_loss = (
+                    ce_weight * classifier.apply_criterion(logits=logits, targets=class_id).mean()
+                )
+                loss += ce_loss
+                logging_dict["Loss supervised (CE)"] = ce_loss.item()
+            if bce_weight:
+                preds = F.softmax(logits, dim=-1)
+                label = (class_id.unsqueeze(1) == class_id).float()
+                mask = torch.ones_like(label)
+                bce_loss = bce_weight * _cosine_and_bce(preds, label, mask)
+                loss += bce_loss
+                logging_dict["Loss supervised (BCE)"] = bce_loss.item()
+
+        return loss, logging_dict
 
     @abstractmethod
     def unsupervised_loss(

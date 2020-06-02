@@ -33,10 +33,15 @@ class Model(nn.Module):
         self.train_encoder = train_encoder
 
     def supervised_loss(
-        self, x: Tensor, class_id: Tensor, ce: bool = False
+        self, x: Tensor, class_id: Tensor, ce_weight: float = 1.0, bce_weight: float = 1.0
     ) -> Tuple[Tensor, LoggingDict]:
         return self.method.supervised_loss(
-            encoder=self.encoder, classifier=self.classifier, x=x, class_id=class_id, ce=ce
+            encoder=self.encoder,
+            classifier=self.classifier,
+            x=x,
+            class_id=class_id,
+            ce_weight=ce_weight,
+            bce_weight=bce_weight,
         )
 
     def unsupervised_loss(self, x: Tensor) -> Tuple[Tensor, LoggingDict]:

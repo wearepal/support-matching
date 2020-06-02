@@ -377,7 +377,9 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
 
         if ARGS.with_supervision and not ARGS.use_multi_head:
             class_id = get_class_id(s=s_t, y=y_t, s_count=s_count, to_cluster=ARGS.cluster)
-            loss_sup, logging_sup = model.supervised_loss(x_t, class_id, ARGS.ce_loss)
+            loss_sup, logging_sup = model.supervised_loss(
+                x_t, class_id, ce_weight=ARGS.sup_ce_weight, bce_weight=ARGS.sup_bce_weight
+            )
         else:
             loss_sup = x_t.new_zeros(())
             logging_sup = {}
