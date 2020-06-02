@@ -16,11 +16,6 @@ class ClusterArgs(BaseArgs):
     test_batch_size: Optional[int] = None
     num_workers: int = 4
     seed: int = 42
-    warmup_steps: int = 0
-    distinguish_warmup: bool = False
-    gamma: float = 1.0  # Gamma value for Exponential Learning Rate scheduler.
-    train_on_recon: bool = False  # whether to train the discriminator on recons or encodings
-    recon_detach: bool = True  # Whether to apply the stop gradient operator to the reconstruction.
     eval_on_recon: bool = True
 
     # Evaluation settings
