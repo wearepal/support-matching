@@ -121,19 +121,19 @@ d_disc_lr: 0.001
 d_disc_reset_prob: 0
 d_distinguish_weight: 1
 d_epochs: 250
-d_inn_batch_norm: false
+d_inn_batch_norm: False
 d_inn_bn_lag: 0
 d_inn_coupling_channels: 256
 d_inn_coupling_depth: 1
-d_inn_glow: true
-d_inn_idf: false
+d_inn_glow: True
+d_inn_idf: False
 d_inn_level_depth: 1
 d_inn_levels: 1
 d_inn_lr: 0.0003
-d_inn_oxbow_net: false
-d_inn_reshape_method: squeeze
-d_inn_scaling: sigmoid0.5
-d_inn_spectral_norm: false
+d_inn_oxbow_net: False
+d_inn_reshape_method: "squeeze"
+d_inn_scaling: "sigmoid0.5"
+d_inn_spectral_norm: False
 d_nll_weight: 0.01
 d_num_discs: 1
 d_path_to_ae:
@@ -141,6 +141,6 @@ d_pred_weight: 1
 d_recon_stability_weight: 0
 d_super_val: True
 d_super_val_freq: 20
-d_three_way_split: false
-d_use_inn: false
+d_three_way_split: False
+d_use_inn: False
 d_warmup_steps: 1000
