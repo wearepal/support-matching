@@ -29,7 +29,7 @@ class Method:
         encoder: Encoder, classifier: Classifier, x: Tensor, class_id: Tensor, ce_weight: float = 1.0, bce_weight: float = 1
     ) -> Tuple[Tensor, LoggingDict]:
         
-        loss = torch.tensor(0.0, device=x.dtype)
+        loss = torch.tensor(0.0, device=x.device)
         logging_dict = {}
 
         if ce_weight or bce_weight:
