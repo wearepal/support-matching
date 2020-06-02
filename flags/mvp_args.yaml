@@ -1,0 +1,139 @@
+# ===== dataset flags =====
+b_dataset: "cmnist"
+b_filter_labels: 2 4
+b_padding: 2
+#b_context_pcnt: 0.66666666
+b_subsample:
+        0: 0.5
+​
+# --- flags that are used in clusetering and fdm
+b_background: False
+b_batch_size: 128
+b_biased_train: True
+b_binarize: True
+b_black: True
+b_celeba_sens_attr: Male
+b_celeba_target_attr: Smiling
+b_color_correlation: 1
+b_context_pcnt: 0.6667
+b_data_pcnt: 1
+b_data_split_seed: 888
+b_drop_discrete: False
+b_drop_native: True
+b_early_stopping: 30
+b_elbo_weight: 1
+b_enc_channels: 16
+b_encode_batch_size: 1000
+b_eval_epochs: 40
+b_eval_lr: 0.001
+b_eval_on_recon: True
+b_evaluate: False
+b_recon_loss: l2
+b_feat_attr: False
+b_genfaces_sens_attr: "gender"
+b_genfaces_target_attr: "emotion"
+b_gpu: 0
+b_greyscale: False
+b_lr: 0.001
+b_mixing_factor: 0
+b_num_workers:  4
+b_quant_level: 8
+b_results_csv: ""
+b_root: ""
+b_rotate_data: False
+b_save_dir: experiments/finn
+b_scale: 0.02
+b_seed: 42
+b_shift_data: False
+b_stochastic: False
+b_test_pcnt: 0.2
+b_use_wandb: True
+b_val_freq: 5
+b_vgg_weight: 0
+b_weight_decay: 0
+b_init_channels: 32
+b_input_noise: True
+b_kl_weight: 1
+b_std_transform: exp
+b_log_freq: 50
+​
+​
+​
+​
+# ===== clustering flags =====
+c_encoder: "ae"
+c_enc_levels: 4
+c_enc_epochs: 90
+c_cl_hidden_dims:
+c_epochs: 100
+c_method: "pl_enc_no_norm"
+​
+# --- encoder flags ---
+c_cluster: both
+c_cluster_label_file: ""
+c_enc_lr: 0.001
+c_enc_path: ""
+c_enc_wd: 0
+c_finetune_encoder: False
+c_finetune_lr: 0.000001
+c_finetune_wd: 0
+c_freeze_layers: 0
+c_k_num: 5
+c_pseudo_labeler: "ranking"
+c_lower_threshold: 0.5
+c_super_val: False
+c_super_val_freq: 0
+#c_train_on_recon: False
+c_upper_threshold: 0.5
+#c_warmup_steps: 0
+c_with_supervision: True
+​
+# --- clustering flags ---
+#c_enc_path: /srv/galene0/pal/fair-dist-matching/experiments/finn/1590951542.6321526/encoder
+​
+​
+​
+# ===== disentangling flags =====
+d_three_way: False
+d_train_on_recon: True
+d_levels: 4
+d_vae: False
+d_pred_s_weight: 2
+# this makes zs channels be 1
+d_zs_frac: 0.0469
+d_num_disc_updates: 3
+d_disc_hidden_dims: 256 256
+​
+# --- fdm args ---
+d_ae_epochs: 5
+#d_cluster_label_file: /srv/galene0/pal/fair-dist-matching/experiments/finn/1590954939.980953/cluster_results.pth
+d_disc_lr: 0.001
+d_disc_reset_prob: 0
+d_distinguish_warmup: False
+d_distinguish_weight: 1
+d_epochs: 250
+d_gamma: 1
+d_inn_batch_norm: False
+d_inn_bn_lag: 0
+d_inn_coupling_channels: 256
+d_inn_coupling_depth: 1
+d_inn_glow: True
+d_inn_idf: False
+d_inn_level_depth: 1
+d_inn_levels: 1
+d_inn_lr: 0.0003
+d_inn_oxbow_net: False
+d_inn_reshape_method: "squeeze"
+d_inn_scaling: "sigmoid0.5"
+d_inn_spectral_norm: False
+d_nll_weight: 0.01
+d_num_discs: 1
+d_path_to_ae: ""
+d_pred_weight: 1
+d_recon_detach: True
+d_recon_stability_weight: 0
+d_super_val: True
+d_super_val_freq: 20
+d_three_way_split: False
+d_use_inn: False
+d_warmup_steps: 1000
