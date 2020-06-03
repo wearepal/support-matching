@@ -1,5 +1,6 @@
 """Functions related to saving and loading results."""
 from pathlib import Path
+from typing import Any, Dict, Tuple
 
 import torch
 
@@ -25,21 +26,22 @@ def save_results(args: BaseArgs, cluster_ids: torch.Tensor, results_dir: Path) -
     return save_path
 
 
-def load_results(args: BaseArgs) -> torch.Tensor:
+def load_results(args: BaseArgs, check: bool = True) -> Tuple[torch.Tensor, Dict[str, Any]]:
     """Load a tensor from a file."""
     data = torch.load(args.cluster_label_file, map_location=torch.device("cpu"))
-    saved_args = data["args"]
-    assert saved_args["dataset"] == args.dataset, f'{saved_args["dataset"]} != {args.dataset}'
-    assert (
-        saved_args["data_pcnt"] == args.data_pcnt
-    ), f'{saved_args["data_pcnt"]} != {args.data_pcnt}'
-    assert (
-        saved_args["data_split_seed"] == args.data_split_seed
-    ), f'{saved_args["data_split_seed"]} != {args.data_split_seed}'
-    assert (
-        saved_args["context_pcnt"] == args.context_pcnt
-    ), f'{saved_args["context_pcnt"]} != {args.context_pcnt}'
-    assert (
-        saved_args["test_pcnt"] == args.test_pcnt
-    ), f'{saved_args["test_pcnt"]} != {args.test_pcnt}'
-    return data["cluster_ids"]
+    if check:
+        saved_args = data["args"]
+        assert saved_args["dataset"] == args.dataset, f'{saved_args["dataset"]} != {args.dataset}'
+        assert (
+            saved_args["data_pcnt"] == args.data_pcnt
+        ), f'{saved_args["data_pcnt"]} != {args.data_pcnt}'
+        assert (
+            saved_args["data_split_seed"] == args.data_split_seed
+        ), f'{saved_args["data_split_seed"]} != {args.data_split_seed}'
+        assert (
+            saved_args["context_pcnt"] == args.context_pcnt
+        ), f'{saved_args["context_pcnt"]} != {args.context_pcnt}'
+        assert (
+            saved_args["test_pcnt"] == args.test_pcnt
+        ), f'{saved_args["test_pcnt"]} != {args.test_pcnt}'
+    return data["cluster_ids"], data["args"]
