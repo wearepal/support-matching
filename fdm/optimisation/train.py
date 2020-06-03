@@ -107,7 +107,7 @@ def main(
     dataloader_args: Dict[str, Any]
 
     if ARGS.cluster_label_file:
-        cluster_ids = load_results(ARGS)
+        cluster_ids, _ = load_results(ARGS)
         weights, n_clusters, min_count = weight_for_balance(cluster_ids)
         # we subsample the larger clusters rather than supersample the smaller clusters
         sample_with_replacement = False
