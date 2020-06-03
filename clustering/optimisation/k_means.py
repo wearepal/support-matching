@@ -33,7 +33,7 @@ def train(
     )
     # preds, _ = run_kmeans_torch(encoded, num_clusters, device=args._device, n_iter=args.epochs, verbose=True)
     counts = np.zeros((num_clusters, num_clusters), dtype=np.int64)
-    counts = count_occurances(counts, preds.cpu().numpy(), s, y, s_count, args.cluster)
+    counts, _ = count_occurances(counts, preds.cpu().numpy(), s, y, s_count, args.cluster)
     _, _, logging_dict = find_assignment(counts, preds.size(0))
     prepared = (
         f"{k}: {v:.5g}" if isinstance(v, float) else f"{k}: {v}" for k, v in logging_dict.items()
