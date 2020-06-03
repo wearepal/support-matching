@@ -61,7 +61,7 @@ def get_invisible_demographics(
     s_values = np.unique(data.s.to_numpy())
     y_values = np.unique(data.y.to_numpy())
     s_0, s_1 = s_values
-    y_0, y_1 = s_values
+    y_0, y_1 = y_values
 
     normal_subset, for_biased_subset = _random_split(data, first_pcnt=unbiased_pcnt, seed=seed)
 
@@ -72,7 +72,8 @@ def get_invisible_demographics(
     # one group is missing
     one_s_only = query_dt(
         for_biased_subset,
-        f"({s_name} == {s_0} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_1})",
+        # f"({s_name} == {s_0} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_1})",
+        f"({s_name} == {s_1} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_1})",
     )
     print("ensuring that only one group is missing")
 
