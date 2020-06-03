@@ -2,7 +2,7 @@ from typing import Dict, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
-from torch import Tensor
+from torch import Tensor, nn
 from torch.nn.modules.loss import _Loss
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader, Dataset
@@ -61,7 +61,13 @@ class Classifier(ModelBase):
                 return F.cross_entropy(logits, targets, reduction="none")
             else:
                 raise NotImplementedError("Only 'bce' and 'ce' losses are implemented using str.")
-        return self.criterion(logits, targets.float())
+        elif isinstance(self.criterion, nn.BCEWithLogitsLoss):
+            if targets.dtype != torch.float32:
+                targets = targets.float()
+            logits = logits.view(-1, 1)
+            targets = targets.view(-1, 1)
+            return F.binary_cross_entropy_with_logits(logits, targets, reduction="none")
+        return self.criterion(logits, targets)
 
     def predict(self, inputs: Tensor, top: int = 1) -> Tensor:
         """Make prediction.
