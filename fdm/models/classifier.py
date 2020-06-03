@@ -67,7 +67,9 @@ class Classifier(ModelBase):
             logits = logits.view(-1, 1)
             targets = targets.view(-1, 1)
             return F.binary_cross_entropy_with_logits(logits, targets, reduction="none")
-        return self.criterion(logits, targets)
+        else:
+            raise NotImplementedError()
+        # return self.criterion(logits, targets)
 
     def predict(self, inputs: Tensor, top: int = 1) -> Tensor:
         """Make prediction.
