@@ -2,6 +2,7 @@
 b_dataset: "cmnist"
 b_filter_labels: 2 4
 b_padding: 2
+b_missing_s: 0
 #b_context_pcnt: 0.66666666
 b_subsample:
     0: 0.5
