@@ -621,7 +621,6 @@ def update(
             }
         )
 
-
     disc_loss_distinguish = x_t.new_zeros(())
     if ARGS.three_way_split and (not ARGS.distinguish_warmup or disc_weight != 0):
         disc_input_y = get_disc_input(ae.generator, encoding, invariant_to="y")
