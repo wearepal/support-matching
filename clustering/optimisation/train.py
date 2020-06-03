@@ -432,7 +432,7 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
         total_loss_meter.avg,
     )
 
-    if epoch == 1 or epoch == (ARGS.epochs + 1):
+    if epoch == 1 or epoch == ARGS.epochs:
         LOGGER.info(f"Computing pseudo-label accuracy.")
         context_data_t = DataLoader(
             context_data.dataset,
