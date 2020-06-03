@@ -431,7 +431,7 @@ def train(
         if components.type == "ae":
             update_disc(x_c, x_t, components, itr < ARGS.warmup_steps)
             gen_loss, logging_dict = update(
-                x_c=x_c, x_t=x_t, s_t=s_t, y_t=y_t, ae=components, disc_weight=disc_weight
+                x_c=x_c, x_t=x_t, s_t=s_t, y_t=y_t, ae=components, warmup=itr < ARGS.warmup_steps
             )
         else:
             update_disc_on_inn(ARGS, x_c, x_t, components, itr < ARGS.warmup_steps)
@@ -554,13 +554,15 @@ def update_disc(
 
 
 def update(
-    x_c: Tensor, x_t: Tensor, s_t: Tensor, y_t: Tensor, ae: AeComponents, disc_weight: float,
+    x_c: Tensor, x_t: Tensor, s_t: Tensor, y_t: Tensor, ae: AeComponents, warmup: bool,
 ) -> Tuple[Tensor, Dict[str, float]]:
     """Compute all losses.
 
     Args:
         x_t: x from the training set
     """
+    disc_weight = 0.0 if warmup else ARGS.disc_weight
+    pred_weight = 0.0 if warmup else ARGS.pred_weight
     # Compute losses for the generator.
     ae.discriminator.eval()
     if ae.disc_distinguish is not None:
@@ -589,21 +591,32 @@ def update(
     disc_loss, disc_acc_inv_s = ae.discriminator.routine(disc_input_no_s, zeros)
 
     pred_loss = x_t.new_zeros(())
-    if ARGS.pred_weight > 0:
+    if pred_weight > 0:
         # predict y from the part that is invariant to s
         pred_y_loss, pred_y_acc = ae.predictor_y.routine(disc_input_no_s, y_t)
         # predict s from the part that is invariant to y
         disc_input_no_y = get_disc_input(ae.generator, encoding, invariant_to="y")
         pred_s_loss, pred_s_acc = ae.predictor_s.routine(disc_input_no_y, s_t)
-        pred_y_loss *= ARGS.pred_weight
-        pred_s_loss *= ARGS.pred_weight
+        pred_y_loss = pred_y_loss.clamp(max=1.0) * pred_weight
+        pred_s_loss = pred_s_loss.clamp(max=1.0) * pred_weight
         pred_loss = pred_y_loss + pred_s_loss
-        logging_dict.update({
-            "Loss Predictor y": pred_y_loss.item(),
-            "Loss Predictor s": pred_s_loss.item(),
-            "Accuracy Predictor y": pred_y_acc,
-            "Accuracy Predictor s": pred_s_acc,
-        })
+        logging_dict.update(
+            {
+                "Loss Predictor y": pred_y_loss.item(),
+                "Loss Predictor s": pred_s_loss.item(),
+                "Accuracy Predictor y": pred_y_acc,
+                "Accuracy Predictor s": pred_s_acc,
+            }
+        )
+    else:
+        logging_dict.update(
+            {
+                "Loss Predictor y": 0.0,
+                "Loss Predictor s": 0.0,
+                "Accuracy Predictor y": 0.0,
+                "Accuracy Predictor s": 0.0,
+            }
+        )
 
     disc_loss_distinguish = x_t.new_zeros(())
     if ARGS.three_way_split and (not ARGS.distinguish_warmup or disc_weight != 0):
@@ -637,12 +650,12 @@ def update(
 
     # Update the generator's parameters
     ae.generator.zero_grad()
-    if ARGS.pred_weight > 0:
+    if pred_weight > 0:
         ae.predictor_y.zero_grad()
         ae.predictor_s.zero_grad()
     gen_loss.backward()
     ae.generator.step()
-    if ARGS.pred_weight > 0:
+    if pred_weight > 0:
         ae.predictor_y.step()
         ae.predictor_s.step()
 
