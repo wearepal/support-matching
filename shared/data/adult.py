@@ -66,9 +66,7 @@ def get_invisible_demographics(
     normal_subset, for_biased_subset = _random_split(data, first_pcnt=unbiased_pcnt, seed=seed)
 
     # two groups are missing (all males or all females)
-    one_s_only = query_dt(
-       for_biased_subset, f"({s_name} == {s_1})"
-    )
+    one_s_only = query_dt(for_biased_subset, f"({s_name} == {s_1})")
     # one group is missing
     # one_s_only = query_dt(
     #     for_biased_subset,

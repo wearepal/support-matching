@@ -358,6 +358,17 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
     return model, pth_path
 
 
+def compute_clustering_acc(pseudo_labels, labels, y, s, y_cond, s_cond, pl_cond):
+    p_inds = pseudo_labels == pl_cond
+    # p_inds = pseudo_labels == pseudo_labels
+    label_inds = (y.unsqueeze(-1) == y_cond) & (s.unsqueeze(-1) == s_cond)
+    mask: Tensor = (p_inds & label_inds).fill_diagonal_(False)
+    denom = mask.float().sum()
+    acc = (pseudo_labels[mask] == labels[mask]).float().sum() / denom
+    LOGGER.info(f"s={s_cond}, y={y_cond}, pseudo_label={pl_cond}: {acc.item():.4f}")
+    return acc.item(), denom
+
+
 def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch: int) -> int:
     total_loss_meter = AverageMeter()
     loss_meters: Optional[Dict[str, AverageMeter]] = None
@@ -383,9 +394,11 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
         else:
             loss_sup = x_t.new_zeros(())
             logging_sup = {}
-            
+
         class_id = get_class_id(s=s_c, y=y_c, s_count=s_count, to_cluster=ARGS.cluster)
-        loss_unsup, logging_unsup = model.supervised_loss(x_c, class_id, ce_weight=0.0, bce_weight=1)
+        loss_unsup, logging_unsup = model.supervised_loss(
+            x_c, class_id, ce_weight=0.0, bce_weight=1
+        )
         loss = loss_sup + loss_unsup
 
         model.zero_grad()
@@ -405,7 +418,7 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
 
         wandb_log(ARGS, logging_dict, step=itr)
         end = time.time()
-
+        break
     time_for_epoch = time.time() - start_epoch_time
     assert loss_meters is not None
     log_string = " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items())
@@ -417,6 +430,35 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
         log_string,
         total_loss_meter.avg,
     )
+
+    if epoch == 1 or epoch == (ARGS.epochs + 1):
+        LOGGER.info(f"Computing pseudo-label accuracy.")
+        context_data_t = DataLoader(
+            context_data.dataset,
+            batch_size=min(len(context_data.dataset), 10000),
+            pin_memory=True,
+            shuffle=True,
+        )
+        for x, y, s in context_data_t:
+            z = model.encoder(x)
+            pseudo_labels = model.pseudo_labeler(z)[0]
+            class_id = get_class_id(s=s, y=y, s_count=s_count, to_cluster="both")
+            labels = (((y.unsqueeze(-1) == y) & (s.unsqueeze(-1) == s))).float()
+
+            for pl_cond in [0, 1]:
+                for s_cond in ARGS._s_dim if ARGS._s_dim > 1 else [0, 1]:
+                    for y_cond in ARGS._y_dim if ARGS._y_dim > 1 else [0, 1]:
+                        compute_clustering_acc(
+                            pseudo_labels=pseudo_labels,
+                            labels=labels,
+                            y=y,
+                            s=s,
+                            y_cond=y_cond,
+                            s_cond=s_cond,
+                            pl_cond=pl_cond,
+                        )
+            break
+
     return itr
 
 
