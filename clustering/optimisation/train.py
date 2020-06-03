@@ -383,7 +383,17 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
         else:
             loss_sup = x_t.new_zeros(())
             logging_sup = {}
-        loss_unsup, logging_unsup = model.unsupervised_loss(x_c)
+        
+        if epoch == ARGS.reinforcement_warmup and ARGS.reinforcment_weight:
+            LOGGER.info(
+                f"Enabling reinforcement loss after {ARGS.reinforcement_warmup} epochs of warmup"
+                )
+        loss_unsup, logging_unsup = model.unsupervised_loss(
+            x_c,
+            reinforcement_weight=ARGS.reinforcment_weight
+            if epoch >= ARGS.reinforcement_warmup
+            else 0.0,
+        )
         loss = loss_sup + loss_unsup
 
         model.zero_grad()

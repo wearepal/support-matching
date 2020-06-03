@@ -74,15 +74,24 @@ class PseudoLabelEncNoNorm(Method):
 
     @staticmethod
     def unsupervised_loss(
-        encoder: Encoder, pseudo_labeler: PseudoLabeler, classifier: Classifier, x: Tensor
+        encoder: Encoder, pseudo_labeler: PseudoLabeler, classifier: Classifier, x: Tensor, reinforcement_weight: float = 0.0
     ) -> Tuple[Tensor, LoggingDict]:
         z = encoder(x)
         raw_preds = classifier(z)
         # only do softmax but no real normalization
-        preds = F.softmax(raw_preds, dim=-1)
+        probs = F.softmax(raw_preds, dim=-1)
         pseudo_label, mask = pseudo_labeler(z)  # base the pseudo labels on the encoding
-        loss = _cosine_and_bce(preds, pseudo_label, mask)
-        return loss, {"Loss unsupervised": loss.item()}
+        loss = _cosine_and_bce(probs, pseudo_label, mask)
+        
+        logging_dict = {"Loss unsupervised": loss.item()}
+        if reinforcement_weight:
+            reinforcement_loss = reinforcement_weight * F.cross_entropy(
+                probs, probs.argmax(dim=-1)
+            )
+            loss += reinforcement_loss
+            logging_dict["Loss reinforcement"] = reinforcement_loss.item()
+
+        return loss, logging_dict
 
 
 class PseudoLabelEnc(Method):
@@ -106,14 +115,26 @@ class PseudoLabelOutput(Method):
 
     @staticmethod
     def unsupervised_loss(
-        encoder: Encoder, pseudo_labeler: PseudoLabeler, classifier: Classifier, x: Tensor
+        encoder: Encoder,
+        pseudo_labeler: PseudoLabeler,
+        classifier: Classifier,
+        x: Tensor,
+        reinforcement_weight: float = 0.0,
     ) -> Tuple[Tensor, LoggingDict]:
         z = encoder(x)
         raw_pred = classifier(z)
-        preds = normalized_softmax(raw_pred)
-        pseudo_label, mask = pseudo_labeler(preds)  # base the pseudo labels on the predictions
-        loss = _cosine_and_bce(preds, pseudo_label, mask)
-        return loss, {"Loss unsupervised": loss.item()}
+        probs = normalized_softmax(raw_pred)
+        pseudo_label, mask = pseudo_labeler(probs)  # base the pseudo labels on the predictions
+        loss = _cosine_and_bce(probs, pseudo_label, mask)
+        logging_dict = {"Loss unsupervised": loss.item()}
+        if reinforcement_weight:
+            reinforcement_loss = reinforcement_weight * F.cross_entropy(
+                probs, probs.argmax(dim=-1)
+            )
+            loss += reinforcement_loss
+            logging_dict["Loss reinforcement"] = reinforcement_loss.item()
+
+        return loss, logging_dict
 
 
 @jit.script

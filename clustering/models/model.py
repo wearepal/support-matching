@@ -44,12 +44,13 @@ class Model(nn.Module):
             bce_weight=bce_weight,
         )
 
-    def unsupervised_loss(self, x: Tensor) -> Tuple[Tensor, LoggingDict]:
+    def unsupervised_loss(self, x: Tensor, reinforcement_weight=0.0) -> Tuple[Tensor, LoggingDict]:
         return self.method.unsupervised_loss(
             encoder=self.encoder,
             pseudo_labeler=self.pseudo_labeler,
             classifier=self.classifier,
             x=x,
+            reinforcement_weight=reinforcement_weight,
         )
 
     def step(self, grads=None) -> None:
