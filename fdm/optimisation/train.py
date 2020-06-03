@@ -408,17 +408,17 @@ def train(
 
         x_c, x_t = to_device(x_c, x_t)
 
-        pred_s_weight = 0.0 if itr < ARGS.warmup_steps else ARGS.pred_s_weight
+        disc_weight = 0.0 if itr < ARGS.warmup_steps else ARGS.disc_weight
         # Train the discriminator on its own for a number of iterations
         if components.type == "ae":
             update_disc(x_c, x_t, components, itr < ARGS.warmup_steps)
             gen_loss, logging_dict = update(
-                x_c=x_c, x_t=x_t, ae=components, pred_s_weight=pred_s_weight
+                x_c=x_c, x_t=x_t, ae=components, disc_weight=disc_weight
             )
         else:
             update_disc_on_inn(ARGS, x_c, x_t, components, itr < ARGS.warmup_steps)
             gen_loss, logging_dict = update_inn(
-                args=ARGS, x_c=x_c, x_t=x_t, models=components, pred_s_weight=pred_s_weight
+                args=ARGS, x_c=x_c, x_t=x_t, models=components, disc_weight=disc_weight
             )
 
         # Log losses
@@ -532,7 +532,7 @@ def update_disc(
 
 
 def update(
-    x_c: Tensor, x_t: Tensor, ae: AeComponents, pred_s_weight: float,
+    x_c: Tensor, x_t: Tensor, ae: AeComponents, disc_weight: float,
 ) -> Tuple[Tensor, Dict[str, float]]:
     """Compute all losses.
 
@@ -565,7 +565,7 @@ def update(
     disc_loss, disc_acc_inv_s = ae.discriminator.routine(disc_input, zeros)
 
     disc_loss_distinguish = x_t.new_zeros(())
-    if ARGS.three_way_split and (not ARGS.distinguish_warmup or pred_s_weight != 0):
+    if ARGS.three_way_split and (not ARGS.distinguish_warmup or disc_weight != 0):
         disc_input_y = get_disc_input(ae.generator, encoding, invariant_to="y")
         disc_loss_y, disc_acc_inv_y = ae.discriminator.routine(disc_input_y, zeros)
         disc_loss += disc_loss_y
@@ -590,7 +590,7 @@ def update(
         )
 
     elbo *= ARGS.elbo_weight
-    disc_loss *= pred_s_weight
+    disc_loss *= disc_weight
 
     gen_loss = elbo - disc_loss - disc_loss_distinguish
 

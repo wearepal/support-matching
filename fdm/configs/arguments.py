@@ -88,7 +88,7 @@ class VaeArgs(BaseArgs):
     disc_lr: float = 1e-3
     kl_weight: float = 1
     elbo_weight: float = 1
-    pred_s_weight: float = 1
+    disc_weight: float = 1
     num_disc_updates: int = 1
     distinguish_weight: float = 1
     pred_weight: float = 1

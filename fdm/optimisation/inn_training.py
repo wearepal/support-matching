@@ -76,7 +76,7 @@ def update_disc_on_inn(
 
 
 def update_inn(
-    args: VaeArgs, x_c: Tensor, x_t: Tensor, models: InnComponents, pred_s_weight: float,
+    args: VaeArgs, x_c: Tensor, x_t: Tensor, models: InnComponents, disc_weight: float,
 ) -> Tuple[Tensor, Dict[str, float]]:
     """Compute all losses.
 
@@ -155,7 +155,7 @@ def update_inn(
             pred_loss += (pred_original - pred_changed).abs()
 
     nll *= args.nll_weight
-    disc_loss *= pred_s_weight
+    disc_loss *= disc_weight
     recon_loss *= args.recon_stability_weight
     pred_loss *= args.pred_weight
 
