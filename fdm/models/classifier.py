@@ -61,7 +61,7 @@ class Classifier(ModelBase):
                 return F.cross_entropy(logits, targets, reduction="none")
             else:
                 raise NotImplementedError("Only 'bce' and 'ce' losses are implemented using str.")
-        return self.criterion(logits, targets)
+        return self.criterion(logits, targets.float())
 
     def predict(self, inputs: Tensor, top: int = 1) -> Tensor:
         """Make prediction.
