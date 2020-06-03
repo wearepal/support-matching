@@ -91,7 +91,7 @@ class VaeArgs(BaseArgs):
     disc_weight: float = 1
     num_disc_updates: int = 1
     distinguish_weight: float = 1
-    pred_weight: float = 1
+    pred_weight: float = 0
 
     def process_args(self):
         super().process_args()
