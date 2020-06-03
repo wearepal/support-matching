@@ -441,6 +441,7 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
             shuffle=True,
         )
         for x, y, s in context_data_t:
+            x, y, s = to_device(x, y, s)
             z = model.encoder(x)
             pseudo_labels = model.pseudo_labeler(z)[0]
             class_id = get_class_id(s=s, y=y, s_count=s_count, to_cluster="both")
