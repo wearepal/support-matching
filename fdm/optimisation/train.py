@@ -598,12 +598,14 @@ def update(
         pred_y_loss *= ARGS.pred_weight
         pred_s_loss *= ARGS.pred_weight
         pred_loss = pred_y_loss + pred_s_loss
-        logging_dict.update({
-            "Loss Predictor y": pred_y_loss.item(),
-            "Loss Predictor s": pred_s_loss.item(),
-            "Accuracy Predictor y": pred_y_acc,
-            "Accuracy Predictor s": pred_s_acc,
-        })
+        logging_dict.update(
+            {
+                "Loss Predictor y": pred_y_loss.item(),
+                "Loss Predictor s": pred_s_loss.item(),
+                "Accuracy Predictor y": pred_y_acc,
+                "Accuracy Predictor s": pred_s_acc,
+            }
+        )
 
     disc_loss_distinguish = x_t.new_zeros(())
     if ARGS.three_way_split and (not ARGS.distinguish_warmup or disc_weight != 0):

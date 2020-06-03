@@ -14,7 +14,7 @@ levels: 4
 enc_chan: 16
 recon_loss: l2
 vae: False
-pred_s_weight: 2
+disc_weight: 2
 kl_weight: 1
 std_transform: exp
 # this makes zs channels be 1

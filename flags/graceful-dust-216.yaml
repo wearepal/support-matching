@@ -22,7 +22,6 @@ filter_labels: 2 4
 epochs: 40
 super_val_freq: 10
 super_val: true
-num_disc_updates: 3
 disc_hidden: 256 256
 # only start discriminator after 1000 steps
 warmup_steps: 1000

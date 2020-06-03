@@ -9,7 +9,7 @@ for scale in "${scales[@]}"; do
     echo $scale
     for seed in "${seeds[@]}"; do
         echo $seed
-        python run_no_balancing.py @flags/pipeline_cmnist_2.yaml \
+        qsub -pe smpslots $slots python-ot.job run_both.py @flags/pipeline_cmnist_2.yaml \
         --b-enc-channels 18 \
         --b-filter-labels \
         --d-zs-frac 0.05555 \
@@ -20,8 +20,8 @@ for scale in "${scales[@]}"; do
         --b-seed $seed \
         --data-split-seed $seed \
         --b-scale $scale \
-        --d-results nocluster_cmnist_10digits_$seed\_$scale.csv \
-        --b-save-dir experiments/cmnist/baseline/nocluster/10digits/$seed/$scale $@
+        --d-results cmnist_10digits_$seed\_$scale.csv \
+        --b-save-dir experiments/cmnist/10digits/$seed/$scale $@
         sleep 1
     done
 done
