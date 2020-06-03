@@ -597,8 +597,10 @@ def update(
         # predict s from the part that is invariant to y
         disc_input_no_y = get_disc_input(ae.generator, encoding, invariant_to="y")
         pred_s_loss, pred_s_acc = ae.predictor_s.routine(disc_input_no_y, s_t)
-        pred_y_loss = pred_y_loss.clamp(max=1.0) * pred_weight
-        pred_s_loss = pred_s_loss.clamp(max=1.0) * pred_weight
+        # pred_y_loss = pred_y_loss.clamp(max=1.0) * pred_weight
+        # pred_s_loss = pred_s_loss.clamp(max=1.0) * pred_weight
+        pred_y_loss *= pred_weight
+        pred_s_loss *= pred_weight
         pred_loss = pred_y_loss + pred_s_loss
         logging_dict.update(
             {
