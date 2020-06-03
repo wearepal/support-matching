@@ -114,11 +114,16 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             for aug in augs:
                 x = aug(x)
             s = y.clone()
-            indexes = torch.rand(s.shape) > _correlation
-            if _decorr_op == "random":
-                s[indexes] = torch.randint_like(s[indexes], low=0, high=num_classes)
+            if args.missing_s:
+                s = torch.randint_like(s, low=0, high=num_classes)
+                for to_remove in args.missing_s:
+                    s[s == to_remove] = (to_remove + 1) % num_classes
             else:
-                s[indexes] = torch.fmod(s[indexes] + 1, num_classes)
+                indexes = torch.rand(s.shape) > _correlation
+                if _decorr_op == "random":
+                    s[indexes] = torch.randint_like(s[indexes], low=0, high=num_classes)
+                else:
+                    s[indexes] = torch.fmod(s[indexes] + 1, num_classes)
             x_col = colorizer(x, s)
             return TensorDataset(x_col, s, y)
 
