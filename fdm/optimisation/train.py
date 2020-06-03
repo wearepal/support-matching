@@ -238,7 +238,7 @@ def main(
             return torch.nn.utils.spectral_norm(m)
 
     disc_optimizer_kwargs = {"lr": args.disc_lr}
-    disc_kwargs = {}
+    disc_kwargs: Dict[str, Any] = {}
     disc_input_shape: Tuple[int, ...] = input_shape if ARGS.train_on_recon else enc_shape
     # FIXME: Architectures need to be GAN specific (e.g. incorporate spectral norm)
     if is_image_data and ARGS.train_on_recon:
@@ -275,11 +275,29 @@ def main(
                 disc_dist_fn(enc_shape, output_dim, **disc_dist_kwargs), disc_optimizer_kwargs,
             )
             disc_distinguish.to(args._device)
+        predictor_y = build_discriminator(
+            input_shape=disc_input_shape,
+            target_dim=args._y_dim,
+            model_fn=disc_fn,
+            model_kwargs=disc_kwargs,
+            optimizer_kwargs=disc_optimizer_kwargs,
+        )
+        predictor_y.to(args._device)
+        predictor_s = build_discriminator(
+            input_shape=disc_input_shape,
+            target_dim=args._s_dim,
+            model_fn=disc_fn,
+            model_kwargs=disc_kwargs,
+            optimizer_kwargs=disc_optimizer_kwargs,
+        )
+        predictor_s.to(args._device)
         components = AeComponents(
             generator=generator,
             discriminator=discriminator,
             disc_distinguish=disc_distinguish,
             recon_loss_fn=recon_loss_fn,
+            predictor_y=predictor_y,
+            predictor_s=predictor_s,
         )
     else:
         disc_list = []
@@ -404,16 +422,16 @@ def train(
     # FIXME: Should move from epoch- to iteration-based training.
     data_iterator = islice(zip(inf_generator(context_data), inf_generator(train_data)), epoch_len)
 
-    for itr, ((x_c, _, _), (x_t, _, _)) in enumerate(data_iterator, start=start_itr):
+    for itr, ((x_c, _, _), (x_t, s_t, y_t)) in enumerate(data_iterator, start=start_itr):
 
-        x_c, x_t = to_device(x_c, x_t)
+        x_c, x_t, s_t, y_t = to_device(x_c, x_t, s_t, y_t)
 
         disc_weight = 0.0 if itr < ARGS.warmup_steps else ARGS.disc_weight
         # Train the discriminator on its own for a number of iterations
         if components.type == "ae":
             update_disc(x_c, x_t, components, itr < ARGS.warmup_steps)
             gen_loss, logging_dict = update(
-                x_c=x_c, x_t=x_t, ae=components, disc_weight=disc_weight
+                x_c=x_c, x_t=x_t, s_t=s_t, y_t=y_t, ae=components, disc_weight=disc_weight
             )
         else:
             update_disc_on_inn(ARGS, x_c, x_t, components, itr < ARGS.warmup_steps)
@@ -466,6 +484,8 @@ class AeComponents(NamedTuple):
     discriminator: Classifier
     disc_distinguish: Optional[Regressor]
     recon_loss_fn: Callable
+    predictor_y: Classifier
+    predictor_s: Classifier
     type: Literal["ae"] = "ae"
 
 
@@ -479,6 +499,8 @@ def update_disc(
         x_t: x from the training set
     """
     ae.generator.eval()
+    ae.predictor_y.eval()
+    ae.predictor_s.eval()
     ae.discriminator.train()
     if ae.disc_distinguish is not None:
         ae.disc_distinguish.train()
@@ -532,7 +554,7 @@ def update_disc(
 
 
 def update(
-    x_c: Tensor, x_t: Tensor, ae: AeComponents, disc_weight: float,
+    x_c: Tensor, x_t: Tensor, s_t: Tensor, y_t: Tensor, ae: AeComponents, disc_weight: float,
 ) -> Tuple[Tensor, Dict[str, float]]:
     """Compute all losses.
 
@@ -543,6 +565,8 @@ def update(
     ae.discriminator.eval()
     if ae.disc_distinguish is not None:
         ae.disc_distinguish.eval()
+    ae.predictor_y.train()
+    ae.predictor_s.train()
     ae.generator.train()
     logging_dict = {}
 
@@ -560,9 +584,26 @@ def update(
     elbo = 0.5 * (elbo + elbo_c)  # take average of the two recon losses
 
     # ==================================== adversarial losses =====================================
-    disc_input = get_disc_input(ae.generator, encoding, invariant_to="s")
+    disc_input_no_s = get_disc_input(ae.generator, encoding, invariant_to="s")
     zeros = x_t.new_zeros((x_t.size(0),))
-    disc_loss, disc_acc_inv_s = ae.discriminator.routine(disc_input, zeros)
+    disc_loss, disc_acc_inv_s = ae.discriminator.routine(disc_input_no_s, zeros)
+
+    pred_loss = x_t.new_zeros(())
+    if ARGS.pred_weight > 0:
+        # predict y from the part that is invariant to s
+        pred_y_loss, pred_y_acc = ae.predictor_y.routine(disc_input_no_s, y_t)
+        # predict s from the part that is invariant to y
+        disc_input_no_y = get_disc_input(ae.generator, encoding, invariant_to="y")
+        pred_s_loss, pred_s_acc = ae.predictor_s.routine(disc_input_no_y, s_t)
+        pred_y_loss *= ARGS.pred_weight
+        pred_s_loss *= ARGS.pred_weight
+        pred_loss = pred_y_loss + pred_s_loss
+        logging_dict.update({
+            "Loss Predictor y": pred_y_loss.item(),
+            "Loss Predictor s": pred_s_loss.item(),
+            "Accuracy Predictor y": pred_y_acc,
+            "Accuracy Predictor s": pred_s_acc,
+        })
 
     disc_loss_distinguish = x_t.new_zeros(())
     if ARGS.three_way_split and (not ARGS.distinguish_warmup or disc_weight != 0):
@@ -592,12 +633,18 @@ def update(
     elbo *= ARGS.elbo_weight
     disc_loss *= disc_weight
 
-    gen_loss = elbo - disc_loss - disc_loss_distinguish
+    gen_loss = elbo - disc_loss - disc_loss_distinguish + pred_loss
 
     # Update the generator's parameters
     ae.generator.zero_grad()
+    if ARGS.pred_weight > 0:
+        ae.predictor_y.zero_grad()
+        ae.predictor_s.zero_grad()
     gen_loss.backward()
     ae.generator.step()
+    if ARGS.pred_weight > 0:
+        ae.predictor_y.step()
+        ae.predictor_s.step()
 
     final_logging = {
         "ELBO": elbo.item(),
