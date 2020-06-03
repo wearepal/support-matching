@@ -121,9 +121,10 @@ class Classifier(ModelBase):
             Accuracy of the predictions (float).
         """
 
-        if self.criterion == "bce" or isinstance(self, nn.BCEWithLogitsLoss):
+        if self.criterion == "bce" or isinstance(self.criterion, nn.BCEWithLogitsLoss):
             pred = torch.round(outputs.sigmoid())
         else:
+            raise NotImplementedError()
             _, pred = outputs.topk(top, 1, True, True)
         pred = pred.t().to(targets.dtype)
         correct = pred.eq(targets.view(1, -1).expand_as(pred)).float()
