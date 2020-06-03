@@ -14,7 +14,7 @@ for scale in "${scales[@]}"; do
         --b-super-val True \
         --b-gpu 0 \
         --b-seed $seed \
-        --data-split-seed $seed \
+        --b-data-split-seed $seed \
         --b-scale $scale \
         --d-results nocluster_cmnist_2digits_$seed\_$scale.csv \
         --b-save-dir experiments/cmnist/baseline/nocluster/2digits/$seed/$scale $@

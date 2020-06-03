@@ -15,7 +15,7 @@ for scale in "${scales[@]}"; do
         --b-gpu 0 \
         --c-use-wandb False \
         --b-seed $seed \
-        --data-split-seed $seed \
+        --b-data-split-seed $seed \
         --b-scale $scale \
         --d-results cmnist_2digits_$seed\_$scale.csv \
         --b-save-dir experiments/cmnist/ours/full/2digits/$seed/$scale $@
