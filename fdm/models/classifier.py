@@ -2,7 +2,8 @@ from typing import Dict, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
-from torch import Tensor
+from ethicml.implementations.dro_modules import DROLoss
+from torch import Tensor, nn
 from torch.nn.modules.loss import _Loss
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader, Dataset
@@ -61,7 +62,22 @@ class Classifier(ModelBase):
                 return F.cross_entropy(logits, targets, reduction="none")
             else:
                 raise NotImplementedError("Only 'bce' and 'ce' losses are implemented using str.")
-        return self.criterion(logits, targets)
+        elif isinstance(self.criterion, DROLoss):
+            if isinstance(self.criterion.loss, nn.BCEWithLogitsLoss):
+                if targets.dtype != torch.float32:
+                    targets = targets.float()
+                logits = logits.view(-1, 1)
+                targets = targets.view(-1, 1)
+                return self.criterion(logits, targets)
+            elif isinstance(self.criterion.loss, nn.CrossEntropyLoss):
+                targets = targets.view(-1)
+                if targets.dtype != torch.long:
+                    targets = targets.long()
+                return self.criterion(logits, targets)
+            else:
+                raise NotImplementedError("Only 'bce' and 'ce' losses are implemented for DRO.")
+        else:
+            raise NotImplementedError("Only str and DROLoss are implemented.")
 
     def predict(self, inputs: Tensor, top: int = 1) -> Tensor:
         """Make prediction.
@@ -74,7 +90,10 @@ class Classifier(ModelBase):
             Class predictions (tensor) for the given data samples.
         """
         outputs = super().__call__(inputs)
-        if self.criterion == "bce":
+        if self.criterion == "bce" or (
+            isinstance(self.criterion, DROLoss)
+            and isinstance(self.criterion.loss, nn.BCEWithLogitsLoss)
+        ):
             pred = torch.round(outputs.sigmoid())
         else:
             _, pred = outputs.topk(top, 1, True, True)
@@ -113,7 +132,10 @@ class Classifier(ModelBase):
             Accuracy of the predictions (float).
         """
 
-        if self.criterion == "bce":
+        if self.criterion == "bce" or (
+            isinstance(self.criterion, DROLoss)
+            and isinstance(self.criterion.loss, nn.BCEWithLogitsLoss)
+        ):
             pred = torch.round(outputs.sigmoid())
         else:
             _, pred = outputs.topk(top, 1, True, True)
