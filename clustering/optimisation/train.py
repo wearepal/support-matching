@@ -395,10 +395,11 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
             loss_sup = x_t.new_zeros(())
             logging_sup = {}
 
-        class_id = get_class_id(s=s_c, y=y_c, s_count=s_count, to_cluster=ARGS.cluster)
-        loss_unsup, logging_unsup = model.supervised_loss(
-            x_c, class_id, ce_weight=0.0, bce_weight=1
-        )
+        # class_id = get_class_id(s=s_c, y=y_c, s_count=s_count, to_cluster=ARGS.cluster)
+        loss_unsup = model.unsupervised_loss(x_c)
+        # loss_unsup, logging_unsup = model.supervised_loss(
+        #     x_c, class_id, ce_weight=0.0, bce_weight=1
+        # )
         loss = loss_sup + loss_unsup
 
         model.zero_grad()
