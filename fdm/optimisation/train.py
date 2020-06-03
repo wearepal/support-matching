@@ -610,6 +610,7 @@ def update(
                 "Accuracy Predictor s": pred_s_acc,
             }
         )
+
     else:
         logging_dict.update(
             {
@@ -619,6 +620,7 @@ def update(
                 "Accuracy Predictor s": 0.0,
             }
         )
+
 
     disc_loss_distinguish = x_t.new_zeros(())
     if ARGS.three_way_split and (not ARGS.distinguish_warmup or disc_weight != 0):

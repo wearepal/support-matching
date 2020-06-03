@@ -17,11 +17,12 @@ for scale in "${scales[@]}"; do
         --b-super-val-freq 20 \
         --b-super-val True \
         --b-gpu 0 \
+        --c-method kmeans \
         --b-seed $seed \
         --b-data-split-seed $seed \
         --b-scale $scale \
         --d-results cmnist_10digits_$seed\_$scale.csv \
-        --b-save-dir experiments/cmnist/ours/full/10digits/$seed/$scale $@
+        --b-save-dir experiments/cmnist/ours/kmeans/10digits/$seed/$scale $@
         sleep 1
     done
 done

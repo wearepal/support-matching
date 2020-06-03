@@ -27,7 +27,7 @@ d_levels: 4
 d_enc_chan: 16
 d_recon_loss: l2
 d_vae: False
-d_pred_s_weight: 2
+d_disc_weight: 2
 d_kl_weight: 1
 d_std_transform: exp
 # this makes zs channels be 1
