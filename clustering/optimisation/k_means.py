@@ -40,7 +40,7 @@ def train(
     )
     print(" | ".join(prepared))
     wandb_log(args, logging_dict, step=0)
-    return TensorDataset(encoded, preds)
+    return preds
 
 
 def run_kmeans_torch(
