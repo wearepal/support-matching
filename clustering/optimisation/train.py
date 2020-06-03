@@ -371,7 +371,7 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
     model.train()
     s_count = ARGS._s_dim if ARGS._s_dim > 1 else 2
 
-    for itr, ((x_c, x_s, x_y), (x_t, s_t, y_t)) in enumerate(data_iterator, start=start_itr):
+    for itr, ((x_c, s_c, s_y), (x_t, s_t, y_t)) in enumerate(data_iterator, start=start_itr):
 
         x_c, x_t, y_t, s_t = to_device(x_c, x_t, y_t, s_t)
 
@@ -384,7 +384,7 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
             loss_sup = x_t.new_zeros(())
             logging_sup = {}
             
-        class_id = get_class_id(s=s_t, y=y_t, s_count=s_count, to_cluster=ARGS.cluster)
+        class_id = get_class_id(s=s_c, y=y_c, s_count=s_count, to_cluster=ARGS.cluster)
         loss_unsup, logging_unsup = model.supervised_loss(x_c, class_id, ce_weight=0.0, bce_weight=1)
         loss = loss_sup + loss_unsup
 
