@@ -9,7 +9,7 @@ for scale in "${scales[@]}"; do
     echo $scale
     for seed in "${seeds[@]}"; do
         echo $seed
-        python run_no_balancing.py @flags/pipeline_cmnist_2.yaml \
+        python run_no_balancing.py @flags/mvp_args.yaml \
         --b-super-val-freq 20 \
         --b-super-val True \
         --b-gpu 0 \
