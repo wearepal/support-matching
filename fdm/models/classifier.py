@@ -82,7 +82,7 @@ class Classifier(ModelBase):
             Class predictions (tensor) for the given data samples.
         """
         outputs = super().__call__(inputs)
-        if self.criterion == "bce":
+        if self.criterion == "bce" or isinstance(self.criterion, nn.BCEWithLogitsLoss):
             pred = torch.round(outputs.sigmoid())
         else:
             _, pred = outputs.topk(top, 1, True, True)
