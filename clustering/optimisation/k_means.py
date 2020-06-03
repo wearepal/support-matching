@@ -6,7 +6,7 @@ from pykeops.torch import LazyTensor
 import faiss
 import torch
 from torch import Tensor
-from torch.utils.data import Dataset, DataLoader, TensorDataset
+from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
 from shared.utils import wandb_log
@@ -18,7 +18,7 @@ from .utils import count_occurances, find_assignment
 
 def train(
     args: ClusterArgs, encoder: Encoder, context_data: Dataset, num_clusters: int, s_count: int
-) -> TensorDataset:
+) -> Tensor:
     # encode the training set with the encoder
     encoded = encode_dataset(args, context_data, encoder)
     # create data loader with one giant batch
@@ -40,7 +40,7 @@ def train(
     )
     print(" | ".join(prepared))
     wandb_log(args, logging_dict, step=0)
-    return TensorDataset(encoded, preds)
+    return preds
 
 
 def run_kmeans_torch(

@@ -211,8 +211,9 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
             return
 
     if ARGS.method == "kmeans":
-        train_k_means(ARGS, encoder, datasets.context, num_clusters, s_count)
-        return
+        preds = train_k_means(ARGS, encoder, datasets.context, num_clusters, s_count)
+        pth = save_results(args, preds, save_dir)
+        return (), pth
     if ARGS.finetune_encoder:
         encoder.freeze_initial_layers(
             ARGS.freeze_layers, {"lr": ARGS.finetune_lr, "weight_decay": ARGS.weight_decay}
