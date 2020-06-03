@@ -438,9 +438,9 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
             context_data.dataset,
             batch_size=min(len(context_data.dataset), 10000),
             pin_memory=True,
-            shuffle=True,
+            shuffle=False,
         )
-        for x, y, s in context_data_t:
+        for x, y, s in context_data:
             x, y, s = to_device(x, y, s)
             z = model.encoder(x)
             pseudo_labels = model.pseudo_labeler(z)[0]
