@@ -22,7 +22,7 @@ for scale in "${scales[@]}"; do
         --b-data-split-seed $seed \
         --b-scale $scale \
         --d-results cmnist_10digits_$seed\_$scale.csv \
-        --b-save-dir experiments/cmnist/10digits/$seed/$scale $@
+        --b-save-dir experiments/cmnist/ours/kmeans/10digits/$seed/$scale $@
         sleep 1
     done
 done

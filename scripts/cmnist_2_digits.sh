@@ -18,7 +18,7 @@ for scale in "${scales[@]}"; do
         --b-data-split-seed $seed \
         --b-scale $scale \
         --d-results cmnist_2digits_$seed\_$scale.csv \
-        --b-save-dir experiments/cmnist/2digits/$seed/$scale $@
+        --b-save-dir experiments/cmnist/ours/full/2digits/$seed/$scale $@
         sleep 1
     done
 done
