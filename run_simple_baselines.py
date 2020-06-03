@@ -204,7 +204,10 @@ def run_baseline(args: BaselineArgs):
 
     criterion = None
     if args.method == "dro":
-        criterion = implementations.dro_modules.DROLoss(nn.CrossEntropyLoss, eta=args.eta)
+        if target_dim == 1:
+            criterion = implementations.dro_modules.DROLoss(nn.BCEWithLogitsLoss, eta=args.eta)
+        else:
+            criterion = implementations.dro_modules.DROLoss(nn.CrossEntropyLoss, eta=args.eta)
 
     classifier: Classifier = Classifier(  # TODO: Using FDM Classifier - should this be clustering classifier?
         classifier_fn(input_shape[0], target_dim),
