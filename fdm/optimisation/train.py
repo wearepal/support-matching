@@ -551,7 +551,6 @@ def update(
         x_t: x from the training set
     """
     disc_weight = 0.0 if warmup else ARGS.disc_weight
-    pred_weight = 0.0 if warmup else ARGS.pred_weight
     # Compute losses for the generator.
     ae.discriminator.eval()
     if ae.disc_distinguish is not None:
@@ -579,10 +578,10 @@ def update(
     disc_loss, disc_acc_inv_s = ae.discriminator.routine(disc_input_no_s, zeros)
 
     pred_y_loss = x_t.new_zeros(())
-    if pred_weight > 0:
+    if ARGS.pred_weight > 0:
         # predict y from the part that is invariant to s
         pred_y_loss, pred_y_acc = ae.predictor_y.routine(disc_input_no_s, y_t)
-        pred_y_loss *= pred_weight
+        pred_y_loss *= ARGS.pred_weight
 
         logging_dict.update(
             {
