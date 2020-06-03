@@ -19,6 +19,7 @@ for scale in "${scales[@]}"; do
             --seed $seed \
             --data-split-seed $seed \
             --scale $scale \
+            --color-correlation 0.999 \
             --save-dir experiments/cmnist/baseline/dro/2digits/$seed/$eta/$scale $@
             sleep 1
         done
