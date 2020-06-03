@@ -371,7 +371,7 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
     model.train()
     s_count = ARGS._s_dim if ARGS._s_dim > 1 else 2
 
-    for itr, ((x_c, s_c, s_y), (x_t, s_t, y_t)) in enumerate(data_iterator, start=start_itr):
+    for itr, ((x_c, s_c, y_c), (x_t, s_t, y_t)) in enumerate(data_iterator, start=start_itr):
 
         x_c, x_t, y_t, s_t = to_device(x_c, x_t, y_t, s_t)
 
