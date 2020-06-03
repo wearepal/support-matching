@@ -63,13 +63,13 @@ class Classifier(ModelBase):
             else:
                 raise NotImplementedError("Only 'bce' and 'ce' losses are implemented using str.")
         elif isinstance(self.criterion, DROLoss):
-            if isinstance(self.criterion.loss_module, nn.BCEWithLogitsLoss):
+            if isinstance(self.criterion.loss, nn.BCEWithLogitsLoss):
                 if targets.dtype != torch.float32:
                     targets = targets.float()
                 logits = logits.view(-1, 1)
                 targets = targets.view(-1, 1)
                 return self.criterion(logits, targets)
-            elif isinstance(self.criterion.loss_module, nn.CrossEntropyLoss):
+            elif isinstance(self.criterion.loss, nn.CrossEntropyLoss):
                 targets = targets.view(-1)
                 if targets.dtype != torch.long:
                     targets = targets.long()
@@ -92,7 +92,7 @@ class Classifier(ModelBase):
         outputs = super().__call__(inputs)
         if self.criterion == "bce" or (
             isinstance(self.criterion, DROLoss)
-            and isinstance(self.criterion.loss_module, nn.BCEWithLogitsLoss)
+            and isinstance(self.criterion.loss, nn.BCEWithLogitsLoss)
         ):
             pred = torch.round(outputs.sigmoid())
         else:
@@ -134,7 +134,7 @@ class Classifier(ModelBase):
 
         if self.criterion == "bce" or (
             isinstance(self.criterion, DROLoss)
-            and isinstance(self.criterion.loss_module, nn.BCEWithLogitsLoss)
+            and isinstance(self.criterion.loss, nn.BCEWithLogitsLoss)
         ):
             pred = torch.round(outputs.sigmoid())
         else:
