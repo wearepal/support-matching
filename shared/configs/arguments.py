@@ -63,6 +63,9 @@ class BaseArgs(TypedFlags):
     data_split_seed: int = 888
     root: str = ""
 
+    # Dataset manipulation
+    missing_s: List[int] = []
+
     # Adult data set feature settings
     drop_native: bool = True
     drop_discrete: bool = False
