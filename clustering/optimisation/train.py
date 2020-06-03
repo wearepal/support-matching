@@ -386,6 +386,24 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
 
         x_c, s_c, y_c, x_t, y_t, s_t = to_device(x_c, s_c, y_c, x_t, y_t, s_t)
 
+        z_c = model.encoder(x_c)
+        pseudo_labels = model.pseudo_labeler(z_c)[0]
+        class_id = get_class_id(s=s_c, y=y_c, s_count=s_count, to_cluster="both")
+        labels = (((y_c.unsqueeze(-1) == y_c) & (s_c.unsqueeze(-1) == s_c))).float()
+
+        # for pl_cond in [0, 1]:
+        #     for s_cond in ARGS._s_dim if ARGS._s_dim > 1 else [0, 1]:
+        #         for y_cond in ARGS._y_dim if ARGS._y_dim > 1 else [0, 1]:
+        #             compute_clustering_acc(
+        #                 pseudo_labels=pseudo_labels,
+        #                 labels=labels,
+        #                 y=y_c,
+        #                 s=s_c,
+        #                 y_cond=y_cond,
+        #                 s_cond=s_cond,
+        #                 pl_cond=pl_cond,
+        #             )
+        
         if ARGS.with_supervision and not ARGS.use_multi_head:
             class_id = get_class_id(s=s_t, y=y_t, s_count=s_count, to_cluster=ARGS.cluster)
             loss_sup, logging_sup = model.supervised_loss(
