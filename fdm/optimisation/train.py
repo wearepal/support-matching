@@ -584,18 +584,12 @@ def update(
         pred_y_loss *= ARGS.pred_weight
 
         logging_dict.update(
-            {
-                "Loss Predictor y": pred_y_loss.item(),
-                "Accuracy Predictor y": pred_y_acc,
-            }
+            {"Loss Predictor y": pred_y_loss.item(), "Accuracy Predictor y": pred_y_acc,}
         )
 
     else:
         logging_dict.update(
-            {
-                "Loss Predictor y": 0.0,
-                "Accuracy Predictor y": 0.0,
-            }
+            {"Loss Predictor y": 0.0, "Accuracy Predictor y": 0.0,}
         )
 
     disc_loss_distinguish = x_t.new_zeros(())
