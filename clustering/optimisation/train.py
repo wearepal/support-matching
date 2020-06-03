@@ -373,7 +373,7 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
 
     for itr, ((x_c, s_c, y_c), (x_t, s_t, y_t)) in enumerate(data_iterator, start=start_itr):
 
-        x_c, x_t, y_t, s_t = to_device(x_c, x_t, y_t, s_t)
+        x_c, s_c, y_c, x_t, y_t, s_t = to_device(x_c, s_c, y_c, x_t, y_t, s_t)
 
         if ARGS.with_supervision and not ARGS.use_multi_head:
             class_id = get_class_id(s=s_t, y=y_t, s_count=s_count, to_cluster=ARGS.cluster)
