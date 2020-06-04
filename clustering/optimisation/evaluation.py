@@ -264,20 +264,26 @@ def encode_dataset(
     return encoded_dataset
 
 
-def classify_dataset(args: ClusterArgs, model: Model, data: Dataset) -> Tensor:
+def classify_dataset(
+    args: ClusterArgs, model: Model, data: Dataset
+) -> Tuple[Tensor, Tensor, Tensor]:
     """Determine the class of every sample in the given dataset and save them to a file."""
     model.eval()
     cluster_ids: List[Tensor] = []
+    all_s: List[Tensor] = []
+    all_y: List[Tensor] = []
 
     data_loader = DataLoader(
         data, batch_size=args.encode_batch_size, pin_memory=True, shuffle=False, num_workers=4
     )
 
     with torch.set_grad_enabled(False):
-        for (x, _, _) in data_loader:
+        for (x, s, y) in data_loader:
             x = x.to(args._device, non_blocking=True)
+            all_s.append(s)
+            all_y.append(y)
             logits = model(x)
             preds = logits.argmax(dim=-1).detach().cpu()
             cluster_ids.append(preds)
 
-    return torch.cat(cluster_ids, dim=0)
+    return torch.cat(cluster_ids, dim=0), torch.cat(all_s, dim=0), torch.cat(all_y, dim=0)

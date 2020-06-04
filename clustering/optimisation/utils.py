@@ -9,7 +9,7 @@ import torchvision
 from torch import Tensor
 import wandb
 
-from shared.utils import wandb_log
+from shared.utils import wandb_log, save_results
 from clustering.models import Model
 from clustering.configs import ClusterArgs
 
@@ -18,6 +18,7 @@ __all__ = [
     "save_model",
     "restore_model",
     "count_occurances",
+    "convert_and_save_results",
     "find_assignment",
     "get_class_id",
 ]
@@ -120,3 +121,18 @@ def get_class_id(
     else:
         class_id = y * s_count + s
     return class_id
+
+
+def convert_and_save_results(
+    args: ClusterArgs, results: Tuple[Tensor, Tensor, Tensor], save_dir: Path
+) -> Path:
+    clusters, s, y = results
+    s_count = args._s_dim if args._s_dim > 1 else 2
+    class_ids = get_class_id(s=s, y=y, s_count=s_count, to_cluster=args.cluster)
+    if args.cluster_label_file:
+        save_path = Path(args.cluster_label_file)
+    else:
+        save_path = save_dir / "cluster_results.pth"
+    return save_results(
+        cluster_ids=clusters, class_ids=class_ids, save_path=save_path, flags=args.as_dict()
+    )
