@@ -1,0 +1,35 @@
+# ===== dataset =====
+b_dataset: adult
+b_drop-native: True
+b_mixing-factor: 0.0
+b_input-noise: False
+
+# ===== encoder =====
+c_encoder: ae
+c_enc-channels: 35
+c_enc-epochs: 100
+c_enc-lr: 0.01
+c_enc-levels: 0
+c_recon-loss: mixed
+c_init-channels: 61
+c_kl-weight: 0.01
+
+# ===== clustering =====
+c_lr: 0.01
+#use-multi-head: True
+c_epochs: 100
+c_lower-threshold: 0.3
+c_upper-threshold: 0.7
+# the encoder settings above do not seem to recreate this encoder
+# enc-path: /its/home/tk324/dev/fair-dist-matching/experiments/finn/1591052263.8719523/encoder
+c_method: pl_enc_no_norm
+c_cl-hidden-dims: 30
+c_labeler-hidden-dims:
+c_finetune-encoder: True
+c_finetune-lr: 1e-5
+c_pseudo-labeler: cosine
+c_weight-decay: 1e-4
+
+# ====== misc ======
+#val-freq: 100
+#gpu: -1
