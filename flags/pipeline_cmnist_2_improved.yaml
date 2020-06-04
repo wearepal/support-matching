@@ -4,10 +4,13 @@ b_filter_labels: 2 4
 b_padding: 2
 b_context_pcnt: 0.66666666
 # bias the context set
-b_subsample:
-        0: 0.3
+b_subsample_context:
+        0: 0.7
         1: 0.5
-        2: 0.7
+        2: 0.3
+b_subsample_train:
+        1: 0.3
+        2: 0.0  # remove this group entirely
 # remove group s=0 from training set
 b_missing_s: 0
 b_scale: 0
@@ -46,4 +49,5 @@ d_super_val_freq: 20
 d_super_val: True
 d_pred_weight: 1
 # Myles says this works better:
-d_train_on_recon: False
+#d_train_on_recon: False
+d_train_on_recon: True

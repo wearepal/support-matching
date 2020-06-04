@@ -275,11 +275,12 @@ def main(
                 disc_dist_fn(enc_shape, output_dim, **disc_dist_kwargs), disc_optimizer_kwargs,
             )
             disc_distinguish.to(args._device)
-        predictor_y = build_discriminator(
-            input_shape=disc_input_shape,
+        pred_kwargs = {"hidden_dims": args.disc_hidden_dims}
+        predictor_y = build_discriminator(  # this is always trained on encodings
+            input_shape=(prod(enc_shape),),
             target_dim=args._y_dim,
-            model_fn=disc_fn,
-            model_kwargs=disc_kwargs,
+            model_fn=fc_net,
+            model_kwargs=pred_kwargs,
             optimizer_kwargs=disc_optimizer_kwargs,
         )
         predictor_y.to(args._device)
@@ -579,18 +580,18 @@ def update(
 
     pred_y_loss = x_t.new_zeros(())
     if ARGS.pred_weight > 0:
+        # predictor is on encodings
+        enc_no_s, _ = ae.generator.mask(encoding, random=False)
         # predict y from the part that is invariant to s
-        pred_y_loss, pred_y_acc = ae.predictor_y.routine(disc_input_no_s, y_t)
+        pred_y_loss, pred_y_acc = ae.predictor_y.routine(enc_no_s, y_t)
         pred_y_loss *= ARGS.pred_weight
 
         logging_dict.update(
-            {"Loss Predictor y": pred_y_loss.item(), "Accuracy Predictor y": pred_y_acc,}
+            {"Loss Predictor y": pred_y_loss.item(), "Accuracy Predictor y": pred_y_acc}
         )
 
     else:
-        logging_dict.update(
-            {"Loss Predictor y": 0.0, "Accuracy Predictor y": 0.0,}
-        )
+        logging_dict.update({"Loss Predictor y": 0.0, "Accuracy Predictor y": 0.0})
 
     disc_loss_distinguish = x_t.new_zeros(())
     if ARGS.three_way_split and (not ARGS.distinguish_warmup or disc_weight != 0):
