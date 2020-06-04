@@ -1,4 +1,4 @@
-from typing import Optional, Literal, List
+from typing import Optional, Literal, List, Set
 
 import torch
 from shared.configs import BaseArgs
@@ -75,11 +75,13 @@ class ClusterArgs(BaseArgs):
     use_multi_head: bool = False
 
     # Method
-    method: Literal["pl_enc", "pl_output", "pl_enc_no_norm", "kmeans"] = "pl_enc"
+    method: Literal["pl_enc", "pl_output", "pl_enc_no_norm", "kmeans"] = "pl_enc_no_norm"
 
     _device: torch.device
     _s_dim: int
     _y_dim: int
+    _s_count: int
+    _visible_subgroups: Set[float]
 
     #  Labeler
     labeler_lr: float = 1e-3

@@ -1,6 +1,6 @@
 """Definition of loss and so on."""
 from abc import abstractmethod
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional, Set
 
 import torch
 from torch import Tensor, jit
@@ -74,20 +74,28 @@ class PseudoLabelEncNoNorm(Method):
 
     @staticmethod
     def unsupervised_loss(
-        encoder: Encoder, pseudo_labeler: PseudoLabeler, classifier: Classifier, x: Tensor, reinforcement_weight: float = 0.0
+        encoder: Encoder, pseudo_labeler: PseudoLabeler, classifier: Classifier, x: Tensor, reinforcement_weight: float = 0.0, visible_subgroups: Optional[Set[float]] = None
     ) -> Tuple[Tensor, LoggingDict]:
         z = encoder(x)
-        raw_preds = classifier(z)
+        logits = classifier(z)
         # only do softmax but no real normalization
-        probs = F.softmax(raw_preds, dim=-1)
+        probs = F.softmax(logits, dim=-1)
         pseudo_label, mask = pseudo_labeler(z)  # base the pseudo labels on the encoding
         loss = _cosine_and_bce(probs, pseudo_label, mask)
         
         logging_dict = {"Loss unsupervised": loss.item()}
         if reinforcement_weight:
-            reinforcement_loss = reinforcement_weight * F.cross_entropy(
-                probs, probs.argmax(dim=-1)
-            )
+            preds = probs.argmax(dim=-1)
+            if visible_subgroups is not None:
+                mask = x.new_ones(x.size(0), dtype=torch.bool)
+                for class_id in list(visible_subgroups):
+                    mask &= (preds != class_id)
+                if mask.sum() > 0:
+                    reinforcement_loss = reinforcement_weight * F.cross_entropy(probs[mask], preds[mask])
+                else:
+                    reinforcement_loss = probs.new_zeros(())
+            else:
+                reinforcement_loss = reinforcement_weight * F.cross_entropy(probs, preds)
             loss += reinforcement_loss
             logging_dict["Loss reinforcement"] = reinforcement_loss.item()
 

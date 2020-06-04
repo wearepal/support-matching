@@ -101,6 +101,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
     )
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
     context_batch_size = round(ARGS.batch_size * len(datasets.context) / len(datasets.train))
+
     context_loader = DataLoader(
         datasets.context,
         shuffle=True,
@@ -144,14 +145,21 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
 
     # ==== construct networks ====
     input_shape = get_data_dim(context_loader)
-    s_count = datasets.s_dim if datasets.s_dim > 1 else 2
+    ARGS._s_count = datasets.s_dim if datasets.s_dim > 1 else 2
     y_count = datasets.y_dim if datasets.y_dim > 1 else 2
     if ARGS.cluster == "s":
-        num_clusters = s_count
+        num_clusters = ARGS._s_count
     elif ARGS.cluster == "y":
         num_clusters = y_count
     else:
-        num_clusters = s_count * y_count
+        num_clusters = ARGS._s_count * y_count
+
+    visible_subgroups = []
+    for _, s, y in train_loader:
+        uniques = get_class_id(s=s, y=y, s_count=ARGS._s_count, to_cluster="both").unique()
+        visible_subgroups.extend(uniques.numpy())
+    ARGS._visible_subgroups = set(visible_subgroups)
+
     LOGGER.info(
         "Number of clusters: {}, accuracy computed with respect to {}", num_clusters, ARGS.cluster
     )
@@ -163,7 +171,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
             mappings.append(f"{i}: y = {i}")
         else:
             # class_id = y * s_count + s
-            mappings.append(f"{i}: (y = {i // s_count}, s = {i % s_count})")
+            mappings.append(f"{i}: (y = {i // ARGS._s_count}, s = {i % ARGS._s_count})")
     LOGGER.info("class IDs:\n\t" + "\n\t".join(mappings))
     feature_group_slices = getattr(datasets.context, "feature_group_slices", None)
 
@@ -211,7 +219,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
             return
 
     if ARGS.method == "kmeans":
-        train_k_means(ARGS, encoder, datasets.context, num_clusters, s_count)
+        train_k_means(ARGS, encoder, datasets.context, num_clusters, ARGS._s_count)
         return
     if ARGS.finetune_encoder:
         encoder.freeze_initial_layers(
@@ -244,7 +252,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
 
     classifier = build_classifier(
         input_shape=clf_input_shape,
-        target_dim=s_count if ARGS.use_multi_head else num_clusters,
+        target_dim=ARGS._s_count if ARGS.use_multi_head else num_clusters,
         model_fn=clf_fn,
         model_kwargs=clf_kwargs,
         optimizer_kwargs=clf_optimizer_kwargs,
@@ -268,7 +276,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
         clf_kwargs["hidden_dims"] = args.cl_hidden_dims
         labeler: Classifier = build_classifier(
             input_shape=input_shape,
-            target_dim=s_count,
+            target_dim=ARGS._s_count,
             model_fn=labeler_fn,
             model_kwargs=labeler_kwargs,
             optimizer_kwargs=labeler_optimizer_kwargs,
@@ -369,14 +377,13 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
     itr = start_itr = (epoch - 1) * epoch_len
     data_iterator = zip(context_data, train_data)
     model.train()
-    s_count = ARGS._s_dim if ARGS._s_dim > 1 else 2
 
     for itr, ((x_c, _, _), (x_t, s_t, y_t)) in enumerate(data_iterator, start=start_itr):
 
         x_c, x_t, y_t, s_t = to_device(x_c, x_t, y_t, s_t)
 
         if ARGS.with_supervision and not ARGS.use_multi_head:
-            class_id = get_class_id(s=s_t, y=y_t, s_count=s_count, to_cluster=ARGS.cluster)
+            class_id = get_class_id(s=s_t, y=y_t, s_count=ARGS._s_count, to_cluster=ARGS.cluster)
             loss_sup, logging_sup = model.supervised_loss(
                 x_t, class_id, ce_weight=ARGS.sup_ce_weight, bce_weight=ARGS.sup_bce_weight
             )
@@ -393,6 +400,7 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
             reinforcement_weight=ARGS.reinforcment_weight
             if epoch >= ARGS.reinforcement_warmup
             else 0.0,
+            visible_subgroups=ARGS._visible_subgroups
         )
         loss = loss_sup + loss_unsup
 
@@ -432,7 +440,7 @@ def validate(model: Model, val_data: DataLoader) -> Tuple[float, Dict[str, Union
     model.eval()
     to_cluster = ARGS.cluster
     y_count = ARGS._y_dim if ARGS._y_dim > 1 else 2
-    s_count = ARGS._s_dim if ARGS._s_dim > 1 else 2
+    s_count = ARGS._s_count
     if to_cluster == "s":
         num_clusters = s_count
     elif to_cluster == "y":

@@ -1,5 +1,5 @@
 """Model that contains all."""
-from typing import Tuple, final, Iterator, Optional
+from typing import Tuple, final, Iterator, Optional, Set
 from torch import Tensor
 import torch
 import torch.nn as nn
@@ -44,13 +44,14 @@ class Model(nn.Module):
             bce_weight=bce_weight,
         )
 
-    def unsupervised_loss(self, x: Tensor, reinforcement_weight=0.0) -> Tuple[Tensor, LoggingDict]:
+    def unsupervised_loss(self, x: Tensor, reinforcement_weight=0.0, visible_subgroups: Optional[Set[float]] = None) -> Tuple[Tensor, LoggingDict]:
         return self.method.unsupervised_loss(
             encoder=self.encoder,
             pseudo_labeler=self.pseudo_labeler,
             classifier=self.classifier,
             x=x,
             reinforcement_weight=reinforcement_weight,
+            visible_subgroups=visible_subgroups
         )
 
     def step(self, grads=None) -> None:
