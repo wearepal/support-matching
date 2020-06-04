@@ -9,7 +9,7 @@ for seed in "${seeds[@]}"; do
     qsub -pe smpslots $slots python-ot.job run_simple_baselines.py \
     --missing-s 0 \
     --method cnn \
-    --gpu 1 \
+    --gpu 0 \
     --filter-labels 2 4 \
     --seed $seed \
     --data-split-seed $seed \

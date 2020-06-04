@@ -9,7 +9,7 @@ for seed in "${seeds[@]}"; do
     python run_simple_baselines.py \
     --missing-s 0 \
     --method cnn \
-    --gpu 1 \
+    --gpu 0 \
     --filter-labels 2 4 \
     --seed $seed \
     --data-split-seed $seed \
