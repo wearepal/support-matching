@@ -4,8 +4,9 @@ b_filter_labels: 2 4
 b_padding: 2
 b_missing_s: 0
 #b_context_pcnt: 0.66666666
-b_subsample:
+b_subsample_context:
     0: 0.5
+    1: 0.5
 
 # --- flags that are used in clusetering and fdm
 b_background: False

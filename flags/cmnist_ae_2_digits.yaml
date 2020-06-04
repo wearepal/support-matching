@@ -3,8 +3,9 @@ dataset: "cmnist"
 filter_labels: 2 4
 padding: 2
 context_pcnt: 0.66666666
-subsample:
+subsample_context:
         0: 0.5
+        1: 0.5
 
 # ===== disentangling flags =====
 three_way: False
