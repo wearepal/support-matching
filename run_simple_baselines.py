@@ -252,7 +252,7 @@ def run_baseline(args: BaselineArgs):
         preds,
         ground_truths,
         metrics=[Accuracy(), RenyiCorrelation()],
-        per_sens_metrics=[ProbPos(), TPR()] if args.dataset != "cmnist" else [],
+        per_sens_metrics=[ProbPos(), TPR()] if target_dim == 1 else [],
     )
     print(f"Results for {full_name}:")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
