@@ -40,7 +40,7 @@ d_kl_weight: 1
 d_levels: 4
 d_log_freq: 50
 d_lr: 1e-3
-d_num-disc-updates: 5
+d_num-disc-updates: 3
 d_pred-weight: 1
 d_recon_loss: l2
 d_std_transform: exp
