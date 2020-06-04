@@ -624,11 +624,11 @@ def update(
 
     # Update the generator's parameters
     ae.generator.zero_grad()
-    if pred_weight > 0:
+    if ARGS.pred_weight > 0:
         ae.predictor_y.zero_grad()
     gen_loss.backward()
     ae.generator.step()
-    if pred_weight > 0:
+    if ARGS.pred_weight > 0:
         ae.predictor_y.step()
 
     final_logging = {
