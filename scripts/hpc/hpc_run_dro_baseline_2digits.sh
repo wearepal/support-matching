@@ -13,7 +13,8 @@ for scale in "${scales[@]}"; do
             echo $seed
             qsub -pe smpslots $slots python-ot.job run_simple_baselines.py \
             --method dro \
-            --gpu 1 \
+            --missing-s 0 \
+            --gpu 0 \
             --filter-labels 2 4 \
             --eta $eta \
             --seed $seed \
