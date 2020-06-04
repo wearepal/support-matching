@@ -27,6 +27,12 @@ class DatasetTriplet(NamedTuple):
     y_dim: int
 
 
+class RawDataTuple(NamedTuple):
+    x: Tensor
+    s: Tensor
+    y: Tensor
+
+
 def load_dataset(args: BaseArgs) -> DatasetTriplet:
     context_data: Dataset
     test_data: Dataset
@@ -85,30 +91,11 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             )
         )
 
-        if args.subsample:
-
-            def _subsample_by_class(
-                _data: Tensor, _targets: Tensor, _target_props: Dict[int, float]
-            ) -> Tuple[Tensor, Tensor]:
-                for _target, _prop in _target_props.items():
-                    assert 0 <= _prop <= 1
-                    _indexes = _targets == int(_target)
-                    _n_matches = len(_indexes.nonzero())
-                    _to_keep = torch.randperm(_n_matches) < (round(_prop * (_n_matches - 1)))
-                    _indexes[_indexes.nonzero()[_to_keep]] = False
-                    _data = _data[~_indexes]
-                    _targets = _targets[~_indexes]
-                return _data, _targets
-
-            context_data = _subsample_by_class(*context_data, args.subsample)
-            # test data remains balanced
-            # test_data = _subsample_by_class(*test_data, args.subsample)
-
         def _colorize_subset(
             _subset: Tuple[Tensor, Tensor],
             _correlation: float,
             _decorr_op: Literal["random", "shift"],
-        ) -> TensorDataset:
+        ) -> RawDataTuple:
             x, y = _subset
             x = x.unsqueeze(1).expand(-1, 3, -1, -1) / 255.0
             for aug in augs:
@@ -125,13 +112,42 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
                 indexes = torch.rand(s.shape) > _correlation
                 s[indexes] = torch.fmod(s[indexes] + 1, num_classes)
             x_col = colorizer(x, s)
-            return TensorDataset(x_col, s, y)
+            return RawDataTuple(x=x_col, s=s, y=y)
 
-        train_data = _colorize_subset(
+        train_data_t = _colorize_subset(
             train_data, _correlation=args.color_correlation, _decorr_op="shift",
         )
-        test_data = _colorize_subset(test_data, _correlation=0, _decorr_op="random")
-        context_data = _colorize_subset(context_data, _correlation=0, _decorr_op="random")
+        test_data_t = _colorize_subset(test_data, _correlation=0, _decorr_op="random")
+        context_data_t = _colorize_subset(context_data, _correlation=0, _decorr_op="random")
+
+        if args.subsample:
+
+            def _subsample_by_s_and_y(
+                _data: RawDataTuple, _target_props: Dict[int, float]
+            ) -> RawDataTuple:
+                _x = _data.x
+                _s = _data.s
+                _y = _data.y
+                for _class_id, _prop in _target_props.items():
+                    assert 0 <= _prop <= 1, "proportions should be between 0 and 1"
+                    target_y = _class_id // num_classes
+                    target_s = _class_id % num_classes
+                    _indexes = (_y == int(target_y)) & (_s == int(target_s))
+                    _n_matches = len(_indexes.nonzero())
+                    _to_keep = torch.randperm(_n_matches) < (round(_prop * (_n_matches - 1)))
+                    _indexes[_indexes.nonzero()[_to_keep]] = False
+                    _x = _x[~_indexes]
+                    _s = _s[~_indexes]
+                    _y = _y[~_indexes]
+                return RawDataTuple(x=_x, s=_s, y=_y)
+
+            context_data_t = _subsample_by_s_and_y(context_data_t, args.subsample)
+            # test data remains balanced
+            # test_data = _subsample_by_class(*test_data, args.subsample)
+
+        train_data = TensorDataset(train_data_t.x, train_data_t.s, train_data_t.y)
+        test_data = TensorDataset(test_data_t.x, test_data_t.s, test_data_t.y)
+        context_data = TensorDataset(context_data_t.x, context_data_t.s, context_data_t.y)
 
         args._y_dim = 1 if num_classes == 2 else num_classes
         args._s_dim = 1 if num_classes == 2 else num_classes
