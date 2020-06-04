@@ -391,13 +391,13 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
             loss_sup = x_t.new_zeros(())
             logging_sup = {}
         
-        if epoch == ARGS.reinforcement_warmup and ARGS.reinforcment_weight:
+        if epoch == ARGS.reinforcement_warmup and ARGS.reinforcement_weight:
             LOGGER.info(
                 f"Enabling reinforcement loss after {ARGS.reinforcement_warmup} epochs of warmup"
                 )
         loss_unsup, logging_unsup = model.unsupervised_loss(
             x_c,
-            reinforcement_weight=ARGS.reinforcment_weight
+            reinforcement_weight=ARGS.reinforcement_weight
             if epoch >= ARGS.reinforcement_warmup
             else 0.0,
             visible_subgroups=ARGS._visible_subgroups

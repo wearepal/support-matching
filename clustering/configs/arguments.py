@@ -62,7 +62,7 @@ class ClusterArgs(BaseArgs):
     pseudo_labeler: Literal["ranking", "cosine"] = "ranking"
     sup_ce_weight: float = 1.0
     sup_bce_weight: float = 1.0
-    reinforcment_weight: float = 1.0
+    reinforcement_weight: float = 1.0
     reinforcement_warmup: int = 100
     k_num: int = 5
     lower_threshold: float = 0.5
