@@ -12,7 +12,7 @@ from typing_extensions import Literal
 
 from ethicml.algorithms.inprocess import compute_instance_weights
 from ethicml.evaluators import run_metrics
-from ethicml.metrics import TPR, Accuracy, ProbPos, RenyiCorrelation
+from ethicml.metrics import TPR, Accuracy, ProbPos, RenyiCorrelation, TNR
 from ethicml.utility import DataTuple, Prediction
 from ethicml import implementations
 
@@ -252,7 +252,7 @@ def run_baseline(args: BaselineArgs):
         preds,
         ground_truths,
         metrics=[Accuracy(), RenyiCorrelation()],
-        per_sens_metrics=[ProbPos(), TPR()] if target_dim == 1 else [],
+        per_sens_metrics=[ProbPos(), TPR(), TNR()] if target_dim == 1 else [],
     )
     print(f"Results for {full_name}:")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
