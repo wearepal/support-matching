@@ -135,9 +135,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
 
         if args.subsample_train:
             # when we manually subsample the training set, we ignore color correlation
-            train_data_t = _colorize_subset(
-                train_data, _correlation=0, _decorr_op="random",
-            )
+            train_data_t = _colorize_subset(train_data, _correlation=0, _decorr_op="random",)
             train_data_t = _subsample_by_s_and_y(train_data_t, args.subsample_train)
         else:
             train_data_t = _colorize_subset(
