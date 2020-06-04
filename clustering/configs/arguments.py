@@ -12,7 +12,7 @@ class ClusterArgs(BaseArgs):
     # Optimization settings
     early_stopping: int = 30
     epochs: int = 250
-    batch_size: int = 128
+    batch_size: int = 1000
     test_batch_size: Optional[int] = None
     num_workers: int = 4
     seed: int = 42
