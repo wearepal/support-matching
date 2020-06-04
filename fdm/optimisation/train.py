@@ -222,7 +222,6 @@ def main(
             context_loader=context_loader,
         )
         encoding_size = generator.encoding_size
-        generator.apply(_spectral_norm)
     else:
         zs_dim = round(ARGS.zs_frac * enc_shape[0])
         zy_dim = zs_dim if ARGS.three_way_split else 0
