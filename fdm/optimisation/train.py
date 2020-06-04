@@ -197,6 +197,10 @@ def main(
     else:
         recon_loss_fn = recon_loss_fn_
 
+    def _spectral_norm(m):
+        if hasattr(m, "weight"):
+            return torch.nn.utils.spectral_norm(m)
+
     generator: Generator
     if ARGS.use_inn:
         # assert ARGS.three_way_split, "for now, INN can only do three way split"
@@ -218,6 +222,7 @@ def main(
             context_loader=context_loader,
         )
         encoding_size = generator.encoding_size
+        generator.apply(_spectral_norm)
     else:
         zs_dim = round(ARGS.zs_frac * enc_shape[0])
         zy_dim = zs_dim if ARGS.three_way_split else 0
@@ -233,9 +238,6 @@ def main(
     LOGGER.info("Encoding shape: {}, {}", enc_shape, encoding_size)
 
     # ================================== Initialise Discriminator =================================
-    def _spectral_norm(m):
-        if hasattr(m, "weight"):
-            return torch.nn.utils.spectral_norm(m)
 
     disc_optimizer_kwargs = {"lr": args.disc_lr}
     disc_kwargs: Dict[str, Any] = {}
@@ -264,7 +266,6 @@ def main(
         )
         discriminator.to(args._device)
 
-        generator.apply(_spectral_norm)
         discriminator.apply(_spectral_norm)
 
         disc_distinguish = None
