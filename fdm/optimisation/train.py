@@ -519,7 +519,7 @@ def update_disc(
                 disc_input_c = disc_input_c.detach()
 
             # discriminator is trained to distinguish `disc_input_c` and `disc_input_t`
-            disc_loss_false = ae.disciminator(disc_input_c).mean()
+            disc_loss_false = ae.discriminator(disc_input_c).mean()
             disc_loss_real = ae.discriminator(disc_input_t).mean()
             # disc_loss_true, disc_acc_true = ae.discriminator.routine(disc_input_c, ones)
             # disc_loss_false, disc_acc_false = ae.discriminator.routine(disc_input_t, zeros)
@@ -544,7 +544,7 @@ def update_disc(
             ae.disc_distinguish.zero_grad()
             disc_loss_distinguish.backward()
             ae.disc_distinguish.step()
-    return disc_loss, (disc_loss_fake - disc_loss_real)  # statistics from last step
+    return disc_loss, (disc_loss_false - disc_loss_real)  # statistics from last step
 
 
 def update(
