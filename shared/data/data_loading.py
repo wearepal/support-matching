@@ -114,34 +114,38 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             x_col = colorizer(x, s)
             return RawDataTuple(x=x_col, s=s, y=y)
 
-        train_data_t = _colorize_subset(
-            train_data, _correlation=args.color_correlation, _decorr_op="shift",
-        )
+        def _subsample_by_s_and_y(
+            _data: RawDataTuple, _target_props: Dict[int, float]
+        ) -> RawDataTuple:
+            _x = _data.x
+            _s = _data.s
+            _y = _data.y
+            for _class_id, _prop in _target_props.items():
+                assert 0 <= _prop <= 1, "proportions should be between 0 and 1"
+                target_y = _class_id // num_classes
+                target_s = _class_id % num_classes
+                _indexes = (_y == int(target_y)) & (_s == int(target_s))
+                _n_matches = len(_indexes.nonzero())
+                _to_keep = torch.randperm(_n_matches) < (round(_prop * (_n_matches - 1)))
+                _indexes[_indexes.nonzero()[_to_keep]] = False
+                _x = _x[~_indexes]
+                _s = _s[~_indexes]
+                _y = _y[~_indexes]
+            return RawDataTuple(x=_x, s=_s, y=_y)
+
+        if args.subsample_train:
+            # when we manually subsample the training set, we ignore color correlation
+            train_data_t = _colorize_subset(train_data, _correlation=0, _decorr_op="random",)
+            train_data_t = _subsample_by_s_and_y(train_data_t, args.subsample_train)
+        else:
+            train_data_t = _colorize_subset(
+                train_data, _correlation=args.color_correlation, _decorr_op="shift",
+            )
         test_data_t = _colorize_subset(test_data, _correlation=0, _decorr_op="random")
         context_data_t = _colorize_subset(context_data, _correlation=0, _decorr_op="random")
 
-        if args.subsample:
-
-            def _subsample_by_s_and_y(
-                _data: RawDataTuple, _target_props: Dict[int, float]
-            ) -> RawDataTuple:
-                _x = _data.x
-                _s = _data.s
-                _y = _data.y
-                for _class_id, _prop in _target_props.items():
-                    assert 0 <= _prop <= 1, "proportions should be between 0 and 1"
-                    target_y = _class_id // num_classes
-                    target_s = _class_id % num_classes
-                    _indexes = (_y == int(target_y)) & (_s == int(target_s))
-                    _n_matches = len(_indexes.nonzero())
-                    _to_keep = torch.randperm(_n_matches) < (round(_prop * (_n_matches - 1)))
-                    _indexes[_indexes.nonzero()[_to_keep]] = False
-                    _x = _x[~_indexes]
-                    _s = _s[~_indexes]
-                    _y = _y[~_indexes]
-                return RawDataTuple(x=_x, s=_s, y=_y)
-
-            context_data_t = _subsample_by_s_and_y(context_data_t, args.subsample)
+        if args.subsample_context:
+            context_data_t = _subsample_by_s_and_y(context_data_t, args.subsample_context)
             # test data remains balanced
             # test_data = _subsample_by_class(*test_data, args.subsample)
 

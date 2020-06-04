@@ -81,7 +81,12 @@ class BaseArgs(TypedFlags):
     color_correlation: float = 1.0
     padding: int = 2  # by how many pixels to pad the cmnist images by
     quant_level: Literal["3", "5", "8"] = "8"  # number of bits that encode color
-    subsample: Dict[int, float] = {}
+    # the subsample flags work like this: you give it a class id and a fraction in the form of a
+    # float. the class id is given by class_id = y * s_count + s, so for binary s and y, the
+    # correspondance is like this:
+    # 0: y=0/s=0, 1: y=0/s=1, 2: y=1/s=0, 3: y=1/s=1
+    subsample_context: Dict[int, float] = {}
+    subsample_train: Dict[int, float] = {}
     input_noise: bool = True  # add uniform noise to the input
     filter_labels: List[int] = []
 
