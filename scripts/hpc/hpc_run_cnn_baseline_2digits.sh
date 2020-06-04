@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #Expects cwd to be fair-dist-matching. i.e ./scripts/cmnist_1_digits.sh
-seeds=( 888 1 2410 1996 511 )
+#seeds=( 888 1 2410 1996 511 )
+seeds=( 711 )
 
 slots=1
 
