@@ -251,7 +251,7 @@ def run_baseline(args: BaselineArgs):
     metrics = run_metrics(
         preds,
         ground_truths,
-        metrics=[Accuracy(), RenyiCorrelation()],
+        metrics=[Accuracy(), RenyiCorrelation(), TPR(), TNR()],
         per_sens_metrics=[ProbPos(), TPR(), TNR()] if target_dim == 1 else [],
     )
     print(f"Results for {full_name}:")
