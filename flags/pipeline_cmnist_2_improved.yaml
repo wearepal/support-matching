@@ -11,8 +11,6 @@ b_subsample_context:
 b_subsample_train:
         1: 0.3
         2: 0.0  # remove this group entirely
-# remove group s=0 from training set
-b_missing_s: 0
 b_scale: 0
 
 # ===== clustering flags =====
