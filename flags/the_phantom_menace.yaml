@@ -49,5 +49,5 @@ d_super-val: True
 d_three_way: False
 d_train-on-recon: False
 d_vae: False
-d_warmup: 1000
+d_warmup: 0
 d_zs_frac: 0.0469  # this makes zs channels be 1
