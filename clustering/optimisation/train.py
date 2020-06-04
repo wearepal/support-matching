@@ -25,7 +25,6 @@ from shared.utils import (
     prod,
     random_seed,
     readable_duration,
-    save_results,
     wandb_log,
     get_data_dim,
 )
@@ -46,8 +45,15 @@ from clustering.models import (
     build_classifier,
 )
 
+from .utils import (
+    restore_model,
+    save_model,
+    find_assignment,
+    count_occurances,
+    get_class_id,
+    convert_and_save_results,
+)
 from .evaluation import classify_dataset
-from .utils import restore_model, save_model, find_assignment, count_occurances, get_class_id
 from .build import build_ae
 from .k_means import train as train_k_means
 
@@ -211,8 +217,8 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
             return
 
     if ARGS.method == "kmeans":
-        preds = train_k_means(ARGS, encoder, datasets.context, num_clusters, s_count)
-        pth = save_results(args, preds, save_dir)
+        kmeans_results = train_k_means(ARGS, encoder, datasets.context, num_clusters, s_count)
+        pth = convert_and_save_results(ARGS, kmeans_results, save_dir)
         return (), pth
     if ARGS.finetune_encoder:
         encoder.freeze_initial_layers(
@@ -220,6 +226,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
         )
 
     # ================================= labeler =================================
+    pseudo_labeler: PseudoLabeler
     if ARGS.pseudo_labeler == "ranking":
         pseudo_labeler = RankingStatistics(k_num=ARGS.k_num)
     elif ARGS.pseudo_labeler == "cosine":
@@ -306,7 +313,9 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
         LOGGER.info("Restoring generator from checkpoint")
         model, start_epoch = restore_model(ARGS, Path(ARGS.resume), model)
         if ARGS.evaluate:
-            pth_path = save_results(ARGS, classify_dataset(ARGS, model, datasets.context), save_dir)
+            pth_path = convert_and_save_results(
+                ARGS, classify_dataset(ARGS, model, datasets.context), save_dir
+            )
             return model, pth_path
 
     # Logging
@@ -355,7 +364,9 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
     path = save_model(args, save_dir, model=model, epoch=epoch, sha=sha)
     model, _ = restore_model(args, path, model=model)
     validate(model, val_loader)
-    pth_path = save_results(ARGS, classify_dataset(ARGS, model, datasets.context), save_dir)
+    pth_path = convert_and_save_results(
+        ARGS, classify_dataset(ARGS, model, datasets.context), save_dir
+    )
     return model, pth_path
 
 

@@ -18,7 +18,7 @@ from .utils import count_occurances, find_assignment
 
 def train(
     args: ClusterArgs, encoder: Encoder, context_data: Dataset, num_clusters: int, s_count: int
-) -> Tensor:
+) -> Tuple[Tensor, Tensor, Tensor]:
     # encode the training set with the encoder
     encoded = encode_dataset(args, context_data, encoder)
     # create data loader with one giant batch
@@ -40,7 +40,7 @@ def train(
     )
     print(" | ".join(prepared))
     wandb_log(args, logging_dict, step=0)
-    return preds
+    return preds, s, y
 
 
 def run_kmeans_torch(
