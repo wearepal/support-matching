@@ -264,6 +264,7 @@ def main(
         )
         discriminator.to(args._device)
 
+        generator.apply(_spectral_norm)
         discriminator.apply(_spectral_norm)
 
         disc_distinguish = None
