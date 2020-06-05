@@ -151,7 +151,9 @@ def biased_split(args: BaseArgs, data: DataTuple) -> DataTupleTriplet:
     # if balanced_test is True and and `unbiased` has not been made balanced before...
     if args.balanced_test and args.biased_train and not args.balanced_context:
         context_splitter = BalancedTestSplit(
-            train_percentage=context_pcnt, start_seed=args.data_split_seed
+            train_percentage=context_pcnt,
+            start_seed=args.data_split_seed,
+            balance_type="P(s,y)=0.25" if args.balance_all_quadrants else "P(s|y)=0.5",
         )
     else:
         context_splitter = ProportionalSplit(
