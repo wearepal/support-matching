@@ -12,11 +12,12 @@ from shared.configs import BaseArgs
 
 
 class BaselineArgs(BaseArgs):
-    save_dir: Path
+    save_dir: Path = Path(".") / "experiments" / "finn"
     results_csv: str
 
 
 def baseline_metrics(args: BaselineArgs) -> None:
+    assert args.dataset == "adult", "This script is only for the adult dataset."
     data: DatasetTriplet = load_dataset(args)
     train_data = data.train
     test_data = data.test
@@ -46,7 +47,7 @@ def baseline_metrics(args: BaselineArgs) -> None:
     else:
         with results_path.open("a") as f:  # append to existing file
             f.write(value_list + "\n")
-    print(f"Results have been written to {results_path.resolve()}")
+    print(f"Results have been written to \"{results_path.resolve()}\".")
 
 
 def compute_metrics(predictions: Prediction, actual, name: str, run_all=False) -> Dict[str, float]:
