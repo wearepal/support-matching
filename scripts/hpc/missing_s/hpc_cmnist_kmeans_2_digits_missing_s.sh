@@ -12,7 +12,7 @@ for seed in "${seeds[@]}"; do
     --b-gpu 0 \
     --b-seed $seed \
     --b-data-split-seed $seed \
-    --d-results cmnist_2digits_$seed.csv \
+    --d-results cmnist_missing_s0_kmeans_2digits_$seed.csv \
     --b-save-dir experiments/cmnistmissings/ours/full/2digits/$seed $@
     sleep 1
 done
