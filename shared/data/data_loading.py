@@ -134,6 +134,8 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             return RawDataTuple(x=_x, s=_s, y=_y)
 
         if args.subsample_train:
+            if args.missing_s:
+                raise RuntimeError("Don't use subsample_train and missing_s together!")
             # when we manually subsample the training set, we ignore color correlation
             train_data_t = _colorize_subset(train_data, _correlation=0, _decorr_op="random",)
             train_data_t = _subsample_by_s_and_y(train_data_t, args.subsample_train)
