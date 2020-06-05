@@ -2,7 +2,7 @@ init_channels: 61
 enc_channels: 35
 ae_epochs: 60
 levels: 0
-#levels: 1
+#levels: 1 
 recon_loss: mixed
 batch_size: 1000
 use_inn: true

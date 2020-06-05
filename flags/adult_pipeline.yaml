@@ -1,0 +1,51 @@
+# Clustering arguments
+# ===== dataset =====
+b_dataset: adult
+b_drop-native: True
+b_mixing-factor: 0.0
+b_input-noise: False
+b_biased-train: True
+b_balanced-context: False
+b_balanced-test: True
+
+# ===== encoder =====
+c_encoder: ae
+c_enc-channels: 35
+c_enc-epochs: 100
+c_enc-lr: 0.001
+c_enc-levels: 0
+c_recon-loss: mixed
+c_init-channels: 61
+c_kl-weight: 0.01
+
+# ===== clustering =====
+c_lr: 0.001
+#use-multi-head: True
+c_epochs: 100
+c_lower-threshold: 0.3
+c_upper-threshold: 0.7
+c_method: pl_enc_no_norm
+c_cl-hidden-dims: 30
+c_labeler-hidden-dims:
+c_sup-ce-weight: 1
+c_sup-bce-weight: 1
+c_finetune-encoder: False
+c_finetune-lr: 1e-5
+c_pseudo-labeler: ranking
+c_weight-decay: 0
+
+# ====== misc ======
+c_batch-size: 4_000
+c_epochs: 300
+c_early-stopping: 10000 
+
+# FDM arguments
+d_warmup: 0
+d_val-freq: 10
+d_train-on-recon: False
+d_super-val: True
+d_enc-channels: 50
+d_disc-hidden_dims: 32
+d_warmup: 0
+d_batch-size: 256
+d_num-disc-updates: 3

@@ -38,7 +38,7 @@ def _random_split(data: DataTuple, first_pcnt: float, seed: int) -> Tuple[DataTu
 
 
 def get_invisible_demographics(
-    data: DataTuple, unbiased_pcnt: float, seed: int = 42, data_efficient: bool = True,
+    data: DataTuple, unbiased_pcnt: float, seed: int, for_myles: bool,
 ) -> Tuple[DataTuple, DataTuple]:
     """Split the given data into a biased subset and a normal subset.
 
@@ -61,7 +61,7 @@ def get_invisible_demographics(
     s_values = np.unique(data.s.to_numpy())
     y_values = np.unique(data.y.to_numpy())
     s_0, s_1 = s_values
-    y_0, y_1 = s_values
+    y_0, y_1 = y_values
 
     normal_subset, for_biased_subset = _random_split(data, first_pcnt=unbiased_pcnt, seed=seed)
 
@@ -70,11 +70,13 @@ def get_invisible_demographics(
     #    for_biased_subset, f"({s_name} == {s_1})"
     # )
     # one group is missing
-    one_s_only = query_dt(
-        for_biased_subset,
-        f"({s_name} == {s_0} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_1})",
-    )
-    print("ensuring that only one group is missing")
+    if for_myles:
+        query = f"({s_name} == {s_1} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_1})"
+        print("removing s=0")
+    else:
+        query = f"({s_name} == {s_0} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_1})"
+        print("ensuring that only one group is missing")
+    one_s_only = query_dt(for_biased_subset, query)
 
     one_s_only = one_s_only.replace(name=f"{data.name})")
     normal_subset = normal_subset.replace(name=f"{data.name})")
@@ -133,7 +135,7 @@ def biased_split(args: BaseArgs, data: DataTuple) -> DataTupleTriplet:
             # mixing_factor=args.mixing_factor,
             unbiased_pcnt=args.test_pcnt + args.context_pcnt,
             seed=args.data_split_seed,
-            data_efficient=True,
+            for_myles=args.for_myles,
         )
         if args.balanced_context:
             make_balanced = BalancedTestSplit(train_percentage=0, start_seed=args.data_split_seed)
