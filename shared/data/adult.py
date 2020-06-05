@@ -72,8 +72,8 @@ def get_invisible_demographics(
     # one group is missing
     one_s_only = query_dt(
         for_biased_subset,
-        # f"({s_name} == {s_0} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_1})",
-        f"({s_name} == {s_1} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_1})",
+        f"({s_name} == {s_0} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_1})",
+        # f"({s_name} == {s_1} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_1})",
     )
     print("ensuring that only one group is missing")
 

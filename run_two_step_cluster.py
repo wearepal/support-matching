@@ -20,7 +20,8 @@ def main():
             "So, for example: --b-dataset cmnist --c-epochs 100"
         )
         raise RuntimeError("all flags have to use the prefix '--b-', '--c-' or '--d-'.")
-    with TemporaryDirectory() as tmpdir:
+    tmpdir = Path() / "test1"
+    if True:
         clust_args = [arg.replace("--c-", "--").replace("--b-", "--") for arg in raw_args]
 
         # cluster into y
