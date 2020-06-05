@@ -237,8 +237,8 @@ def evaluate(
 
     if save_to_csv is not None and args.results_csv:
         assert isinstance(save_to_csv, Path)
-        sweep_key = "Scale" if args.dataset == "cmnist" else "Mix_fact"
-        sweep_value = str(args.scale) if args.dataset == "cmnist" else str(args.mixing_factor)
+        sweep_key = "seed"
+        sweep_value = str(args.seed)
         results_path = save_to_csv / f"{full_name}_{args.results_csv}"
         value_list = ",".join([sweep_value] + [str(v) for v in metrics.values()])
         if not results_path.is_file():
