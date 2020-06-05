@@ -69,6 +69,7 @@ class BaseArgs(TypedFlags):
     # Adult data set feature settings
     drop_native: bool = True
     drop_discrete: bool = False
+    balanced_context: bool = False
 
     # Colored MNIST settings
     scale: float = 0.02

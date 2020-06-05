@@ -135,6 +135,9 @@ def biased_split(args: BaseArgs, data: DataTuple) -> DataTupleTriplet:
             seed=args.data_split_seed,
             data_efficient=True,
         )
+        if args.balanced_context:
+            make_balanced = BalancedTestSplit(train_percentage=0, start_seed=args.data_split_seed)
+            _, unbiased, _ = make_balanced(unbiased)
     else:
         train_tuple, unbiased, _ = BalancedTestSplit(
             train_percentage=1 - args.test_pcnt - args.context_pcnt,
