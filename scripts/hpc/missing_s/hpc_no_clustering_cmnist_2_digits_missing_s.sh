@@ -9,6 +9,7 @@ for seed in "${seeds[@]}"; do
     --b-subsample-train \
     --b-missing-s 0 \
     --b-gpu 0 \
+    --d-batch-size 256 \
     --b-seed $seed \
     --b-data-split-seed $seed \
     --d-results cmnist_missing_s0_no_cluster_2digits_$seed.csv \

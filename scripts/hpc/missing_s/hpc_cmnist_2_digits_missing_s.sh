@@ -8,6 +8,7 @@ for seed in "${seeds[@]}"; do
     qsub -pe smpslots $slots python-ot.job run_both.py @flags/the_phantom_menace.yaml \
     --b-subsample-train \
     --b-missing-s 0 \
+    --d-batch-size 256 \
     --b-gpu 0 \
     --b-seed $seed \
     --b-data-split-seed $seed \
