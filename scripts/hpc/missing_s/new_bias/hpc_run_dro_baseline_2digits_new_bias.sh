@@ -14,7 +14,7 @@ for seed in "${seeds[@]}"; do
         --filter-labels 2 4 \
         --padding 2 \
         --context-pcnt 0.66666666 \
-        --subsample-context 0=0.7 1=0.4 2=0.2 3=1.0 \
+        --subsample-context 0=0.5 1=1.0 2=0.2 3=0.4 \
         --subsample-train 1=0.3 2=0.0 \
         --scale 0 \
         --gpu 0 \
