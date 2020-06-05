@@ -72,7 +72,7 @@ class BaselineArgs(BaseArgs):
                 raise ValueError(
                     "Kamiran & Calders reweighting scheme can only be used with binary sensitive and target attributes."
                 )
-            elif self.task_mixing_factor % 1 == 0:
+            elif self.mixing_factor % 1 == 0:
                 raise ValueError(
                     "Kamiran & Calders reweighting scheme can only be used when there is at least one sample available for each sensitive/target attribute combination."
                 )
@@ -264,21 +264,13 @@ def run_baseline(args: BaselineArgs):
 
         assert isinstance(save_to_csv, Path)
         results_path = save_to_csv / full_name
-        if args.dataset == "cmnist":
-            value_list = ",".join([str(args.scale)] + [str(v) for v in metrics.values()])
-        else:
-            value_list = ",".join(
-                [str(args.task_mixing_factor)] + [str(v) for v in metrics.values()]
-            )
+        value_list = ",".join([str(args.seed)] + [str(v) for v in metrics.values()])
         if results_path.is_file():
             with results_path.open("a") as f:
                 f.write(value_list + "\n")
         else:
             with results_path.open("w") as f:
-                if args.dataset == "cmnist":
-                    f.write(",".join(["Scale"] + [str(k) for k in metrics.keys()]) + "\n")
-                else:
-                    f.write(",".join(["Mix_fact"] + [str(k) for k in metrics.keys()]) + "\n")
+                f.write(",".join(["Seed"] + [str(k) for k in metrics.keys()]) + "\n")
                 f.write(value_list + "\n")
 
 
