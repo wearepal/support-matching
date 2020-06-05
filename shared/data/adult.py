@@ -8,8 +8,8 @@ from torch.utils.data import DataLoader
 from ethicml.data import adult, load_data, Dataset
 from ethicml.preprocessing import (
     BalancedTestSplit,
+    DataSplitter,
     ProportionalSplit,
-    get_biased_subset,
 )
 from ethicml.utility import DataTuple
 from shared.configs import BaseArgs
@@ -144,10 +144,18 @@ def biased_split(args: BaseArgs, data: DataTuple) -> DataTupleTriplet:
             start_seed=args.data_split_seed,
         )(data)
 
-    test_tuple, context_tuple, _ = ProportionalSplit(
-        train_percentage=args.test_pcnt / (args.test_pcnt + args.context_pcnt),
-        start_seed=args.data_split_seed,
-    )(unbiased)
+    context_pcnt = args.context_pcnt / (args.test_pcnt + args.context_pcnt)
+    context_splitter: DataSplitter
+    # if balanced_test is True and and `unbiased` has not been made balanced before...
+    if args.balanced_test and args.biased_train and not args.balanced_context:
+        context_splitter = BalancedTestSplit(
+            train_percentage=context_pcnt, start_seed=args.data_split_seed
+        )
+    else:
+        context_splitter = ProportionalSplit(
+            train_percentage=context_pcnt, start_seed=args.data_split_seed
+        )
+    context_tuple, test_tuple, _ = context_splitter(unbiased)
     return DataTupleTriplet(context=context_tuple, test=test_tuple, train=train_tuple)
 
 
