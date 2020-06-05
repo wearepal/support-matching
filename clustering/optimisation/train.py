@@ -361,9 +361,10 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = True) -> Tuple
         #     save_model(args, save_dir, model=model.bundle, epoch=epoch, sha=sha)
 
     LOGGER.info("Training has finished.")
-    path = save_model(args, save_dir, model=model, epoch=epoch, sha=sha)
-    model, _ = restore_model(args, path, model=model)
-    validate(model, val_loader)
+    # path = save_model(args, save_dir, model=model, epoch=epoch, sha=sha)
+    # model, _ = restore_model(args, path, model=model)
+    val_acc, _ = validate(model, val_loader)
+    print("val_acc", val_acc)
     pth_path = convert_and_save_results(
         ARGS, classify_dataset(ARGS, model, datasets.context), save_dir
     )

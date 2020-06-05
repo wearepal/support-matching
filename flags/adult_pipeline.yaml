@@ -21,7 +21,6 @@ c_kl-weight: 0.01
 # ===== clustering =====
 c_lr: 0.001
 #use-multi-head: True
-c_epochs: 100
 c_lower-threshold: 0.3
 c_upper-threshold: 0.7
 c_method: pl_enc_no_norm
@@ -35,7 +34,7 @@ c_pseudo-labeler: ranking
 c_weight-decay: 0
 
 # ====== misc ======
-c_batch-size: 4_000
+c_batch-size: 4000
 c_epochs: 300
 c_early-stopping: 10000 
 
@@ -49,3 +48,4 @@ d_disc-hidden_dims: 32
 d_warmup: 0
 d_batch-size: 256
 d_num-disc-updates: 3
+d_epochs: 250
