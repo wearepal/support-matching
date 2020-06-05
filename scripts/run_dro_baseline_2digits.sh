@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #Expects cwd to be fair-dist-matching. i.e ./scripts/cmnist_1_digits.sh
-seeds=( 888 1 2410 1996 511 )
+seeds=( 888 1 2410 1996 711 )
 scales=( 0.0 )
 etas=( 0.01 0.1 0.5 1.0)
 
