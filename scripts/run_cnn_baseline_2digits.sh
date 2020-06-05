@@ -7,13 +7,16 @@ slots=1
 for seed in "${seeds[@]}"; do
     echo $seed
     python run_simple_baselines.py \
-    --missing-s 0 \
+    --filter-labels 2 4 \
+    --padding 2 \
+    --context-pcnt 0.66666666 \
+    --subsample-context 0=0.7 1=0.4 2=0.2 3=1.0 \
+    --subsample-train 1=0.3 2=0.0 \
+    --scale 0 \
     --method cnn \
     --gpu 0 \
-    --filter-labels 2 4 \
     --seed $seed \
     --data-split-seed $seed \
-    --scale 0.0 \
-    --save-dir experiments/cmnistmissings/baseline/cnn/2digits/$seed/0 $@
+    --save-dir experiments/cmnist1missing/baseline/cnn/2digits/$seed/0 $@
     sleep 1
 done

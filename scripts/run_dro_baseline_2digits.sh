@@ -1,27 +1,27 @@
 #!/usr/bin/env bash
 #Expects cwd to be fair-dist-matching. i.e ./scripts/cmnist_1_digits.sh
 seeds=( 888 1 2410 1996 711 )
-scales=( 0.0 )
 etas=( 0.01 0.1 0.5 1.0)
 
 slots=1
 
-for scale in "${scales[@]}"; do
-    echo $scale
-    for seed in "${seeds[@]}"; do
-        for eta in "${etas[@]}"; do
-            echo $seed
-            python run_simple_baselines.py \
-            --method dro \
-            --gpu 1 \
-            --filter-labels 2 4 \
-            --eta $eta \
-            --seed $seed \
-            --data-split-seed $seed \
-            --scale $scale \
-            --color-correlation 0.999 \
-            --save-dir experiments/cmnist/baseline/dro/2digits/$seed/$eta/$scale $@
-            sleep 1
-        done
+for seed in "${seeds[@]}"; do
+    for eta in "${etas[@]}"; do
+        echo $seed
+        python run_simple_baselines.py \
+        --method dro \
+        --eta $eta \
+        --filter-labels 2 4 \
+        --padding 2 \
+        --context-pcnt 0.66666666 \
+        --subsample-context 0=0.7 1=0.4 2=0.2 3=1.0 \
+        --subsample-train 1=0.3 2=0.0 \
+        --scale 0 \
+        --method cnn \
+        --gpu 0 \
+        --seed $seed \
+        --data-split-seed $seed \
+        --save-dir experiments/cmnist1missing/baseline/dro/2digits/$seed/0 $@
+        sleep 1
     done
 done
