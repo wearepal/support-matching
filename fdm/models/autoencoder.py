@@ -77,11 +77,8 @@ class AutoEncoder(nn.Module):
             just_s=self.decode(just_s, mode=mode),
         )
 
-    def forward(self, inputs, reverse: bool = False):
-        if reverse:
-            return self.decode(inputs)
-        else:
-            return self.encode(inputs)
+    def forward(self, inputs):
+        return self.encode(inputs)
 
     def zero_grad(self):
         self.encoder.zero_grad()
