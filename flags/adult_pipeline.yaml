@@ -1,51 +1,60 @@
 # Clustering arguments
 # ===== dataset =====
 b_dataset: adult
-b_drop-native: True
-b_mixing-factor: 0.0
-b_input-noise: False
-b_biased-train: True
-b_balanced-context: False
-b_balanced-test: True
+b_drop_native: True
+b_mixing_factor: 0.0
+b_input_noise: False
+b_biased_train: True
+b_balanced_context: False
+b_balanced_test: True
+b_balance_all: True
 
 # ===== encoder =====
 c_encoder: ae
-c_enc-channels: 35
-c_enc-epochs: 100
-c_enc-lr: 0.001
-c_enc-levels: 0
-c_recon-loss: mixed
-c_init-channels: 61
-c_kl-weight: 0.01
+c_enc_channels: 35
+c_enc_epochs: 100
+c_enc_lr: 0.001
+c_enc_levels: 0
+c_recon_loss: mixed
+c_init_channels: 61
+c_kl_weight: 0.01
 
 # ===== clustering =====
 c_lr: 0.001
-#use-multi-head: True
-c_lower-threshold: 0.3
-c_upper-threshold: 0.7
+#use_multi_head: True
+c_lower_threshold: 0.3
+c_upper_threshold: 0.7
 c_method: pl_enc_no_norm
-c_cl-hidden-dims: 30
-c_labeler-hidden-dims:
-c_sup-ce-weight: 1
-c_sup-bce-weight: 1
-c_finetune-encoder: False
-c_finetune-lr: 1e-5
-c_pseudo-labeler: ranking
-c_weight-decay: 0
+c_cl_hidden_dims: 30
+c_labeler_hidden_dims:
+c_sup_ce_weight: 1
+c_sup_bce_weight: 1
+c_finetune_encoder: False
+c_finetune_lr: 1e-5
+c_pseudo_labeler: ranking
+c_weight_decay: 0
 
 # ====== misc ======
-c_batch-size: 4000
+c_batch_size: 4000
 c_epochs: 300
-c_early-stopping: 10000 
+c_early_stopping: 10000
 
 # FDM arguments
-d_warmup: 0
-d_val-freq: 10
-d_train-on-recon: False
-d_super-val: True
-d_enc-channels: 50
-d_disc-hidden_dims: 32
-d_warmup: 0
-d_batch-size: 256
-d_num-disc-updates: 3
+d_batch_size: 1000
+d_disc_hidden_dims: 32
+d_enc_channels: 35
 d_epochs: 250
+d_init_channels: 61
+d_levels: 0
+d_num_disc_updates: 3
+d_recon_loss: mixed
+d_pred_weight: 1.0
+d_super_val: True
+d_super_val_freq: 10
+# if the following is turned off, warmup_steps should also be off
+d_train_on_recon: True
+d_vae: false
+d_val_freq: 10
+d_warmup: 100
+d_weight_decay: 1e-6
+d_zs_frac: 0.05714
