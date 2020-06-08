@@ -7,7 +7,5 @@ for seed in "${seeds[@]}"; do
     --b-gpu 0 \
     --b-seed $seed \
     --b-data-split-seed $seed \
-    --b-epochs 10 \
-    --b-save-dir experiments/test \
     --d-results adult_pipeline.csv "$@"
 done

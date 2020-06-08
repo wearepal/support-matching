@@ -54,7 +54,9 @@ class AutoEncoder(nn.Module):
                     if mode == "hard":
                         discrete_outputs.append(to_discrete(decoding[:, group_slice]).float())
                     else:
-                        discrete_outputs.append(sample_concrete(decoding[:, group_slice], temperature=1e-2))
+                        discrete_outputs.append(
+                            sample_concrete(decoding[:, group_slice], temperature=1e-2)
+                        )
                     stop_index = group_slice.stop
                 discrete_outputs = torch.cat(discrete_outputs, axis=1)
                 decoding = torch.cat([discrete_outputs, decoding[:, stop_index:]], axis=1)

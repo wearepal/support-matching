@@ -26,7 +26,7 @@ class RoundSTE(torch.autograd.Function):
         return grad_output
 
 
-def to_discrete(inputs: Tensor, dim: int =1) -> Tensor:
+def to_discrete(inputs: Tensor, dim: int = 1) -> Tensor:
     if inputs.dim() <= 1 or inputs.size(1) <= 1:
         return inputs.round()
     else:

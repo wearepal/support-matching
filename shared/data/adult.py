@@ -72,7 +72,9 @@ def get_invisible_demographics(
     # one group is missing
     if missing_s:
         if len(missing_s) == 1 and missing_s[0] == 0:
-            query = f"({s_name} == {s_1} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_1})"
+            query = (
+                f"({s_name} == {s_1} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_1})"
+            )
             print("removing s=0")
         else:
             raise ValueError(f"Unsupported missing group {missing_s}")
