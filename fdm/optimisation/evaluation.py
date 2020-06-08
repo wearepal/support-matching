@@ -61,7 +61,7 @@ def log_metrics(
         train_inv_s,
         test_repr,
         data_name="x_rand_s",
-        model_name="FDM",
+        model_name=f"FDM step{step}",
         eval_on_recon=args.eval_on_recon,
         pred_s=False,
         save_to_csv=save_to_csv,
@@ -103,7 +103,7 @@ def baseline_metrics(
             preds = clf.run(train_data, test_data)
 
             actual = test_data
-            name = f"baseline {clf.name}"
+            name = "x_rand_s"
             compute_metrics(
                 args,
                 preds,
@@ -125,6 +125,7 @@ def compute_metrics(
     model_name: str,
     step: int,
     run_all=False,
+    pred_s: bool = False,
     save_to_csv: Optional[Path] = None,
 ) -> Dict[str, float]:
     """Compute accuracy and fairness metrics and log them"""
@@ -164,10 +165,17 @@ def compute_metrics(
 
     if save_to_csv is not None and args.results_csv:
         assert isinstance(save_to_csv, Path)
+
+        full_name = f"{args.dataset}_{data_exp_name}"
+        full_name += "_s" if pred_s else "_y"
+        full_name += "_on_recons" if args.eval_on_recon else "_on_encodings"
+
         sweep_key = "seed"
         sweep_value = str(args.seed)
         results_path = save_to_csv / f"{data_exp_name}_{args.results_csv}"
-        value_list = ",".join([sweep_value] + [model_name] + [str(v) for v in metrics.values()])
+        value_list = ",".join(
+            [sweep_value] + ["method"] + [model_name] + [str(v) for v in metrics.values()]
+        )
         if not results_path.is_file():
             with results_path.open("w") as f:
                 f.write(",".join([sweep_key] + [str(k) for k in metrics.keys()]) + "\n")  # header
@@ -271,18 +279,16 @@ def evaluate(
         preds = clf.run(train_data, test_data)
         actual = test_data
 
-    full_name = f"{args.dataset}_{data_name}"
-    full_name += "_s" if pred_s else "_y"
-    full_name += "_on_recons" if eval_on_recon else "_on_encodings"
     metrics = compute_metrics(
         args,
         preds,
         actual,
-        full_name,
+        data_name,
         model_name,
         run_all=args._y_dim == 1,
         step=step,
         save_to_csv=save_to_csv,
+        pred_s=pred_s,
     )
 
     return metrics, clf
