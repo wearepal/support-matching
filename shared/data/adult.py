@@ -1,5 +1,5 @@
 """Definition of the Adult dataset"""
-from typing import NamedTuple, Tuple
+from typing import NamedTuple, Tuple, List
 
 import numpy as np
 import pandas as pd
@@ -38,7 +38,7 @@ def _random_split(data: DataTuple, first_pcnt: float, seed: int) -> Tuple[DataTu
 
 
 def get_invisible_demographics(
-    data: DataTuple, unbiased_pcnt: float, seed: int, for_myles: bool,
+    data: DataTuple, unbiased_pcnt: float, seed: int, missing_s: List[int],
 ) -> Tuple[DataTuple, DataTuple]:
     """Split the given data into a biased subset and a normal subset.
 
@@ -70,9 +70,12 @@ def get_invisible_demographics(
     #    for_biased_subset, f"({s_name} == {s_1})"
     # )
     # one group is missing
-    if for_myles:
-        query = f"({s_name} == {s_1} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_1})"
-        print("removing s=0")
+    if missing_s:
+        if len(missing_s) == 1 and missing_s[0] == 0:
+            query = f"({s_name} == {s_1} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_1})"
+            print("removing s=0")
+        else:
+            raise ValueError(f"Unsupported missing group {missing_s}")
     else:
         query = f"({s_name} == {s_0} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_1})"
         print("ensuring that only one group is missing")
@@ -135,10 +138,14 @@ def biased_split(args: BaseArgs, data: DataTuple) -> DataTupleTriplet:
             # mixing_factor=args.mixing_factor,
             unbiased_pcnt=args.test_pcnt + args.context_pcnt,
             seed=args.data_split_seed,
-            for_myles=args.for_myles,
+            missing_s=args.missing_s,
         )
         if args.balanced_context:
-            make_balanced = BalancedTestSplit(train_percentage=0, start_seed=args.data_split_seed)
+            make_balanced = BalancedTestSplit(
+                train_percentage=0,
+                start_seed=args.data_split_seed,
+                balance_type="P(s,y)=0.25" if args.balance_all_quadrants else "P(s|y)=0.5",
+            )
             _, unbiased, _ = make_balanced(unbiased)
     else:
         train_tuple, unbiased, _ = BalancedTestSplit(

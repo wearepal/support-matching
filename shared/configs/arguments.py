@@ -71,7 +71,6 @@ class BaseArgs(TypedFlags):
     drop_discrete: bool = False
     balanced_context: bool = False
     balanced_test: bool = False
-    for_myles: bool = False
     balance_all_quadrants: bool = False
 
     # Colored MNIST settings
