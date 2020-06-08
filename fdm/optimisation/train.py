@@ -509,37 +509,39 @@ def update_disc(
     # in case of the three-way split, we have to check more than one invariance
     invariances: List[Literal["s", "y"]] = ["s", "y"] if ARGS.three_way_split else ["s"]
 
+    encoding_t = ae.generator.encode(x_t, stochastic=True)
+    if not ARGS.train_on_recon:
+        disc_input_c = ae.generator.encode(x_c, stochastic=True)
+    else:
+        disc_input_c = x_c
+
     for _ in range(ARGS.num_disc_updates):
-        encoding_t = ae.generator.encode(x_t, stochastic=True)
-        encoding_c = ae.generator.encode(x_c, stochastic=True)
-        disc_input_c: Tensor
-        if ARGS.train_on_recon:
-            disc_input_c = ae.generator.decode(encoding_c).detach()  # just reconstruct
+        disc_input_c_inv = disc_input_c
 
         disc_loss = x_c.new_zeros(())
         disc_loss_distinguish = x_c.new_zeros(())
         for invariance in invariances:
-            disc_input_t = get_disc_input(ae.generator, encoding_t, invariant_to=invariance)
-            disc_input_t = disc_input_t.detach()
+            disc_input_t_inv = get_disc_input(ae.generator, encoding_t, invariant_to=invariance)
+            disc_input_t_inv = disc_input_t_inv.detach()
             if not ARGS.train_on_recon:
-                disc_input_c = get_disc_input(ae.generator, encoding_c, invariant_to=invariance)
-                disc_input_c = disc_input_c.detach()
+                disc_input_c_inv = get_disc_input(ae.generator, disc_input_c, invariant_to=invariance)
+                disc_input_c_inv = disc_input_c_inv.detach()
 
             # discriminator is trained to distinguish `disc_input_c` and `disc_input_t`
-            disc_loss_true, disc_acc_true = ae.discriminator.routine(disc_input_c, ones)
-            disc_loss_false, disc_acc_false = ae.discriminator.routine(disc_input_t, zeros)
+            disc_loss_true, disc_acc_true = ae.discriminator.routine(disc_input_c_inv, ones)
+            disc_loss_false, disc_acc_false = ae.discriminator.routine(disc_input_t_inv, zeros)
             disc_loss += disc_loss_true + disc_loss_false
-            if ARGS.three_way_split:
-                assert ae.disc_distinguish is not None
-                # the distinguisher is always applied to the encoding (regardless of the other disc)
-                encs = ae.generator.split_encoding(encoding_c)
-                target_enc = encs.zs if invariance == "s" else encs.zy
-                # take the encoding with `target_enc` masked out
-                zs_m, zy_m = ae.generator.mask(encoding_c)
-                invariant_enc = zs_m if invariance == "s" else zy_m
-                # predict target_enc from the encoding that should be invariant of it
-                disc_loss_distinguish_c, _ = ae.disc_distinguish.routine(invariant_enc, target_enc)
-                disc_loss_distinguish += disc_loss_distinguish_c
+            # if ARGS.three_way_split:
+            #     assert ae.disc_distinguish is not None
+            #     # the distinguisher is always applied to the encoding (regardless of the other disc)
+            #     encs = ae.generator.split_encoding(encoding_c)
+            #     target_enc = encs.zs if invariance == "s" else encs.zy
+            #     # take the encoding with `target_enc` masked out
+            #     zs_m, zy_m = ae.generator.mask(encoding_c)
+            #     invariant_enc = zs_m if invariance == "s" else zy_m
+            #     # predict target_enc from the encoding that should be invariant of it
+            #     disc_loss_distinguish_c, _ = ae.disc_distinguish.routine(invariant_enc, target_enc)
+            #     disc_loss_distinguish += disc_loss_distinguish_c
         if not warmup:
             ae.discriminator.zero_grad()
             disc_loss.backward()
@@ -603,29 +605,29 @@ def update(
         logging_dict.update({"Loss Predictor y": 0.0, "Accuracy Predictor y": 0.0})
 
     disc_loss_distinguish = x_t.new_zeros(())
-    if ARGS.three_way_split and (not ARGS.distinguish_warmup or disc_weight != 0):
-        disc_input_y = get_disc_input(ae.generator, encoding, invariant_to="y")
-        disc_loss_y, disc_acc_inv_y = ae.discriminator.routine(disc_input_y, zeros)
-        disc_loss += disc_loss_y
-        logging_dict["Accuracy Disc 2"] = disc_acc_inv_y
+    # if ARGS.three_way_split and (not ARGS.distinguish_warmup or disc_weight != 0):
+    #     disc_input_y = get_disc_input(ae.generator, encoding, invariant_to="y")
+    #     disc_loss_y, disc_acc_inv_y = ae.discriminator.routine(disc_input_y, zeros)
+    #     disc_loss += disc_loss_y
+    #     logging_dict["Accuracy Disc 2"] = disc_acc_inv_y
 
-        assert ae.disc_distinguish is not None
-        encs_c = ae.generator.split_encoding(encoding_c)
-        zs_m, zy_m = ae.generator.mask(encoding_c)
-        # predict zs from zn and zy (i.e. zs masked out) and predict zy from zn and zs
-        tasks = [
-            (zs_m, encs_c.zs, "Loss Distinguisher 1"),
-            (zy_m, encs_c.zy, "Loss Distinguisher 2"),
-        ]
-        for (invariant, target, loss_name) in tasks:
-            loss_dist, _ = ae.disc_distinguish.routine(invariant, target)
-            disc_loss_distinguish += loss_dist * ARGS.distinguish_weight
-            logging_dict[loss_name] = loss_dist.item()
-    elif ARGS.three_way_split:
-        # TODO: remove the need for this workaround
-        logging_dict.update(
-            {"Accuracy Disc 2": 0.0, "Loss Distinguisher 1": 0.0, "Loss Distinguisher 2": 0.0}
-        )
+    #     assert ae.disc_distinguish is not None
+    #     encs_c = ae.generator.split_encoding(encoding_c)
+    #     zs_m, zy_m = ae.generator.mask(encoding_c)
+    #     # predict zs from zn and zy (i.e. zs masked out) and predict zy from zn and zs
+    #     tasks = [
+    #         (zs_m, encs_c.zs, "Loss Distinguisher 1"),
+    #         (zy_m, encs_c.zy, "Loss Distinguisher 2"),
+    #     ]
+    #     for (invariant, target, loss_name) in tasks:
+    #         loss_dist, _ = ae.disc_distinguish.routine(invariant, target)
+    #         disc_loss_distinguish += loss_dist * ARGS.distinguish_weight
+    #         logging_dict[loss_name] = loss_dist.item()
+    # elif ARGS.three_way_split:
+    #     # TODO: remove the need for this workaround
+    #     logging_dict.update(
+    #         {"Accuracy Disc 2": 0.0, "Loss Distinguisher 1": 0.0, "Loss Distinguisher 2": 0.0}
+    #     )
 
     elbo *= ARGS.elbo_weight
     disc_loss *= disc_weight

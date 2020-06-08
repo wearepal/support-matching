@@ -1,4 +1,5 @@
 import torch
+from torch.autograd import Function
 import torch.distributions as td
 from torch import Tensor, jit
 from torch.nn import functional as F
@@ -11,19 +12,10 @@ __all__ = [
     "to_discrete",
     "sample_concrete",
     "dot_product",
+    "OneHotSTE",
+    "ArgMaxSTE",
+    "sample_discrete_with_ste"
 ]
-
-
-class RoundSTE(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, inputs: Tensor):
-        return inputs.round()
-
-    @staticmethod
-    def backward(ctx, grad_output: Tensor):
-        """Straight-through estimator
-        """
-        return grad_output
 
 
 def to_discrete(inputs: Tensor, dim: int = 1) -> Tensor:
@@ -32,6 +24,44 @@ def to_discrete(inputs: Tensor, dim: int = 1) -> Tensor:
     else:
         argmax = inputs.argmax(dim=1)
         return F.one_hot(argmax, num_classes=inputs.size(1))
+    
+
+def sample_discrete_with_ste(logits: Tensor) -> Tensor:
+    if logits.dim() <= 1 or logits.size(1) <= 1:
+        return RoundSTE.apply(logits)
+    else:
+        return OneHotSTE.apply(logits)
+
+
+class _StraightThroughEstimated(Function):
+    @staticmethod
+    def forward(ctx, inputs: Tensor) -> Tensor:
+        return inputs
+
+    @staticmethod
+    def backward(ctx, grad_output: Tensor) -> Tensor:
+        """Straight-through estimator
+        """
+        return grad_output
+
+
+class RoundSTE(_StraightThroughEstimated):
+    @staticmethod
+    def forward(ctx, inputs: Tensor) -> Tensor:
+        return inputs.round()
+
+
+class ArgMaxSTE(_StraightThroughEstimated):
+    @staticmethod
+    def forward(ctx, inputs: Tensor, dim=1, keepdim=False) -> Tensor:
+        return inputs.argmax(dim=dim, keepdim=keepdim)
+
+
+class OneHotSTE(_StraightThroughEstimated):
+    @staticmethod
+    def forward(ctx, inputs: Tensor, dim=1) -> Tensor:
+        argmax = inputs.argmax(dim=dim)
+        return F.one_hot(argmax, num_classes=inputs.size(1)).float()
 
 
 def sample_concrete(logits: Tensor, temperature: float) -> Tensor:

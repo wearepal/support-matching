@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from torch import Tensor
 from tqdm import tqdm
 
-from shared.utils import to_discrete, sample_concrete
+from shared.utils import to_discrete, sample_concrete, sample_discrete_with_ste
 
 from .base import ModelBase, EncodingSize, SplitEncoding, Reconstructions
 
@@ -55,7 +55,7 @@ class AutoEncoder(nn.Module):
                         discrete_outputs.append(to_discrete(decoding[:, group_slice]).float())
                     else:
                         discrete_outputs.append(
-                            sample_concrete(decoding[:, group_slice], temperature=1e-2)
+                            sample_discrete_with_ste(decoding[:, group_slice])
                         )
                     stop_index = group_slice.stop
                 discrete_outputs = torch.cat(discrete_outputs, axis=1)
