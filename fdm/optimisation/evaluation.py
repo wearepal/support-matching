@@ -46,7 +46,6 @@ def log_metrics(
     if run_baselines:
         print("Baselines...")
         baseline_metrics(args, data, step)
-        return
 
     print("Encoding training set...")
     train_inv_s = encode_dataset(
