@@ -43,6 +43,7 @@ def log_metrics(
     if run_baselines:
         print("Baselines...")
         baseline_metrics(args, data, step, save_to_csv)
+        return
 
     print("Encoding training set...")
     train_inv_s = encode_dataset(
@@ -61,7 +62,7 @@ def log_metrics(
         train_inv_s,
         test_repr,
         data_name="x_rand_s",
-        model_name=f"FDM step{step}",
+        model_name=f"FDM",
         eval_on_recon=args.eval_on_recon,
         pred_s=False,
         save_to_csv=save_to_csv,
@@ -173,9 +174,7 @@ def compute_metrics(
         sweep_key = "seed"
         sweep_value = str(args.seed)
         results_path = save_to_csv / f"{data_exp_name}_{args.results_csv}"
-        value_list = ",".join(
-            [sweep_value] + ["method"] + [model_name] + [str(v) for v in metrics.values()]
-        )
+        value_list = ",".join([sweep_value] + [model_name] + [str(v) for v in metrics.values()])
         if not results_path.is_file():
             with results_path.open("w") as f:
                 f.write(",".join([sweep_key] + [str(k) for k in metrics.keys()]) + "\n")  # header
