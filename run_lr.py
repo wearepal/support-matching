@@ -42,9 +42,7 @@ def baseline_metrics(args: BaselineArgs) -> None:
     value_list = ",".join([sweep_value] + [str(v) for v in metrics.values()])
     if not results_path.is_file():
         with results_path.open("w") as f:
-            f.write(
-                ",".join([sweep_key] + ["method"] + [str(k) for k in metrics.keys()]) + "\n"
-            )  # header
+            f.write(",".join([sweep_key] + [str(k) for k in metrics.keys()]) + "\n")  # header
             f.write(value_list + "\n")
     else:
         with results_path.open("a") as f:  # append to existing file
