@@ -41,7 +41,7 @@ from fdm.models import (
 )
 from fdm.models.configs import strided_28x28_net, residual_64x64_net
 
-from .evaluation import log_metrics
+from .evaluation import log_metrics, baseline_metrics
 from .loss import MixedLoss, PixelCrossEntropy, VGGLoss
 from .utils import log_images, restore_model, save_model, weight_for_balance
 from .build import build_inn, build_ae
@@ -388,9 +388,10 @@ def main(
         #         n_vals_without_improvement,
         #     )
         if ARGS.super_val and epoch % super_val_freq == 0:
-            first_time = epoch == super_val_freq
-            log_metrics(ARGS, model=generator, data=datasets, step=itr, run_baselines=first_time)
-            save_model(args, save_dir, model=generator, epoch=epoch, sha=sha)
+            if epoch == super_val_freq:
+                baseline_metrics(ARGS, datasets, save_to_csv=Path(ARGS.save_dir))
+            log_metrics(ARGS, model=generator, data=datasets, step=itr)
+            save_model(ARGS, save_dir, model=generator, epoch=epoch, sha=sha)
 
         if isinstance(components, InnComponents) and ARGS.disc_reset_prob > 0:
             for k, disc in enumerate(components.disc_ensemble):

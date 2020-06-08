@@ -39,13 +39,9 @@ def log_metrics(
     data: DatasetTriplet,
     step: int,
     save_to_csv: Optional[Path] = None,
-    run_baselines: bool = False,
 ):
     """Compute and log a variety of metrics."""
     model.eval()
-    if run_baselines:
-        print("Baselines...")
-        baseline_metrics(args, data, step)
 
     print("Encoding training set...")
     train_inv_s = encode_dataset(
@@ -85,8 +81,9 @@ def log_metrics(
         )
 
 
-def baseline_metrics(args: VaeArgs, data: DatasetTriplet, step: int) -> None:
+def baseline_metrics(args: VaeArgs, data: DatasetTriplet, save_to_csv: Optional[Path]) -> None:
     if args.dataset not in ("cmnist", "celeba", "ssrp", "genfaces"):
+        print("Baselines...")
         train_data = data.train
         test_data = data.test
         if not isinstance(train_data, DataTuple):
@@ -96,7 +93,17 @@ def baseline_metrics(args: VaeArgs, data: DatasetTriplet, step: int) -> None:
 
         for clf in [algos.Majority(), algos.Kamiran(classifier="LR"), algos.LRCV()]:
             preds = clf.run(train_data, test_data)
-            compute_metrics(args, preds, test_data, "baseline", clf.name, step=step)
+            compute_metrics(
+                args=args,
+                predictions=preds,
+                actual=test_data,
+                data_exp_name="baseline",
+                model_name=clf.name,
+                step=0,
+                save_to_csv=save_to_csv,
+                results_csv=args.results_csv,
+                use_wandb=False,
+            )
 
 
 def compute_metrics(
@@ -106,13 +113,13 @@ def compute_metrics(
     data_exp_name: str,
     model_name: str,
     step: int,
-    pred_s: bool = False,
     save_to_csv: Optional[Path] = None,
     results_csv: str = "",
     use_wandb: bool = False,
 ) -> Dict[str, float]:
     """Compute accuracy and fairness metrics and log them"""
 
+    predictions._info = {}
     if args._y_dim == 1:
         metrics = run_metrics(
             predictions,
@@ -120,12 +127,14 @@ def compute_metrics(
             metrics=[Accuracy(), TPR(), TNR(), RenyiCorrelation()],
             per_sens_metrics=[ProbPos(), TPR(), TNR()],
         )
-        wandb_log(args, metrics, step=step)
+        if use_wandb:
+            wandb_log(args, metrics, step=step)
     else:
         metrics = run_metrics(
             predictions, actual, metrics=[Accuracy(), RenyiCorrelation()], per_sens_metrics=[]
         )
-        wandb_log(args, {f"{data_exp_name} Accuracy": metrics["Accuracy"]}, step=step)
+        if use_wandb:
+            wandb_log(args, {f"{data_exp_name} Accuracy": metrics["Accuracy"]}, step=step)
     print(f"Results for {data_exp_name} ({model_name}):")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
     print()  # empty line
@@ -133,15 +142,17 @@ def compute_metrics(
     if save_to_csv is not None and results_csv:
         assert isinstance(save_to_csv, Path)
 
-        full_name = f"{args.dataset}_{data_exp_name}"
-        full_name += "_s" if pred_s else "_y"
-        if hasattr(args, "eval_on_recon"):
-            full_name += "_on_recons" if args.eval_on_recon else "_on_encodings"
+        # full_name = f"{args.dataset}_{data_exp_name}"
+        # data_exp_name += "_s" if pred_s else "_y"
+        # if hasattr(args, "eval_on_recon"):
+        #     data_exp_name += "_on_recons" if args.eval_on_recon else "_on_encodings"
 
-        manual_keys = ["seed", "method"]
-        manual_values = [str(getattr(args, "seed", args.data_split_seed)), f"\"{model_name}\""]
+        manual_keys = ["seed", "type", "method"]
+        manual_values = [
+            str(getattr(args, "seed", args.data_split_seed)), data_exp_name, f"\"{model_name}\""
+        ]
 
-        results_path = save_to_csv / f"{data_exp_name}_{results_csv}"
+        results_path = save_to_csv / f"{args.dataset}_{results_csv}"
         value_list = ",".join(manual_values + [str(v) for v in metrics.values()])
         if not results_path.is_file():
             with results_path.open("w") as f:
@@ -241,9 +252,8 @@ def evaluate(
             preds,
             actual,
             name,
-            "classifier",  # not the most descriptive name...
+            "fdm",
             step=step,
-            pred_s=pred_s,
             save_to_csv=save_to_csv,
             results_csv=args.results_csv,
             use_wandb=args.use_wandb,
@@ -253,16 +263,14 @@ def evaluate(
             train_data, test_data = get_data_tuples(train_data, test_data)
 
         train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=pred_s)
-        for eth_clf in [algos.LR(), algos.LRCV(), algos.SVM(kernel="linear")]:
+        for eth_clf in [algos.LR()]:  # , algos.LRCV(), algos.SVM(kernel="linear")]:
             preds = eth_clf.run(train_data, test_data)
-
-            name = "x_rand_s"
             compute_metrics(
                 args,
                 preds,
                 test_data,
                 name,
-                eth_clf.name,
+                f"fdm ({eth_clf.name})",
                 step=step,
                 save_to_csv=save_to_csv,
                 results_csv=args.results_csv,
