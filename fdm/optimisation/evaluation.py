@@ -12,6 +12,7 @@ from tqdm import tqdm
 
 import wandb
 from ethicml.algorithms import inprocess as algos
+
 from ethicml.evaluators import run_metrics
 from ethicml.metrics import TNR, TPR, Accuracy, ProbPos, RenyiCorrelation
 from ethicml.utility import DataTuple, Prediction
