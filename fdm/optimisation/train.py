@@ -272,7 +272,7 @@ def main(
         )
         discriminator.to(args._device)
 
-        # discriminator.apply(_spectral_norm)
+        discriminator.apply(_spectral_norm)
 
         disc_distinguish = None
         if ARGS.three_way_split:  # this is always trained on encodings
