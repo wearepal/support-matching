@@ -1,9 +1,8 @@
 """Only run the fair representation code but pretend that we ran both."""
-import shlex
-from subprocess import run, CalledProcessError
 import sys
 
 assert sys.version_info >= (3, 8), f"please use Python 3.8 (this is 3.{sys.version_info.minor})"
+from fdm.optimisation import main as fdm_main
 
 
 def main():
@@ -19,11 +18,7 @@ def main():
         )
         raise RuntimeError("all flags have to use the prefix '--b-', '--c-' or '--d-'.")
     dis_args = [arg.replace("--d-", "--").replace("--b-", "--") for arg in raw_args]
-    try:
-        run([sys.executable, "unsafe_run_d.py"] + dis_args, check=True)
-    except CalledProcessError as cpe:
-        # catching the exception ourselves leads to much nicer error messages
-        print(f"\nCommand '{shlex.join(cpe.cmd)}'")
+    fdm_main(raw_args=dis_args, known_only=True)
 
 
 if __name__ == "__main__":
