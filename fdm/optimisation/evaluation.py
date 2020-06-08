@@ -15,13 +15,16 @@ from ethicml.algorithms import inprocess as algos
 from ethicml.evaluators import run_metrics
 from ethicml.metrics import TNR, TPR, Accuracy, ProbPos, RenyiCorrelation
 from ethicml.utility import DataTuple, Prediction
+from shared.configs import BaseArgs
 from shared.data import DatasetTriplet, get_data_tuples
 from shared.models.configs.classifiers import mp_32x32_net, fc_net, mp_64x64_net
-from shared.utils import wandb_log
+from shared.utils import wandb_log, prod
 from fdm.configs import VaeArgs
 from fdm.models import Classifier, AutoEncoder
 
 from .utils import log_images
+
+__all__ = ["compute_metrics", "make_tuple_from_data"]
 
 
 def log_sample_images(args, data, name, step):
@@ -42,7 +45,7 @@ def log_metrics(
     model.eval()
     if run_baselines:
         print("Baselines...")
-        baseline_metrics(args, data, step, save_to_csv)
+        baseline_metrics(args, data, step)
         return
 
     print("Encoding training set...")
@@ -62,7 +65,6 @@ def log_metrics(
         train_inv_s,
         test_repr,
         name="x_rand_s",
-        model_name=f"FDM",
         eval_on_recon=args.eval_on_recon,
         pred_s=False,
         save_to_csv=save_to_csv,
@@ -84,9 +86,7 @@ def log_metrics(
         )
 
 
-def baseline_metrics(
-    args: VaeArgs, data: DatasetTriplet, step: int, save_to_csv: Optional[Path] = None
-) -> Dict[str, float]:
+def baseline_metrics(args: VaeArgs, data: DatasetTriplet, step: int) -> None:
     if args.dataset not in ("cmnist", "celeba", "ssrp", "genfaces"):
         train_data = data.train
         test_data = data.test
@@ -95,91 +95,59 @@ def baseline_metrics(
 
         train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=False)
 
-        for clf in [
-            algos.SVM(kernel="linear"),
-            algos.Majority(),
-            algos.Kamiran(classifier="LR"),
-            algos.LRCV(),
-        ]:
-            preds = clf.run(train_data, test_data)
+        clf = algos.LR()
+        preds = clf.run(train_data, test_data)
 
-            actual = test_data
-            name = "x_rand_s"
-            compute_metrics(
-                args,
-                preds,
-                actual,
-                name,
-                clf.name,
-                run_all=args._y_dim == 1,
-                step=step,
-                save_to_csv=save_to_csv,
-            )
-    return {}
+        compute_metrics(args, preds, test_data, "baseline", clf.name, step=step)
 
 
 def compute_metrics(
-    args: VaeArgs,
+    args: BaseArgs,
     predictions: Prediction,
     actual,
     data_exp_name: str,
     model_name: str,
     step: int,
-    run_all=False,
     pred_s: bool = False,
     save_to_csv: Optional[Path] = None,
+    results_csv: str = "",
 ) -> Dict[str, float]:
     """Compute accuracy and fairness metrics and log them"""
 
-    if run_all:
+    if args._y_dim == 1:
         metrics = run_metrics(
             predictions,
             actual,
             metrics=[Accuracy(), TPR(), TNR(), RenyiCorrelation()],
             per_sens_metrics=[ProbPos(), TPR(), TNR()],
         )
-        # logging_dict = {
-        #     f"{name} Accuracy": metrics["Accuracy"],
-        #     f"{name} TPR": metrics["TPR"],
-        #     f"{name} TNR": metrics["TNR"],
-        #     f"{name} PPV": metrics["PPV"],
-        #     f"{name} P(Y=1|s=0)": metrics["prob_pos_sex_Male_0.0"],
-        #     f"{name} P(Y=1|s=1)": metrics["prob_pos_sex_Male_1.0"],
-        #     f"{name} P(Y=1|s=0) Ratio s0/s1": metrics["prob_pos_sex_Male_0.0/sex_Male_1.0"],
-        #     f"{name} P(Y=1|s=0) Diff s0-s1": metrics["prob_pos_sex_Male_0.0-sex_Male_1.0"],
-        #     f"{name} TPR|s=1": metrics["TPR_sex_Male_1.0"],
-        #     f"{name} TPR|s=0": metrics["TPR_sex_Male_0.0"],
-        #     f"{name} TPR Ratio s0/s1": metrics["TPR_sex_Male_0.0/sex_Male_1.0"],
-        #     f"{name} TPR Diff s0-s1": metrics["TPR_sex_Male_0.0/sex_Male_1.0"],
-        #     f"{name} PPV Ratio s0/s1": metrics["PPV_sex_Male_0.0/sex_Male_1.0"],
-        #     f"{name} TNR Ratio s0/s1": metrics["TNR_sex_Male_0.0/sex_Male_1.0"],
-        # }
         wandb_log(args, metrics, step=step)
     else:
         metrics = run_metrics(
             predictions, actual, metrics=[Accuracy(), RenyiCorrelation()], per_sens_metrics=[]
         )
         wandb_log(args, {f"{data_exp_name} Accuracy": metrics["Accuracy"]}, step=step)
-    print(f"Results for {data_exp_name}:")
+    print(f"Results for {data_exp_name} ({model_name}):")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
     print()  # empty line
 
-    if save_to_csv is not None and args.results_csv:
+    if save_to_csv is not None and results_csv:
         assert isinstance(save_to_csv, Path)
 
         full_name = f"{args.dataset}_{data_exp_name}"
         full_name += "_s" if pred_s else "_y"
-        full_name += "_on_recons" if args.eval_on_recon else "_on_encodings"
+        if hasattr(args, "eval_on_recon"):
+            full_name += "_on_recons" if args.eval_on_recon else "_on_encodings"
 
-        sweep_key = "seed"
-        sweep_value = str(args.seed)
-        results_path = save_to_csv / f"{data_exp_name}_{args.results_csv}"
-        value_list = ",".join([sweep_value] + [model_name] + [str(v) for v in metrics.values()])
+        manual_keys = ["seed", "method"]
+        manual_values = [str(getattr(args, "seed", args.data_split_seed)), model_name]
+
+        results_path = save_to_csv / f"{data_exp_name}_{results_csv}"
+        value_list = ",".join(manual_values + [str(v) for v in metrics.values()])
         if not results_path.is_file():
             with results_path.open("w") as f:
-                f.write(
-                    ",".join([sweep_key] + ["method"] + [str(k) for k in metrics.keys()]) + "\n"
-                )  # header
+                # ========= header =========
+                f.write(",".join(manual_keys + [str(k) for k in metrics.keys()]) + "\n")
                 f.write(value_list + "\n")
         else:
             with results_path.open("a") as f:  # append to existing file
@@ -207,7 +175,7 @@ def fit_classifier(
         clf_fn = mp_64x64_net
     else:
         clf_fn = fc_net
-        input_dim = product(input_shape)
+        input_dim = prod(input_shape)
     clf = clf_fn(input_dim, target_dim=args._y_dim)
 
     n_classes = args._y_dim if args._y_dim > 1 else 2
@@ -240,7 +208,6 @@ def evaluate(
     train_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
     test_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
     name: str,
-    model_name: str,
     eval_on_recon: bool = True,
     pred_s: bool = False,
     save_to_csv: Optional[Path] = None,
@@ -270,29 +237,41 @@ def evaluate(
         sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=["sex_Male"])
         labels = pd.DataFrame(actual, columns=["labels"])
         actual = DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels)
-
+        compute_metrics(
+            args,
+            preds,
+            actual,
+            name,
+            "classifier",  # not the most descriptive name...
+            step=step,
+            pred_s=pred_s,
+            save_to_csv=save_to_csv,
+            results_csv=args.results_csv,
+        )
     else:
         if not isinstance(train_data, DataTuple):
             train_data, test_data = get_data_tuples(train_data, test_data)
 
         train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=pred_s)
-        clf = algos.LR()
-        preds = clf.run(train_data, test_data)
-        actual = test_data
+        for eth_clf in [
+            # algos.SVM(),
+            algos.Majority(),
+            algos.Kamiran(classifier="LR"),
+            algos.LRCV(),
+        ]:
+            preds = eth_clf.run(train_data, test_data)
 
-    metrics = compute_metrics(
-        args,
-        preds,
-        actual,
-        name,
-        model_name,
-        run_all=args._y_dim == 1,
-        step=step,
-        save_to_csv=save_to_csv,
-        pred_s=pred_s,
-    )
-
-    return metrics, clf
+            name = "x_rand_s"
+            compute_metrics(
+                args,
+                preds,
+                test_data,
+                name,
+                eth_clf.name,
+                step=step,
+                save_to_csv=save_to_csv,
+                results_csv=args.results_csv,
+            )
 
 
 def encode_dataset(
