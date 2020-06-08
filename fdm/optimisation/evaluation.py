@@ -139,7 +139,7 @@ def compute_metrics(
             full_name += "_on_recons" if args.eval_on_recon else "_on_encodings"
 
         manual_keys = ["seed", "method"]
-        manual_values = [str(getattr(args, "seed", args.data_split_seed)), model_name]
+        manual_values = [str(getattr(args, "seed", args.data_split_seed)), f"\"{model_name}\""]
 
         results_path = save_to_csv / f"{data_exp_name}_{results_csv}"
         value_list = ",".join(manual_values + [str(v) for v in metrics.values()])
