@@ -1,6 +1,7 @@
 """Call the main functions of both parts one after the other."""
 from pathlib import Path
-from subprocess import run
+import shlex
+from subprocess import run, CalledProcessError
 import sys
 from tempfile import TemporaryDirectory
 
@@ -23,10 +24,14 @@ def main():
     with TemporaryDirectory() as tmpdir:
         clf = str(Path(tmpdir) / "labels.pth")
         clf_flag = ["--cluster-label-file", clf]
-        clust_args = [arg.replace("--c-", "--").replace("--b-", "--") for arg in raw_args]
-        run([sys.executable, "run_cl.py"] + clust_args + clf_flag, check=True)
-        dis_args = [arg.replace("--d-", "--").replace("--b-", "--") for arg in raw_args]
-        run([sys.executable, "run_d.py"] + dis_args + clf_flag, check=True)
+        try:
+            clust_args = [arg.replace("--c-", "--").replace("--b-", "--") for arg in raw_args]
+            run([sys.executable, "unsafe_run_cl.py"] + clust_args + clf_flag, check=True)
+            dis_args = [arg.replace("--d-", "--").replace("--b-", "--") for arg in raw_args]
+            run([sys.executable, "unsafe_run_d.py"] + dis_args + clf_flag, check=True)
+        except CalledProcessError as cpe:
+            # catching the exception ourselves leads to much nicer error messages
+            print(f"\nCommand '{shlex.join(cpe.cmd)}'")
 
 
 if __name__ == "__main__":

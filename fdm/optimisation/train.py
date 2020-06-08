@@ -56,7 +56,7 @@ Generator = Union[AutoEncoder, PartitionedAeInn]
 
 def main(
     raw_args: Optional[List[str]] = None,
-    known_only: bool = True,  # TODO: find a way for known_only=False to work
+    known_only: bool = False,
     cluster_label_file: Optional[Path] = None,
 ) -> Generator:
     """Main function
@@ -71,7 +71,15 @@ def main(
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha
 
-    args = VaeArgs(fromfile_prefix_chars="@").parse_args(raw_args, known_only=known_only)
+    args = VaeArgs(fromfile_prefix_chars="@")
+    if known_only:
+        args.parse_args(raw_args, known_only=True)
+        remaining = args.extra_args
+        for arg in remaining:
+            if arg.startswith("--") and not arg.startswith("--c-"):
+                raise ValueError(f"unknown commandline argument: {arg}")
+    else:
+        args.parse_args(raw_args)
     use_gpu = torch.cuda.is_available() and args.gpu >= 0
     random_seed(args.seed, use_gpu)
     datasets: DatasetTriplet = load_dataset(args)
