@@ -16,7 +16,6 @@ class BaselineArgs(BaseArgs):
 
 def baseline_metrics(args: BaselineArgs) -> None:
     assert args.dataset == "adult", "This script is only for the adult dataset."
-    assert not args.use_wandb, "This script doesn't work yet with W&B. (Set --use-wandb False)"
     data: DatasetTriplet = load_dataset(args)
     train_data = data.train
     test_data = data.test

@@ -110,6 +110,7 @@ def compute_metrics(
     pred_s: bool = False,
     save_to_csv: Optional[Path] = None,
     results_csv: str = "",
+    use_wandb: bool = False,
 ) -> Dict[str, float]:
     """Compute accuracy and fairness metrics and log them"""
 
@@ -152,9 +153,9 @@ def compute_metrics(
             with results_path.open("a") as f:  # append to existing file
                 f.write(value_list + "\n")
         print(f"Results have been written to {results_path.resolve()}")
-        if args.use_wandb:
+        if use_wandb:
             for metric_name, value in metrics.items():
-                wandb.run.summary[metric_name] = value
+                wandb.run.summary[f"{model_name}_{metric_name}"] = value
 
     return metrics
 
@@ -246,6 +247,7 @@ def evaluate(
             pred_s=pred_s,
             save_to_csv=save_to_csv,
             results_csv=args.results_csv,
+            use_wandb=args.use_wandb,
         )
     else:
         if not isinstance(train_data, DataTuple):
@@ -265,6 +267,7 @@ def evaluate(
                 step=step,
                 save_to_csv=save_to_csv,
                 results_csv=args.results_csv,
+                use_wandb=args.use_wandb,
             )
 
 
