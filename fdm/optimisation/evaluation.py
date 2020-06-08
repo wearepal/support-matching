@@ -42,7 +42,7 @@ def log_metrics(
     model.eval()
     if run_baselines:
         print("Baselines...")
-        baseline_metrics(args, data, step)
+        baseline_metrics(args, data, step, save_to_csv)
 
     print("Encoding training set...")
     train_inv_s = encode_dataset(
@@ -60,7 +60,8 @@ def log_metrics(
         step,
         train_inv_s,
         test_repr,
-        name="x_rand_s",
+        data_name="x_rand_s",
+        model_name="FDM",
         eval_on_recon=args.eval_on_recon,
         pred_s=False,
         save_to_csv=save_to_csv,
@@ -75,14 +76,16 @@ def log_metrics(
             step,
             train_rand_y,
             test_repr,
-            name="x_rand_y",
+            data_name="x_rand_y",
             eval_on_recon=args.eval_on_recon,
             pred_s=False,
             save_to_csv=save_to_csv,
         )
 
 
-def baseline_metrics(args: VaeArgs, data: DatasetTriplet, step: int) -> Dict[str, float]:
+def baseline_metrics(
+    args: VaeArgs, data: DatasetTriplet, step: int, save_to_csv: Optional[Path] = None
+) -> Dict[str, float]:
     if args.dataset not in ("cmnist", "celeba", "ssrp", "genfaces"):
         train_data = data.train
         test_data = data.test
@@ -91,20 +94,38 @@ def baseline_metrics(args: VaeArgs, data: DatasetTriplet, step: int) -> Dict[str
 
         train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=False)
 
-        # clf = algos.SVM(kernel="linear")
-        # clf = algos.Majority()
-        # clf = algos.Kamiran(classifier="LR")
-        clf = algos.LR()
-        preds = clf.run(train_data, test_data)
+        for clf in [
+            algos.SVM(kernel="linear"),
+            algos.Majority(),
+            algos.Kamiran(classifier="LR"),
+            algos.LRCV(),
+        ]:
+            preds = clf.run(train_data, test_data)
 
-        actual = test_data
-        name = "LR baseline"
-        return compute_metrics(args, preds, actual, name, run_all=args._y_dim == 1, step=step)
+            actual = test_data
+            name = f"baseline {clf.name}"
+            compute_metrics(
+                args,
+                preds,
+                actual,
+                name,
+                clf.name,
+                run_all=args._y_dim == 1,
+                step=step,
+                save_to_csv=save_to_csv,
+            )
     return {}
 
 
 def compute_metrics(
-    args: VaeArgs, predictions: Prediction, actual, name: str, step: int, run_all=False
+    args: VaeArgs,
+    predictions: Prediction,
+    actual,
+    data_exp_name: str,
+    model_name: str,
+    step: int,
+    run_all=False,
+    save_to_csv: Optional[Path] = None,
 ) -> Dict[str, float]:
     """Compute accuracy and fairness metrics and log them"""
 
@@ -136,10 +157,29 @@ def compute_metrics(
         metrics = run_metrics(
             predictions, actual, metrics=[Accuracy(), RenyiCorrelation()], per_sens_metrics=[]
         )
-        wandb_log(args, {f"{name} Accuracy": metrics["Accuracy"]}, step=step)
-    print(f"Results for {name}:")
+        wandb_log(args, {f"{data_exp_name} Accuracy": metrics["Accuracy"]}, step=step)
+    print(f"Results for {data_exp_name}:")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
     print()  # empty line
+
+    if save_to_csv is not None and args.results_csv:
+        assert isinstance(save_to_csv, Path)
+        sweep_key = "seed"
+        sweep_value = str(args.seed)
+        results_path = save_to_csv / f"{data_exp_name}_{args.results_csv}"
+        value_list = ",".join([sweep_value] + [model_name] + [str(v) for v in metrics.values()])
+        if not results_path.is_file():
+            with results_path.open("w") as f:
+                f.write(",".join([sweep_key] + [str(k) for k in metrics.keys()]) + "\n")  # header
+                f.write(value_list + "\n")
+        else:
+            with results_path.open("a") as f:  # append to existing file
+                f.write(value_list + "\n")
+        print(f"Results have been written to {results_path.resolve()}")
+        if args.use_wandb:
+            for metric_name, value in metrics.items():
+                wandb.run.summary[metric_name] = value
+
     return metrics
 
 
@@ -190,7 +230,8 @@ def evaluate(
     step: int,
     train_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
     test_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
-    name: str,
+    data_name: str,
+    model_name: str,
     eval_on_recon: bool = True,
     pred_s: bool = False,
     save_to_csv: Optional[Path] = None,
@@ -230,28 +271,19 @@ def evaluate(
         preds = clf.run(train_data, test_data)
         actual = test_data
 
-    full_name = f"{args.dataset}_{name}"
+    full_name = f"{args.dataset}_{data_name}"
     full_name += "_s" if pred_s else "_y"
     full_name += "_on_recons" if eval_on_recon else "_on_encodings"
-    metrics = compute_metrics(args, preds, actual, full_name, run_all=args._y_dim == 1, step=step)
-
-    if save_to_csv is not None and args.results_csv:
-        assert isinstance(save_to_csv, Path)
-        sweep_key = "seed"
-        sweep_value = str(args.seed)
-        results_path = save_to_csv / f"{full_name}_{args.results_csv}"
-        value_list = ",".join([sweep_value] + [str(v) for v in metrics.values()])
-        if not results_path.is_file():
-            with results_path.open("w") as f:
-                f.write(",".join([sweep_key] + [str(k) for k in metrics.keys()]) + "\n")  # header
-                f.write(value_list + "\n")
-        else:
-            with results_path.open("a") as f:  # append to existing file
-                f.write(value_list + "\n")
-        print(f"Results have been written to {results_path.resolve()}")
-        if args.use_wandb:
-            for metric_name, value in metrics.items():
-                wandb.run.summary[metric_name] = value
+    metrics = compute_metrics(
+        args,
+        preds,
+        actual,
+        full_name,
+        model_name,
+        run_all=args._y_dim == 1,
+        step=step,
+        save_to_csv=save_to_csv,
+    )
 
     return metrics, clf
 
