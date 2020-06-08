@@ -389,24 +389,7 @@ def main(
         #     )
         if ARGS.super_val and epoch % super_val_freq == 0:
             first_time = epoch == super_val_freq
-            if first_time:
-                log_metrics(
-                    ARGS,
-                    model=generator,
-                    data=datasets,
-                    step=itr,
-                    run_baselines=first_time,
-                    save_to_csv=Path(args.save_dir),
-                )
-            else:
-                log_metrics(
-                    ARGS,
-                    model=generator,
-                    data=datasets,
-                    step=itr,
-                    run_baselines=False,
-                    save_to_csv=None,
-                )
+            log_metrics(ARGS, model=generator, data=datasets, step=itr, run_baselines=first_time)
             save_model(args, save_dir, model=generator, epoch=epoch, sha=sha)
 
         if isinstance(components, InnComponents) and ARGS.disc_reset_prob > 0:
