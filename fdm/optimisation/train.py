@@ -509,9 +509,13 @@ def update_disc(
     # in case of the three-way split, we have to check more than one invariance
     invariances: List[Literal["s", "y"]] = ["s", "y"] if ARGS.three_way_split else ["s"]
 
-    encoding_t = ae.generator.encode(x_t, stochastic=True)
-    encoding_c = ae.generator.encode(x_c, stochastic=True)
+    if not ARGS.vae:
+        encoding_t = ae.generator.encode(x_t)
+        encoding_c = ae.generator.encode(x_c)
     for _ in range(ARGS.num_disc_updates):
+        if ARGS.vae:
+            encoding_t = ae.generator.encode(x_t, stochastic=True)
+            encoding_c = ae.generator.encode(x_c, stochastic=True)
         disc_input_c: Tensor
         if ARGS.train_on_recon:
             disc_input_c = ae.generator.decode(encoding_c, mode="relaxed").detach()  # just reconstruct
