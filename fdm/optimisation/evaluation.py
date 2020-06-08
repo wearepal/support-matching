@@ -97,7 +97,7 @@ def baseline_metrics(args: VaeArgs, data: DatasetTriplet, save_to_csv: Optional[
                 args=args,
                 predictions=preds,
                 actual=test_data,
-                data_exp_name="baseline",
+                data_exp_name="original_data",
                 model_name=clf.name,
                 step=0,
                 save_to_csv=save_to_csv,
@@ -147,7 +147,7 @@ def compute_metrics(
         # if hasattr(args, "eval_on_recon"):
         #     data_exp_name += "_on_recons" if args.eval_on_recon else "_on_encodings"
 
-        manual_keys = ["seed", "type", "method"]
+        manual_keys = ["seed", "data", "method"]
         manual_values = [
             str(getattr(args, "seed", args.data_split_seed)), data_exp_name, f"\"{model_name}\""
         ]
@@ -252,7 +252,7 @@ def evaluate(
             preds,
             actual,
             name,
-            "fdm",
+            "pytorch_classifier",
             step=step,
             save_to_csv=save_to_csv,
             results_csv=args.results_csv,
@@ -270,7 +270,7 @@ def evaluate(
                 preds,
                 test_data,
                 name,
-                f"fdm ({eth_clf.name})",
+                eth_clf.name,
                 step=step,
                 save_to_csv=save_to_csv,
                 results_csv=args.results_csv,
