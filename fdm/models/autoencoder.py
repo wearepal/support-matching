@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from torch import Tensor
 from tqdm import tqdm
 
-from shared.utils import to_discrete
+from shared.utils import to_discrete, sample_concrete
 
 from .base import ModelBase, EncodingSize, SplitEncoding, Reconstructions
 
@@ -35,7 +35,7 @@ class AutoEncoder(nn.Module):
         del stochastic
         return self.encoder(inputs)
 
-    def decode(self, z, discretize: bool = False):
+    def decode(self, z: Tensor, mode: Literal["soft", "hard", "relaxed"] = "soft") -> Tensor:
         decoding = self.decoder(z)
         if decoding.dim() == 4:
             # if decoding.size(1) <= 3:
@@ -46,25 +46,33 @@ class AutoEncoder(nn.Module):
                 num_classes = 256
                 decoding = decoding.view(decoding.size(0), num_classes, -1, *decoding.shape[-2:])
         else:
-            if discretize and self.feature_group_slices:
+            if mode in ("hard", "relaxed") and self.feature_group_slices:
+                discrete_outputs = []
+                stop_index = 0
+                #   Sample from discrete variables using the straight-through-estimator
                 for group_slice in self.feature_group_slices["discrete"]:
-                    one_hot = to_discrete(decoding[:, group_slice])
-                    decoding[:, group_slice] = one_hot
+                    if mode == "hard":
+                        discrete_outputs.append(to_discrete(decoding[:, group_slice]).float())
+                    else:
+                        discrete_outputs.append(sample_concrete(decoding[:, group_slice], temperature=1e-2))
+                    stop_index = group_slice.stop
+                discrete_outputs = torch.cat(discrete_outputs, axis=1)
+                decoding = torch.cat([discrete_outputs, decoding[:, stop_index:]], axis=1)
 
         return decoding
 
-    def all_recons(self, z: Tensor, discretize: bool = False) -> Reconstructions:
+    def all_recons(self, z: Tensor, mode: Literal["soft", "hard", "relaxed"]) -> Reconstructions:
         rand_s, rand_y = self.mask(z, random=True)
         zero_s, zero_y = self.mask(z)
         zs, zy, zn = self.split_encoding(z)
         just_s = torch.cat([zs, torch.zeros_like(zy), torch.zeros_like(zn)], dim=1)
         return Reconstructions(
-            all=self.decode(z, discretize=discretize),
-            rand_s=self.decode(rand_s, discretize=discretize),
-            rand_y=self.decode(rand_y, discretize=discretize),
-            zero_s=self.decode(zero_s, discretize=discretize),
-            zero_y=self.decode(zero_y, discretize=discretize),
-            just_s=self.decode(just_s, discretize=discretize),
+            all=self.decode(z, mode=mode),
+            rand_s=self.decode(rand_s, mode=mode),
+            rand_y=self.decode(rand_y, mode=mode),
+            zero_s=self.decode(zero_s, mode=mode),
+            zero_y=self.decode(zero_y, mode=mode),
+            just_s=self.decode(just_s, mode=mode),
         )
 
     def forward(self, inputs, reverse: bool = False):

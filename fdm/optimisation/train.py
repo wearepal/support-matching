@@ -649,7 +649,7 @@ def get_disc_input(
     """Construct the input that the discriminator expects."""
     if ARGS.train_on_recon:
         zs_m, zy_m = generator.mask(encoding, random=True)
-        recon = generator.decode(zs_m if invariant_to == "s" else zy_m)
+        recon = generator.decode(zs_m if invariant_to == "s" else zy_m, mode="relaxed")
         if ARGS.recon_loss == "ce":
             recon = recon.argmax(dim=1).float() / 255
             if ARGS.dataset != "cmnist":
@@ -674,7 +674,7 @@ def log_recons(
 ):
     """Log reconstructed images"""
     encoding = generator.encode(x[:64], stochastic=False)
-    recon = generator.all_recons(encoding, discretize=True)
+    recon = generator.all_recons(encoding, mode="hard")
 
     log_images(ARGS, x[:64], "original_x", step=itr, prefix=prefix)
     log_images(ARGS, recon.all, "reconstruction_all", step=itr, prefix=prefix)

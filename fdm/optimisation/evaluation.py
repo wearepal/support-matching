@@ -283,7 +283,7 @@ def encode_dataset(
             if recons:
                 zs_m, zy_m = generator.mask(enc, random=True)
                 z_m = zs_m if invariant_to == "s" else zy_m
-                x_m = generator.decode(z_m, discretize=True)
+                x_m = generator.decode(z_m, mode="hard")
 
                 if args.dataset in ("celeba", "ssrp", "genfaces"):
                     x_m = 0.5 * x_m + 0.5
