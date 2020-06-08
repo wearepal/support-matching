@@ -70,8 +70,8 @@ class BaseArgs(TypedFlags):
     drop_native: bool = True
     drop_discrete: bool = False
     balanced_context: bool = False
-    balanced_test: bool = False
-    balance_all_quadrants: bool = False
+    balanced_test: bool = True
+    balance_all_quadrants: bool = True
 
     # Colored MNIST settings
     scale: float = 0.02
