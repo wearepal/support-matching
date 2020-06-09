@@ -518,7 +518,9 @@ def update_disc(
             encoding_c = ae.generator.encode(x_c, stochastic=True)
         disc_input_c: Tensor
         if ARGS.train_on_recon:
-            disc_input_c = ae.generator.decode(encoding_c, mode="relaxed").detach()  # just reconstruct
+            disc_input_c = ae.generator.decode(
+                encoding_c, mode="relaxed"
+            ).detach()  # just reconstruct
 
         disc_loss = x_c.new_zeros(())
         disc_loss_distinguish = x_c.new_zeros(())

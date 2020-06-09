@@ -34,11 +34,7 @@ def log_sample_images(args, data, name, step):
 
 
 def log_metrics(
-    args: VaeArgs,
-    model,
-    data: DatasetTriplet,
-    step: int,
-    save_to_csv: Optional[Path] = None,
+    args: VaeArgs, model, data: DatasetTriplet, step: int, save_to_csv: Optional[Path] = None,
 ):
     """Compute and log a variety of metrics."""
     model.eval()
@@ -149,7 +145,9 @@ def compute_metrics(
 
         manual_keys = ["seed", "data", "method"]
         manual_values = [
-            str(getattr(args, "seed", args.data_split_seed)), data_exp_name, f"\"{model_name}\""
+            str(getattr(args, "seed", args.data_split_seed)),
+            data_exp_name,
+            f"\"{model_name}\"",
         ]
 
         results_path = save_to_csv / f"{args.dataset}_{results_csv}"
