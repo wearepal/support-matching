@@ -226,7 +226,10 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
 
     if ARGS.method == "kmeans":
         kmeans_results = train_k_means(ARGS, encoder, datasets.context, num_clusters, s_count)
-        pth = convert_and_save_results(ARGS, kmeans_results, save_dir)
+        kmeans_preds, kmeans_s, kmeans_y = kmeans_results
+        context_acc = (kmeans_preds == kmeans_y).sum() / len(kmeans_y)
+        test_acc = -1
+        pth = convert_and_save_results(ARGS, kmeans_results, save_dir, test_acc, context_acc)
         return (), pth
     if ARGS.finetune_encoder:
         encoder.freeze_initial_layers(
@@ -321,8 +324,14 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
         LOGGER.info("Restoring generator from checkpoint")
         model, start_epoch = restore_model(ARGS, Path(ARGS.resume), model)
         if ARGS.evaluate:
+            test_acc = -1
+            context_acc = -1
             pth_path = convert_and_save_results(
-                ARGS, classify_dataset(ARGS, model, datasets.context), save_dir
+                ARGS,
+                classify_dataset(ARGS, model, datasets.context),
+                save_dir,
+                test_acc,
+                context_acc,  # TODO test acc and context acc are not set
             )
             return model, pth_path
 
