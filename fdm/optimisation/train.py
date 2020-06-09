@@ -534,7 +534,7 @@ def update_disc(
                 disc_input_c = disc_input_c.detach()
 
             # discriminator is trained to distinguish `disc_input_c` and `disc_input_t`
-            disc_loss_true = F.binary_cross_entropy_with_logits(ae.discriminator(disc_input_c).mean(), x_t.new_zeros(()))
+            disc_loss_true = F.binary_cross_entropy_with_logits(ae.discriminator(disc_input_c).mean(), x_t.new_ones(()))
             disc_loss_false = F.binary_cross_entropy_with_logits(ae.discriminator(disc_input_t).mean(), x_t.new_zeros(()))
             disc_acc_true = 0
             disc_acc_false = 0
