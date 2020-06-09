@@ -123,14 +123,12 @@ def compute_metrics(
             metrics=[Accuracy(), TPR(), TNR(), RenyiCorrelation()],
             per_sens_metrics=[ProbPos(), TPR(), TNR()],
         )
-        if use_wandb:
-            wandb_log(args, metrics, step=step)
     else:
         metrics = run_metrics(
             predictions, actual, metrics=[Accuracy(), RenyiCorrelation()], per_sens_metrics=[]
         )
-        if use_wandb:
-            wandb_log(args, {f"{data_exp_name} Accuracy": metrics["Accuracy"]}, step=step)
+    if use_wandb:
+        wandb_log(args, {f"{k} ({model_name})": v for k, v in metrics.items()}, step=step)
     print(f"Results for {data_exp_name} ({model_name}):")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
     print()  # empty line
