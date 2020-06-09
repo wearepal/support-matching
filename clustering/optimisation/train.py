@@ -227,9 +227,9 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
     if ARGS.method == "kmeans":
         kmeans_results = train_k_means(ARGS, encoder, datasets.context, num_clusters, s_count)
         kmeans_preds, kmeans_s, kmeans_y = kmeans_results
-        context_acc = (kmeans_preds == kmeans_y).sum() / len(kmeans_y)
+        context_acc = (kmeans_preds == kmeans_y).sum().float().detach() / len(kmeans_y)
         test_acc = -1
-        pth = convert_and_save_results(ARGS, kmeans_results, save_dir, test_acc, context_acc)
+        pth = convert_and_save_results(ARGS, save_dir, kmeans_results, test_acc, context_acc)
         return (), pth
     if ARGS.finetune_encoder:
         encoder.freeze_initial_layers(
@@ -328,8 +328,8 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
             context_acc = -1
             pth_path = convert_and_save_results(
                 ARGS,
-                classify_dataset(ARGS, model, datasets.context),
                 save_dir,
+                classify_dataset(ARGS, model, datasets.context),
                 test_acc,
                 context_acc,  # TODO test acc and context acc are not set
             )
