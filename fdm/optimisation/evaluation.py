@@ -87,7 +87,7 @@ def baseline_metrics(args: VaeArgs, data: DatasetTriplet, save_to_csv: Optional[
 
         train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=False)
 
-        for clf in [algos.LR(), algos.Majority(), algos.Kamiran(classifier="LR")]:
+        for clf in [algos.LR(), algos.Majority(), algos.Kamiran(classifier="LR"), algos.LRCV()]:
             preds = clf.run(train_data, test_data)
             compute_metrics(
                 args=args,
@@ -261,7 +261,7 @@ def evaluate(
             train_data, test_data = get_data_tuples(train_data, test_data)
 
         train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=pred_s)
-        for eth_clf in [algos.LR()]:  # , algos.LRCV(), algos.SVM(kernel="linear")]:
+        for eth_clf in [algos.LR(), algos.LRCV()]:  # , algos.LRCV(), algos.SVM(kernel="linear")]:
             preds = eth_clf.run(train_data, test_data)
             compute_metrics(
                 args,
