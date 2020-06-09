@@ -11,5 +11,6 @@ for seed in "${seeds[@]}"; do
     --c-method kmeans \
     --b-seed $seed \
     --b-data-split-seed $seed \
-    --d-results adult_2groups_kmeans.csv "$@"
+    --d-results 2groups_kmeans.csv "$@"
+    sleep 1
 done

@@ -7,11 +7,11 @@ for seed in "${seeds[@]}"; do
     echo $seed
     qsub -pe smpslots $slots python-ot.job run_both.py @flags/adult_pipeline.yaml \
     --b-gpu 0 \
-    --b-missing-s 0 \
+    --b-missing-s \
     --c-method pl_enc_no_norm \
     --c-pseudo-labeler ranking \
     --b-seed $seed \
     --b-data-split-seed $seed \
-    --d-results 2groups_ranking.csv "$@"
+    --d-results 1group_ranking.csv "$@"
     sleep 1
 done

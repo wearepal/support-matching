@@ -10,5 +10,6 @@ for seed in "${seeds[@]}"; do
     --b-missing-s \
     --b-seed $seed \
     --b-data-split-seed $seed \
-    --d-results adult_1group_no_balancing.csv "$@"
+    --d-results 1group_no_balancing.csv "$@"
+    sleep 1
 done
