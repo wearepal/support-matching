@@ -597,7 +597,7 @@ def update(
     # ==================================== adversarial losses =====================================
     disc_input_no_s = get_disc_input(ae.generator, encoding, invariant_to="s")
     # zeros = x_t.new_zeros((x_t.size(0),))
-    disc_loss = F.binary_cross_entropy_with_logits(ae.discriminator(disc_input_no_s).mean(), x_t.new_zeros(()))
+    disc_loss = F.binary_cross_entropy(ae.discriminator(disc_input_no_s).sigmoid().mean(), x_t.new_zeros(()))
     disc_acc_inv_s = 0
     pred_y_loss = x_t.new_zeros(())
     if ARGS.pred_weight > 0:
