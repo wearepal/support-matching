@@ -73,7 +73,7 @@ class ClusterArgs(BaseArgs):
     use_multi_head: bool = False
 
     # Method
-    method: Literal["pl_enc", "pl_output", "pl_enc_no_norm", "kmeans"] = "pl_enc"
+    method: Literal["pl_enc", "pl_output", "pl_enc_no_norm", "kmeans"] = "pl_enc_no_norm"
 
     _device: torch.device
     _s_dim: int
