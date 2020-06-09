@@ -371,10 +371,12 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
     LOGGER.info("Training has finished.")
     # path = save_model(args, save_dir, model=model, epoch=epoch, sha=sha)
     # model, _ = restore_model(args, path, model=model)
-    val_acc, _ = validate(model, val_loader)
-    print("val_acc", val_acc)
+    test_acc, _ = validate(model, val_loader)
+    context_acc, _ = validate(model, context_loader)
+    print("test_acc", test_acc)
+    print("context_acc", context_acc)
     pth_path = convert_and_save_results(
-        ARGS, classify_dataset(ARGS, model, datasets.context), save_dir
+        ARGS, save_dir, classify_dataset(ARGS, model, datasets.context), test_acc, context_acc
     )
     return model, pth_path
 
