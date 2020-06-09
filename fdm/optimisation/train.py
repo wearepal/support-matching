@@ -534,8 +534,12 @@ def update_disc(
                 disc_input_c = disc_input_c.detach()
 
             # discriminator is trained to distinguish `disc_input_c` and `disc_input_t`
-            disc_loss_true, disc_acc_true = ae.discriminator.routine(disc_input_c, ones)
-            disc_loss_false, disc_acc_false = ae.discriminator.routine(disc_input_t, zeros)
+            disc_loss_true = F.binary_cross_entropy_with_logits(ae.discriminator(disc_input_c).mean(), x_t.new_zeros(()))
+            disc_loss_false = F.binary_cross_entropy_with_logits(ae.discriminator(disc_input_t).mean(), x_t.new_zeros(()))
+            disc_acc_true = 0
+            disc_acc_false = 0
+            # disc_loss_true, disc_acc_true = ae.discriminator.routine(disc_input_c, ones)
+            # disc_loss_false, disc_acc_false = ae.discriminator.routine(disc_input_t, zeros)
             disc_loss += disc_loss_true + disc_loss_false
             if ARGS.three_way_split:
                 assert ae.disc_distinguish is not None
@@ -592,9 +596,9 @@ def update(
 
     # ==================================== adversarial losses =====================================
     disc_input_no_s = get_disc_input(ae.generator, encoding, invariant_to="s")
-    zeros = x_t.new_zeros((x_t.size(0),))
-    disc_loss, disc_acc_inv_s = ae.discriminator.routine(disc_input_no_s, zeros)
-
+    # zeros = x_t.new_zeros((x_t.size(0),))
+    disc_loss = F.binary_cross_entropy_with_logits(ae.discriminator(disc_input_no_s).mean(), x_t.new_zeros(()))
+    disc_acc_inv_s = 0
     pred_y_loss = x_t.new_zeros(())
     if ARGS.pred_weight > 0:
         # predictor is on encodings
