@@ -123,12 +123,14 @@ def compute_metrics(
             metrics=[Accuracy(), TPR(), TNR(), RenyiCorrelation()],
             per_sens_metrics=[ProbPos(), TPR(), TNR()],
         )
+        if use_wandb:
+            wandb_log(args, metrics, step=step)
     else:
         metrics = run_metrics(
             predictions, actual, metrics=[Accuracy(), RenyiCorrelation()], per_sens_metrics=[]
         )
-    if use_wandb:
-        wandb_log(args, {f"{k} ({model_name})": v for k, v in metrics.items()}, step=step)
+        if use_wandb:
+            wandb_log(args, {f"{data_exp_name} Accuracy": metrics["Accuracy"]}, step=step)
     print(f"Results for {data_exp_name} ({model_name}):")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
     print()  # empty line
@@ -141,20 +143,24 @@ def compute_metrics(
         # if hasattr(args, "eval_on_recon"):
         #     data_exp_name += "_on_recons" if args.eval_on_recon else "_on_encodings"
 
-        manual_keys = ["seed", "data", "method"]
+        manual_keys = ["seed", "data", "method", "wandb_url"]
         manual_values = [
             str(getattr(args, "seed", args.data_split_seed)),
             data_exp_name,
-            f"\"{model_name}\"",
+            f'"{model_name}"',
         ]
+        manual_values += [wandb.run.get_url()] if args.use_wandb else [""]
 
         results_path = save_to_csv / f"{args.dataset}_{results_csv}"
-        value_list = ",".join(manual_values + [str(v) for v in metrics.values()])
+        value_list = ",".join(
+            manual_values + [str(v) for v in metrics.values()]
+        )
         if not results_path.is_file():
             with results_path.open("w") as f:
                 # ========= header =========
-                f.write(",".join(manual_keys + [str(k) for k in metrics.keys()]) + "\n")
-                f.write(value_list + "\n")
+                f.write(
+                    ",".join(manual_keys + [str(k) for k in metrics.keys()]) + "\n"
+                )
         else:
             with results_path.open("a") as f:  # append to existing file
                 f.write(value_list + "\n")
