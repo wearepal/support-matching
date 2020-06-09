@@ -93,6 +93,10 @@ class VaeArgs(BaseArgs):
     distinguish_weight: float = 1
     pred_weight: float = 0
 
+    # misc
+    _cluster_test_acc: float = 0.0
+    _cluster_context_acc: float = 0.0
+
     def process_args(self):
         super().process_args()
         if self.recon_loss is None:
