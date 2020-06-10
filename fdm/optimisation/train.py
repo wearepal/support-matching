@@ -510,11 +510,12 @@ def update_disc(
     # invariances: List[Literal["s", "y"]] = ["s", "y"] if ARGS.three_way_split else ["s"]
 
     disc_loss = x_t.new_zeros(())
+    disc_acc = 0
     if not warmup:
         encoding_t = ae.generator.encode(x_t, stochastic=True)
         disc_input_t_inv = get_disc_input(ae.generator, encoding_t, invariant_to="s").detach()
         for _ in range(ARGS.num_disc_updates):
-            disc_loss, disc_acc_true = ae.discriminator.routine(disc_input_t_inv, s_t)
+            disc_loss, disc_acc = ae.discriminator.routine(disc_input_t_inv, s_t)
             ae.discriminator.zero_grad()
             disc_loss.backward()
             ae.discriminator.step()
@@ -561,7 +562,7 @@ def update_disc(
         #     ae.disc_distinguish.zero_grad()
         #     disc_loss_distinguish.backward()
         #     ae.disc_distinguish.step()
-    return disc_loss, 0
+    return disc_loss, disc_acc
 
 
 def update(
@@ -579,10 +580,9 @@ def update(
         ae.disc_distinguish.eval()
     ae.predictor_y.train()
     ae.generator.train()
-    logging_dict = {}
 
     # ================================ recon loss for training set ================================
-    encoding, elbo, logging_dict_elbo = ae.generator.routine(x_t, ae.recon_loss_fn, ARGS.kl_weight)
+    encoding, elbo, logging_dict = ae.generator.routine(x_t, ae.recon_loss_fn, ARGS.kl_weight)
 
     # ================================ recon loss for context set =================================
     # we need a reconstruction loss for x_c because...
