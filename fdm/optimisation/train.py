@@ -119,7 +119,7 @@ def main(
         ARGS._cluster_test_acc = cluster_results.test_acc
         ARGS._cluster_context_acc = cluster_results.context_acc
         weights, n_clusters, min_count, max_count = weight_for_balance(cluster_results.cluster_ids)
-        # we subsample the larger clusters rather than supersample the smaller clusters
+        # if ARGS.upsample, we upsample the smaller clusters rather than subsample the larger ones
         epoch_len = n_clusters * max_count if ARGS.upsample else n_clusters * min_count
         sampler = WeightedRandomSampler(
             weights, epoch_len, replacement=ARGS.upsample
