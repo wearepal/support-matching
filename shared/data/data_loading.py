@@ -256,7 +256,12 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
     elif args.dataset == "adult":
         context_data, train_data, test_data = load_adult_data(args)
         args._y_dim = 1
-        args._s_dim = 1
+        if args.adult_split == "Education":
+            args._s_dim = 3
+        elif args.adult_split == "Sex":
+            args._s_dim = 1
+        else:
+            raise ValueError(f"This split is not yet fully supported: {args.adult_split}")
     else:
         raise ValueError("Invalid choice of dataset.")
 
