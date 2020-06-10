@@ -122,7 +122,7 @@ def compute_metrics(
     """Compute accuracy and fairness metrics and log them"""
 
     predictions._info = {}
-    if args._y_dim == 1:
+    if args._y_dim == 1 and args._s_dim == 1:
         metrics = run_metrics(
             predictions,
             actual,

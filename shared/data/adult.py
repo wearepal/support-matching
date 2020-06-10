@@ -20,6 +20,7 @@ from .dataset_wrappers import DataTupleDataset
 __all__ = ["get_data_tuples", "load_adult_data", "pytorch_data_to_dataframe"]
 
 ADULT_DATASET: Dataset = None  # type: ignore[assignment]
+SENS_ATTRS: List[str] = []
 
 
 class DataTupleTriplet(NamedTuple):
@@ -58,10 +59,8 @@ def get_invisible_demographics(
     y_name = data.y.columns[0]
     s_name = make_valid_variable_name(s_name)
     y_name = make_valid_variable_name(y_name)
-    s_values = np.unique(data.s.to_numpy())
-    y_values = np.unique(data.y.to_numpy())
-    s_0, s_1 = s_values
-    y_0, y_1 = y_values
+    s = np.unique(data.s.to_numpy())
+    y = np.unique(data.y.to_numpy())
 
     normal_subset, for_biased_subset = _random_split(data, first_pcnt=unbiased_pcnt, seed=seed)
 
@@ -72,14 +71,12 @@ def get_invisible_demographics(
     # one group is missing
     if missing_s:
         if len(missing_s) == 1 and missing_s[0] == 0:
-            query = (
-                f"({s_name} == {s_1} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_1})"
-            )
+            query = f"({s_name} == {s[1]} & {y_name} == {y[0]}) | ({s_name} == {s[1]} & {y_name} == {y[1]})"
             print("removing s=0")
         else:
             raise ValueError(f"Unsupported missing group {missing_s}")
     else:
-        query = f"({s_name} == {s_0} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_1})"
+        query = f"({s_name} == {s[0]} & {y_name} == {y[0]}) | ({s_name} == {s[1]} & {y_name} == {y[0]}) | ({s_name} == {s[1]} & {y_name} == {y[1]})"
         print("ensuring that only one group is missing")
     one_s_only = query_dt(for_biased_subset, query)
 
@@ -91,7 +88,9 @@ def get_invisible_demographics(
 def load_adult_data(args: BaseArgs) -> Tuple[DataTupleDataset, DataTupleDataset, DataTupleDataset]:
     global ADULT_DATASET
     ADULT_DATASET = adult(split=args.adult_split, binarize_nationality=args.drop_native)
-    data = load_data(ADULT_DATASET, ordered=True, generate_dummies=True)
+    data = load_data(ADULT_DATASET, ordered=True)
+    global SENS_ATTRS
+    SENS_ATTRS = data.s.columns
 
     disc_feature_groups = ADULT_DATASET.disc_feature_groups
     assert disc_feature_groups is not None
@@ -174,8 +173,7 @@ def biased_split(args: BaseArgs, data: DataTuple) -> DataTupleTriplet:
 
 def get_data_tuples(*pytorch_datasets):
     """Convert pytorch datasets to datatuples"""
-    sens_attrs = ADULT_DATASET.feature_split["s"]
-    return (pytorch_data_to_dataframe(data, sens_attrs=sens_attrs) for data in pytorch_datasets)
+    return (pytorch_data_to_dataframe(data, sens_attrs=SENS_ATTRS) for data in pytorch_datasets)
 
 
 def pytorch_data_to_dataframe(dataset, sens_attrs=None):
@@ -191,7 +189,7 @@ def pytorch_data_to_dataframe(dataset, sens_attrs=None):
     data = next(iter(data_loader))
     # convert it to Pandas DataFrames
     data = [pd.DataFrame(tensor.detach().cpu().numpy()) for tensor in data]
-    if sens_attrs:
+    if sens_attrs is not None:
         data[1].columns = sens_attrs
     # create a DataTuple
     return DataTuple(x=data[0], s=data[1], y=data[2])

@@ -149,6 +149,7 @@ class DataTupleDataset(BaseDataset):
 
         self.x_disc = dataset.x[discrete_features_in_order].to_numpy(dtype=np.float32)
         self.x_cont = dataset.x[cont_features].to_numpy(dtype=np.float32)
+
         self.s = dataset.s.to_numpy(dtype=np.float32)
         self.y = dataset.y.to_numpy(dtype=np.float32)
 
