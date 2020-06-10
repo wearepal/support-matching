@@ -25,6 +25,7 @@ from shared.utils import (
     prod,
     random_seed,
     readable_duration,
+    save_results,
     wandb_log,
     get_data_dim,
 )
@@ -46,12 +47,13 @@ from clustering.models import (
 )
 
 from .utils import (
+    convert_and_save_results,
+    count_occurances,
+    find_assignment,
+    get_class_id,
+    get_cluster_label_path,
     restore_model,
     save_model,
-    find_assignment,
-    count_occurances,
-    get_class_id,
-    convert_and_save_results,
 )
 from .evaluation import classify_dataset
 from .build import build_ae
@@ -224,9 +226,10 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
             LOGGER.info("Stopping here because W&B will be messed up...")
             return
 
+    cluster_label_path = get_cluster_label_path(ARGS, save_dir)
     if ARGS.method == "kmeans":
         kmeans_results = train_k_means(ARGS, encoder, datasets.context, num_clusters, s_count)
-        pth = convert_and_save_results(ARGS, kmeans_results, save_dir)
+        pth = save_results(save_path=cluster_label_path, cluster_results=kmeans_results)
         return (), pth
     if ARGS.finetune_encoder:
         encoder.freeze_initial_layers(
@@ -322,7 +325,10 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
         model, start_epoch = restore_model(ARGS, Path(ARGS.resume), model)
         if ARGS.evaluate:
             pth_path = convert_and_save_results(
-                ARGS, classify_dataset(ARGS, model, datasets.context), save_dir
+                ARGS,
+                cluster_label_path,
+                classify_dataset(ARGS, model, datasets.context),
+                context_acc=float("nan"),  # TODO: compute this
             )
             return model, pth_path
 
@@ -376,7 +382,11 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
     print("test_acc", test_acc)
     print("context_acc", context_acc)
     pth_path = convert_and_save_results(
-        ARGS, save_dir, classify_dataset(ARGS, model, datasets.context), test_acc, context_acc
+        ARGS,
+        cluster_label_path=cluster_label_path,
+        results=classify_dataset(ARGS, model, datasets.context),
+        context_acc=context_acc,
+        test_acc=test_acc,
     )
     return model, pth_path
 

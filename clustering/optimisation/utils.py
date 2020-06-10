@@ -14,13 +14,14 @@ from clustering.models import Model
 from clustering.configs import ClusterArgs
 
 __all__ = [
-    "log_images",
-    "save_model",
-    "restore_model",
-    "count_occurances",
     "convert_and_save_results",
+    "count_occurances",
     "find_assignment",
     "get_class_id",
+    "get_cluster_label_path",
+    "log_images",
+    "restore_model",
+    "save_model",
 ]
 
 
@@ -123,25 +124,28 @@ def get_class_id(
     return class_id
 
 
+def get_cluster_label_path(args: ClusterArgs, save_dir: Path) -> Path:
+    if args.cluster_label_file:
+        return Path(args.cluster_label_file)
+    else:
+        return save_dir / "cluster_results.pth"
+
+
 def convert_and_save_results(
     args: ClusterArgs,
-    save_dir: Path,
+    cluster_label_path: Path,
     results: Tuple[Tensor, Tensor, Tensor],
-    test_acc: float,
     context_acc: float,
+    test_acc: float = float("nan"),
 ) -> Path:
     clusters, s, y = results
     s_count = args._s_dim if args._s_dim > 1 else 2
     class_ids = get_class_id(s=s, y=y, s_count=s_count, to_cluster=args.cluster)
-    if args.cluster_label_file:
-        save_path = Path(args.cluster_label_file)
-    else:
-        save_path = save_dir / "cluster_results.pth"
     cluster_results = ClusterResults(
         flags=args.as_dict(),
         cluster_ids=clusters,
         class_ids=class_ids,
-        test_acc=test_acc,
         context_acc=context_acc,
+        test_acc=test_acc,
     )
-    return save_results(save_path=save_path, cluster_results=cluster_results)
+    return save_results(save_path=cluster_label_path, cluster_results=cluster_results)
