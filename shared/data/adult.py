@@ -90,7 +90,7 @@ def get_invisible_demographics(
 
 def load_adult_data(args: BaseArgs) -> Tuple[DataTupleDataset, DataTupleDataset, DataTupleDataset]:
     global ADULT_DATASET
-    ADULT_DATASET = adult(binarize_nationality=args.drop_native)
+    ADULT_DATASET = adult(split=args.adult_split, binarize_nationality=args.drop_native)
     data = load_data(ADULT_DATASET, ordered=True, generate_dummies=True)
 
     disc_feature_groups = ADULT_DATASET.disc_feature_groups

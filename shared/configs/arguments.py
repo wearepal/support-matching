@@ -3,6 +3,7 @@ from typing import Literal, List, Dict
 from typed_flags import TypedFlags
 
 from ethicml.data import GenfacesAttributes
+from ethicml.data.tabular_data.adult import AdultSplits
 
 __all__ = ["BaseArgs", "CELEBATTRS"]
 
@@ -68,6 +69,7 @@ class BaseArgs(TypedFlags):
 
     # Adult data set feature settings
     drop_native: bool = True
+    adult_split: AdultSplits = "Sex"
     drop_discrete: bool = False
     balanced_context: bool = False
     balanced_test: bool = True
