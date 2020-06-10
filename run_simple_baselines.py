@@ -258,6 +258,9 @@ def run_baseline(args: BaselineArgs):
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
     print()
 
+    if args.method == "dro":
+        metrics["eta"] = str(args.eta)
+
     if args.save_dir is not None:
         save_to_csv = Path(args.save_dir)
         save_to_csv.mkdir(exist_ok=True, parents=True)
