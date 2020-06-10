@@ -12,7 +12,7 @@ for seed in "${seeds[@]}"; do
     --b-data-split-seed $seed \
     --b-subsample-train \
     --b-missing-s 2 \
-    --b-colors 2 4 8 \
+    --b-colors 1 4 8 \
     --d-batch-size 256 \
     --d-results cmnist_no_cluster_2digits_3colors.csv \
     --b-save-dir experiments/cmnist/2digits/3colors/missings2/nocluster $@
