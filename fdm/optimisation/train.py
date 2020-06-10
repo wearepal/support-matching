@@ -120,9 +120,10 @@ def main(
         ARGS._cluster_context_acc = cluster_results.context_acc
         weights, n_clusters, min_count = weight_for_balance(cluster_results.cluster_ids)
         # we subsample the larger clusters rather than supersample the smaller clusters
-        sample_with_replacement = False
         epoch_len = n_clusters * min_count
-        sampler = WeightedRandomSampler(weights, epoch_len, replacement=sample_with_replacement)
+        sampler = WeightedRandomSampler(
+            weights, epoch_len, replacement=ARGS.sample_with_replacement
+        )
         dataloader_args = dict(sampler=sampler)
     else:
         dataloader_args = dict(shuffle=True)
