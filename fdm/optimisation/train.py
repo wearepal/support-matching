@@ -433,8 +433,12 @@ def train(
         disc_weight = 0.0 if itr < ARGS.warmup_steps else ARGS.disc_weight
         # Train the discriminator on its own for a number of iterations
         if components.type == "ae":
-            update_disc(x_c, x_t, components, itr < ARGS.warmup_steps)
-            gen_loss, logging_dict = update(
+            # update_disc(x_c, x_t, s_t, components, itr < ARGS.warmup_steps)
+            # gen_loss, logging_dict = update(
+            #     x_c=x_c, x_t=x_t, s_t=s_t, y_t=y_t, ae=components, warmup=itr < ARGS.warmup_steps
+            # )
+            update_disc_mim(x_t, s_t, components, itr < ARGS.warmup_steps)
+            gen_loss, logging_dict = update_mim(
                 x_c=x_c, x_t=x_t, s_t=s_t, y_t=y_t, ae=components, warmup=itr < ARGS.warmup_steps
             )
         else:
@@ -490,6 +494,31 @@ class AeComponents(NamedTuple):
     recon_loss_fn: Callable
     predictor_y: Classifier
     type: Literal["ae"] = "ae"
+
+
+def update_disc_mim(
+    x_t: Tensor, s_t: Tensor, ae: AeComponents, warmup: bool = False,
+):
+    ae.generator.eval()
+    ae.predictor_y.eval()
+    ae.discriminator.train()
+
+    if not ARGS.vae:
+        encoding_t = ae.generator.encode(x_t)
+    disc_loss = x_t.new_zeros(())
+    disc_acc = 0
+    if not warmup:
+        for _ in range(ARGS.num_disc_updates):
+            if ARGS.vae:
+                encoding_t = ae.generator.encode(x_t, stochastic=True)
+            disc_input_t = get_disc_input(ae.generator, encoding_t, invariant_to="s").detach()
+            disc_loss, disc_acc = ae.discriminator.routine(disc_input_t, s_t)
+            ae.discriminator.zero_grad()
+            disc_loss.backward()
+            ae.discriminator.step()
+
+    return disc_loss, disc_acc
+        
 
 
 def update_disc(
@@ -560,9 +589,77 @@ def update_disc(
             ae.disc_distinguish.step()
     return disc_loss, 0.5 * (disc_acc_true + disc_acc_false)  # statistics from last step
 
+def update_mim(
+     x_t: Tensor, x_c, s_t: Tensor, y_t: Tensor, ae: AeComponents, warmup: bool
+):
+    disc_weight = 0.0 if warmup else ARGS.disc_weight
+    # Compute losses for the generator.
+    ae.discriminator.eval()
+    if ae.disc_distinguish is not None:
+        ae.disc_distinguish.eval()
+    ae.predictor_y.train()
+    ae.generator.train()
+    logging_dict = {}
 
+    # ================================ recon loss for training set ================================
+    encoding, elbo, logging_dict_elbo = ae.generator.routine(x_t, ae.recon_loss_fn, ARGS.kl_weight)
+
+    # ================================ recon loss for context set =================================
+    # we need a reconstruction loss for x_c because...
+    # ...when we train on encodings, the network will otherwise just falsify encodings for x_c
+    # ...when we train on recons, the GAN loss has it too easy to distinguish the two
+    _, elbo_c, logging_dict_elbo_c = ae.generator.routine(
+        x_c, ae.recon_loss_fn, ARGS.kl_weight
+    )
+    logging_dict.update({k: v + logging_dict_elbo_c[k] for k, v in logging_dict_elbo.items()})
+    elbo = 0.5 * (elbo + elbo_c)  # take average of the two recon losses
+
+    # ==================================== adversarial losses =====================================
+    disc_input_no_s = get_disc_input(ae.generator, encoding, invariant_to="s")
+    disc_loss, disc_acc = ae.discriminator.routine(disc_input_no_s, s_t)
+
+    pred_y_loss = x_t.new_zeros(())
+    if ARGS.pred_weight > 0:
+        # predictor is on encodings
+        enc_no_s, _ = ae.generator.mask(encoding, random=False)
+        # predict y from the part that is invariant to s
+        pred_y_loss, pred_y_acc = ae.predictor_y.routine(enc_no_s, y_t)
+        pred_y_loss *= ARGS.pred_weight
+
+        logging_dict.update(
+            {"Loss Predictor y": pred_y_loss.item(), "Accuracy Predictor y": pred_y_acc}
+        )
+
+    else:
+        logging_dict.update({"Loss Predictor y": 0.0, "Accuracy Predictor y": 0.0})
+
+        elbo *= ARGS.elbo_weight
+    disc_loss *= disc_weight
+
+    gen_loss = elbo - disc_loss - pred_y_loss
+
+    # Update the generator's parameters
+    ae.generator.zero_grad()
+    if ARGS.pred_weight > 0:
+        ae.predictor_y.zero_grad()
+    gen_loss.backward()
+    ae.generator.step()
+    if ARGS.pred_weight > 0:
+        ae.predictor_y.step()
+
+    final_logging = {
+        "ELBO": elbo.item(),
+        "Loss Adversarial": disc_loss.item(),
+        "Accuracy Disc": disc_acc,
+        "Loss Generator": gen_loss.item(),
+    }
+    logging_dict.update(final_logging)
+
+    return gen_loss, logging_dict
+
+    
 def update(
-    x_c: Tensor, x_t: Tensor, s_t: Tensor, y_t: Tensor, ae: AeComponents, warmup: bool,
+    x_c: Tensor, x_t: Tensor, y_t: Tensor, ae: AeComponents, warmup: bool,
 ) -> Tuple[Tensor, Dict[str, float]]:
     """Compute all losses.
 
