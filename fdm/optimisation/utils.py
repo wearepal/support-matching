@@ -64,9 +64,9 @@ def restore_model(args: VaeArgs, filename: Path, model: nn.Module):
     return model, chkpt["epoch"]
 
 
-def weight_for_balance(cluster_ids: Tensor):
+def weight_for_balance(cluster_ids: Tensor) -> Tuple[Tensor, int, int, int]:
     unique, counts = torch.unique(cluster_ids, sorted=False, return_counts=True)
     n_clusters = int(unique.max() + 1)
     weights = torch.zeros((n_clusters,))
     weights[unique] = 1 / counts.float()  # the higher the count the lower the weight to balance out
-    return weights[cluster_ids], counts.size(0), int(counts.min())
+    return weights[cluster_ids], counts.size(0), int(counts.min()), int(counts.max())

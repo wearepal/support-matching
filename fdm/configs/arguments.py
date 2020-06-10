@@ -24,7 +24,7 @@ class VaeArgs(BaseArgs):
     train_on_recon: bool = False  # whether to train the discriminator on recons or encodings
     recon_detach: bool = True  # Whether to apply the stop gradient operator to the reconstruction.
     eval_on_recon: bool = True
-    sample_with_replacement: bool = False  # Whether to sample with replacement for WRS
+    upsample: bool = False  # Whether to upsample when doing weighted sampling.
 
     # Evaluation settings
     eval_epochs: int = 40
@@ -90,7 +90,7 @@ class VaeArgs(BaseArgs):
     kl_weight: float = 1
     elbo_weight: float = 1
     disc_weight: float = 1
-    num_disc_wes: int = 1
+    num_disc_updates: int = 1
     distinguish_weight: float = 1
     pred_weight: float = 0
 
