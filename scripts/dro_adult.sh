@@ -18,6 +18,6 @@ for seed in "${seeds[@]}"; do
         --biased-train True \
         --gpu -1 \
         --seed $seed \
-        --data-split-seed $seed
+        --data-split-seed $seed $@
     done
 done
