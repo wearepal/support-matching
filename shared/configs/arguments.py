@@ -94,7 +94,7 @@ class BaseArgs(TypedFlags):
     subsample_train: Dict[int, float] = {}
     input_noise: bool = True  # add uniform noise to the input
     filter_labels: List[int] = []
-    num_colors: int = 10
+    colors: List[int] = []
 
     # CelebA settings
     celeba_sens_attr: CELEBATTRS = "Male"

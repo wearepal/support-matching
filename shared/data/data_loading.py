@@ -68,13 +68,14 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             _filter_(train_data)
             _filter_(test_data)
 
+        num_colors = len(args.colors) if len(args.colors) > 0 else num_classes
         colorizer = LdColorizer(
             scale=args.scale,
             background=args.background,
             black=args.black,
             binarize=args.binarize,
             greyscale=args.greyscale,
-            color_indices=list(range(args.num_colors)) or None,
+            color_indices=args.colors or None,
         )
 
         test_data = (test_data.data, test_data.targets)
@@ -103,14 +104,14 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             s = y.clone()
             if _decorr_op == "random":  # this is for context and test set
                 indexes = torch.rand(s.shape) > _correlation
-                s[indexes] = torch.randint_like(s[indexes], low=0, high=args.num_colors)
+                s[indexes] = torch.randint_like(s[indexes], low=0, high=num_colors)
             elif args.missing_s:  # this is one possibility for training set
-                s = torch.randint_like(s, low=0, high=args.num_colors)
+                s = torch.randint_like(s, low=0, high=num_colors)
                 for to_remove in args.missing_s:
-                    s[s == to_remove] = (to_remove + 1) % args.num_colors
+                    s[s == to_remove] = (to_remove + 1) % num_colors
             else:  # this is another possibility for training set
                 indexes = torch.rand(s.shape) > _correlation
-                s[indexes] = torch.fmod(s[indexes] + 1, args.num_colors)
+                s[indexes] = torch.fmod(s[indexes] + 1, num_colors)
             x_col = colorizer(x, s)
             return RawDataTuple(x=x_col, s=s, y=y)
 
@@ -123,7 +124,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             for _class_id, _prop in _target_props.items():
                 assert 0 <= _prop <= 1, "proportions should be between 0 and 1"
                 target_y = _class_id // num_classes
-                target_s = _class_id % args.num_colors
+                target_s = _class_id % num_colors
                 _indexes = (_y == int(target_y)) & (_s == int(target_s))
                 _n_matches = len(_indexes.nonzero())
                 _to_keep = torch.randperm(_n_matches) < (round(_prop * (_n_matches - 1)))
@@ -156,7 +157,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         context_data = TensorDataset(context_data_t.x, context_data_t.s, context_data_t.y)
 
         args._y_dim = 1 if num_classes == 2 else num_classes
-        args._s_dim = args.num_colors
+        args._s_dim = 1 if num_colors == 2 else num_colors
 
     elif args.dataset == "celeba":
 
