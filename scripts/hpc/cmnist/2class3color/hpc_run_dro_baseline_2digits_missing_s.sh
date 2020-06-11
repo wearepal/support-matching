@@ -5,8 +5,8 @@ etas=( 0.01 0.1 0.5 1.0)
 
 slots=1
 
-for seed in "${seeds[@]}"; do
-    for eta in "${etas[@]}"; do
+for eta in "${etas[@]}"; do
+    for seed in "${seeds[@]}"; do
         echo $seed
         echo $eta
         qsub -pe smpslots $slots python-ot.job run_simple_baselines.py \
