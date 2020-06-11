@@ -126,7 +126,7 @@ def compute_metrics(
         predictions,
         actual,
         metrics=[Accuracy(), TPR(), TNR(), RenyiCorrelation()],
-        per_sens_metrics=[ProbPos(), TPR(), TNR()],
+        per_sens_metrics=[Accuracy(), ProbPos(), TPR(), TNR()],
     )
 
     if use_wandb:
