@@ -11,7 +11,6 @@ setup(
     python_requires=">=3.8",
     package_data={"clustering": ["py.typed"], "fdm": ["py.typed"], "shared": ["py.typed"]},
     install_requires=[
-        "EthicML @ git+https://github.com/predictive-analytics-lab/EthicML.git",
         "gitpython",
         "lapjv",
         "numpy >= 1.15",
