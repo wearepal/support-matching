@@ -8,12 +8,13 @@
 seeds=( 888 1 2410 1996 711 )
 etas=( 0.01 0.1 0.5 1.0 )
 gpu_id=0
+save_dir="experiments/cmnist/2digits/2colors/2missing"
 
 function run_ssl() {
     for seed in "${seeds[@]}"; do
         echo $seed
         python run_both.py @flags/the_phantom_menace.yaml \
-        --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed "$@"
+        --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir "$@"
         sleep 1
     done
 }
@@ -22,7 +23,7 @@ function run_no_cluster() {
     for seed in "${seeds[@]}"; do
         echo $seed
         python run_no_clustering.py @flags/the_phantom_menace.yaml \
-        --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed "$@"
+        --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir "$@"
         sleep 1
     done
 }
@@ -31,7 +32,7 @@ function run_baseline() {
     for seed in "${seeds[@]}"; do
         echo $seed
         python run_simple_baselines.py \
-        --gpu -1 --seed $seed --data-split-seed $seed "$@"
+        --gpu -1 --seed $seed --data-split-seed $seed --save-dir $save_dir "$@"
         sleep 1
     done
 }
