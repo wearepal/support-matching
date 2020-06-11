@@ -17,6 +17,7 @@ for eta in "${etas[@]}"; do
         --scale 0 \
         --missing-s 2 \
         --method dro \
+        --eta $eta \
         --gpu 0 \
         --seed $seed \
         --data-split-seed $seed \
