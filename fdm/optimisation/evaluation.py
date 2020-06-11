@@ -122,17 +122,13 @@ def compute_metrics(
     """Compute accuracy and fairness metrics and log them"""
 
     predictions._info = {}
-    if args._y_dim == 1 and args._s_dim == 1:
-        metrics = run_metrics(
-            predictions,
-            actual,
-            metrics=[Accuracy(), TPR(), TNR(), RenyiCorrelation()],
-            per_sens_metrics=[ProbPos(), TPR(), TNR()],
-        )
-    else:
-        metrics = run_metrics(
-            predictions, actual, metrics=[Accuracy(), RenyiCorrelation()], per_sens_metrics=[]
-        )
+    metrics = run_metrics(
+        predictions,
+        actual,
+        metrics=[Accuracy(), TPR(), TNR(), RenyiCorrelation()],
+        per_sens_metrics=[Accuracy(), ProbPos(), TPR(), TNR()],
+    )
+
     if use_wandb:
         wandb_log(args, {f"{k} ({model_name})": v for k, v in metrics.items()}, step=step)
     print(f"Results for {data_exp_name} ({model_name}):")
@@ -251,7 +247,13 @@ def evaluate(
 
         preds, actual, sens = clf.predict_dataset(test_loader, device=args._device)
         preds = Prediction(hard=pd.Series(preds))
-        sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=["sex_Male"])
+        if args.dataset == "cmnist":
+            sens_name = "colour"
+        elif args.dataset == "celeba":
+            sens_name = args.celeba_sens_attr
+        else:
+            sens_name = "sens_Label"
+        sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=[sens_name])
         labels = pd.DataFrame(actual, columns=["labels"])
         actual = DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels)
         compute_metrics(
