@@ -5,10 +5,10 @@ b_padding: 2
 b_context_pcnt: 0.66666666
 # bias the context set
 b_subsample_context:
-        0:0.7
-        1:0.4
-        2:0.2
-        3:1.0
+        0: 0.5
+        1: 1.0
+        2: 0.2
+        3: 0.4
 b_subsample_train:
         1: 0.3
         2: 0.0  # remove this group entirely
@@ -30,7 +30,7 @@ c_method: "pl_enc_no_norm"
 c_val_freq: 10
 
 # ===== disentangling flags =====
-d_batch-size: 128
+d_batch-size: 256
 d_disc-hidden: 32 32
 d_disc-lr: 3e-4
 d_disc_weight: 2

@@ -15,16 +15,14 @@ function run_ssl() {
         echo $seed
         python run_both.py @flags/the_phantom_menace.yaml \
         --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir --b-use-wandb False "$@"
-        sleep 1
     done
 }
 
 function run_no_cluster() {
     for seed in "${seeds[@]}"; do
         echo $seed
-        python run_no_clustering.py @flags/the_phantom_menace.yaml \
+        python run_no_balancing.py @flags/the_phantom_menace.yaml \
         --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir --b-use-wandb False "$@"
-        sleep 1
     done
 }
 
@@ -32,37 +30,24 @@ function run_baseline() {
     for seed in "${seeds[@]}"; do
         echo $seed
         python run_simple_baselines.py \
-        --gpu -1 --seed $seed --data-split-seed $seed --save-dir $save_dir "$@"
-        sleep 1
+        --gpu $gpu_id --seed $seed --data-split-seed $seed --save-dir $save_dir "$@"
     done
 }
 
-# SUPERSAMPLE
-# ========================== ranking ========================
-run_ssl --b-missing-s --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 1group_ranking_supersample.csv --d-upsample True "$@"
-# ========================== k means ========================
-run_ssl --b-missing-s --c-method kmeans --d-results 1group_kmeans_supersample.csv --d-upsample True "$@"
 
-
-# SUBSAMPLE
+# UNDERSAMPLE
 # ======================== ranking ========================
-run_ssl --b-missing-s --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 1group_ranking_subsample.csv "$@"
+run_ssl --b-missing-s --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 1group_ranking_undersample.csv "$@"
 # ======================== k means ========================
-run_ssl --b-missing-s --c-method kmeans --d-results 1group_kmeans_subsample.csv "$@"
-
-# EVAL ON RECON
-# ======================== ranking ========================
-run_ssl --b-missing-s --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 1group_ranking_eval_on_recon.csv --d-eval-on-recon True "$@"
-# ======================== k means ========================
-run_ssl --b-missing-s --c-method kmeans --d-results 1group_kmeans_eval_on_recon.csv --d-eval-on-recon True "$@"
+run_ssl --b-missing-s --c-method kmeans --d-results 1group_kmeans_undersample.csv "$@"
 
 
 # SAMPLING STRATEGY UNUSED
 # ===================== no clustering =====================
-run_no_cluster  --b-missing-s --d-results 1group_ranking_no_cluster.csv --d-upsample True "$@"
+run_no_cluster --b-missing-s --d-results 1group_no_cluster.csv "$@"
 # ===================== baseline  cnn =====================
-run_baseline --dataset adult --method cnn --padding 2 --balanced-context False --balanced-test True --biased-train True "$@"
+run_baseline --dataset cmnist --method cnn --padding 2 --balanced-context False --balanced-test True --biased-train True "$@"
 # ===================== baseline  fwd =====================
 for eta in "${etas[@]}"; do
-    run_baseline --dataset adult --method dro --eta $eta --padding 2 --balanced-context False --balanced-test True --biased-train True "$@"
+    run_baseline --dataset cmnist --method dro --eta $eta --padding 2 --balanced-context False --balanced-test True --biased-train True "$@"
 done

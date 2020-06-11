@@ -15,16 +15,14 @@ function run_ssl() {
         echo $seed
         python run_both.py @flags/adult_pipeline.yaml \
         --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir --b-use-wandb False "$@"
-        sleep 1
     done
 }
 
 function run_no_cluster() {
     for seed in "${seeds[@]}"; do
         echo $seed
-        python run_no_clustering.py @flags/adult_pipeline.yaml \
+        python run_no_balancing.py @flags/adult_pipeline.yaml \
         --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir --b-use-wandb False "$@"
-        sleep 1
     done
 }
 
@@ -32,23 +30,26 @@ function run_baseline() {
     for seed in "${seeds[@]}"; do
         echo $seed
         python run_simple_baselines.py \
-        --gpu -1 --seed $seed --data-split-seed $seed --save-dir $save_dir "$@"
-        sleep 1
+        --gpu $gpu_id --seed $seed --data-split-seed $seed --save-dir $save_dir "$@"
     done
 }
 
-# SUPERSAMPLE
+# OVERSAMPLE
 # ========================== ranking ========================
-run_ssl --b-missing-s --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 1group_ranking_supersample.csv --d-upsample True "$@"
+run_ssl --b-missing-s --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 1group_ranking_oversample.csv --d-upsample True "$@"
 # ========================== k means ========================
-run_ssl --b-missing-s --c-method kmeans --d-results 1group_kmeans_supersample.csv --d-upsample True "$@"
+run_ssl --b-missing-s --c-method kmeans --d-results 1group_kmeans_oversample.csv --d-upsample True "$@"
 
 
-# SUBSAMPLE
+# UNDERSAMPLE
 # ======================== ranking ========================
-run_ssl --b-missing-s --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 1group_ranking_subsample.csv "$@"
+run_ssl --b-missing-s --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 1group_ranking_undersample.csv --d-upsample False "$@"
 # ======================== k means ========================
-run_ssl --b-missing-s --c-method kmeans --d-results 1group_kmeans_subsample.csv "$@"
+run_ssl --b-missing-s --c-method kmeans --d-results 1group_kmeans_undersample.csv --d-upsample False "$@"
+
+# TRUE BALANCING
+# ===================== no clustering =====================
+run_no_cluster --b-missing-s --d-results 1group_true_balance_no_cluster.csv --d-balanced-context True "$@"
 
 # EVAL ON RECON
 # ======================== ranking ========================
@@ -59,7 +60,7 @@ run_ssl --b-missing-s --c-method kmeans --d-results 1group_kmeans_eval_on_recon.
 
 # SAMPLING STRATEGY UNUSED
 # ===================== no clustering =====================
-run_no_cluster  --b-missing-s --d-results 1group_ranking_no_cluster.csv --d-upsample True "$@"
+run_no_cluster --b-missing-s --d-results 1group_no_cluster.csv "$@"
 # ===================== baseline  cnn =====================
 run_baseline --dataset adult --method cnn --padding 2 --balanced-context False --balanced-test True --biased-train True "$@"
 # ===================== baseline  fwd =====================
