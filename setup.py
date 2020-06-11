@@ -5,13 +5,12 @@ import sys
 setup(
     name="fdm",
     version="0.2.0",
-    author="T. Kehrenberg, M. Bartlett, O. Thomas",
+    author="Anonymous Authors",
     packages=find_packages(),
     description="Fair distribution matching",
     python_requires=">=3.8",
     package_data={"clustering": ["py.typed"], "fdm": ["py.typed"], "shared": ["py.typed"]},
     install_requires=[
-        "EthicML @ git+https://github.com/predictive-analytics-lab/EthicML.git",
         "gitpython",
         "lapjv",
         "numpy >= 1.15",
