@@ -46,6 +46,5 @@ d_warmup_steps: 1000
 d_super_val_freq: 20
 d_super_val: True
 d_pred_weight: 1
-# Myles says this works better:
 #d_train_on_recon: False
 d_train_on_recon: True
