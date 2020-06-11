@@ -247,7 +247,13 @@ def evaluate(
 
         preds, actual, sens = clf.predict_dataset(test_loader, device=args._device)
         preds = Prediction(hard=pd.Series(preds))
-        sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=["sens_Label"])
+        if args.dataset == "cmnist":
+            sens_name = "colour"
+        elif args.dataset == "celeba":
+            sens_name = args. celeba_sens_attr
+        else:
+            sens_name = "sens_Label"
+        sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=[sens_name])
         labels = pd.DataFrame(actual, columns=["labels"])
         actual = DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels)
         compute_metrics(
