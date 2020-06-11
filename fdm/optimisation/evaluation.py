@@ -250,7 +250,7 @@ def evaluate(
         if args.dataset == "cmnist":
             sens_name = "colour"
         elif args.dataset == "celeba":
-            sens_name = args. celeba_sens_attr
+            sens_name = args.celeba_sens_attr
         else:
             sens_name = "sens_Label"
         sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=[sens_name])
