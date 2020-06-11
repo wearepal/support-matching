@@ -1,4 +1,4 @@
-#!/usr/bin/env bash#!/usr/bin/env bash
+#!/usr/bin/env bash
 #Expects cwd to be fair-dist-matching. i.e ./scripts/cmnist_1_digits.sh
 
 # ===========================================================
