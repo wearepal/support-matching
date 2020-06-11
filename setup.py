@@ -5,7 +5,7 @@ import sys
 setup(
     name="fdm",
     version="0.2.0",
-    author="T. Kehrenberg, M. Bartlett, O. Thomas",
+    author="Anonymous Authors",
     packages=find_packages(),
     description="Fair distribution matching",
     python_requires=">=3.8",
