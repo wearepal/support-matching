@@ -30,7 +30,7 @@ function run_no_cluster() {
 function run_baseline() {
     for seed in "${seeds[@]}"; do
         echo $seed
-        python run_simple_baselines.py @flags/adult_pipeline.yaml \
+        python run_simple_baselines.py \
         --gpu -1 --seed $seed --data-split-seed $seed "$@"
         sleep 1
     done
