@@ -12,4 +12,9 @@ def cell(data):
 def generate_table(df, type_renames, metrics, query):
     df.rename(columns={"data": "type", "method": "classifier"}, inplace=True)
     df["type"].replace(type_renames, inplace=True)
-    return df[["type", "approach", "classifier"] + metrics].groupby(["type", "approach", "classifier"]).agg(cell).query(query)
+    return (
+        df[["type", "approach", "classifier"] + metrics]
+        .groupby(["type", "approach", "classifier"])
+        .agg(cell)
+        .query(query)
+    )
