@@ -5,13 +5,13 @@
 # ====================== 1 group missing ====================
 # ===========================================================
 
-seeds=( 888 1 2410 1996 711 )
+MAX_SEED=100
 etas=( 0.01 0.1 0.5 1.0 )
 gpu_id=0
 save_dir="experiments/cmnist/2digits/2colors/1missing"
 
 function run_ssl() {
-    for seed in "${seeds[@]}"; do
+    for seed in $(seq $MAX_SEED); do
         echo $seed
         python run_both.py @flags/the_phantom_menace.yaml \
         --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir --b-use-wandb False "$@"
@@ -19,7 +19,7 @@ function run_ssl() {
 }
 
 function run_no_cluster() {
-    for seed in "${seeds[@]}"; do
+    for seed in $(seq $MAX_SEED); do
         echo $seed
         python run_no_balancing.py @flags/the_phantom_menace.yaml \
         --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir --b-use-wandb False "$@"
@@ -27,7 +27,7 @@ function run_no_cluster() {
 }
 
 function run_baseline() {
-    for seed in "${seeds[@]}"; do
+    for seed in $(seq $MAX_SEED); do
         echo $seed
         python run_simple_baselines.py \
         --gpu $gpu_id --seed $seed --data-split-seed $seed --save-dir $save_dir "$@"
