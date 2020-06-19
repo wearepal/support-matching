@@ -1,4 +1,4 @@
-from typing import Tuple, Union, List, Optional, Mapping
+from typing import Tuple, Union, List, Optional, Mapping, Dict
 import torch.nn as nn
 
 from clustering import layers
@@ -14,7 +14,7 @@ def build_classifier(
     target_dim: int,
     model_fn: ModelFn,
     model_kwargs: Mapping[str, Union[float, str, bool]],
-    optimizer_kwargs=None,
+    optimizer_kwargs: Optional[Dict[str, float]] = None,
     num_heads: int = 1,
 ) -> Union[nn.ModuleList, Classifier]:
     in_dim = input_shape[0]

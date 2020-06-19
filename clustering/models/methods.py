@@ -117,7 +117,7 @@ class PseudoLabelOutput(Method):
 
 
 @jit.script
-def _cosine_and_bce(preds: Tensor, pseudo_label: Tensor, mask: Tensor):
+def _cosine_and_bce(preds: Tensor, pseudo_label: Tensor, mask: Tensor) -> Tensor:
     """Cosine similarity and then binary cross entropy."""
     # cosine similarity
     cosine_sim = dot_product(preds[:, None, :], preds).clamp(min=0, max=1)

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple
 
 import numpy as np
 import torch
@@ -12,18 +12,22 @@ from . import Bijector
 class SqueezeLayer(Bijector):
     downscale_factor: int
 
-    def __init__(self, downscale_factor: int):
+    def __init__(self, downscale_factor: int) -> None:
         super().__init__()
         self.downscale_factor: int = downscale_factor
 
-    def _forward(self, x, sum_ldj: Optional[Tensor] = None):
+    def _forward(
+        self, x: Tensor, sum_ldj: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         squeeze_x = squeeze(x, self.downscale_factor)
         if sum_ldj is None:
             return squeeze_x, None
         else:
             return squeeze_x, sum_ldj
 
-    def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
+    def _inverse(
+        self, y: Tensor, sum_ldj: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         unsqueeze_y = unsqueeze(y, self.downscale_factor)
         if sum_ldj is None:
             return unsqueeze_y, None
@@ -32,17 +36,21 @@ class SqueezeLayer(Bijector):
 
 
 class UnsqueezeLayer(SqueezeLayer):
-    def __init__(self, upscale_factor: int):
+    def __init__(self, upscale_factor: int) -> None:
         super().__init__(downscale_factor=upscale_factor)
 
-    def _forward(self, x, sum_ldj: Optional[Tensor] = None):
+    def _forward(
+        self, x: Tensor, sum_ldj: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         return self._inverse(x, sum_ldj)
 
-    def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
+    def _inverse(
+        self, y: Tensor, sum_ldj: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         return self._forward(y, sum_ldj)
 
 
-def unsqueeze(input, upscale_factor: int = 2):
+def unsqueeze(input: Tensor, upscale_factor: int = 2) -> Tensor:
     """
     [:, C*r^2, H, W] -> [:, C, H*r, W*r]
     """
@@ -60,7 +68,7 @@ def unsqueeze(input, upscale_factor: int = 2):
     return output.view(batch_size, out_channels, out_height, out_width)
 
 
-def squeeze(input, downscale_factor: int = 2):
+def squeeze(input: Tensor, downscale_factor: int = 2) -> Tensor:
     """
     [:, C, H*r, W*r] -> [:, C*r^2, H, W]
     """
@@ -82,7 +90,9 @@ class HaarDownsampling(Bijector):
     """Uses Haar wavelets to split each channel into 4 channels, with half the
     width and height."""
 
-    def __init__(self, in_channels, order_by_wavelet=False, rebalance=1.0):
+    def __init__(
+        self, in_channels: Tensor, order_by_wavelet: bool = False, rebalance: float = 1.0
+    ) -> None:
         super().__init__()
 
         self.in_channels = in_channels
@@ -117,11 +127,13 @@ class HaarDownsampling(Bijector):
             for i, p in enumerate(self.perm):
                 self.perm_inv[p] = i
 
-    def logdetjac(self, x, reverse):
+    def logdetjac(self, x: Tensor, reverse: bool) -> Tensor:
         fac = self.fac_rev if reverse else self.fac_fwd
         return x[0].nelement() / 4 * (np.log(16.0) + 4 * np.log(fac))
 
-    def _forward(self, x, sum_ldj: Optional[Tensor] = None):
+    def _forward(
+        self, x: Tensor, sum_ldj: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         out = F.conv2d(x, self.haar_weights, bias=None, stride=2, groups=self.in_channels)
 
         if self.permute:
@@ -132,7 +144,9 @@ class HaarDownsampling(Bijector):
             sum_ldj -= self.logdetjac(x, False)
         return out, sum_ldj
 
-    def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
+    def _inverse(
+        self, y: Tensor, sum_ldj: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Optional[Tensor]]:
 
         if self.permute:
             x_perm = y[:, self.perm_inv]

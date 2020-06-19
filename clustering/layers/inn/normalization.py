@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple, List
 
 import torch
 import torch.nn as nn
@@ -13,7 +13,14 @@ __all__ = ["MovingBatchNorm1d", "MovingBatchNorm2d", "ActNorm"]
 
 
 class MovingBatchNormNd(Bijector):
-    def __init__(self, num_features, eps=1e-6, decay=0.1, bn_lag=0.0, affine=True):
+    def __init__(
+        self,
+        num_features: int,
+        eps: float = 1e-6,
+        decay: float = 0.1,
+        bn_lag: float = 0.0,
+        affine: bool = True,
+    ) -> None:
         super(MovingBatchNormNd, self).__init__()
         self.num_features = num_features
         self.affine = affine
@@ -32,17 +39,19 @@ class MovingBatchNormNd(Bijector):
         self.reset_parameters()
 
     @property
-    def shape(self):
+    def shape(self) -> List[int]:
         raise NotImplementedError
 
-    def reset_parameters(self):
+    def reset_parameters(self) -> None:
         self.running_mean.zero_()
         self.running_var.fill_(1)
         if self.affine:
             self.weight.data.zero_()
             self.bias.data.zero_()
 
-    def _forward(self, x, sum_ldj: Optional[Tensor] = None):
+    def _forward(
+        self, x: Tensor, sum_ldj: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         c = x.size(1)
         used_mean = self.running_mean.clone().detach()
         used_var = self.running_var.clone().detach()
@@ -81,7 +90,9 @@ class MovingBatchNormNd(Bijector):
         else:
             return y, sum_ldj - self.logdetgrad(x, used_var)
 
-    def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
+    def _inverse(
+        self, y: Tensor, sum_ldj: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         used_mean = self.running_mean
         used_var = self.running_var
 
@@ -99,7 +110,7 @@ class MovingBatchNormNd(Bijector):
         else:
             return x, sum_ldj + self.logdetgrad(x, used_var)
 
-    def logdetgrad(self, x, used_var):
+    def logdetgrad(self, x: Tensor, used_var: Tensor) -> Tensor:
         ldj = -0.5 * torch.log(used_var + self.eps)
         if self.affine:
             weight = self.weight.view(*self.shape).expand(*x.size())
@@ -107,14 +118,14 @@ class MovingBatchNormNd(Bijector):
         ldj = sum_except_batch(ldj, keepdim=True)
         return ldj
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             "{name}({num_features}, eps={eps}, decay={decay}, bn_lag={bn_lag},"
             " affine={affine})".format(name=self.__class__.__name__, **self.__dict__)
         )
 
 
-def stable_var(x, mean=None, dim=1):
+def stable_var(x: Tensor, mean: Optional[Tensor] = None, dim: int = 1) -> Tensor:
     if mean is None:
         mean = x.mean(dim, keepdim=True)
     mean = mean.view(-1, 1)
@@ -129,18 +140,18 @@ def stable_var(x, mean=None, dim=1):
 
 class MovingBatchNorm1d(MovingBatchNormNd):
     @property
-    def shape(self):
+    def shape(self) -> List[int]:
         return [1, -1]
 
 
 class MovingBatchNorm2d(MovingBatchNormNd):
     @property
-    def shape(self):
+    def shape(self) -> List[int]:
         return [1, -1, 1, 1]
 
 
 class ActNorm(Bijector):
-    def __init__(self, features):
+    def __init__(self, features: Tensor) -> None:
         """
         Transform that performs activation normalization. Works for 2D and 4D inputs. For 4D
         inputs (images) normalization is performed per-channel, assuming BxCxHxW input shape.
@@ -156,16 +167,16 @@ class ActNorm(Bijector):
         self.shift = nn.Parameter(torch.zeros(features))
 
     @property
-    def scale(self):
+    def scale(self) -> Tensor:
         return torch.exp(self.log_scale)
 
-    def _broadcastable_scale_shift(self, inputs):
+    def _broadcastable_scale_shift(self, inputs: Tensor) -> Tuple[Tensor, Tensor]:
         if inputs.dim() == 4:
             return self.scale.view(1, -1, 1, 1), self.shift.view(1, -1, 1, 1)
         else:
             return self.scale.view(1, -1), self.shift.view(1, -1)
 
-    def logdetjac(self, inputs):
+    def logdetjac(self, inputs: Tensor) -> Tensor:
         if inputs.dim() == 4:
             batch_size, _, h, w = inputs.shape
             return h * w * torch.sum(self.log_scale)
@@ -173,7 +184,9 @@ class ActNorm(Bijector):
             batch_size = inputs.size(0)
             return torch.sum(self.log_scale) * inputs.new_ones(batch_size)
 
-    def _forward(self, x, sum_ldj: Optional[Tensor] = None):
+    def _forward(
+        self, x: Tensor, sum_ldj: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         if x.dim() not in [2, 4]:
             raise ValueError("Expecting inputs to be a 2D or a 4D tensor.")
 
@@ -187,7 +200,9 @@ class ActNorm(Bijector):
             sum_ldj -= self.logdetjac(x)
         return y, sum_ldj
 
-    def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
+    def _inverse(
+        self, y: Tensor, sum_ldj: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         if y.dim() not in [2, 4]:
             raise ValueError("Expecting inputs to be a 2D or a 4D tensor.")
 
@@ -198,7 +213,7 @@ class ActNorm(Bijector):
             sum_ldj += self.logdetjac(x)
         return y, sum_ldj
 
-    def _initialize(self, inputs):
+    def _initialize(self, inputs: Tensor) -> None:
         """Data-dependent initialization, s.t. post-actnorm activations have zero mean and unit
         variance. """
         if inputs.dim() == 4:

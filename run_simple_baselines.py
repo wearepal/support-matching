@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-import ethicml
+import ethicml  # type: ignore[misc]
 import numpy as np
 import pandas as pd
 import torch
@@ -10,11 +10,11 @@ from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import trange
 from typing_extensions import Literal
 
-from ethicml.algorithms.inprocess import compute_instance_weights
-from ethicml.evaluators import run_metrics
-from ethicml.metrics import TPR, Accuracy, ProbPos, RenyiCorrelation, TNR
-from ethicml.utility import DataTuple, Prediction
-from ethicml import implementations
+from ethicml.algorithms.inprocess import compute_instance_weights  # type: ignore[misc]
+from ethicml.evaluators import run_metrics  # type: ignore[misc]
+from ethicml.metrics import TPR, Accuracy, ProbPos, RenyiCorrelation, TNR  # type: ignore[misc]
+from ethicml.utility import DataTuple, Prediction  # type: ignore[misc]
+from ethicml import implementations  # type: ignore[misc]
 
 from fdm.models import Classifier
 from shared.configs import BaseArgs
@@ -80,7 +80,7 @@ class BaselineArgs(BaseArgs):
         return super().process_args()
 
 
-def get_instance_weights(dataset, batch_size):
+def get_instance_weights(dataset: Dataset, batch_size: int) -> TensorDataset:
     s_all, y_all = [], []
     for _, s, y in DataLoader(dataset, batch_size=batch_size):
         s_all.append(s.numpy())
@@ -103,13 +103,27 @@ def get_instance_weights(dataset, batch_size):
 class Trainer(ABC):
     @staticmethod
     @abstractmethod
-    def __call__(classifier, train_loader, test_loader, epochs, device, pred_s=False):
+    def __call__(
+        classifier: nn.Module,
+        train_loader: DataLoader,
+        test_loader: DataLoader,
+        epochs: int,
+        device: torch.device,
+        pred_s: bool = False,
+    ) -> None:
         ...
 
 
 class TrainNaive(Trainer):
     @staticmethod
-    def __call__(classifier, train_loader, test_loader, epochs, device, pred_s=False):
+    def __call__(
+        classifier: nn.Module,
+        train_loader: DataLoader,
+        test_loader: DataLoader,
+        epochs: int,
+        device: torch.device,
+        pred_s: bool = False,
+    ) -> None:
         pbar = trange(epochs)
         for _ in pbar:
             classifier.train()
@@ -130,7 +144,14 @@ class TrainNaive(Trainer):
 
 class TrainKamiran(Trainer):
     @staticmethod
-    def __call__(classifier, train_loader, test_loader, epochs, device, pred_s=False):
+    def __call__(
+        classifier: nn.Module,
+        train_loader: DataLoader,
+        test_loader: DataLoader,
+        epochs: int,
+        device: torch.device,
+        pred_s: bool = False,
+    ) -> None:
         pbar = trange(epochs)
         for _ in pbar:
             classifier.train()
@@ -277,7 +298,7 @@ def run_baseline(args: BaselineArgs):
                 f.write(value_list + "\n")
 
 
-def main():
+def main() -> None:
     args = BaselineArgs()
     args.parse_args()
     print(args)

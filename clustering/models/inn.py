@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, Optional, Sequence, Tuple, overload
+from typing import Dict, Optional, Sequence, Tuple, overload, Callable
 
 import torch
 import torch.distributions as td  # type: ignore[misc]
@@ -78,12 +78,12 @@ class AeInn(ModelBase, Encoder):
         # self.encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim, zn=zn_dim)
         self.autoencoder = autoencoder
 
-    def decode_with_ae_enc(self, z, discretize: bool = False) -> Tuple[Tensor, Tensor]:
+    def decode_with_ae_enc(self, z: Tensor, discretize: bool = False) -> Tuple[Tensor, Tensor]:
         ae_enc, _ = self.model(z, sum_ldj=None, reverse=True)
         x = self.autoencoder.decode(ae_enc, discretize=discretize)
         return x, ae_enc
 
-    def decode(self, z, discretize: bool = False) -> Tensor:
+    def decode(self, z: Tensor, discretize: bool = False) -> Tensor:
         return self.decode_with_ae_enc(z, discretize=discretize)[0]
 
     @overload
@@ -145,16 +145,23 @@ class AeInn(ModelBase, Encoder):
         else:
             return self.encode(inputs)
 
-    def fit_ae(self, train_data: DataLoader, epochs: int, device, loss_fn, kl_weight: float):
+    def fit_ae(
+        self,
+        train_data: DataLoader,
+        epochs: int,
+        device: torch.device,
+        loss_fn: Callable[[Tensor, Tensor], Tensor],
+        kl_weight: float,
+    ) -> None:
         print("===> Fitting Auto-encoder to the training data....")
         self.autoencoder.train()
         self.autoencoder.fit(train_data, epochs, device, loss_fn, kl_weight)
         self.autoencoder.eval()
 
-    def train(self):
+    def train(self) -> None:
         self.model.train()
         self.autoencoder.eval()
 
-    def eval(self):
+    def eval(self) -> None:
         self.model.eval()
         self.autoencoder.eval()

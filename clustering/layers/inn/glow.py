@@ -1,4 +1,5 @@
-from typing import Optional, Tuple
+from __future__ import annotations
+from typing import Optional, Tuple, Union
 
 import numpy as np
 from abc import abstractmethod
@@ -14,7 +15,7 @@ __all__ = ["Invertible1x1Conv", "InvertibleLinear"]
 
 
 class Invertible1x1Conv:
-    def __new__(cls, num_channels: int, use_lr_decomp: bool = True):
+    def __new__(cls, num_channels: int, use_lr_decomp: bool = True) -> Invertible1x1Conv:
         if use_lr_decomp:
             return _Invertible1x1ConvLrDecomp(num_channels=num_channels)
         else:
@@ -22,7 +23,7 @@ class Invertible1x1Conv:
 
 
 class _Invertible1x1ConvBase(Bijector):
-    def __init__(self, num_channels):
+    def __init__(self, num_channels: int) -> None:
         super().__init__()
         self.num_channels = num_channels
 
@@ -126,21 +127,25 @@ class _Invertible1x1ConvBruteForce(_Invertible1x1ConvBase):
 
 
 class InvertibleLinear(Bijector):
-    def __init__(self, dim):
+    def __init__(self, dim: int) -> None:
         super(InvertibleLinear, self).__init__()
         self.weight = nn.Parameter(torch.eye(dim), requires_grad=True)
 
     def logdetjac(self) -> Tensor:
         return torch.log(torch.abs(torch.det(self.weight.double()))).float()
 
-    def _forward(self, x, sum_ldj: Optional[Tensor] = None) -> Tensor:
+    def _forward(
+        self, x: Tensor, sum_ldj: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         y = F.linear(x, self.weight)
         if sum_ldj is None:
             return y, None
         else:
             return y, sum_ldj - self.logdetjac().expand_as(sum_ldj)
 
-    def _inverse(self, x, sum_ldj: Optional[Tensor] = None) -> Tuple[Tensor, Optional[Tensor]]:
+    def _inverse(
+        self, x: Tensor, sum_ldj: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         y = F.linear(x, self.weight.double().inverse().float())
         if sum_ldj is None:
             return y, None

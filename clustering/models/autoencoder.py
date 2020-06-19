@@ -1,5 +1,5 @@
 """Autoencoders"""
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple, Callable
 
 import torch
 import torch.distributions as td  # type: ignore[misc]
@@ -23,10 +23,10 @@ class AutoEncoder(Encoder):
         self,
         encoder: nn.Sequential,
         decoder: nn.Sequential,
-        recon_loss_fn,
+        recon_loss_fn: Callable[[Tensor, Tensor], Tensor],
         feature_group_slices: Optional[Dict[str, List[slice]]] = None,
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         super().__init__()
 
         self.encoder: ModelBase = ModelBase(encoder, optimizer_kwargs=optimizer_kwargs)
@@ -38,7 +38,7 @@ class AutoEncoder(Encoder):
         del stochastic
         return self.encoder(x)
 
-    def decode(self, z, discretize: bool = False):
+    def decode(self, z: Tensor, discretize: bool = False) -> Tensor:
         decoding = self.decoder(z)
         if decoding.dim() == 4:
             # if decoding.size(1) <= 3:
@@ -56,21 +56,23 @@ class AutoEncoder(Encoder):
 
         return decoding
 
-    def forward(self, inputs, reverse: bool = False):
+    def forward(self, inputs: Tensor, reverse: bool = False) -> Tensor:
         if reverse:
             return self.decode(inputs)
         else:
             return self.encode(inputs)
 
-    def zero_grad(self):
+    def zero_grad(self) -> None:
         self.encoder.zero_grad()
         self.decoder.zero_grad()
 
-    def step(self, grads=None):
+    def step(self, grads: Optional[Tensor] = None) -> None:
         self.encoder.step(grads)
         self.decoder.step(grads)
 
-    def fit(self, train_data: DataLoader, epochs: int, device: torch.device, use_wandb: bool):
+    def fit(
+        self, train_data: DataLoader, epochs: int, device: torch.device, use_wandb: bool
+    ) -> None:
         self.train()
 
         step = 0
@@ -119,7 +121,7 @@ class VAE(AutoEncoder):
         self,
         encoder: nn.Sequential,
         decoder: nn.Sequential,
-        recon_loss_fn,
+        recon_loss_fn: Callable[[Tensor, Tensor], Tensor],
         kl_weight: float,
         std_transform: Literal["softplus", "exp"],
         feature_group_slices: Optional[Dict[str, List[slice]]] = None,

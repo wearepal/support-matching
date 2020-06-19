@@ -18,19 +18,21 @@ class ModelBase(nn.Module):
     default_kwargs = dict(optimizer_kwargs=dict(lr=1e-3, weight_decay=0))
     optimizer: Adam
 
-    def __init__(self, model: nn.Module, optimizer_kwargs=None):
+    def __init__(
+        self, model: nn.Module, optimizer_kwargs: Optional[Dict[str, float]] = None
+    ) -> None:
         super().__init__()
         self.model = model
-        self.optimizer_kwargs = optimizer_kwargs or self.defaul_kwargs["optimizer_kwargs"]
+        self.optimizer_kwargs = optimizer_kwargs or self.default_kwargs["optimizer_kwargs"]
         self._reset_optimizer(self.optimizer_kwargs)
 
-    def _reset_optimizer(self, optimizer_kwargs) -> None:
+    def _reset_optimizer(self, optimizer_kwargs: Dict[str, float]) -> None:
         self.optimizer = Adam(
             filter(lambda p: p.requires_grad, self.model.parameters()), **optimizer_kwargs,
         )
 
-    def reset_parameters(self):
-        def _reset_parameters(m: nn.Module):
+    def reset_parameters(self) -> None:
+        def _reset_parameters(m: nn.Module) -> None:
             if hasattr(m.__class__, "reset_parameters") and callable(
                 getattr(m.__class__, "reset_parameters")
             ):
@@ -38,13 +40,13 @@ class ModelBase(nn.Module):
 
         self.model.apply(_reset_parameters)
 
-    def step(self, grads=None):
+    def step(self, grads: Optional[Tensor] = None) -> None:
         self.optimizer.step(grads)
 
-    def zero_grad(self):
+    def zero_grad(self) -> None:
         self.optimizer.zero_grad()
 
-    def forward(self, inputs):
+    def forward(self, inputs: Tensor) -> Tensor:
         return self.model(inputs)
 
     def freeze_initial_layers(
@@ -64,15 +66,17 @@ class Encoder(nn.Module):
         """Encode the given input."""
 
     @abstractmethod
-    def fit(self, train_data: DataLoader, epochs: int, device: torch.device, use_wandb: bool):
+    def fit(
+        self, train_data: DataLoader, epochs: int, device: torch.device, use_wandb: bool
+    ) -> None:
         """Train the encoder on the given data."""
 
     @abstractmethod
-    def zero_grad(self):
+    def zero_grad(self) -> None:
         """Zero out gradients."""
 
     @abstractmethod
-    def step(self, grads=None):
+    def step(self, grads: Optional[Tensor] = None) -> None:
         """Do a step with the optimizer."""
 
     @abstractmethod
