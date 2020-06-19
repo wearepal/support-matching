@@ -2,7 +2,7 @@ from typing import Sequence
 
 import numpy as np
 import torch
-import torch.distributions as td
+import torch.distributions as td  # type: ignore[misc]
 from torch import Tensor
 
 __all__ = ["DLogistic", "MixtureDistribution", "logistic_distribution", "uniform_bernoulli"]

@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
-from torch.nn import init
+from torch.nn import init  # type: ignore[misc]
 
 __all__ = ["ConvResidualNet", "ResidualNet"]
 

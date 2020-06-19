@@ -1,9 +1,9 @@
 from typing import Literal, List, Dict
 
-from typed_flags import TypedFlags
+from typed_flags import TypedFlags  # type: ignore[misc]
 
-from ethicml.data import GenfacesAttributes
-from ethicml.data.tabular_data.adult import AdultSplits
+from ethicml.data import GenfacesAttributes  # type: ignore[misc]
+from ethicml.data.tabular_data.adult import AdultSplits  # type: ignore[misc]
 
 __all__ = ["BaseArgs", "CELEBATTRS"]
 

@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union, overload
 
 import torch
-import torch.distributions as td
+import torch.distributions as td  # type: ignore[misc]
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader

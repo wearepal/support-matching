@@ -10,7 +10,7 @@ import torch
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms
-from ethicml.utility import DataTuple
+from ethicml.utility import DataTuple  # type: ignore[misc]
 
 from .misc import RandomSampler, grouped_features_indexes, set_transform
 

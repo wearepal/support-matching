@@ -8,8 +8,8 @@ from torch.utils.data import Dataset, TensorDataset, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
 
-from ethicml.data import create_celeba_dataset, create_genfaces_dataset
-from ethicml.vision.data import LdColorizer
+from ethicml.data import create_celeba_dataset, create_genfaces_dataset  # type: ignore[misc]
+from ethicml.vision.data import LdColorizer  # type: ignore[misc]
 from shared.configs import BaseArgs
 
 from .adult import load_adult_data
