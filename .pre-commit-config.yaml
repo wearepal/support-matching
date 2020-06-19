@@ -1,0 +1,20 @@
+repos:
+-   repo: https://github.com/humitos/mirrors-autoflake
+    rev: v1.3
+    hooks:
+    - id: autoflake
+      args: ['--in-place', '--remove-all-unused-imports', '--ignore-init-module-imports']
+-   repo: https://github.com/asottile/seed-isort-config
+    rev: v2.1.0
+    hooks:
+    - id: seed-isort-config
+-   repo: https://github.com/timothycrosley/isort
+    rev: 4.3.21  # pick the isort version you'd like to use from https://github.com/timothycrosley/isort/releases
+    hooks:
+    - id: isort
+-   repo: https://github.com/ambv/black
+    rev: 19.10b0
+    hooks:
+    - id: black
+      args: ['-l', '100', '-t', 'py37']
+      language_version: python3.7
