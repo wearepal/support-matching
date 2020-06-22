@@ -30,7 +30,7 @@ function run_baseline() {
     for seed in $(seq $MAX_SEED); do
         echo $seed
         python run_simple_baselines.py \
-        --gpu $gpu_id --seed $seed --data-split-seed $seed --save-dir $save_dir "$@"
+        --gpu $gpu_id --seed $seed --data-split-seed $seed --context-pcnt 0.66666666 --padding 2 --filter-labels 2 4 --scale 0 --balanced-context False --balanced-test True --biased-train True --save-dir $save_dir "$@"
     done
 }
 
@@ -46,8 +46,8 @@ run_ssl --b-missing-s 0 --b-subsample-train --c-method kmeans --d-results 2group
 # ===================== no clustering =====================
 run_no_cluster --b-missing-s 0 --b-subsample-train --d-results 2group_no_clustering.csv "$@"
 # ===================== baseline  cnn =====================
-run_baseline --dataset cmnist --method cnn --missing-s 0 --padding 2 --balanced-context False --balanced-test True --biased-train True "$@"
+run_baseline --dataset cmnist --method cnn --missing-s 0 "$@"
 # ===================== baseline  fwd =====================
 for eta in "${etas[@]}"; do
-    run_baseline --dataset cmnist --method dro --eta $eta --missing-s 0 --padding 2 --balanced-context False --balanced-test True --biased-train True "$@"
+    run_baseline --dataset cmnist --method dro --eta $eta --missing-s 0 "$@"
 done
