@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from sklearn.metrics import confusion_matrix
-from typed_flags import TypedFlags  # type: ignore[misc]
+from typed_flags import TypedFlags
 
 from clustering.optimisation.utils import get_class_id
 from shared.utils import ClusterResults, load_results, save_results

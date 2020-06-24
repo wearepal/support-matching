@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethicml.algorithms import inprocess as algos  # type: ignore[misc]
-from ethicml.utility import DataTuple  # type: ignore[misc]
-from fdm.optimisation.evaluation import compute_metrics, make_tuple_from_data  # type: ignore[misc]
+from ethicml.algorithms import inprocess as algos
+from ethicml.utility import DataTuple
+from fdm.optimisation.evaluation import compute_metrics, make_tuple_from_data
 from shared.data import DatasetTriplet, get_data_tuples, load_dataset
 from shared.configs import BaseArgs
 

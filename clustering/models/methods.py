@@ -3,7 +3,7 @@ from abc import abstractmethod
 from typing import Tuple, Dict
 
 import torch
-from torch import Tensor, jit  # type: ignore[misc]
+from torch import Tensor, jit
 from torch.nn import functional as F
 
 from shared.utils import dot_product, normalized_softmax

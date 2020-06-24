@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-import ethicml  # type: ignore[misc]
+import ethicml
 import numpy as np
 import pandas as pd
 import torch
@@ -10,11 +10,11 @@ from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import trange
 from typing_extensions import Literal
 
-from ethicml.algorithms.inprocess import compute_instance_weights  # type: ignore[misc]
-from ethicml.evaluators import run_metrics  # type: ignore[misc]
-from ethicml.metrics import TPR, Accuracy, ProbPos, RenyiCorrelation, TNR  # type: ignore[misc]
-from ethicml.utility import DataTuple, Prediction  # type: ignore[misc]
-from ethicml import implementations  # type: ignore[misc]
+from ethicml.algorithms.inprocess import compute_instance_weights
+from ethicml.evaluators import run_metrics
+from ethicml.metrics import TPR, Accuracy, ProbPos, RenyiCorrelation, TNR
+from ethicml.utility import DataTuple, Prediction
+from ethicml import implementations
 
 from fdm.models import Classifier
 from shared.configs import BaseArgs

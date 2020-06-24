@@ -144,16 +144,12 @@ def warp_affine(
     dst_norm_trans_src_norm: torch.Tensor = normalize_homography(M_3x3, dsize_src, out_size)
     src_norm_trans_dst_norm = torch.inverse(dst_norm_trans_src_norm)
     grid = F.affine_grid(
-        src_norm_trans_dst_norm[:, :2, :],  # type: ignore
+        src_norm_trans_dst_norm[:, :2, :],
         [B, C, out_size[0], out_size[1]],
         align_corners=align_corners,
     )
     return F.grid_sample(
-        src,
-        grid,  # type: ignore
-        align_corners=align_corners,
-        mode=flags,
-        padding_mode=padding_mode,
+        src, grid, align_corners=align_corners, mode=flags, padding_mode=padding_mode,
     )
 
 
@@ -395,5 +391,5 @@ class Rotate(nn.Module):
         self.center: Union[None, torch.Tensor] = center
         self.align_corners: bool = align_corners
 
-    def forward(self, input: torch.Tensor) -> torch.Tensor:  # type: ignore
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
         return rotate(input, self.angle, self.center, align_corners=self.align_corners)

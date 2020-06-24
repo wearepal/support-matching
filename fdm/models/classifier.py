@@ -2,7 +2,7 @@ from typing import Dict, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
-from ethicml.implementations.dro_modules import DROLoss  # type: ignore[misc]
+from ethicml.implementations.dro_modules import DROLoss
 from torch import Tensor, nn
 from torch.nn.modules.loss import _Loss
 from torch.optim.lr_scheduler import MultiStepLR

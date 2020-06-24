@@ -13,7 +13,7 @@ __all__ = ["PseudoLabeler", "RankingStatistics", "CosineSimThreshold"]
 class PseudoLabeler(nn.Module):
     """Base class for labelers."""
 
-    def forward(self, z: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore[override]
+    def forward(self, z: Tensor) -> Tuple[Tensor, Tensor]:
         """Get pseudo label for all combinations of the samples in the batch z."""
 
     def get_label(self, z: Tensor) -> Tuple[Tensor, Tensor]:

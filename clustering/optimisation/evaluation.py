@@ -11,10 +11,10 @@ from torch import Tensor
 from tqdm import tqdm
 
 import wandb
-from ethicml.algorithms.inprocess import LR  # type: ignore[misc]
-from ethicml.evaluators import run_metrics  # type: ignore[misc]
-from ethicml.metrics import TNR, TPR, Accuracy, ProbPos, RenyiCorrelation  # type: ignore[misc]
-from ethicml.utility import DataTuple, Prediction  # type: ignore[misc]
+from ethicml.algorithms.inprocess import LR
+from ethicml.evaluators import run_metrics
+from ethicml.metrics import TNR, TPR, Accuracy, ProbPos, RenyiCorrelation
+from ethicml.utility import DataTuple, Prediction
 from shared.data import DatasetTriplet, get_data_tuples
 from shared.models.configs.classifiers import mp_32x32_net, fc_net, mp_64x64_net
 from shared.utils import wandb_log, prod

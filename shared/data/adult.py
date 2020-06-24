@@ -5,15 +5,15 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
-from ethicml.data import adult, load_data, Dataset  # type: ignore[misc]
-from ethicml.preprocessing import (  # type: ignore[misc]
+from ethicml.data import adult, load_data, Dataset
+from ethicml.preprocessing import (
     BalancedTestSplit,
     DataSplitter,
     ProportionalSplit,
 )
-from ethicml.utility import DataTuple  # type: ignore[misc]
+from ethicml.utility import DataTuple
 from shared.configs import BaseArgs
-from ethicml.preprocessing.domain_adaptation import make_valid_variable_name, query_dt  # type: ignore[misc]
+from ethicml.preprocessing.domain_adaptation import make_valid_variable_name, query_dt
 
 from .dataset_wrappers import DataTupleDataset
 
