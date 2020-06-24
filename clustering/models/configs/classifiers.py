@@ -1,8 +1,9 @@
 from typing import Protocol, Union, Sequence, Optional, List
 
+from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
-from torchvision.models import resnet50
+from torchvision.models import resnet50, ResNet
 
 from clustering.models.resnet import ResidualNet
 from shared.utils import prod
@@ -24,7 +25,9 @@ class ModelFn(Protocol):
 
 
 class ResidualBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, stride=1, batch_norm=True):
+    def __init__(
+        self, in_channels: int, out_channels: int, stride: int = 1, batch_norm: bool = True
+    ) -> None:
         super(ResidualBlock, self).__init__()
         block: List[nn.Module] = []
 
@@ -44,7 +47,7 @@ class ResidualBlock(nn.Module):
             downsample = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride)
         self.downsample = downsample
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         residual = x
         out = self.block(x)
 
@@ -55,7 +58,13 @@ class ResidualBlock(nn.Module):
         return out
 
 
-def linear_resnet(in_dim, target_dim, hidden_channels=512, num_blocks=4, batch_norm=False):
+def linear_resnet(
+    in_dim: int,
+    target_dim: int,
+    hidden_channels: int = 512,
+    num_blocks: int = 4,
+    batch_norm: bool = False,
+) -> Tensor:
 
     act = F.relu if batch_norm else F.selu
     layers = [
@@ -73,7 +82,9 @@ def linear_resnet(in_dim, target_dim, hidden_channels=512, num_blocks=4, batch_n
     return nn.Sequential(*layers)
 
 
-def resnet_50_ft(input_dim, target_dim, freeze=True, contexted=True):
+def resnet_50_ft(
+    input_dim: int, target_dim: int, freeze: bool = True, contexted: bool = True
+) -> ResNet:
     net = resnet50(contexted=contexted)
     # net = resnet18(contexted=contexted)
     if freeze:
@@ -86,8 +97,8 @@ def resnet_50_ft(input_dim, target_dim, freeze=True, contexted=True):
     return net
 
 
-def mp_28x28_net(input_dim, target_dim, batch_norm=True):
-    def conv_block(in_dim, out_dim, kernel_size, stride):
+def mp_28x28_net(input_dim: int, target_dim: int, batch_norm: bool = True) -> nn.Module:
+    def conv_block(in_dim: int, out_dim: int, kernel_size: int, stride: int) -> List[nn.Module]:
         _block = []
         _block += [nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size, stride=stride, padding=1)]
         if batch_norm:
@@ -114,8 +125,8 @@ def mp_28x28_net(input_dim, target_dim, batch_norm=True):
     return nn.Sequential(*layers)
 
 
-def strided_28x28_net(input_dim, target_dim, batch_norm=True):
-    def conv_block(in_dim, out_dim, kernel_size, stride):
+def strided_28x28_net(input_dim: int, target_dim: int, batch_norm: bool = True) -> nn.Module:
+    def conv_block(in_dim: int, out_dim: int, kernel_size: int, stride: int) -> List[nn.Module]:
         _block = []
         _block += [nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size, stride=stride, padding=1)]
         if batch_norm:
@@ -143,7 +154,7 @@ def strided_28x28_net(input_dim, target_dim, batch_norm=True):
     return nn.Sequential(*layers)
 
 
-def residual_64x64_net(input_dim, target_dim, batch_norm=False):
+def residual_64x64_net(input_dim: int, target_dim: int, batch_norm: bool = False) -> nn.Module:
 
     layers = []
     for out_channels in [64, 128, 256, 512]:

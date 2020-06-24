@@ -52,7 +52,7 @@ class Model(nn.Module):
             x=x,
         )
 
-    def step(self, grads=None) -> None:
+    def step(self, grads: Optional[Tensor] = None) -> None:
         self.classifier.step(grads)
         if self.train_encoder:
             self.encoder.step(grads)
@@ -140,7 +140,7 @@ class MultiHeadModel(nn.Module):
         if self.train_encoder:
             self.encoder.zero_grad()
 
-    def step(self, grads=None):
+    def step(self, grads: Optional[Tensor] = None) -> None:
         for clf in self.classifiers:
             clf.step(grads)
         if self.train_encoder:

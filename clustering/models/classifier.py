@@ -71,7 +71,9 @@ class Classifier(ModelBase):
 
         return pred
 
-    def predict_dataset(self, data: Union[Dataset, DataLoader], device, batch_size=100):
+    def predict_dataset(
+        self, data: Union[Dataset, DataLoader], device: torch.device, batch_size: int = 100
+    ) -> Tuple[Tensor, Tensor, Tensor]:
         if not isinstance(data, DataLoader):
             data = DataLoader(data, batch_size=batch_size, shuffle=False, pin_memory=True)
         preds, actual, sens = [], [], []
@@ -142,7 +144,7 @@ class Classifier(ModelBase):
         batch_size: int = 256,
         test_batch_size: int = 1000,
         lr_milestones: Optional[Dict] = None,
-    ):
+    ) -> None:
         use_wandb_ = use_wandb
 
         class _Namespace:
@@ -216,7 +218,9 @@ class Classifier(ModelBase):
 class Regressor(Classifier):
     """Wrapper for regression models."""
 
-    def __init__(self, model, optimizer_kwargs: Optional[Dict] = None):
+    def __init__(
+        self, model: nn.Module, optimizer_kwargs: Optional[Dict[str, float]] = None
+    ) -> None:
         """Build classifier model.
 
         Args:

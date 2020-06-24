@@ -1,7 +1,7 @@
 from typing import Dict, Optional, Sequence, Tuple, overload
 
 import torch
-import torch.distributions as td  # type: ignore[misc]
+import torch.distributions as td
 from torch import Tensor
 from torch.utils.data import DataLoader
 

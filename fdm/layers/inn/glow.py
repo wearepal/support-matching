@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional, Tuple
 
 import numpy as np
@@ -14,7 +15,7 @@ __all__ = ["Invertible1x1Conv", "InvertibleLinear"]
 
 
 class Invertible1x1Conv:
-    def __new__(cls, num_channels: int, use_lr_decomp: bool = True):
+    def __new__(cls, num_channels: int, use_lr_decomp: bool = True) -> Invertible1x1Conv:
         if use_lr_decomp:
             return _Invertible1x1ConvLrDecomp(num_channels=num_channels)
         else:
@@ -22,7 +23,7 @@ class Invertible1x1Conv:
 
 
 class _Invertible1x1ConvBase(Bijector):
-    def __init__(self, num_channels):
+    def __init__(self, num_channels: int) -> None:
         super().__init__()
         self.num_channels = num_channels
 

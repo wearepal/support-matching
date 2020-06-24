@@ -1,16 +1,31 @@
-from torch import nn
+from typing import List, Union, Optional
+
+from torch import nn, Tensor
 from torch.nn import functional as F
 
 __all__ = ["BottleneckConvBlock"]
 
 
 class BottleneckConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels=None, hidden_channels=512, use_bn=False):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: Optional[int] = None,
+        hidden_channels: int = 512,
+        use_bn: bool = False,
+    ) -> None:
         super().__init__()
 
-        def _sub_block(_in_channels, _out_channels, _kernel_size, act=nn.ReLU(inplace=True)):
+        def _sub_block(
+            _in_channels: int,
+            _out_channels: int,
+            _kernel_size: int,
+            act: nn.Module = nn.ReLU(inplace=True),
+        ) -> List[nn.Module]:
             padding = int((((_kernel_size + 1) / 2) - 1))
-            block = [nn.Conv2d(_in_channels, _out_channels, _kernel_size, 1, padding)]
+            block: List[nn.Module] = [
+                nn.Conv2d(_in_channels, _out_channels, _kernel_size, 1, padding)
+            ]
             if use_bn:
                 block.append(nn.BatchNorm2d(_out_channels))
             if act is not None:
@@ -33,7 +48,7 @@ class BottleneckConvBlock(nn.Module):
 
         self.sub_blocks = nn.Sequential(*layers)
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         out = self.sub_blocks(x)
 
         return out

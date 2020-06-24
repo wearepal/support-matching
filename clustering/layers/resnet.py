@@ -1,7 +1,10 @@
+from typing import Callable, Optional
+
 import torch
 from torch import nn
+from torch import Tensor
 from torch.nn import functional as F
-from torch.nn import init  # type: ignore[misc]
+from torch.nn import init
 
 __all__ = ["ConvResidualNet", "ResidualNet"]
 
@@ -11,13 +14,13 @@ class ResidualBlock(nn.Module):
 
     def __init__(
         self,
-        features,
-        context_features,
-        activation=F.relu,
-        dropout_probability=0.0,
-        use_batch_norm=False,
-        zero_initialization=True,
-    ):
+        features: int,
+        context_features: int,
+        activation: Callable[[Tensor], Tensor] = F.relu,
+        dropout_probability: float = 0.0,
+        use_batch_norm: bool = False,
+        zero_initialization: bool = True,
+    ) -> None:
         super().__init__()
         self.activation = activation
 
@@ -34,7 +37,7 @@ class ResidualBlock(nn.Module):
             init.uniform_(self.linear_layers[-1].weight, -1e-3, 1e-3)
             init.uniform_(self.linear_layers[-1].bias, -1e-3, 1e-3)
 
-    def forward(self, inputs, context=None):
+    def forward(self, inputs: Tensor, context: Optional[Tensor] = None) -> Tensor:
         temps = inputs
         if self.use_batch_norm:
             temps = self.batch_norm_layers[0](temps)
@@ -55,15 +58,15 @@ class ResidualNet(nn.Module):
 
     def __init__(
         self,
-        in_features,
-        out_features,
-        hidden_features,
-        context_features=None,
-        num_blocks=2,
-        activation=F.relu,
-        dropout_probability=0.0,
-        use_batch_norm=False,
-    ):
+        in_features: int,
+        out_features: int,
+        hidden_features: int,
+        context_features: Optional[int] = None,
+        num_blocks: int = 2,
+        activation: Callable[[Tensor], Tensor] = F.relu,
+        dropout_probability: float = 0.0,
+        use_batch_norm: bool = False,
+    ) -> None:
         super().__init__()
         self.hidden_features = hidden_features
         self.context_features = context_features
@@ -85,7 +88,7 @@ class ResidualNet(nn.Module):
         )
         self.final_layer = nn.Linear(hidden_features, out_features)
 
-    def forward(self, inputs, context=None):
+    def forward(self, inputs: Tensor, context: Optional[Tensor] = None) -> Tensor:
         if context is None:
             temps = self.initial_layer(inputs)
         else:
@@ -99,13 +102,13 @@ class ResidualNet(nn.Module):
 class ConvResidualBlockDown(nn.Module):
     def __init__(
         self,
-        channels,
-        context_channels=None,
-        activation=F.relu,
-        dropout_probability=0.0,
-        use_batch_norm=False,
-        zero_initialization=True,
-    ):
+        channels: int,
+        context_channels: Optional[int] = None,
+        activation: Callable[[Tensor], Tensor] = F.relu,
+        dropout_probability: float = 0.0,
+        use_batch_norm: bool = False,
+        zero_initialization: bool = True,
+    ) -> None:
         super().__init__()
         self.activation = activation
 
@@ -126,7 +129,7 @@ class ConvResidualBlockDown(nn.Module):
             init.uniform_(self.conv_layers[-1].weight, -1e-3, 1e-3)
             init.uniform_(self.conv_layers[-1].bias, -1e-3, 1e-3)
 
-    def forward(self, inputs, context=None):
+    def forward(self, inputs: Tensor, context: Optional[Tensor] = None) -> Tensor:
         temps = inputs
         if self.use_batch_norm:
             temps = self.batch_norm_layers[0](temps)
@@ -145,15 +148,15 @@ class ConvResidualBlockDown(nn.Module):
 class ConvResidualNet(nn.Module):
     def __init__(
         self,
-        in_channels,
-        out_channels,
-        hidden_channels,
-        context_channels=None,
-        num_blocks=2,
-        activation=F.relu,
-        dropout_probability=0.0,
-        use_batch_norm=False,
-    ):
+        in_channels: int,
+        out_channels: int,
+        hidden_channels: int,
+        context_channels: Optional[int] = None,
+        num_blocks: int = 2,
+        activation: Callable[[Tensor], Tensor] = F.relu,
+        dropout_probability: float = 0.0,
+        use_batch_norm: bool = False,
+    ) -> None:
         super().__init__()
         self.context_channels = context_channels
         self.hidden_channels = hidden_channels
@@ -182,7 +185,7 @@ class ConvResidualNet(nn.Module):
         )
         self.final_layer = nn.Conv2d(hidden_channels, out_channels, kernel_size=1, padding=0)
 
-    def forward(self, inputs, context=None):
+    def forward(self, inputs: Tensor, context: Optional[Tensor] = None) -> Tensor:
         if context is None:
             temps = self.initial_layer(inputs)
         else:

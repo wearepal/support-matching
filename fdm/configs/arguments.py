@@ -98,7 +98,7 @@ class VaeArgs(BaseArgs):
     _cluster_test_acc: float = 0.0
     _cluster_context_acc: float = 0.0
 
-    def process_args(self):
+    def process_args(self) -> None:
         super().process_args()
         if self.recon_loss is None:
             if self.dataset == "adult":

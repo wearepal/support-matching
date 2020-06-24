@@ -10,7 +10,7 @@ import torch
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms
-from ethicml.utility import DataTuple  # type: ignore[misc]
+from ethicml.utility import DataTuple
 
 from .misc import RandomSampler, grouped_features_indexes, set_transform
 
@@ -295,7 +295,7 @@ class RotationPrediction(Dataset):
         apply_all: bool = True,
         transform: Optional[List[Callable[[Tensor], Tensor]]] = None,
     ) -> None:
-        """ 
+        """
         Args:
             dataset (Dataset): Dataset from which to draw samples.
             apply_all (bool, optional): Whether to apply the full set of rotations

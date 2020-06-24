@@ -18,12 +18,16 @@ class BijectorChain(Bijector):
         self.chain: nn.ModuleList = nn.ModuleList(layer_list)
         self.reverse_chain: nn.ModuleList = nn.ModuleList(reversed(layer_list))
 
-    def _forward(self, x, sum_ldj: Optional[Tensor] = None) -> Tuple[Tensor, Optional[Tensor]]:
+    def _forward(
+        self, x: Tensor, sum_ldj: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         for layer in self.chain:
             x, sum_ldj = layer(x, sum_ldj, reverse=False)
         return x, sum_ldj
 
-    def _inverse(self, y, sum_ldj: Optional[Tensor] = None) -> Tuple[Tensor, Optional[Tensor]]:
+    def _inverse(
+        self, y: Tensor, sum_ldj: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         for layer in self.reverse_chain:
             y, sum_ldj = layer(y, sum_ldj, reverse=True)
         return y, sum_ldj
@@ -34,7 +38,9 @@ class FactorOut(BijectorChain):
 
     splits: Dict[int, float]
 
-    def __init__(self, layer_list, splits: Optional[Dict[int, float]] = None):
+    def __init__(
+        self, layer_list: List[nn.Module], splits: Optional[Dict[int, float]] = None
+    ) -> None:
         # interleave Flatten layers into the layer list
         splits = splits or {}
         layer_list_interleaved = []
@@ -53,7 +59,9 @@ class FactorOut(BijectorChain):
         self._final_flatten = Flatten()
         self._chain_len: int = len(layer_list_interleaved)
 
-    def _forward(self, x, sum_ldj: Optional[Tensor] = None):
+    def _forward(
+        self, x: Tensor, sum_ldj: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         xs = []
         for i, layer in enumerate(self.chain):
             if i in self.splits:  # layer is a flatten layer
@@ -67,7 +75,9 @@ class FactorOut(BijectorChain):
 
         return x, sum_ldj
 
-    def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
+    def _inverse(
+        self, y: Tensor, sum_ldj: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         x = y
 
         components: Dict[int, Tensor] = {}
@@ -108,7 +118,9 @@ class OxbowNet(Bijector):
         self.splits = splits or {}
         self.chain_len = len(self.down_chain)
 
-    def _forward(self, x: Tensor, sum_ldj: Optional[Tensor] = None):
+    def _forward(
+        self, x: Tensor, sum_ldj: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Optional[Tensor]]:
 
         # =================================== contracting =========================================
         xs, sum_ldj = self._contract(self.down_chain, x, sum_ldj=sum_ldj, reverse=False)
@@ -118,7 +130,9 @@ class OxbowNet(Bijector):
 
         return out
 
-    def _inverse(self, y: Tensor, sum_ldj: Optional[Tensor] = None):
+    def _inverse(
+        self, y: Tensor, sum_ldj: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Optional[Tensor]]:
 
         # ================================= inverse expanding =====================================
         ys, sum_ldj = self._contract(self.up_chain, y, sum_ldj=sum_ldj, reverse=True)
@@ -129,7 +143,7 @@ class OxbowNet(Bijector):
         return out
 
     def _contract(
-        self, chain, x, *, sum_ldj, reverse: bool
+        self, chain: nn.ModuleList, x: Tensor, *, sum_ldj: Optional[Tensor], reverse: bool
     ) -> Tuple[List[Tensor], Optional[Tensor]]:
         """Do a contracting loop
 
@@ -146,7 +160,9 @@ class OxbowNet(Bijector):
         xs.append(x)  # save the last one as well
         return (xs, sum_ldj)
 
-    def _expand(self, chain, xs, *, sum_ldj, reverse: bool) -> Tuple[Tensor, Optional[Tensor]]:
+    def _expand(
+        self, chain: nn.ModuleList, xs: Tensor, *, sum_ldj: Optional[Tensor], reverse: bool
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         """Do an expanding loop
 
         Args:
@@ -167,7 +183,7 @@ def _compute_split_point(tensor: Tensor, frac: float) -> int:
     return int(round(tensor.size(1) * frac))
 
 
-def _frac_split_channelwise(tensor: Tensor, frac: float):
+def _frac_split_channelwise(tensor: Tensor, frac: float) -> Tensor:
     assert 0 <= frac <= 1
     split_point = _compute_split_point(tensor, frac)
     return tensor.split([tensor.size(1) - split_point, split_point], dim=1)

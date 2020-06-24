@@ -36,5 +36,7 @@ class InvertBijector(Bijector):
         super().__init__()
         self.to_invert = to_invert
 
-    def forward(self, x: Tensor, sum_ldj: Optional[Tensor] = None, reverse: bool = False):
+    def forward(
+        self, x: Tensor, sum_ldj: Optional[Tensor] = None, reverse: bool = False
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         return self.to_invert(x, sum_ldj=sum_ldj, reverse=not reverse)

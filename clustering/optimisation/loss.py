@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Literal
+from typing import Dict, List, Optional, Literal, Tuple
 
 import torch
 import torch.nn as nn
@@ -20,20 +20,22 @@ class GradReverse(torch.autograd.Function):
     """Gradient reversal layer"""
 
     @staticmethod
-    def forward(ctx, x, lambda_):
+    def forward(ctx, x: Tensor, lambda_: float) -> Tensor:
         ctx.lambda_ = lambda_
         return x.view_as(x)
 
     @staticmethod
-    def backward(ctx, grad_output):
+    def backward(ctx, grad_output: Tensor) -> Tuple[Tensor, Optional[Tensor]]:
         return grad_output.neg().mul(ctx.lambda_), None
 
 
-def grad_reverse(features, lambda_=1.0):
+def grad_reverse(features: Tensor, lambda_: float = 1.0) -> Tensor:
     return GradReverse.apply(features, lambda_)
 
 
-def contrastive_gradient_penalty(network, input, penalty_amount=1.0):
+def contrastive_gradient_penalty(
+    network: nn.Module, input: Tensor, penalty_amount: float = 1.0
+) -> Tensor:
     """Contrastive gradient penalty.
 
     This is essentially the optimization introduced by Mescheder et al 2018.
@@ -77,8 +79,13 @@ def contrastive_gradient_penalty(network, input, penalty_amount=1.0):
 
 class PixelCrossEntropy(nn.CrossEntropyLoss):
     def __init__(
-        self, weight=None, size_average=None, ignore_index=-100, reduce=None, reduction="mean"
-    ):
+        self,
+        weight: Optional[Tensor] = None,
+        size_average: Optional[Tensor] = None,
+        ignore_index: int = -100,
+        reduce: Optional[bool] = None,
+        reduction: str = "mean",
+    ) -> None:
         super().__init__(weight, size_average, ignore_index, reduce, reduction)
 
     def forward(self, input: Tensor, target: Tensor):
@@ -97,7 +104,7 @@ class VGGLoss(nn.Module):
 
     feature_layer_default: int = 22  # VGG19 layer number from which to extract features
 
-    def __init__(self, feature_layer: Optional[int] = None, prefactor=0.006):
+    def __init__(self, feature_layer: Optional[int] = None, prefactor: float = 0.006) -> None:
         """
         Args:
             prefactor: prefactor by which to scale the loss.
@@ -120,10 +127,10 @@ class VGGLoss(nn.Module):
         self.vgg.requires_grad = False
         self.prefactor = prefactor
 
-    def _extract_feature(self, x):
+    def _extract_feature(self, x: Tensor) -> Tensor:
         return self.vgg(x)
 
-    def forward(self, noisy, clean):
+    def forward(self, noisy: Tensor, clean: Tensor) -> Tensor:
         vgg_noisy = self._extract_feature(noisy)
         with torch.no_grad():
             vgg_clean = self._extract_feature(clean.detach())

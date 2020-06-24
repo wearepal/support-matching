@@ -86,7 +86,7 @@ class ClusterArgs(BaseArgs):
     labeler_epochs: int = 100
     labeler_wandb: bool = False
 
-    def process_args(self):
+    def process_args(self) -> None:
         super().process_args()
         if self.super_val_freq < 0:
             raise ValueError("frequency cannot be negative")

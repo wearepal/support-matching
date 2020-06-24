@@ -3,7 +3,7 @@ from abc import abstractmethod
 from typing import Tuple, Dict
 
 import torch
-from torch import Tensor, jit  # type: ignore[misc]
+from torch import Tensor, jit
 from torch.nn import functional as F
 
 from shared.utils import dot_product, normalized_softmax
@@ -117,7 +117,7 @@ class PseudoLabelOutput(Method):
 
 
 @jit.script
-def _cosine_and_bce(preds: Tensor, pseudo_label: Tensor, mask: Tensor):
+def _cosine_and_bce(preds: Tensor, pseudo_label: Tensor, mask: Tensor) -> Tensor:
     """Cosine similarity and then binary cross entropy."""
     # cosine similarity
     cosine_sim = dot_product(preds[:, None, :], preds).clamp(min=0, max=1)
