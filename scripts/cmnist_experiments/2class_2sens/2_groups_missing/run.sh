@@ -42,6 +42,23 @@ run_ssl --b-missing-s 0 --b-subsample-train --c-method pl_enc_no_norm --c-pseudo
 run_ssl --b-missing-s 0 --b-subsample-train --c-method kmeans --d-results 2group_kmeans_undersample.csv "$@"
 
 
+# OVERSAMPLE
+# ======================== ranking ========================
+run_ssl --b-missing-s 0 --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-upsample True --d-results 2group_ranking_oversample.csv "$@"
+# ======================== k means ========================
+run_ssl --b-missing-s 0 --c-method kmeans --d-upsample True --d-results 2group_kmeans_oversample.csv "$@"
+
+# TRUE BALANCING
+# ===================== no clustering =====================
+run_no_cluster --b-missing-s 0 --d-results 2group_true_balance_no_cluster.csv --d-balanced-context True "$@"
+
+# EVAL ON RECON
+# ======================== ranking ========================
+run_ssl --b-missing-s 0 --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-eval-on-recon True --d-results 2group_ranking_oversample.csv "$@"
+# ======================== k means ========================
+run_ssl --b-missing-s 0 --c-method kmeans --d-eval-on-recon True --d-results 2group_kmeans_oversample.csv "$@"
+
+
 # SAMPLING STRATEGY UNUSED
 # ===================== no clustering =====================
 run_no_cluster --b-missing-s 0 --b-subsample-train --d-results 2group_no_clustering.csv "$@"
