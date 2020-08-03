@@ -184,7 +184,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             target_attr_name=args.celeba_target_attr,
             biased=False,
             mixing_factor=args.mixing_factor,
-            unbiased_pcnt=100,
+            unbiased_pcnt=99,
             download=True,
             transform=transform,
             seed=args.data_split_seed,
