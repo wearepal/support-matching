@@ -209,8 +209,8 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         def _subsample_inds_by_s_and_y(
             _data: TorchImageDataset, _subset_inds: Tensor, _target_props: Dict[int, float]
         ) -> Tensor:
-            _s = _data.sens_attr.loc[_subset_inds]
-            _y = _data.target_attr.loc[_subset_inds]
+            _s = _data.sens_attr[_subset_inds]
+            _y = _data.target_attr[_subset_inds]
             _y_dim = max(2, args._y_dim)
             _s_dim = max(2, args._s_dim)
 
