@@ -218,9 +218,9 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
                 target_y = _class_id // _y_dim
                 target_s = _class_id % _s_dim
                 _indexes = (_y == int(target_y)) & (_s == int(target_s)) & _subset_inds
-                _to_keep = _indexes & (np.random.uniform(len(_indexes)) < (1 - _prop))
-
-                _subset_inds[_to_keep] = False
+                _to_drop = _indexes & (np.random.uniform(len(_indexes)) < (1 - _prop))
+                _subset_inds[_to_drop] = False
+                import pdb; pdb.set_trace()
             return _subset_inds
 
         if args.subsample_context:
