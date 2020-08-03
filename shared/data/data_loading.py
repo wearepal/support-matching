@@ -213,6 +213,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             _y = _data.target_attr
             _y_dim = max(2, args._y_dim)
             _s_dim = max(2, args._s_dim)
+            import pdb; pdb.set_trace()
             for _class_id, _prop in _target_props.items():
                 assert 0 <= _prop <= 1, "proportions should be between 0 and 1"
                 target_y = _class_id // _y_dim
@@ -220,7 +221,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
                 _indexes = (_y == int(target_y)) & (_s == int(target_s)) & _subset_inds
                 _to_drop = _indexes & (np.random.uniform(len(_indexes)) < (1 - _prop))
                 _subset_inds[_to_drop] = False
-                import pdb; pdb.set_trace()
+
             return _subset_inds
 
         if args.subsample_context:
