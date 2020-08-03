@@ -219,8 +219,10 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
                 target_y = _class_id // _y_dim
                 target_s = _class_id % _s_dim
                 _indexes = (_y == int(target_y)) & (_s == int(target_s))
-                _to_drop = _indexes & (np.random.uniform(len(_indexes)) < (1 - _prop))
-                _subset_inds = _subset_inds[~_to_drop]
+                _n_matches = len(_indexes.nonzero())
+                _to_keep = torch.randperm(_n_matches) < (round(_prop * (_n_matches - 1)))
+                _indexes[_indexes.nonzero()[_to_keep]] = False
+                _subset_inds = _subset_inds[~_indexes]
 
             return _subset_inds
 
