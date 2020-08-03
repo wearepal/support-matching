@@ -9,7 +9,7 @@ from torch.utils.data import Dataset, Subset, TensorDataset, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
 
-from ethicml.data import create_celeba_dataset, create_genfaces_dataset
+from ethicml.data import create_celeba_dataset, create_genfaces_dataset, celeba
 from ethicml.vision import TorchImageDataset
 from ethicml.vision.data import LdColorizer
 from shared.configs import BaseArgs
@@ -178,16 +178,19 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         transform = transforms.Compose(transform)
 
         # unbiased_pcnt = args.test_pcnt + args.context_pcnt
-        all_data = create_celeba_dataset(
-            root=data_root,
-            sens_attr_name=args.celeba_sens_attr,
-            target_attr_name=args.celeba_target_attr,
-            biased=False,
-            mixing_factor=args.mixing_factor,
-            unbiased_pcnt=99,
+        dataset, base_dir = celeba(
+            download_dir=data_root,
+            label=args.celeba_target_attr,
+            sens_attr=args.celeba_sens_attr,
             download=True,
+            check_integrity=True,
+        )
+        all_data = TorchImageDataset(
+            data=dataset.load(),
+            root=base_dir,
+            map_to_binary=True,
             transform=transform,
-            seed=args.data_split_seed,
+            target_transform=None,
         )
 
         size = len(all_data)
