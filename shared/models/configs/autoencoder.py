@@ -75,10 +75,6 @@ def conv_autoencoder(
     if decoder_out_act is not None:
         decoder += [decoder_out_act]
 
-    if not variational:
-        # whiten the encoding
-        encoder += [nn.BatchNorm2d(encoder_out_dim, affine=False)]
-
     encoder = nn.Sequential(*encoder)
     decoder = nn.Sequential(*decoder)
 

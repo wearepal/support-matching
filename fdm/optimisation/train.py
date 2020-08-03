@@ -206,6 +206,11 @@ def main(
     else:
         recon_loss_fn = recon_loss_fn_
 
+    def _spectral_norm(m):
+        if hasattr(m, "weight"):
+            return torch.nn.utils.spectral_norm(m)
+    
+
     generator: Generator
     if ARGS.use_inn:
         # assert ARGS.three_way_split, "for now, INN can only do three way split"
@@ -239,12 +244,11 @@ def main(
             encoding_size=encoding_size,
             feature_group_slices=feature_group_slices,
         )
+        if args.vae:
+            generator.apply(_spectral_norm)
     LOGGER.info("Encoding shape: {}, {}", enc_shape, encoding_size)
 
     # ================================== Initialise Discriminator =================================
-    def _spectral_norm(m):
-        if hasattr(m, "weight"):
-            return torch.nn.utils.spectral_norm(m)
 
     disc_optimizer_kwargs = {"lr": args.disc_lr}
     disc_kwargs: Dict[str, Any] = {}
