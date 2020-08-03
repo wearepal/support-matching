@@ -209,7 +209,6 @@ def main(
     def _spectral_norm(m):
         if hasattr(m, "weight"):
             return torch.nn.utils.spectral_norm(m)
-    
 
     generator: Generator
     if ARGS.use_inn:
