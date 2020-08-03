@@ -209,13 +209,13 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         def _subsample_inds_by_s_and_y(
             _data: TorchImageDataset, _subset_inds: Tensor, _target_props: Dict[int, float]
         ) -> Tensor:
-            _s = _data.sens_attr[_subset_inds]
-            _y = _data.target_attr[_subset_inds]
             _y_dim = max(2, args._y_dim)
             _s_dim = max(2, args._s_dim)
 
             for _class_id, _prop in _target_props.items():
                 assert 0 <= _prop <= 1, "proportions should be between 0 and 1"
+                _s = _data.sens_attr[_subset_inds]
+                _y = _data.target_attr[_subset_inds]
                 target_y = _class_id // _y_dim
                 target_s = _class_id % _s_dim
                 _indexes = (_y == int(target_y)) & (_s == int(target_s))
