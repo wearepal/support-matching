@@ -222,8 +222,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
                 _n_matches = len(_indexes.nonzero())
                 _to_keep = torch.randperm(_n_matches) < (round(_prop * (_n_matches - 1)))
                 _indexes[_indexes.nonzero()[_to_keep]] = False
-                import pdb; pdb.set_trace()
-                _subset_inds = _subset_inds[~_indexes]
+                _subset_inds = _subset_inds[~_indexes.squeeze()]
 
             return _subset_inds
 
