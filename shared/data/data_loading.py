@@ -218,10 +218,9 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
                 assert 0 <= _prop <= 1, "proportions should be between 0 and 1"
                 target_y = _class_id // _y_dim
                 target_s = _class_id % _s_dim
-                import pdb; pdb.set_trace()
-                _indexes = (_y == int(target_y)) & (_s == int(target_s)) & _subset_inds
+                _indexes = (_y == int(target_y)) & (_s == int(target_s))
                 _to_drop = _indexes & (np.random.uniform(len(_indexes)) < (1 - _prop))
-                _subset_inds[_to_drop] = False
+                _subset_inds = _subset_inds[~_to_drop]
 
             return _subset_inds
 
