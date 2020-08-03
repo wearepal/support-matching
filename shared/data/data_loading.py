@@ -1,14 +1,16 @@
 import platform
-from typing import Literal, NamedTuple, Tuple, Dict
+from typing import Dict, Literal, NamedTuple, Tuple
 
+import numpy as np
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch.utils.data import Dataset, TensorDataset, random_split
+from torch.utils.data import Dataset, Subset, TensorDataset, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
 
-from ethicml.data import create_celeba_dataset, create_genfaces_dataset
+from ethicml.data import create_celeba_dataset, create_genfaces_dataset, celeba
+from ethicml.vision import TorchImageDataset
 from ethicml.vision.data import LdColorizer
 from shared.configs import BaseArgs
 
@@ -175,37 +177,65 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         transform.append(transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)))
         transform = transforms.Compose(transform)
 
-        unbiased_pcnt = args.test_pcnt + args.context_pcnt
-        unbiased_data = create_celeba_dataset(
-            root=data_root,
-            sens_attr_name=args.celeba_sens_attr,
-            target_attr_name=args.celeba_target_attr,
-            biased=False,
-            mixing_factor=args.mixing_factor,
-            unbiased_pcnt=unbiased_pcnt,
+        # unbiased_pcnt = args.test_pcnt + args.context_pcnt
+        dataset, base_dir = celeba(
+            download_dir=data_root,
+            label=args.celeba_target_attr,
+            sens_attr=args.celeba_sens_attr,
             download=True,
+            check_integrity=True,
+        )
+        assert dataset is not None
+        all_data = TorchImageDataset(
+            data=dataset.load(),
+            root=base_dir,
+            map_to_binary=True,
             transform=transform,
-            seed=args.data_split_seed,
+            target_transform=None,
         )
 
-        context_len = round(args.context_pcnt / unbiased_pcnt * len(unbiased_data))
-        test_len = len(unbiased_data) - context_len
-        context_data, test_data = random_split(unbiased_data, lengths=(context_len, test_len))
+        size = len(all_data)
+        context_len = round(args.context_pcnt * size)
+        test_len = round(args.test_pcnt * size)
+        train_len = size - context_len - test_len
 
-        train_data = create_celeba_dataset(
-            root=data_root,
-            sens_attr_name=args.celeba_sens_attr,
-            target_attr_name=args.celeba_target_attr,
-            biased=True,
-            mixing_factor=args.mixing_factor,
-            unbiased_pcnt=unbiased_pcnt,
-            download=True,
-            transform=transform,
-            seed=args.data_split_seed,
+        context_inds, train_inds, test_inds = torch.randperm(size).split(
+            (context_len, train_len, test_len)
         )
 
         args._y_dim = 1
-        args._s_dim = unbiased_data.s_dim
+        args._s_dim = all_data.s_dim
+
+        def _subsample_inds_by_s_and_y(
+            _data: TorchImageDataset, _subset_inds: Tensor, _target_props: Dict[int, float]
+        ) -> Tensor:
+            _y_dim = max(2, args._y_dim)
+            _s_dim = max(2, args._s_dim)
+
+            for _class_id, _prop in _target_props.items():
+                assert 0 <= _prop <= 1, "proportions should be between 0 and 1"
+                _s = _data.sens_attr[_subset_inds]
+                _y = _data.target_attr[_subset_inds]
+                target_y = _class_id // _y_dim
+                target_s = _class_id % _s_dim
+                _indexes = (_y == int(target_y)) & (_s == int(target_s))
+                _n_matches = len(_indexes.nonzero())
+                _to_keep = torch.randperm(_n_matches) < (round(_prop * (_n_matches - 1)))
+                _indexes[_indexes.nonzero()[_to_keep]] = False
+                _subset_inds = _subset_inds[~_indexes.squeeze()]
+
+            return _subset_inds
+
+        if args.subsample_context:
+            context_inds = _subsample_inds_by_s_and_y(
+                all_data, context_inds, args.subsample_context
+            )
+        if args.subsample_train:
+            train_inds = _subsample_inds_by_s_and_y(all_data, train_inds, args.subsample_train)
+
+        context_data = Subset(all_data, context_inds)
+        train_data = Subset(all_data, train_inds)
+        test_data = Subset(all_data, test_inds)
 
     elif args.dataset == "genfaces":
 
