@@ -9,7 +9,8 @@ from torch.utils.data import Dataset, Subset, TensorDataset, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
 
-from ethicml.data import TorchImageDataset, create_celeba_dataset, create_genfaces_dataset
+from ethicml.data import create_celeba_dataset, create_genfaces_dataset
+from ethicml.vision import TorchImageDataset
 from ethicml.vision.data import LdColorizer
 from shared.configs import BaseArgs
 
