@@ -199,8 +199,8 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         test_len = round(args.test_pcnt * size)
         train_len = size - context_len - test_len
 
-        train_inds, test_inds, context_inds = torch.randperm(size).split(
-            (train_len, context_len, test_len)
+        context_inds, train_inds, test_inds = torch.randperm(size).split(
+            (context_len, train_len, test_len)
         )
 
         args._y_dim = 1
