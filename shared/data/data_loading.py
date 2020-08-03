@@ -211,8 +211,8 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         ) -> Tensor:
             _s = _data.sens_attr
             _y = _data.target_attr
-            _y_dim = max(2, _data.y_dim)
-            _s_dim = max(2, _data.s_dim)
+            _y_dim = max(2, args._y_dim)
+            _s_dim = max(2, args._s_dim)
             for _class_id, _prop in _target_props.items():
                 assert 0 <= _prop <= 1, "proportions should be between 0 and 1"
                 target_y = _class_id // _y_dim
