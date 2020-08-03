@@ -12,7 +12,7 @@ class VaeArgs(BaseArgs):
     # Optimization settings
     early_stopping: int = 30
     epochs: int = 250
-    batch_size: int = 1000
+    batch_size: int = 256
     test_batch_size: Optional[int] = None
     num_workers: int = 4
     weight_decay: float = 0
@@ -53,7 +53,7 @@ class VaeArgs(BaseArgs):
     init_channels: int = 32
     recon_loss: Optional[Literal["l1", "l2", "bce", "huber", "ce", "mixed"]] = None
     vgg_weight: float = 0
-    vae: bool = True
+    vae: bool = False
     three_way_split: bool = False
     std_transform: Literal["softplus", "exp"] = "exp"
     stochastic: bool = False
@@ -86,11 +86,11 @@ class VaeArgs(BaseArgs):
 
     # Training settings
     lr: float = 1e-3
-    disc_lr: float = 1e-3
+    disc_lr: float = 3e-4
     kl_weight: float = 1
     elbo_weight: float = 1
     disc_weight: float = 1
-    num_disc_updates: int = 1
+    num_disc_updates: int = 3
     distinguish_weight: float = 1
     pred_weight: float = 0
 
