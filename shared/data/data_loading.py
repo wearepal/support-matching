@@ -223,16 +223,16 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
                 _subset_inds[_to_keep] = False
             return _subset_inds
 
-        test_data = Subset(all_data, test_inds)
-
         if args.subsample_context:
             context_inds = _subsample_inds_by_s_and_y(
                 all_data, context_inds, args.subsample_context
             )
-            context_data = Subset(all_data, context_inds)
         if args.subsample_train:
             train_inds = _subsample_inds_by_s_and_y(all_data, train_inds, args.subsample_context)
-            train_data = Subset(all_data, train_inds)
+
+        context_data = Subset(all_data, context_inds)
+        train_data = Subset(all_data, train_inds)
+        test_data = Subset(all_data, test_inds)
 
     elif args.dataset == "genfaces":
 
