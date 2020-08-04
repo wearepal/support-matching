@@ -65,9 +65,16 @@ class AutoEncoder(nn.Module):
 
     def all_recons(self, z: Tensor, mode: Literal["soft", "hard", "relaxed"]) -> Reconstructions:
         rand_s, rand_y = self.mask(z, random=True)
+        rand_s = rand_s.view_as(z)
+        rand_y = rand_y.view_as(z)
+
         zero_s, zero_y = self.mask(z)
+        zero_s = zero_s.view_as(z)
+        zero_y = zero_y.view_as(z)
+        
         zs, zy, zn = self.split_encoding(z)
-        just_s = torch.cat([zs, torch.zeros_like(zy), torch.zeros_like(zn)], dim=1)
+        just_s = torch.cat([zs, torch.zeros_like(zy), torch.zeros_like(zn)], dim=1).view_as(z)
+
         return Reconstructions(
             all=self.decode(z, mode=mode),
             rand_s=self.decode(rand_s, mode=mode),
@@ -90,6 +97,7 @@ class AutoEncoder(nn.Module):
 
     def split_encoding(self, z: Tensor) -> SplitEncoding:
         assert self.encoding_size is not None
+        z = z.flatten(start_dim=1)
         zs, zy, zn = z.split(
             (self.encoding_size.zs, self.encoding_size.zy, self.encoding_size.zn), dim=1
         )
@@ -109,6 +117,7 @@ class AutoEncoder(nn.Module):
         else:
             zs_m = torch.cat([torch.zeros_like(zs), zy, zn], dim=1)
             zy_m = torch.cat([zs, torch.zeros_like(zy), zn], dim=1)
+
         return zs_m, zy_m
 
     def fit(self, train_data: DataLoader, epochs: int, device, loss_fn, kl_weight: float):
