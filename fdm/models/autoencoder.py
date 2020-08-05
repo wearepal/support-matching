@@ -139,7 +139,7 @@ class AutoEncoder(nn.Module):
         recon_all = self.decode(encoding)
         recon_loss = recon_loss_fn(recon_all, x)
         recon_loss /= x.nelement()
-        prior_loss = encoding.norm(dim=1).mean()
+        prior_loss = kl_weight * encoding.norm(dim=1).mean()
         loss = recon_loss + prior_loss
         return encoding, loss, {"Loss reconstruction": recon_loss.item(), "Prior Loss": prior_loss}
 
