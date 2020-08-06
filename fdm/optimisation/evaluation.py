@@ -312,7 +312,7 @@ def encode_dataset(
 
             enc = generator.encode(x, stochastic=False)
             if recons:
-                zs_m, zy_m = generator.mask(enc, random=True)
+                zs_m, zy_m = generator.mask(enc, random=False)
                 z_m = zs_m if invariant_to == "s" else zy_m
                 x_m = generator.decode(z_m, mode="hard")
 
