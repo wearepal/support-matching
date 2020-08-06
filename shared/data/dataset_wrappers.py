@@ -71,9 +71,7 @@ class LdAugmentedDataset(Dataset):
         self.dataset = subset
 
     def _sample_from_inds(self, inds):
-        subset = Subset(self.source_dataset, inds)
-
-        return subset
+        return Subset(self.source_dataset, inds)
 
     @staticmethod
     def _validate_data(*args):

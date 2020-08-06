@@ -108,8 +108,7 @@ class PartitionedAeInn(ModelBase):
 
     def compute_log_pz(self, z: Tensor) -> Tensor:
         """Log of the base probability: log(p(z))"""
-        log_pz = self.base_density.log_prob(z)
-        return log_pz
+        return self.base_density.log_prob(z)
 
     def nll(self, z: Tensor, sum_logdet: Tensor) -> Tensor:
         log_pz = self.compute_log_pz(z)
@@ -119,8 +118,7 @@ class PartitionedAeInn(ModelBase):
         #     bits_per_dim = -(log_px_per_dim - np.log(256)) / np.log(2)
         #     return bits_per_dim
         # else:
-        nll = -log_px / z.nelement()
-        return nll
+        return -log_px / z.nelement()
 
     def split_encoding(self, z: Tensor) -> SplitEncoding:
         zs, zy, zn = z.split(

@@ -113,10 +113,9 @@ def _block(args: ClusterArgs, input_dim: int) -> layers.Bijector:
         else:
             raise ValueError(f"Scaling {args.inn_scaling} is not supported")
 
-    block = layers.BijectorChain(_chain)
     # if args.inn_jit:
     #     block = jit.script(block)
-    return block
+    return layers.BijectorChain(_chain)
 
 
 def _build_multi_scale_chain(
@@ -169,8 +168,6 @@ def build_conv_inn(args: ClusterArgs, input_shape: Tuple[int, ...]) -> layers.Bi
     # flattened_shape = int(prod(input_shape))
     # full_chain += [layers.RandomPermutation(flattened_shape)]
 
-    model = layers.BijectorChain(full_chain)
-
     # if args.inn_jit:
     #     model = jit.script(model)
-    return model
+    return layers.BijectorChain(full_chain)

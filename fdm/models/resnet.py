@@ -92,8 +92,7 @@ class ResidualNet(nn.Module):
             temps = self.initial_layer(torch.cat((inputs, context), dim=1))
         for block in self.blocks:
             temps = block(temps, context=context)
-        outputs = self.final_layer(temps)
-        return outputs
+        return self.final_layer(temps)
 
 
 class ConvResidualBlockDown(nn.Module):
@@ -189,5 +188,4 @@ class ConvResidualNet(nn.Module):
             temps = self.initial_layer(torch.cat((inputs, context), dim=1))
         for block in self.blocks:
             temps = block(temps, context)
-        outputs = self.final_layer(temps)
-        return outputs
+        return self.final_layer(temps)

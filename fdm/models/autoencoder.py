@@ -172,9 +172,7 @@ class VAE(AutoEncoder):
         log_p = self.prior.log_prob(sample)
         log_q = posterior.log_prob(sample)
 
-        kl_div = (log_q - log_p).sum()
-
-        return kl_div
+        return (log_q - log_p).sum()
 
     @overload
     def encode(

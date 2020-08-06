@@ -49,6 +49,4 @@ class BottleneckConvBlock(nn.Module):
         self.sub_blocks = nn.Sequential(*layers)
 
     def forward(self, x: Tensor) -> Tensor:
-        out = self.sub_blocks(x)
-
-        return out
+        return self.sub_blocks(x)

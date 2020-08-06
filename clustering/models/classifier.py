@@ -32,10 +32,7 @@ class Classifier(ModelBase):
             raise ValueError(
                 f"Invalid number of classes: must equal 2 or more," f" {num_classes} given."
             )
-        if num_classes == 2:
-            self.criterion = "bce"
-        else:
-            self.criterion = "ce"
+        self.criterion = "bce" if num_classes == 2 else "ce"
         self.num_classes = num_classes
 
         super().__init__(model, optimizer_kwargs=optimizer_kwargs)

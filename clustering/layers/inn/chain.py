@@ -126,9 +126,7 @@ class OxbowNet(Bijector):
         xs, sum_ldj = self._contract(self.down_chain, x, sum_ldj=sum_ldj, reverse=False)
 
         # ==================================== expanding ==========================================
-        out = self._expand(self.up_chain, xs, sum_ldj=sum_ldj, reverse=False)
-
-        return out
+        return self._expand(self.up_chain, xs, sum_ldj=sum_ldj, reverse=False)
 
     def _inverse(
         self, y: Tensor, sum_ldj: Optional[Tensor] = None
@@ -138,9 +136,7 @@ class OxbowNet(Bijector):
         ys, sum_ldj = self._contract(self.up_chain, y, sum_ldj=sum_ldj, reverse=True)
 
         # ================================ inverse contracting ====================================
-        out = self._expand(self.down_chain, ys, sum_ldj=sum_ldj, reverse=True)
-
-        return out
+        return self._expand(self.down_chain, ys, sum_ldj=sum_ldj, reverse=True)
 
     def _contract(
         self, chain: nn.ModuleList, x: Tensor, *, sum_ldj: Optional[Tensor], reverse: bool

@@ -18,13 +18,11 @@ def build_discriminator(
     in_dim = input_shape[0]
 
     num_classes = target_dim if target_dim > 1 else 2
-    discriminator = Classifier(
+    return Classifier(
         model_fn(in_dim, target_dim, **model_kwargs),
         num_classes=num_classes,
         optimizer_kwargs=optimizer_kwargs,
     )
-
-    return discriminator
 
 
 def build_fc_inn(
@@ -99,10 +97,9 @@ def _block(args: VaeArgs, input_dim: int) -> layers.Bijector:
         else:
             raise ValueError(f"Scaling {args.inn_scaling} is not supported")
 
-    block = layers.BijectorChain(_chain)
     # if args.inn_jit:
     #     block = jit.script(block)
-    return block
+    return layers.BijectorChain(_chain)
 
 
 def _build_multi_scale_chain(
@@ -155,8 +152,6 @@ def build_conv_inn(args: VaeArgs, input_shape: Tuple[int, ...]) -> layers.Biject
     # flattened_shape = int(product(input_shape))
     # full_chain += [layers.RandomPermutation(flattened_shape)]
 
-    model = layers.BijectorChain(full_chain)
-
     # if args.inn_jit:
     #     model = jit.script(model)
-    return model
+    return layers.BijectorChain(full_chain)

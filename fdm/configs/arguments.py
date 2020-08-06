@@ -101,10 +101,7 @@ class VaeArgs(BaseArgs):
     def process_args(self) -> None:
         super().process_args()
         if self.recon_loss is None:
-            if self.dataset == "adult":
-                self.recon_loss = "mixed"
-            else:
-                self.recon_loss = "l1"
+            self.recon_loss = "mixed" if self.dataset == "adult" else "l1"
         if self.three_way_split and self.zs_frac > 0.5:
             raise ValueError("2*zs_frac must be less than or equal 1")
         if self.super_val_freq < 0:

@@ -128,10 +128,7 @@ class TrainNaive(Trainer):
         for _ in pbar:
             classifier.train()
             for x, s, y in train_loader:
-                if pred_s:
-                    target = s
-                else:
-                    target = y
+                target = s if pred_s else y
                 x = x.to(device)
                 target = target.to(device)
 
@@ -156,10 +153,7 @@ class TrainKamiran(Trainer):
         for _ in pbar:
             classifier.train()
             for x, s, y, iw in train_loader:
-                if pred_s:
-                    target = s
-                else:
-                    target = y
+                target = s if pred_s else y
                 x = x.to(device)
                 target = target.to(device)
                 iw = iw.to(device)

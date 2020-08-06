@@ -22,7 +22,7 @@ def convert_affinematrix_to_homography(A: torch.Tensor) -> torch.Tensor:
     """
     if not isinstance(A, torch.Tensor):
         raise TypeError("Input type is not a torch.Tensor. Got {}".format(type(A)))
-    if not (len(A.shape) == 3 and A.shape[-2:] == (2, 3)):
+    if len(A.shape) != 3 or A.shape[-2:] != (2, 3):
         raise ValueError("Input matrix must be a Bx2x3 tensor. Got {}".format(A.shape))
     H: torch.Tensor = torch.nn.functional.pad(A, [0, 0, 0, 1], "constant", value=0.0)
     H[..., -1, -1] += 1.0
@@ -69,7 +69,7 @@ def normalize_homography(
             )
         )
 
-    if not (len(dst_pix_trans_src_pix.shape) == 3 or dst_pix_trans_src_pix.shape[-2:] == (3, 3)):
+    if len(dst_pix_trans_src_pix.shape) != 3 and dst_pix_trans_src_pix.shape[-2:] != (3, 3):
         raise ValueError(
             "Input dst_pix_trans_src_pix must be a Bx3x3 tensor. Got {}".format(
                 dst_pix_trans_src_pix.shape
@@ -131,10 +131,10 @@ def warp_affine(
     if not torch.is_tensor(M):
         raise TypeError("Input M type is not a torch.Tensor. Got {}".format(type(M)))
 
-    if not len(src.shape) == 4:
+    if len(src.shape) != 4:
         raise ValueError("Input src must be a BxCxHxW tensor. Got {}".format(src.shape))
 
-    if not (len(M.shape) == 3 or M.shape[-2:] == (2, 3)):
+    if len(M.shape) != 3 and M.shape[-2:] != (2, 3):
         raise ValueError("Input M must be a Bx2x3 tensor. Got {}".format(M.shape))
     B, C, H, W = src.size()
     dsize_src = (H, W)
@@ -231,11 +231,11 @@ def get_rotation_matrix2d(
         raise TypeError("Input angle type is not a torch.Tensor. Got {}".format(type(angle)))
     if not torch.is_tensor(scale):
         raise TypeError("Input scale type is not a torch.Tensor. Got {}".format(type(scale)))
-    if not (len(center.shape) == 2 and center.shape[1] == 2):
+    if len(center.shape) != 2 or center.shape[1] != 2:
         raise ValueError("Input center must be a Bx2 tensor. Got {}".format(center.shape))
-    if not len(angle.shape) == 1:
+    if len(angle.shape) != 1:
         raise ValueError("Input angle must be a B tensor. Got {}".format(angle.shape))
-    if not len(scale.shape) == 1:
+    if len(scale.shape) != 1:
         raise ValueError("Input scale must be a B tensor. Got {}".format(scale.shape))
     if not (center.shape[0] == angle.shape[0] == scale.shape[0]):
         raise ValueError(
