@@ -39,7 +39,6 @@ class AutoEncoder(Encoder):
         return self.encoder(x)
 
     def decode(self, z: Tensor, discretize: bool = False) -> Tensor:
-       import pdb; pdb.set_trace()
         decoding = self.decoder(z)
         if decoding.dim() == 4:
             # if decoding.size(1) <= 3:
