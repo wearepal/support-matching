@@ -246,8 +246,8 @@ def main(
             encoding_size=encoding_size,
             feature_group_slices=feature_group_slices,
         )
-        if args.vae:
-            generator.apply(_spectral_norm)
+        generator.apply(_spectral_norm)
+
     LOGGER.info("Encoding shape: {}, {}", enc_shape, encoding_size)
 
     # ================================== Initialise Discriminator =================================
