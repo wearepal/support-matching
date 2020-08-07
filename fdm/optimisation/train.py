@@ -344,14 +344,14 @@ def main(
             predictor.fit(Subset(datasets.context, np.arange(100)), 50, ARGS._device, test_loader)
         components = InnComponents(inn=generator, disc_ensemble=disc_ensemble, predictor=predictor)
 
-    start_epoch = 1  # start at 1 so that the val_freq works correctly
+    start_itr = 1  # start at 1 so that the val_freq works correctly
     # Resume from checkpoint
     if ARGS.resume is not None:
         LOGGER.info("Restoring generator from checkpoint")
-        generator, start_epoch = restore_model(ARGS, Path(ARGS.resume), generator)
+        generator, start_itr = restore_model(ARGS, Path(ARGS.resume), generator)
         if ARGS.evaluate:
             log_metrics(
-                ARGS, generator, datasets, 0, save_to_csv=Path(ARGS.save_dir), run_baselines=True
+                ARGS, generator, datasets, 0, save_to_csv=Path(ARGS.save_dir)
             )
             return generator
 
@@ -366,7 +366,7 @@ def main(
     context_data_itr = inf_generator(context_loader)
     train_data_itr = inf_generator(train_loader)
 
-    for itr in range(1, ARGS.iters + 1):
+    for itr in range(start_itr, ARGS.iters + 1):
 
         train_step(
             components=components,

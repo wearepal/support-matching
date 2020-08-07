@@ -61,7 +61,7 @@ def restore_model(args: VaeArgs, filename: Path, model: nn.Module):
     assert args.levels == args_chkpt["levels"]
 
     model.load_state_dict(chkpt["model"])
-    return model, chkpt["epoch"]
+    return model, chkpt["itr"]
 
 
 def weight_for_balance(cluster_ids: Tensor) -> Tuple[Tensor, int, int, int]:
