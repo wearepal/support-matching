@@ -39,7 +39,7 @@ class VaeArgs(BaseArgs):
     super_val: bool = False  # Train classifier on encodings as part of validation step.
     super_val_freq: int = 10_000  # how often to do super val, if 0, do it together with the normal val
     val_freq: int = 1_000
-    log_freq: int = 5_000
+    log_freq: int = 50
     use_wandb: bool = True
     results_csv: str = ""  # name of CSV file to save results to
     feat_attr: bool = False

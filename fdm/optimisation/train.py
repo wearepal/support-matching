@@ -371,7 +371,7 @@ def main(
             train_data_itr=train_data_itr,
             itr=itr,
         )
-        #     )
+
         if ARGS.super_val and itr % super_val_freq == 0:
             if itr == super_val_freq:
                 baseline_metrics(ARGS, datasets, save_to_csv=Path(ARGS.save_dir))
