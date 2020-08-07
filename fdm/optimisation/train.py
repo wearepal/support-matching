@@ -495,7 +495,7 @@ class AeComponents(NamedTuple):
 
 def update_disc(
     x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False,
-) -> Tuple[Tensor, float]:
+) -> Tensor:
     """Train the discriminator while keeping the generator constant.
 
     Args:
@@ -536,9 +536,9 @@ def update_disc(
                 disc_input_c = disc_input_c.detach()
 
             # discriminator is trained to distinguish `disc_input_c` and `disc_input_t`
-            disc_loss_true, disc_acc_true = ae.discriminator.routine(disc_input_c, ones)
-            disc_loss_false, disc_acc_false = ae.discriminator.routine(disc_input_t, zeros)
-            disc_loss += disc_loss_true + disc_loss_false
+            disc_loss_true = ae.discriminator(disc_input_c).mean()
+            disc_loss_false = ae.discriminator(disc_input_t).mean()
+            disc_loss += disc_loss_true - disc_loss_false
             if ARGS.three_way_split:
                 assert ae.disc_distinguish is not None
                 # the distinguisher is always applied to the encoding (regardless of the other disc)
@@ -559,7 +559,7 @@ def update_disc(
             ae.disc_distinguish.zero_grad()
             disc_loss_distinguish.backward()
             ae.disc_distinguish.step()
-    return disc_loss, 0.5 * (disc_acc_true + disc_acc_false)  # statistics from last step
+    return disc_loss
 
 
 def update(
@@ -595,7 +595,8 @@ def update(
     # ==================================== adversarial losses =====================================
     disc_input_no_s = get_disc_input(ae.generator, encoding, invariant_to="s")
     zeros = x_t.new_zeros((x_t.size(0),))
-    disc_loss, disc_acc_inv_s = ae.discriminator.routine(disc_input_no_s, zeros)
+    disc_loss = ae.discriminator(disc_input_no_s).mean()
+    # disc_loss, disc_acc_inv_s = ae.discriminator.routine(disc_input_no_s, zeros)
 
     pred_y_loss = x_t.new_zeros(())
     if ARGS.pred_weight > 0:
@@ -640,7 +641,7 @@ def update(
     elbo *= ARGS.elbo_weight
     disc_loss *= disc_weight
 
-    gen_loss = elbo - disc_loss - disc_loss_distinguish + pred_y_loss
+    gen_loss = elbo + disc_loss - disc_loss_distinguish + pred_y_loss
 
     # Update the generator's parameters
     ae.generator.zero_grad()
@@ -654,7 +655,7 @@ def update(
     final_logging = {
         "ELBO": elbo.item(),
         "Loss Adversarial": disc_loss.item(),
-        "Accuracy Disc": disc_acc_inv_s,
+        # "Accuracy Disc": disc_acc_inv_s,
         "Loss Generator": gen_loss.item(),
     }
     logging_dict.update(final_logging)
