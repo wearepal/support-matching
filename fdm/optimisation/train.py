@@ -3,7 +3,19 @@ from __future__ import annotations
 import time
 from logging import Logger
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Literal, NamedTuple, Iterator
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Sequence,
+    Optional,
+    Tuple,
+    Union,
+    Literal,
+    NamedTuple,
+    Iterator,
+)
 
 import git
 import numpy as np
@@ -148,7 +160,7 @@ def main(
         batch_size=ARGS.test_batch_size,
         num_workers=ARGS.num_workers,
         pin_memory=True,
-        drop_last=False
+        drop_last=False,
     )
 
     # ==== construct networks ====
@@ -212,11 +224,10 @@ def main(
     def _spectral_norm(m):
         if hasattr(m, "weight"):
             return torch.nn.utils.spectral_norm(m)
-        
+
     def _weight_norm(m):
         if hasattr(m, "weight"):
             return torch.nn.utils.weight_norm(m)
-
 
     generator: Generator
     if ARGS.use_inn:
@@ -273,7 +284,11 @@ def main(
     else:
         disc_fn = fc_net
         disc_kwargs["hidden_dims"] = args.disc_hidden_dims
-        disc_input_shape = (prod(disc_input_shape),)  # fc_net first flattens the input
+        disc_input_shape = (
+            (prod(disc_input_shape),)
+            if isinstance(disc_input_shape, Sequence)
+            else disc_input_shape
+        )  # fc_net first flattens the input
 
     components: Union[AeComponents, InnComponents]
     disc: Classifier
@@ -357,9 +372,7 @@ def main(
         LOGGER.info("Restoring generator from checkpoint")
         generator, start_itr = restore_model(ARGS, Path(ARGS.resume), generator)
         if ARGS.evaluate:
-            log_metrics(
-                ARGS, generator, datasets, 0, save_to_csv=Path(ARGS.save_dir)
-            )
+            log_metrics(ARGS, generator, datasets, 0, save_to_csv=Path(ARGS.save_dir))
             return generator
 
     # Logging
