@@ -11,4 +11,5 @@ class View(nn.Module):
         self.shape = shape
 
     def forward(self, x: Tensor) -> Tensor:
+        import pdb; pdb.set_trace()
         return x.view(-1, *self.shape)
