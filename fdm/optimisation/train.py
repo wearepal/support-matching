@@ -212,6 +212,11 @@ def main(
     def _spectral_norm(m):
         if hasattr(m, "weight"):
             return torch.nn.utils.spectral_norm(m)
+        
+    def _weight_norm(m):
+        if hasattr(m, "weight"):
+            return torch.nn.utils.weight_norm(m)
+
 
     generator: Generator
     if ARGS.use_inn:
@@ -246,6 +251,10 @@ def main(
             encoding_size=encoding_size,
             feature_group_slices=feature_group_slices,
         )
+        if ARGS.vae:
+            generator.apply(_spectral_norm)
+        else:
+            generator.apply(_weight_norm)
 
     LOGGER.info("Encoding shape: {}, {}", enc_shape, encoding_size)
 
