@@ -36,7 +36,6 @@ class AutoEncoder(nn.Module):
         return self.encoder(inputs)
 
     def decode(self, z: Tensor, mode: Literal["soft", "hard", "relaxed"] = "soft") -> Tensor:
-        import pdb; pdb.set_trace()
         decoding = self.decoder(z)
         if decoding.dim() == 4:
             # if decoding.size(1) <= 3:
