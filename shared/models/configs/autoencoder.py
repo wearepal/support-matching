@@ -82,7 +82,7 @@ def conv_autoencoder(
     encoder = nn.Sequential(*encoder)
     decoder = nn.Sequential(*decoder)
 
-    enc_shape = (encoding_dim, height, width)
+    enc_shape = encoding_dim * height * width
 
     return encoder, decoder, enc_shape
 
