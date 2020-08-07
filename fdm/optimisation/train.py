@@ -363,7 +363,7 @@ def main(
     context_data_itr = inf_generator(context_loader)
     train_data_itr = inf_generator(train_loader)
 
-    for itr in range(1, ARGS.iters+1):
+    for itr in range(1, ARGS.iters + 1):
 
         train_step(
             components=components,
