@@ -263,7 +263,7 @@ def main(
             feature_group_slices=feature_group_slices,
         )
         # if ARGS.vae:
-        generator.apply(_spectral_norm)
+        # generator.apply(_spectral_norm)
         # else:
         #     generator.apply(_weight_norm)
 
