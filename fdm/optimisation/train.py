@@ -1,10 +1,9 @@
 """Main training file"""
 from __future__ import annotations
 import time
-from itertools import islice
 from logging import Logger
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Literal, NamedTuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Literal, NamedTuple, Iterator
 
 import git
 import numpy as np
@@ -30,6 +29,7 @@ from shared.utils import (
     get_data_dim,
 )
 from shared.models.configs import conv_autoencoder, fc_autoencoder
+from shared.utils import inf_generator
 from fdm.configs import VaeArgs
 from fdm.models import (
     AutoEncoder,
@@ -353,49 +353,30 @@ def main(
             return generator
 
     # Logging
-    # wandb.set_model_graph(str(generator))
     LOGGER.info("Number of trainable parameters: {}", count_parameters(generator))
 
-    # best_loss = float("inf")
-    n_vals_without_improvement = 0
     super_val_freq = ARGS.super_val_freq or ARGS.val_freq
 
     itr = 0
     disc: nn.Module
-    # Train generator for N epochs
-    for epoch in range(start_epoch, start_epoch + ARGS.epochs):
-        if n_vals_without_improvement > ARGS.early_stopping > 0:
-            break
 
-        itr = train(
+    context_data_itr = inf_generator(context_loader)
+    train_data_itr = inf_generator(train_loader)
+
+    for itr in range(1, ARGS.iters+1):
+
+        train_step(
             components=components,
-            context_data=context_loader,
-            train_data=train_loader,
-            epoch=epoch,
+            context_data_itr=context_data_itr,
+            train_data_itr=train_data_itr,
+            itr=itr,
         )
-
-        # if epoch % ARGS.val_freq == 0:
-        #     val_loss = validate(generator, discriminator, train_loader, itr, recon_loss_fn)
-
-        #     if val_loss < best_loss:
-        #         best_loss = val_loss
-        #         save_model(args, save_dir, generator, epoch=epoch, sha=sha, best=True)
-        #         n_vals_without_improvement = 0
-        #     else:
-        #         n_vals_without_improvement += 1
-
-        #     LOGGER.info(
-        #         "[VAL] Epoch {:04d} | Val Loss {:.6f} | "
-        #         "No improvement during validation: {:02d}",
-        #         epoch,
-        #         val_loss,
-        #         n_vals_without_improvement,
         #     )
-        if ARGS.super_val and epoch % super_val_freq == 0:
-            if epoch == super_val_freq:
+        if ARGS.super_val and itr % super_val_freq == 0:
+            if itr == super_val_freq:
                 baseline_metrics(ARGS, datasets, save_to_csv=Path(ARGS.save_dir))
             log_metrics(ARGS, model=generator, data=datasets, step=itr)
-            save_model(ARGS, save_dir, model=generator, epoch=epoch, sha=sha)
+            save_model(ARGS, save_dir, model=generator, itr=itr, sha=sha)
 
         if isinstance(components, InnComponents) and ARGS.disc_reset_prob > 0:
             for k, disc in enumerate(components.disc_ensemble):
@@ -410,75 +391,58 @@ def main(
     return generator
 
 
-def train(
+def get_batch(
+    context_data_itr: Iterator[List[Tensor, Tensor, Tensor]],
+    train_data_itr: Iterator[List[Tensor, Tensor, Tensor]],
+) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    x_c = to_device(next(context_data_itr)[0])
+    x_t, s_t, y_t = to_device(*next(train_data_itr))
+    return x_c, x_t, s_t, y_t
+
+
+def train_step(
     components: Union[AeComponents, InnComponents],
-    context_data: DataLoader,
-    train_data: DataLoader,
-    epoch: int,
+    context_data_itr: Iterator[List[Tensor, Tensor, Tensor]],
+    train_data_itr: Iterator[List[Tensor, Tensor, Tensor]],
+    itr: int,
 ) -> int:
-    total_loss_meter = AverageMeter()
-    loss_meters: Optional[Dict[str, AverageMeter]] = None
 
-    time_meter = AverageMeter()
-    start_epoch_time = time.time()
-    end = start_epoch_time
-    epoch_len = max(len(context_data), len(train_data))
-    itr = start_itr = (epoch - 1) * epoch_len
-    # FIXME: Should move from epoch- to iteration-based training.
-    data_iterator = islice(zip(inf_generator(context_data), inf_generator(train_data)), epoch_len)
-
-    for itr, ((x_c, _, _), (x_t, s_t, y_t)) in enumerate(data_iterator, start=start_itr):
-
-        x_c, x_t, s_t, y_t = to_device(x_c, x_t, s_t, y_t)
-
-        disc_weight = 0.0 if itr < ARGS.warmup_steps else ARGS.disc_weight
-        # Train the discriminator on its own for a number of iterations
+    disc_weight = 0.0 if itr < ARGS.warmup_steps else ARGS.disc_weight
+    # Train the discriminator on its own for a number of iterations
+    for _ in range(ARGS.num_disc_updates):
+        x_c, x_t, s_t, y_t = get_batch(
+            context_data_itr=context_data_itr, train_data_itr=train_data_itr
+        )
         if components.type == "ae":
             update_disc(x_c, x_t, components, itr < ARGS.warmup_steps)
-            gen_loss, logging_dict = update(
-                x_c=x_c, x_t=x_t, s_t=s_t, y_t=y_t, ae=components, warmup=itr < ARGS.warmup_steps
-            )
         else:
             update_disc_on_inn(ARGS, x_c, x_t, components, itr < ARGS.warmup_steps)
-            gen_loss, logging_dict = update_inn(
-                args=ARGS, x_c=x_c, x_t=x_t, models=components, disc_weight=disc_weight
-            )
 
-        # Log losses
-        total_loss_meter.update(gen_loss.item())
-        if loss_meters is None:
-            loss_meters = {name: AverageMeter() for name in logging_dict}
-        for name, value in logging_dict.items():
-            loss_meters[name].update(value)
+    x_c, x_t, s_t, y_t = get_batch(context_data_itr=context_data_itr, train_data_itr=train_data_itr)
+    if components.type == "ae":
+        _, logging_dict = update(
+            x_c=x_c, x_t=x_t, s_t=s_t, y_t=y_t, ae=components, warmup=itr < ARGS.warmup_steps
+        )
+    else:
+        _, logging_dict = update_inn(
+            args=ARGS, x_c=x_c, x_t=x_t, models=components, disc_weight=disc_weight
+        )
 
-        time_for_batch = time.time() - end
-        time_meter.update(time_for_batch)
+    wandb_log(ARGS, logging_dict, step=itr)
 
-        wandb_log(ARGS, logging_dict, step=itr)
-        end = time.time()
+    # Log images
+    if itr % ARGS.log_freq == 0:
+        with torch.no_grad():
+            if components.type == "ae":
+                generator = components.generator
+                x_log = x_t
+            else:
+                generator = components.inn
+                x_log = x_c
+            log_recons(generator=generator, x=x_log, itr=itr)
 
-        # Log images
-        if itr % ARGS.log_freq == 0:
-            with torch.set_grad_enabled(False):
-                if components.type == "ae":
-                    generator = components.generator
-                    x_log = x_t
-                else:
-                    generator = components.inn
-                    x_log = x_c
-                log_recons(generator=generator, x=x_log, itr=itr)
-
-    time_for_epoch = time.time() - start_epoch_time
-    assert loss_meters is not None
-    log_string = " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items())
-    LOGGER.info(
-        "[TRN] Epoch {:04d} | Duration: {} | Batches/s: {:.4g} | {} ({:.5g})",
-        epoch,
-        readable_duration(time_for_epoch),
-        1 / time_meter.avg,
-        log_string,
-        total_loss_meter.avg,
-    )
+    log_string = " | ".join(f"{name}: {value:.5g}" for name, value in logging_dict.items())
+    LOGGER.info(f"[TRN] Iteration {itr} | {log_string}")
     return itr
 
 
@@ -493,9 +457,7 @@ class AeComponents(NamedTuple):
     type: Literal["ae"] = "ae"
 
 
-def update_disc(
-    x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False,
-) -> Tensor:
+def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False,) -> Tensor:
     """Train the discriminator while keeping the generator constant.
 
     Args:
@@ -508,57 +470,55 @@ def update_disc(
     if ae.disc_distinguish is not None:
         ae.disc_distinguish.train()
 
-    ones = x_c.new_ones((x_c.size(0),))
-    zeros = x_t.new_zeros((x_t.size(0),))
+    # ones = x_c.new_ones((x_c.size(0),))
+    # zeros = x_t.new_zeros((x_t.size(0),))
     # in case of the three-way split, we have to check more than one invariance
     invariances: List[Literal["s", "y"]] = ["s", "y"] if ARGS.three_way_split else ["s"]
 
     if not ARGS.vae:
         encoding_t = ae.generator.encode(x_t)
         encoding_c = ae.generator.encode(x_c)
-    for _ in range(ARGS.num_disc_updates):
-        if ARGS.vae:
-            encoding_t = ae.generator.encode(x_t, stochastic=True)
-            encoding_c = ae.generator.encode(x_c, stochastic=True)
-        disc_input_c: Tensor
-        if ARGS.train_on_recon:
-            disc_input_c = ae.generator.decode(
-                encoding_c, mode="relaxed"
-            ).detach()  # just reconstruct
+    if ARGS.vae:
+        encoding_t = ae.generator.encode(x_t, stochastic=True)
+        encoding_c = ae.generator.encode(x_c, stochastic=True)
+    disc_input_c: Tensor
+    if ARGS.train_on_recon:
+        disc_input_c = ae.generator.decode(encoding_c, mode="relaxed").detach()  # just reconstruct
 
-        disc_loss = x_c.new_zeros(())
-        disc_loss_distinguish = x_c.new_zeros(())
-        for invariance in invariances:
-            disc_input_t = get_disc_input(ae.generator, encoding_t, invariant_to=invariance)
-            disc_input_t = disc_input_t.detach()
-            if not ARGS.train_on_recon:
-                disc_input_c = get_disc_input(ae.generator, encoding_c, invariant_to=invariance)
-                disc_input_c = disc_input_c.detach()
+    disc_loss = x_c.new_zeros(())
+    disc_loss_distinguish = x_c.new_zeros(())
+    for invariance in invariances:
+        disc_input_t = get_disc_input(ae.generator, encoding_t, invariant_to=invariance)
+        disc_input_t = disc_input_t.detach()
+        if not ARGS.train_on_recon:
+            disc_input_c = get_disc_input(ae.generator, encoding_c, invariant_to=invariance)
+            disc_input_c = disc_input_c.detach()
 
-            # discriminator is trained to distinguish `disc_input_c` and `disc_input_t`
-            disc_loss_true = ae.discriminator(disc_input_c).mean()
-            disc_loss_false = ae.discriminator(disc_input_t).mean()
-            disc_loss += disc_loss_true - disc_loss_false
-            if ARGS.three_way_split:
-                assert ae.disc_distinguish is not None
-                # the distinguisher is always applied to the encoding (regardless of the other disc)
-                encs = ae.generator.split_encoding(encoding_c)
-                target_enc = encs.zs if invariance == "s" else encs.zy
-                # take the encoding with `target_enc` masked out
-                zs_m, zy_m = ae.generator.mask(encoding_c)
-                invariant_enc = zs_m if invariance == "s" else zy_m
-                # predict target_enc from the encoding that should be invariant of it
-                disc_loss_distinguish_c, _ = ae.disc_distinguish.routine(invariant_enc, target_enc)
-                disc_loss_distinguish += disc_loss_distinguish_c
-        if not warmup:
-            ae.discriminator.zero_grad()
-            disc_loss.backward()
-            ae.discriminator.step()
+        # discriminator is trained to distinguish `disc_input_c` and `disc_input_t`
+        disc_loss_true = ae.discriminator(disc_input_c).mean()
+        disc_loss_false = ae.discriminator(disc_input_t).mean()
+        disc_loss += disc_loss_true - disc_loss_false
+        if ARGS.three_way_split:
+            assert ae.disc_distinguish is not None
+            # the distinguisher is always applied to the encoding (regardless of the other disc)
+            encs = ae.generator.split_encoding(encoding_c)
+            target_enc = encs.zs if invariance == "s" else encs.zy
+            # take the encoding with `target_enc` masked out
+            zs_m, zy_m = ae.generator.mask(encoding_c)
+            invariant_enc = zs_m if invariance == "s" else zy_m
+            # predict target_enc from the encoding that should be invariant of it
+            disc_loss_distinguish_c, _ = ae.disc_distinguish.routine(invariant_enc, target_enc)
+            disc_loss_distinguish += disc_loss_distinguish_c
+    if not warmup:
+        ae.discriminator.zero_grad()
+        disc_loss.backward()
+        ae.discriminator.step()
 
-        if ae.disc_distinguish is not None and (not ARGS.distinguish_warmup or not warmup):
-            ae.disc_distinguish.zero_grad()
-            disc_loss_distinguish.backward()
-            ae.disc_distinguish.step()
+    if ae.disc_distinguish is not None and (not ARGS.distinguish_warmup or not warmup):
+        ae.disc_distinguish.zero_grad()
+        disc_loss_distinguish.backward()
+        ae.disc_distinguish.step()
+
     return disc_loss
 
 

@@ -11,7 +11,7 @@ class VaeArgs(BaseArgs):
 
     # Optimization settings
     early_stopping: int = 30
-    epochs: int = 250
+    iters: int = 50_000
     batch_size: int = 256
     test_batch_size: Optional[int] = None
     num_workers: int = 4
@@ -37,9 +37,9 @@ class VaeArgs(BaseArgs):
     save_dir: str = "experiments/finn"
     evaluate: bool = False
     super_val: bool = False  # Train classifier on encodings as part of validation step.
-    super_val_freq: int = 0  # how often to do super val, if 0, do it together with the normal val
-    val_freq: int = 5
-    log_freq: int = 50
+    super_val_freq: int = 10_000  # how often to do super val, if 0, do it together with the normal val
+    val_freq: int = 1_000
+    log_freq: int = 5_000
     use_wandb: bool = True
     results_csv: str = ""  # name of CSV file to save results to
     feat_attr: bool = False
@@ -48,7 +48,7 @@ class VaeArgs(BaseArgs):
 
     # VAEsettings
     levels: int = 4
-    zs_frac: float = 0.33
+    zs_frac: float = 0.1
     enc_channels: int = 64
     init_channels: int = 32
     recon_loss: Optional[Literal["l1", "l2", "bce", "huber", "ce", "mixed"]] = None

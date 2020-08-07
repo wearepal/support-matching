@@ -37,17 +37,17 @@ def log_images(
 
 
 def save_model(
-    args: VaeArgs, save_dir: Path, model: nn.Module, epoch: int, sha: str, best: bool = False,
+    args: VaeArgs, save_dir: Path, model: nn.Module, itr: int, sha: str, best: bool = False,
 ) -> Path:
     if best:
         filename = save_dir / "checkpt_best.pth"
     else:
-        filename = save_dir / f"checkpt_epoch{epoch}.pth"
+        filename = save_dir / f"checkpt_epoch{itr}.pth"
     save_dict = {
         "args": args.as_dict(),
         "sha": sha,
         "model": model.state_dict(),
-        "epoch": epoch,
+        "itr": itr,
     }
 
     torch.save(save_dict, filename)
