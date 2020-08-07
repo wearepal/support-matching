@@ -246,7 +246,6 @@ def main(
             encoding_size=encoding_size,
             feature_group_slices=feature_group_slices,
         )
-        generator.apply(_spectral_norm)
 
     LOGGER.info("Encoding shape: {}, {}", enc_shape, encoding_size)
 
@@ -278,7 +277,6 @@ def main(
             optimizer_kwargs=disc_optimizer_kwargs,
         )
         discriminator.to(args._device)
-
         discriminator.apply(_spectral_norm)
 
         disc_distinguish = None
