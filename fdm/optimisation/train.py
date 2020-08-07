@@ -131,6 +131,7 @@ def main(
         batch_size=ARGS.batch_size,
         num_workers=ARGS.num_workers,
         pin_memory=True,
+        drop_last=True,
         **dataloader_args,
     )
     train_loader = DataLoader(
@@ -139,6 +140,7 @@ def main(
         batch_size=ARGS.batch_size,
         num_workers=ARGS.num_workers,
         pin_memory=True,
+        drop_last=True,
     )
     test_loader = DataLoader(
         datasets.test,
@@ -146,6 +148,7 @@ def main(
         batch_size=ARGS.test_batch_size,
         num_workers=ARGS.num_workers,
         pin_memory=True,
+        drop_last=False
     )
 
     # ==== construct networks ====
