@@ -240,9 +240,9 @@ def main(
         )
         encoding_size = generator.encoding_size
     else:
-        zs_dim = round(ARGS.zs_frac * enc_shape[0])
+        zs_dim = round(ARGS.zs_frac * enc_shape)
         zy_dim = zs_dim if ARGS.three_way_split else 0
-        zn_dim = enc_shape[0] - zs_dim - zy_dim
+        zn_dim = enc_shape - zs_dim - zy_dim
         encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim, zn=zn_dim)
         generator = build_ae(
             args=ARGS,
