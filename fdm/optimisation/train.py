@@ -581,7 +581,7 @@ def update(
     disc_input_no_s = get_disc_input(ae.generator, encoding, invariant_to="s")
     zeros = x_t.new_zeros((x_t.size(0),))
     # disc_loss = ae.discriminator(disc_input_no_s).mean()
-    disc_loss, disc_acc_inv_s = ae.discriminator.routine(disc_input_no_s, zeros)
+    disc_loss, _ = ae.discriminator.routine(disc_input_no_s, zeros)
 
     pred_y_loss = x_t.new_zeros(())
     if ARGS.pred_weight > 0:
@@ -626,7 +626,7 @@ def update(
     elbo *= ARGS.elbo_weight
     disc_loss *= disc_weight
 
-    gen_loss = elbo + disc_loss - disc_loss_distinguish + pred_y_loss
+    gen_loss = elbo - disc_loss - disc_loss_distinguish + pred_y_loss
 
     # Update the generator's parameters
     ae.generator.zero_grad()
