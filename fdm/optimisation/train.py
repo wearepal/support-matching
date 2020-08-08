@@ -507,7 +507,6 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False
         if ARGS.train_on_recon or ARGS.three_way_split:
             encoding_c = ae.generator.encode(x_c, stochastic=True)
     
-    # disc_input_c: Tensor
     if ARGS.train_on_recon:
         disc_input_c = ae.generator.decode(encoding_c, mode="relaxed").detach()  # just reconstruct
     else:
