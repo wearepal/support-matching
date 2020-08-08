@@ -43,7 +43,7 @@ class ResidualBlock(nn.Module):
         self.block = nn.Sequential(*block)
 
         downsample = None
-        if (stride != 1) or (self.in_channels != out_channels):
+        if (stride != 1) or (in_channels != out_channels):
             downsample = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride)
         self.downsample = downsample
 
