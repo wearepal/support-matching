@@ -500,13 +500,18 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False
 
     if not ARGS.vae:
         encoding_t = ae.generator.encode(x_t)
-        encoding_c = ae.generator.encode(x_c)
+        if ARGS.train_on_recon or ARGS.three_way_split:
+            encoding_c = ae.generator.encode(x_c)
     if ARGS.vae:
         encoding_t = ae.generator.encode(x_t, stochastic=True)
-        encoding_c = ae.generator.encode(x_c, stochastic=True)
-    disc_input_c: Tensor
+        if ARGS.train_on_recon or ARGS.three_way_split:
+            encoding_c = ae.generator.encode(x_c, stochastic=True)
+    
+    # disc_input_c: Tensor
     if ARGS.train_on_recon:
         disc_input_c = ae.generator.decode(encoding_c, mode="relaxed").detach()  # just reconstruct
+    else:
+        disc_input_c = x_c
 
     disc_loss = x_c.new_zeros(())
     disc_loss_distinguish = x_c.new_zeros(())
