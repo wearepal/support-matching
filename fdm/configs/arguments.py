@@ -57,7 +57,7 @@ class VaeArgs(BaseArgs):
     three_way_split: bool = False
     std_transform: Literal["softplus", "exp"] = "exp"
     stochastic: bool = False
-    snorm: bool = False
+    wnorm: bool = False
 
     # INN settings
     use_inn: bool = False
