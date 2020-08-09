@@ -262,8 +262,8 @@ def main(
             encoding_size=encoding_size,
             feature_group_slices=feature_group_slices,
         )
-        if ARGS.snorm:
-            generator.apply(_spectral_norm)
+        if ARGS.wnorm:
+            generator.apply(_weight_norm)
 
     LOGGER.info("Encoding shape: {}, {}", enc_shape, encoding_size)
 
