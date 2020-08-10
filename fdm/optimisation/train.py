@@ -52,7 +52,7 @@ from fdm.models import (
     PartitionedAeInn,
 )
 from fdm.models.configs import strided_28x28_net, residual_64x64_net
-
+from clustering.optimisation import get_class_id
 from .evaluation import log_metrics, baseline_metrics
 from .loss import MixedLoss, PixelCrossEntropy, VGGLoss
 from .utils import log_images, restore_model, save_model, weight_for_balance
@@ -146,13 +146,29 @@ def main(
         drop_last=True,
         **dataloader_args,
     )
+
+    #  Balance the batches of the training set via weighted sampling
+    if isinstance(datasets.train, Subset):
+        cluster_ids = get_class_id(
+            s=datasets.train.dataset.s[datasets.train.indices],
+            y=datasets.train.dataset.y[datasets.train.indices],
+            to_cluster="both",
+            s_count=datasets.s_dim,
+        )
+    else:
+        cluster_ids = get_class_id(
+            s=datasets.train.s, y=datasets.train.y, to_cluster="both", s_count=datasets.s_dim
+        )
+    weights, n_clusters, min_count, max_count = weight_for_balance(cluster_ids)
+    epoch_len = n_clusters * max_count if ARGS.upsample else n_clusters * min_count
+    sampler = WeightedRandomSampler(weights, epoch_len, replacement=ARGS.upsample)
     train_loader = DataLoader(
         datasets.train,
-        shuffle=True,
         batch_size=ARGS.batch_size,
         num_workers=ARGS.num_workers,
         pin_memory=True,
         drop_last=True,
+        sampler=sampler,
     )
     test_loader = DataLoader(
         datasets.test,
@@ -163,8 +179,11 @@ def main(
         drop_last=False,
     )
 
+    context_data_itr = inf_generator(context_loader)
+    train_data_itr = inf_generator(train_loader)
     # ==== construct networks ====
-    input_shape = get_data_dim(context_loader)
+    input_shape = next(context_data_itr)[0][0].shape
+    # input_shape = get_data_dim(context_loader)
     is_image_data = len(input_shape) > 2
 
     feature_group_slices = getattr(datasets.context, "feature_group_slices", None)
@@ -380,9 +399,6 @@ def main(
     itr = 0
     disc: nn.Module
 
-    context_data_itr = inf_generator(context_loader)
-    train_data_itr = inf_generator(train_loader)
-
     for itr in range(start_itr, ARGS.iters + 1):
 
         train_step(
@@ -503,7 +519,7 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False
         encoding_t = ae.generator.encode(x_t, stochastic=True)
         if (not ARGS.train_on_recon) or ARGS.three_way_split:
             encoding_c = ae.generator.encode(x_c, stochastic=True)
-    
+
     if ARGS.train_on_recon:
         disc_input_c = x_c
 
