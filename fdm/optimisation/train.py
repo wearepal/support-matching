@@ -168,7 +168,7 @@ def main(
         num_workers=ARGS.num_workers,
         pin_memory=True,
         drop_last=True,
-        sampler=sampler,
+        sampler=None,
     )
     test_loader = DataLoader(
         datasets.test,
@@ -178,7 +178,7 @@ def main(
         pin_memory=True,
         drop_last=False,
     )
-
+    import pdb; pdb.set_trace()
     context_data_itr = inf_generator(context_loader)
     train_data_itr = inf_generator(train_loader)
     # ==== construct networks ====
