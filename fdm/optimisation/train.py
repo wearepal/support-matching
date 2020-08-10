@@ -168,6 +168,7 @@ def main(
         num_workers=ARGS.num_workers,
         pin_memory=True,
         drop_last=True,
+        shuffel=True,
         sampler=None,
     )
     test_loader = DataLoader(
@@ -178,12 +179,10 @@ def main(
         pin_memory=True,
         drop_last=False,
     )
-    import pdb; pdb.set_trace()
     context_data_itr = inf_generator(context_loader)
     train_data_itr = inf_generator(train_loader)
     # ==== construct networks ====
-    input_shape = next(context_data_itr)[0][0].shape
-    # input_shape = get_data_dim(context_loader)
+    input_shape = get_data_dim(context_loader)
     is_image_data = len(input_shape) > 2
 
     feature_group_slices = getattr(datasets.context, "feature_group_slices", None)
