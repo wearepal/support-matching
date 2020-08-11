@@ -215,8 +215,8 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
 
             for _class_id, _prop in _target_props.items():
                 assert 0 <= _prop <= 1, "proportions should be between 0 and 1"
-                _s = _data.sens_attr[_subset_inds]
-                _y = _data.target_attr[_subset_inds]
+                _s = _data.s[_subset_inds]
+                _y = _data.y[_subset_inds]
                 target_y = _class_id // _y_dim
                 target_s = _class_id % _s_dim
                 _indexes = (_y == int(target_y)) & (_s == int(target_s))
