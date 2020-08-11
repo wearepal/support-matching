@@ -167,7 +167,7 @@ def main(
     )
     weights, n_clusters, min_count, max_count = weight_for_balance(cluster_ids)
     num_samples = n_clusters * max_count if ARGS.upsample else n_clusters * min_count
-    train_loader_kwargs["sampler"] = WeightedRandomSampler(weights, num_samples, replacement=ARGS.upsample)
+    train_loader_kwargs["sampler"] = WeightedRandomSampler(weights.squeeze(), num_samples, replacement=ARGS.upsample)
     train_loader = DataLoader(drop_last=True, **train_loader_kwargs)
     test_loader = DataLoader(
         datasets.test,
@@ -179,8 +179,7 @@ def main(
     )
     context_data_itr = inf_generator(context_loader)
     train_data_itr = inf_generator(train_loader)
-    import pdb; pdb.set_trace()
-    # ==== construct networks ====)
+    # ==== construct networks ====
     input_shape = next(context_data_itr)[0][0].shape
     is_image_data = len(input_shape) > 2
 
