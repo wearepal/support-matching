@@ -154,6 +154,7 @@ def main(
         pin_memory=True,
         shuffle=False
     )
+    # Extract the s and y labels in a dataset-agnostic way (by iterating)
     train_loader_temp = DataLoader(drop_last=False, **train_loader_kwargs)
     s_tr_all, y_tr_all = [], []
     for _, s, y in train_loader_temp:
