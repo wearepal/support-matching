@@ -152,10 +152,9 @@ def main(
         batch_size=ARGS.batch_size,
         num_workers=ARGS.num_workers,
         pin_memory=True,
-        drop_last=True,
         shuffle=False
     )
-    train_loader_temp = DataLoader(**train_loader_kwargs)
+    train_loader_temp = DataLoader(drop_last=False, **train_loader_kwargs)
     s_tr_all, y_tr_all = [], []
     for _, s, y in train_loader_temp:
         s_tr_all.append(s)
@@ -169,7 +168,7 @@ def main(
     weights, n_clusters, min_count, max_count = weight_for_balance(cluster_ids)
     num_samples = n_clusters * max_count if ARGS.upsample else n_clusters * min_count
     train_loader_kwargs["sampler"] = WeightedRandomSampler(weights, num_samples, replacement=ARGS.upsample)
-    train_loader = DataLoader(**train_loader_kwargs)
+    train_loader = DataLoader(drop_last=True, **train_loader_kwargs)
     test_loader = DataLoader(
         datasets.test,
         shuffle=False,
@@ -180,7 +179,6 @@ def main(
     )
     context_data_itr = inf_generator(context_loader)
     train_data_itr = inf_generator(train_loader)
-    import pdb; pdb.set_trace()
     # ==== construct networks ====)
     input_shape = next(context_data_itr)[0][0].shape
     is_image_data = len(input_shape) > 2
