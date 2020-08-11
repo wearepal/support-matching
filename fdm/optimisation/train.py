@@ -168,8 +168,8 @@ def main(
         num_workers=ARGS.num_workers,
         pin_memory=True,
         drop_last=True,
-        shuffel=True,
-        sampler=None,
+        shuffle=False,
+        sampler=sampler,
     )
     test_loader = DataLoader(
         datasets.test,
@@ -181,8 +181,8 @@ def main(
     )
     context_data_itr = inf_generator(context_loader)
     train_data_itr = inf_generator(train_loader)
-    # ==== construct networks ====
-    input_shape = get_data_dim(context_loader)
+    # ==== construct networks ====)
+    input_shape = next(context_data_itr)[0][0].shape
     is_image_data = len(input_shape) > 2
 
     feature_group_slices = getattr(datasets.context, "feature_group_slices", None)
@@ -238,14 +238,6 @@ def main(
 
     else:
         recon_loss_fn = recon_loss_fn_
-
-    def _spectral_norm(m):
-        if hasattr(m, "weight"):
-            return torch.nn.utils.spectral_norm(m)
-
-    def _weight_norm(m):
-        if hasattr(m, "weight"):
-            return torch.nn.utils.weight_norm(m)
 
     generator: Generator
     if ARGS.use_inn:
@@ -316,6 +308,10 @@ def main(
         )
         discriminator.to(args._device)
         if args.snorm:
+            def _spectral_norm(m: nn.Module) -> Optional[nn.Module]:
+                if hasattr(m, "weight"):
+                    return torch.nn.utils.spectral_norm(m)
+    
             discriminator.apply(_spectral_norm)
 
         disc_distinguish = None

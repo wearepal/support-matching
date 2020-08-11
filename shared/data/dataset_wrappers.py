@@ -137,7 +137,7 @@ class TensorDataTupleDataset(BaseDataset):
         return self.s.size(0)
 
     def __getitem__(self, index: int):
-        return self.x, self.s, self.y
+        return self.x[index], self.s[index], self.y[index]
 
 
 class DataTupleDataset(BaseDataset):
