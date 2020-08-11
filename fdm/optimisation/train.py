@@ -134,9 +134,9 @@ def main(
         # if ARGS.upsample, we upsample the smaller clusters rather than subsample the larger ones
         num_samples = n_clusters * max_count if ARGS.upsample else n_clusters * min_count
         sampler = WeightedRandomSampler(weights, num_samples, replacement=ARGS.upsample)
-        dataloader_args = dict(sampler=sampler)
+        dataloader_kwargs = dict(sampler=sampler)
     else:
-        dataloader_args = dict(shuffle=True)
+        dataloader_kwargs = dict(shuffle=True)
 
     context_loader = DataLoader(
         datasets.context,
@@ -144,33 +144,32 @@ def main(
         num_workers=ARGS.num_workers,
         pin_memory=True,
         drop_last=True,
-        **dataloader_args,
+        **dataloader_kwargs,
     )
-
-    #  Balance the batches of the training set via weighted sampling
-    if isinstance(datasets.train, Subset):
-        cluster_ids = get_class_id(
-            s=datasets.train.dataset.s[datasets.train.indices],
-            y=datasets.train.dataset.y[datasets.train.indices],
-            to_cluster="both",
-            s_count=datasets.s_dim,
-        )
-    else:
-        cluster_ids = get_class_id(
-            s=datasets.train.s, y=datasets.train.y, to_cluster="both", s_count=datasets.s_dim
-        )
-    weights, n_clusters, min_count, max_count = weight_for_balance(cluster_ids)
-    num_samples = n_clusters * max_count if ARGS.upsample else n_clusters * min_count
-    sampler = WeightedRandomSampler(weights, num_samples, replacement=ARGS.upsample)
-    train_loader = DataLoader(
-        datasets.train,
+    
+    train_loader_kwargs = dict(
+        dataset=datasets.train,
         batch_size=ARGS.batch_size,
         num_workers=ARGS.num_workers,
         pin_memory=True,
         drop_last=True,
-        shuffle=False,
-        sampler=sampler,
+        shuffle=False
     )
+    train_loader_temp = DataLoader(**train_loader_kwargs)
+    s_tr_all, y_tr_all = [], []
+    for _, s, y in train_loader_temp:
+        s_tr_all.append(s)
+        y_tr_all.append(y)
+    s_tr_all = torch.cat(s_tr_all, dim=0)
+    y_tr_all = torch.cat(y_tr_all, dim=0)
+    #  Balance the batches of the training set via weighted sampling
+    cluster_ids = get_class_id(
+        s=s_tr_all, y=y_tr_all, to_cluster="both", s_count=datasets.s_dim
+    )
+    weights, n_clusters, min_count, max_count = weight_for_balance(cluster_ids)
+    num_samples = n_clusters * max_count if ARGS.upsample else n_clusters * min_count
+    train_loader_kwargs["sampler"] = WeightedRandomSampler(weights, num_samples, replacement=ARGS.upsample)
+    train_loader = DataLoader(**train_loader_kwargs)
     test_loader = DataLoader(
         datasets.test,
         shuffle=False,
@@ -181,7 +180,6 @@ def main(
     )
     context_data_itr = inf_generator(context_loader)
     train_data_itr = inf_generator(train_loader)
-    import pdb; pdb.set_trace()
     # ==== construct networks ====)
     input_shape = next(context_data_itr)[0][0].shape
     is_image_data = len(input_shape) > 2
