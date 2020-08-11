@@ -646,7 +646,6 @@ def update(
     final_logging = {
         "ELBO": elbo.item(),
         "Loss Adversarial": disc_loss.item(),
-        # "Accuracy Disc": disc_acc_inv_s,
         "Loss Generator": gen_loss.item(),
     }
     logging_dict.update(final_logging)
