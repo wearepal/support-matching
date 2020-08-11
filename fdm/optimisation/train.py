@@ -180,6 +180,7 @@ def main(
     )
     context_data_itr = inf_generator(context_loader)
     train_data_itr = inf_generator(train_loader)
+    import pdb; pdb.set_trace()
     # ==== construct networks ====)
     input_shape = next(context_data_itr)[0][0].shape
     is_image_data = len(input_shape) > 2
