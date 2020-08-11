@@ -132,8 +132,8 @@ def main(
         ARGS._cluster_context_acc = cluster_results.context_acc
         weights, n_clusters, min_count, max_count = weight_for_balance(cluster_results.cluster_ids)
         # if ARGS.upsample, we upsample the smaller clusters rather than subsample the larger ones
-        epoch_len = n_clusters * max_count if ARGS.upsample else n_clusters * min_count
-        sampler = WeightedRandomSampler(weights, epoch_len, replacement=ARGS.upsample)
+        num_samples = n_clusters * max_count if ARGS.upsample else n_clusters * min_count
+        sampler = WeightedRandomSampler(weights, num_samples, replacement=ARGS.upsample)
         dataloader_args = dict(sampler=sampler)
     else:
         dataloader_args = dict(shuffle=True)
@@ -160,8 +160,8 @@ def main(
             s=datasets.train.s, y=datasets.train.y, to_cluster="both", s_count=datasets.s_dim
         )
     weights, n_clusters, min_count, max_count = weight_for_balance(cluster_ids)
-    epoch_len = n_clusters * max_count if ARGS.upsample else n_clusters * min_count
-    sampler = WeightedRandomSampler(weights, epoch_len, replacement=ARGS.upsample)
+    num_samples = n_clusters * max_count if ARGS.upsample else n_clusters * min_count
+    sampler = WeightedRandomSampler(weights, num_samples, replacement=ARGS.upsample)
     train_loader = DataLoader(
         datasets.train,
         batch_size=ARGS.batch_size,
