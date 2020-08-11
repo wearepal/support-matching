@@ -162,7 +162,6 @@ def main(
     weights, n_clusters, min_count, max_count = weight_for_balance(cluster_ids)
     num_samples = n_clusters * max_count if ARGS.upsample else n_clusters * min_count
     sampler = WeightedRandomSampler(weights, num_samples, replacement=ARGS.upsample)
-    import pdb; pdb.set_trace()
     train_loader = DataLoader(
         datasets.train,
         batch_size=ARGS.batch_size,
