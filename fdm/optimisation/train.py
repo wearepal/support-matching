@@ -1,10 +1,21 @@
 """Main training file"""
 from __future__ import annotations
 import time
-from itertools import islice
 from logging import Logger
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Literal, NamedTuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Sequence,
+    Optional,
+    Tuple,
+    Union,
+    Literal,
+    NamedTuple,
+    Iterator,
+)
 
 import git
 import numpy as np
@@ -30,6 +41,7 @@ from shared.utils import (
     get_data_dim,
 )
 from shared.models.configs import conv_autoencoder, fc_autoencoder
+from shared.utils import inf_generator
 from fdm.configs import VaeArgs
 from fdm.models import (
     AutoEncoder,
@@ -40,7 +52,7 @@ from fdm.models import (
     PartitionedAeInn,
 )
 from fdm.models.configs import strided_28x28_net, residual_64x64_net
-
+from clustering.optimisation import get_class_id
 from .evaluation import log_metrics, baseline_metrics
 from .loss import MixedLoss, PixelCrossEntropy, VGGLoss
 from .utils import log_images, restore_model, save_model, weight_for_balance
@@ -120,36 +132,56 @@ def main(
         ARGS._cluster_context_acc = cluster_results.context_acc
         weights, n_clusters, min_count, max_count = weight_for_balance(cluster_results.cluster_ids)
         # if ARGS.upsample, we upsample the smaller clusters rather than subsample the larger ones
-        epoch_len = n_clusters * max_count if ARGS.upsample else n_clusters * min_count
-        sampler = WeightedRandomSampler(weights, epoch_len, replacement=ARGS.upsample)
-        dataloader_args = dict(sampler=sampler)
+        num_samples = n_clusters * max_count if ARGS.upsample else n_clusters * min_count
+        sampler = WeightedRandomSampler(weights, num_samples, replacement=ARGS.upsample)
+        dataloader_kwargs = dict(sampler=sampler)
     else:
-        dataloader_args = dict(shuffle=True)
+        dataloader_kwargs = dict(shuffle=True)
 
     context_loader = DataLoader(
         datasets.context,
         batch_size=ARGS.batch_size,
         num_workers=ARGS.num_workers,
         pin_memory=True,
-        **dataloader_args,
+        drop_last=True,
+        **dataloader_kwargs,
     )
-    train_loader = DataLoader(
-        datasets.train,
-        shuffle=True,
+    
+    train_loader_kwargs = dict(
+        dataset=datasets.train,
         batch_size=ARGS.batch_size,
         num_workers=ARGS.num_workers,
         pin_memory=True,
+        shuffle=False
     )
+    # Extract the s and y labels in a dataset-agnostic way (by iterating)
+    train_loader_temp = DataLoader(drop_last=False, **train_loader_kwargs)
+    s_tr_all, y_tr_all = [], []
+    for _, s, y in train_loader_temp:
+        s_tr_all.append(s)
+        y_tr_all.append(y)
+    s_tr_all = torch.cat(s_tr_all, dim=0)
+    y_tr_all = torch.cat(y_tr_all, dim=0)
+    #  Balance the batches of the training set via weighted sampling
+    cluster_ids = get_class_id(
+        s=s_tr_all, y=y_tr_all, to_cluster="both", s_count=datasets.s_dim
+    )
+    weights, n_clusters, min_count, max_count = weight_for_balance(cluster_ids)
+    num_samples = n_clusters * max_count if ARGS.upsample else n_clusters * min_count
+    train_loader_kwargs["sampler"] = WeightedRandomSampler(weights.squeeze(), num_samples, replacement=ARGS.upsample)
+    train_loader = DataLoader(drop_last=True, **train_loader_kwargs)
     test_loader = DataLoader(
         datasets.test,
         shuffle=False,
         batch_size=ARGS.test_batch_size,
         num_workers=ARGS.num_workers,
         pin_memory=True,
+        drop_last=False,
     )
-
+    context_data_itr = inf_generator(context_loader)
+    train_data_itr = inf_generator(train_loader)
     # ==== construct networks ====
-    input_shape = get_data_dim(context_loader)
+    input_shape = next(context_data_itr)[0][0].shape
     is_image_data = len(input_shape) > 2
 
     feature_group_slices = getattr(datasets.context, "feature_group_slices", None)
@@ -206,10 +238,6 @@ def main(
     else:
         recon_loss_fn = recon_loss_fn_
 
-    def _spectral_norm(m):
-        if hasattr(m, "weight"):
-            return torch.nn.utils.spectral_norm(m)
-
     generator: Generator
     if ARGS.use_inn:
         # assert ARGS.three_way_split, "for now, INN can only do three way split"
@@ -243,8 +271,7 @@ def main(
             encoding_size=encoding_size,
             feature_group_slices=feature_group_slices,
         )
-        if args.vae:
-            generator.apply(_spectral_norm)
+
     LOGGER.info("Encoding shape: {}, {}", enc_shape, encoding_size)
 
     # ================================== Initialise Discriminator =================================
@@ -262,7 +289,11 @@ def main(
     else:
         disc_fn = fc_net
         disc_kwargs["hidden_dims"] = args.disc_hidden_dims
-        disc_input_shape = (prod(disc_input_shape),)  # fc_net first flattens the input
+        disc_input_shape = (
+            (prod(disc_input_shape),)
+            if isinstance(disc_input_shape, Sequence)
+            else disc_input_shape
+        )  # fc_net first flattens the input
 
     components: Union[AeComponents, InnComponents]
     disc: Classifier
@@ -275,8 +306,12 @@ def main(
             optimizer_kwargs=disc_optimizer_kwargs,
         )
         discriminator.to(args._device)
-
-        discriminator.apply(_spectral_norm)
+        if args.snorm:
+            def _spectral_norm(m: nn.Module) -> Optional[nn.Module]:
+                if hasattr(m, "weight"):
+                    return torch.nn.utils.spectral_norm(m)
+    
+            discriminator.apply(_spectral_norm)
 
         disc_distinguish = None
         if ARGS.three_way_split:  # this is always trained on encodings
@@ -341,61 +376,37 @@ def main(
             predictor.fit(Subset(datasets.context, np.arange(100)), 50, ARGS._device, test_loader)
         components = InnComponents(inn=generator, disc_ensemble=disc_ensemble, predictor=predictor)
 
-    start_epoch = 1  # start at 1 so that the val_freq works correctly
+    start_itr = 1  # start at 1 so that the val_freq works correctly
     # Resume from checkpoint
     if ARGS.resume is not None:
         LOGGER.info("Restoring generator from checkpoint")
-        generator, start_epoch = restore_model(ARGS, Path(ARGS.resume), generator)
+        generator, start_itr = restore_model(ARGS, Path(ARGS.resume), generator)
         if ARGS.evaluate:
-            log_metrics(
-                ARGS, generator, datasets, 0, save_to_csv=Path(ARGS.save_dir), run_baselines=True
-            )
+            log_metrics(ARGS, generator, datasets, 0, save_to_csv=Path(ARGS.save_dir))
             return generator
 
     # Logging
-    # wandb.set_model_graph(str(generator))
     LOGGER.info("Number of trainable parameters: {}", count_parameters(generator))
 
-    # best_loss = float("inf")
-    n_vals_without_improvement = 0
     super_val_freq = ARGS.super_val_freq or ARGS.val_freq
 
     itr = 0
     disc: nn.Module
-    # Train generator for N epochs
-    for epoch in range(start_epoch, start_epoch + ARGS.epochs):
-        if n_vals_without_improvement > ARGS.early_stopping > 0:
-            break
 
-        itr = train(
+    for itr in range(start_itr, ARGS.iters + 1):
+
+        train_step(
             components=components,
-            context_data=context_loader,
-            train_data=train_loader,
-            epoch=epoch,
+            context_data_itr=context_data_itr,
+            train_data_itr=train_data_itr,
+            itr=itr,
         )
 
-        # if epoch % ARGS.val_freq == 0:
-        #     val_loss = validate(generator, discriminator, train_loader, itr, recon_loss_fn)
-
-        #     if val_loss < best_loss:
-        #         best_loss = val_loss
-        #         save_model(args, save_dir, generator, epoch=epoch, sha=sha, best=True)
-        #         n_vals_without_improvement = 0
-        #     else:
-        #         n_vals_without_improvement += 1
-
-        #     LOGGER.info(
-        #         "[VAL] Epoch {:04d} | Val Loss {:.6f} | "
-        #         "No improvement during validation: {:02d}",
-        #         epoch,
-        #         val_loss,
-        #         n_vals_without_improvement,
-        #     )
-        if ARGS.super_val and epoch % super_val_freq == 0:
-            if epoch == super_val_freq:
+        if ARGS.super_val and itr % super_val_freq == 0:
+            if itr == super_val_freq:
                 baseline_metrics(ARGS, datasets, save_to_csv=Path(ARGS.save_dir))
             log_metrics(ARGS, model=generator, data=datasets, step=itr)
-            save_model(ARGS, save_dir, model=generator, epoch=epoch, sha=sha)
+            save_model(ARGS, save_dir, model=generator, itr=itr, sha=sha)
 
         if isinstance(components, InnComponents) and ARGS.disc_reset_prob > 0:
             for k, disc in enumerate(components.disc_ensemble):
@@ -410,75 +421,58 @@ def main(
     return generator
 
 
-def train(
+def get_batch(
+    context_data_itr: Iterator[List[Tensor, Tensor, Tensor]],
+    train_data_itr: Iterator[List[Tensor, Tensor, Tensor]],
+) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    x_c = to_device(next(context_data_itr)[0])
+    x_t, s_t, y_t = to_device(*next(train_data_itr))
+    return x_c, x_t, s_t, y_t
+
+
+def train_step(
     components: Union[AeComponents, InnComponents],
-    context_data: DataLoader,
-    train_data: DataLoader,
-    epoch: int,
+    context_data_itr: Iterator[List[Tensor, Tensor, Tensor]],
+    train_data_itr: Iterator[List[Tensor, Tensor, Tensor]],
+    itr: int,
 ) -> int:
-    total_loss_meter = AverageMeter()
-    loss_meters: Optional[Dict[str, AverageMeter]] = None
 
-    time_meter = AverageMeter()
-    start_epoch_time = time.time()
-    end = start_epoch_time
-    epoch_len = max(len(context_data), len(train_data))
-    itr = start_itr = (epoch - 1) * epoch_len
-    # FIXME: Should move from epoch- to iteration-based training.
-    data_iterator = islice(zip(inf_generator(context_data), inf_generator(train_data)), epoch_len)
-
-    for itr, ((x_c, _, _), (x_t, s_t, y_t)) in enumerate(data_iterator, start=start_itr):
-
-        x_c, x_t, s_t, y_t = to_device(x_c, x_t, s_t, y_t)
-
-        disc_weight = 0.0 if itr < ARGS.warmup_steps else ARGS.disc_weight
-        # Train the discriminator on its own for a number of iterations
+    disc_weight = 0.0 if itr < ARGS.warmup_steps else ARGS.disc_weight
+    # Train the discriminator on its own for a number of iterations
+    for _ in range(ARGS.num_disc_updates):
+        x_c, x_t, s_t, y_t = get_batch(
+            context_data_itr=context_data_itr, train_data_itr=train_data_itr
+        )
         if components.type == "ae":
             update_disc(x_c, x_t, components, itr < ARGS.warmup_steps)
-            gen_loss, logging_dict = update(
-                x_c=x_c, x_t=x_t, s_t=s_t, y_t=y_t, ae=components, warmup=itr < ARGS.warmup_steps
-            )
         else:
             update_disc_on_inn(ARGS, x_c, x_t, components, itr < ARGS.warmup_steps)
-            gen_loss, logging_dict = update_inn(
-                args=ARGS, x_c=x_c, x_t=x_t, models=components, disc_weight=disc_weight
-            )
 
-        # Log losses
-        total_loss_meter.update(gen_loss.item())
-        if loss_meters is None:
-            loss_meters = {name: AverageMeter() for name in logging_dict}
-        for name, value in logging_dict.items():
-            loss_meters[name].update(value)
+    x_c, x_t, s_t, y_t = get_batch(context_data_itr=context_data_itr, train_data_itr=train_data_itr)
+    if components.type == "ae":
+        _, logging_dict = update(
+            x_c=x_c, x_t=x_t, s_t=s_t, y_t=y_t, ae=components, warmup=itr < ARGS.warmup_steps
+        )
+    else:
+        _, logging_dict = update_inn(
+            args=ARGS, x_c=x_c, x_t=x_t, models=components, disc_weight=disc_weight
+        )
 
-        time_for_batch = time.time() - end
-        time_meter.update(time_for_batch)
+    wandb_log(ARGS, logging_dict, step=itr)
 
-        wandb_log(ARGS, logging_dict, step=itr)
-        end = time.time()
+    # Log images
+    if itr % ARGS.log_freq == 0:
+        with torch.no_grad():
+            if components.type == "ae":
+                generator = components.generator
+                x_log = x_t
+            else:
+                generator = components.inn
+                x_log = x_c
+            log_recons(generator=generator, x=x_log, itr=itr)
 
-        # Log images
-        if itr % ARGS.log_freq == 0:
-            with torch.set_grad_enabled(False):
-                if components.type == "ae":
-                    generator = components.generator
-                    x_log = x_t
-                else:
-                    generator = components.inn
-                    x_log = x_c
-                log_recons(generator=generator, x=x_log, itr=itr)
-
-    time_for_epoch = time.time() - start_epoch_time
-    assert loss_meters is not None
-    log_string = " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items())
-    LOGGER.info(
-        "[TRN] Epoch {:04d} | Duration: {} | Batches/s: {:.4g} | {} ({:.5g})",
-        epoch,
-        readable_duration(time_for_epoch),
-        1 / time_meter.avg,
-        log_string,
-        total_loss_meter.avg,
-    )
+    log_string = " | ".join(f"{name}: {value:.5g}" for name, value in logging_dict.items())
+    LOGGER.info(f"[TRN] Iteration {itr} | {log_string}")
     return itr
 
 
@@ -493,9 +487,7 @@ class AeComponents(NamedTuple):
     type: Literal["ae"] = "ae"
 
 
-def update_disc(
-    x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False,
-) -> Tuple[Tensor, float]:
+def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False,) -> Tensor:
     """Train the discriminator while keeping the generator constant.
 
     Args:
@@ -515,51 +507,51 @@ def update_disc(
 
     if not ARGS.vae:
         encoding_t = ae.generator.encode(x_t)
-        encoding_c = ae.generator.encode(x_c)
-    for _ in range(ARGS.num_disc_updates):
-        if ARGS.vae:
-            encoding_t = ae.generator.encode(x_t, stochastic=True)
+        if (not ARGS.train_on_recon) or ARGS.three_way_split:
+            encoding_c = ae.generator.encode(x_c)
+    if ARGS.vae:
+        encoding_t = ae.generator.encode(x_t, stochastic=True)
+        if (not ARGS.train_on_recon) or ARGS.three_way_split:
             encoding_c = ae.generator.encode(x_c, stochastic=True)
-        disc_input_c: Tensor
-        if ARGS.train_on_recon:
-            disc_input_c = ae.generator.decode(
-                encoding_c, mode="relaxed"
-            ).detach()  # just reconstruct
 
-        disc_loss = x_c.new_zeros(())
-        disc_loss_distinguish = x_c.new_zeros(())
-        for invariance in invariances:
-            disc_input_t = get_disc_input(ae.generator, encoding_t, invariant_to=invariance)
-            disc_input_t = disc_input_t.detach()
-            if not ARGS.train_on_recon:
-                disc_input_c = get_disc_input(ae.generator, encoding_c, invariant_to=invariance)
-                disc_input_c = disc_input_c.detach()
+    if ARGS.train_on_recon:
+        disc_input_c = x_c
 
-            # discriminator is trained to distinguish `disc_input_c` and `disc_input_t`
-            disc_loss_true, disc_acc_true = ae.discriminator.routine(disc_input_c, ones)
-            disc_loss_false, disc_acc_false = ae.discriminator.routine(disc_input_t, zeros)
-            disc_loss += disc_loss_true + disc_loss_false
-            if ARGS.three_way_split:
-                assert ae.disc_distinguish is not None
-                # the distinguisher is always applied to the encoding (regardless of the other disc)
-                encs = ae.generator.split_encoding(encoding_c)
-                target_enc = encs.zs if invariance == "s" else encs.zy
-                # take the encoding with `target_enc` masked out
-                zs_m, zy_m = ae.generator.mask(encoding_c)
-                invariant_enc = zs_m if invariance == "s" else zy_m
-                # predict target_enc from the encoding that should be invariant of it
-                disc_loss_distinguish_c, _ = ae.disc_distinguish.routine(invariant_enc, target_enc)
-                disc_loss_distinguish += disc_loss_distinguish_c
-        if not warmup:
-            ae.discriminator.zero_grad()
-            disc_loss.backward()
-            ae.discriminator.step()
+    disc_loss = x_c.new_zeros(())
+    disc_loss_distinguish = x_c.new_zeros(())
+    for invariance in invariances:
+        disc_input_t = get_disc_input(ae.generator, encoding_t, invariant_to=invariance)
+        disc_input_t = disc_input_t.detach()
+        if not ARGS.train_on_recon:
+            disc_input_c = get_disc_input(ae.generator, encoding_c, invariant_to=invariance)
+            disc_input_c = disc_input_c.detach()
 
-        if ae.disc_distinguish is not None and (not ARGS.distinguish_warmup or not warmup):
-            ae.disc_distinguish.zero_grad()
-            disc_loss_distinguish.backward()
-            ae.disc_distinguish.step()
-    return disc_loss, 0.5 * (disc_acc_true + disc_acc_false)  # statistics from last step
+        # discriminator is trained to distinguish `disc_input_c` and `disc_input_t`
+        disc_loss_true, _ = ae.discriminator.routine(disc_input_c, ones)
+        disc_loss_false, _ = ae.discriminator.routine(disc_input_t, zeros)
+        disc_loss += disc_loss_true + disc_loss_false
+        if ARGS.three_way_split:
+            assert ae.disc_distinguish is not None
+            # the distinguisher is always applied to the encoding (regardless of the other disc)
+            encs = ae.generator.split_encoding(encoding_c)
+            target_enc = encs.zs if invariance == "s" else encs.zy
+            # take the encoding with `target_enc` masked out
+            zs_m, zy_m = ae.generator.mask(encoding_c)
+            invariant_enc = zs_m if invariance == "s" else zy_m
+            # predict target_enc from the encoding that should be invariant of it
+            disc_loss_distinguish_c, _ = ae.disc_distinguish.routine(invariant_enc, target_enc)
+            disc_loss_distinguish += disc_loss_distinguish_c
+    if not warmup:
+        ae.discriminator.zero_grad()
+        disc_loss.backward()
+        ae.discriminator.step()
+
+    if ae.disc_distinguish is not None and (not ARGS.distinguish_warmup or not warmup):
+        ae.disc_distinguish.zero_grad()
+        disc_loss_distinguish.backward()
+        ae.disc_distinguish.step()
+
+    return disc_loss
 
 
 def update(
@@ -595,7 +587,7 @@ def update(
     # ==================================== adversarial losses =====================================
     disc_input_no_s = get_disc_input(ae.generator, encoding, invariant_to="s")
     zeros = x_t.new_zeros((x_t.size(0),))
-    disc_loss, disc_acc_inv_s = ae.discriminator.routine(disc_input_no_s, zeros)
+    disc_loss, _ = ae.discriminator.routine(disc_input_no_s, zeros)
 
     pred_y_loss = x_t.new_zeros(())
     if ARGS.pred_weight > 0:
@@ -654,7 +646,6 @@ def update(
     final_logging = {
         "ELBO": elbo.item(),
         "Loss Adversarial": disc_loss.item(),
-        "Accuracy Disc": disc_acc_inv_s,
         "Loss Generator": gen_loss.item(),
     }
     logging_dict.update(final_logging)

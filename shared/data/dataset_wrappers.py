@@ -15,7 +15,7 @@ from ethicml.utility import DataTuple
 from .misc import RandomSampler, grouped_features_indexes, set_transform
 
 
-__all__ = ["LdAugmentedDataset", "DataTupleDataset", "RotationPrediction"]
+__all__ = ["LdAugmentedDataset", "TensorDataTupleDataset", "DataTupleDataset", "RotationPrediction"]
 
 
 class LdAugmentedDataset(Dataset):
@@ -125,6 +125,21 @@ else:
     BaseDataset = Dataset
 
 
+class TensorDataTupleDataset(BaseDataset):
+    """Dataset consisting of elements of a DataTuple in Tensor form."""
+
+    def __init__(self, x: Tensor, s: Tensor, y: Tensor):
+        self.x = x
+        self.s = s
+        self.y = y
+
+    def __len__(self):
+        return self.s.size(0)
+
+    def __getitem__(self, index: int):
+        return self.x[index], self.s[index], self.y[index]
+
+
 class DataTupleDataset(BaseDataset):
     """Wrapper for EthicML datasets"""
 
@@ -147,6 +162,7 @@ class DataTupleDataset(BaseDataset):
         # get slices that correspond to that ordering
         self.feature_group_slices = dict(discrete=grouped_features_indexes(disc_feature_groups))
 
+        self.x = dataset.x
         self.x_disc = dataset.x[discrete_features_in_order].to_numpy(dtype=np.float32)
         self.x_cont = dataset.x[cont_features].to_numpy(dtype=np.float32)
 

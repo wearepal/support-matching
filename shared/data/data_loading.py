@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch.utils.data import Dataset, Subset, TensorDataset, random_split
+from torch.utils.data import Dataset, Subset, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
 
@@ -14,6 +14,7 @@ from ethicml.vision import TorchImageDataset
 from ethicml.vision.data import LdColorizer
 from shared.configs import BaseArgs
 
+from .dataset_wrappers import TensorDataTupleDataset
 from .adult import load_adult_data
 from .misc import shrink_dataset
 from .transforms import NoisyDequantize, Quantize
@@ -154,9 +155,9 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             # test data remains balanced
             # test_data = _subsample_by_class(*test_data, args.subsample)
 
-        train_data = TensorDataset(train_data_t.x, train_data_t.s, train_data_t.y)
-        test_data = TensorDataset(test_data_t.x, test_data_t.s, test_data_t.y)
-        context_data = TensorDataset(context_data_t.x, context_data_t.s, context_data_t.y)
+        train_data = TensorDataTupleDataset(train_data_t.x, train_data_t.s, train_data_t.y)
+        test_data = TensorDataTupleDataset(test_data_t.x, test_data_t.s, test_data_t.y)
+        context_data = TensorDataTupleDataset(context_data_t.x, context_data_t.s, context_data_t.y)
 
         args._y_dim = 1 if num_classes == 2 else num_classes
         args._s_dim = 1 if num_colors == 2 else num_colors
@@ -214,8 +215,8 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
 
             for _class_id, _prop in _target_props.items():
                 assert 0 <= _prop <= 1, "proportions should be between 0 and 1"
-                _s = _data.sens_attr[_subset_inds]
-                _y = _data.target_attr[_subset_inds]
+                _s = _data.s[_subset_inds]
+                _y = _data.y[_subset_inds]
                 target_y = _class_id // _y_dim
                 target_s = _class_id % _s_dim
                 _indexes = (_y == int(target_y)) & (_s == int(target_s))

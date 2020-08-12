@@ -5,6 +5,7 @@ from typing import Any, Dict, Sequence, TypeVar, Iterable, Iterator, Tuple
 
 import numpy as np
 import torch
+from torch.utils.data import DataLoader
 
 import wandb
 from shared.configs import BaseArgs
@@ -28,7 +29,7 @@ __all__ = [
 T = TypeVar("T")
 
 
-def get_data_dim(data_loader) -> Tuple[int, ...]:
+def get_data_dim(data_loader: DataLoader) -> Tuple[int, ...]:
     x = next(iter(data_loader))[0]
     x_dim = x.shape[1:]
 

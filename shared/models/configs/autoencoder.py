@@ -1,6 +1,7 @@
 from typing import List, Optional, Tuple
 
 import torch.nn as nn
+from fdm.layers.misc import View
 
 __all__ = ["conv_autoencoder", "fc_autoencoder"]
 
@@ -69,18 +70,21 @@ def conv_autoencoder(
 
     encoder += [nn.Conv2d(c_out, encoder_out_dim, kernel_size=1, stride=1, padding=0)]
     decoder += [nn.Conv2d(encoding_dim, c_out, kernel_size=1, stride=1, padding=0)]
+    decoder += [View((encoder_out_dim, height, width))]
     decoder = decoder[::-1]
     decoder += [nn.Conv2d(input_shape[0], decoding_dim, kernel_size=1, stride=1, padding=0)]
 
     if decoder_out_act is not None:
         decoder += [decoder_out_act]
 
+    encoder += [nn.Flatten()]
+
     encoder = nn.Sequential(*encoder)
     decoder = nn.Sequential(*decoder)
 
-    enc_shape = (encoding_dim, height, width)
+    enc_shape = encoding_dim * height * width
 
-    return encoder, decoder, enc_shape
+    return encoder, decoder, (enc_shape,)
 
 
 def _linear_block(in_channels: int, out_channels: int) -> nn.Sequential:
