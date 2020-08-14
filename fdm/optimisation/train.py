@@ -4,8 +4,19 @@ from __future__ import annotations
 import time
 from logging import Logger
 from pathlib import Path
-from typing import (Any, Callable, Dict, Iterator, List, Literal, NamedTuple, Optional, Sequence,
-                    Tuple, Union)
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Literal,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 import git
 import numpy as np
@@ -18,13 +29,27 @@ from torch.utils.data import DataLoader, Dataset, Subset, WeightedRandomSampler
 
 from clustering.optimisation import get_class_id
 from fdm.configs import VaeArgs
-from fdm.models import (AutoEncoder, Classifier, EncodingSize, PartitionedAeInn, Regressor,
-                        build_discriminator)
+from fdm.models import (
+    AutoEncoder,
+    Classifier,
+    EncodingSize,
+    PartitionedAeInn,
+    Regressor,
+    build_discriminator,
+)
 from fdm.models.configs import residual_64x64_net, strided_28x28_net
 from shared.data import DatasetTriplet, load_dataset
 from shared.models.configs import conv_autoencoder, fc_autoencoder
 from shared.models.configs.classifiers import fc_net
-from shared.utils import count_parameters, inf_generator, load_results, prod, random_seed, wandb_log, get_logger
+from shared.utils import (
+    count_parameters,
+    inf_generator,
+    load_results,
+    prod,
+    random_seed,
+    wandb_log,
+    get_logger,
+)
 
 from .build import build_ae, build_inn
 from .evaluation import baseline_metrics, log_metrics
@@ -109,7 +134,13 @@ def main(
         context_sampler = WeightedRandomSampler(weights, num_samples, replacement=ARGS.upsample)
         dataloader_kwargs = dict(sampler=context_sampler)
     elif ARGS.balanced_context:
-        context_sampler = build_weighted_sampler_from_dataset(dataset=datasets.context, s_dim=datasets.s_dim, batch_size=ARGS.test_batch_size, num_workers=ARGS.num_workers, upsample=ARGS.upsample)
+        context_sampler = build_weighted_sampler_from_dataset(
+            dataset=datasets.context,
+            s_dim=datasets.s_dim,
+            batch_size=ARGS.test_batch_size,
+            num_workers=ARGS.num_workers,
+            upsample=ARGS.upsample,
+        )
         dataloader_kwargs = dict(sampler=context_sampler)
     else:
         dataloader_kwargs = dict(shuffle=True)
@@ -123,8 +154,22 @@ def main(
         **dataloader_kwargs,
     )
 
-    train_sampler = build_weighted_sampler_from_dataset(dataset=datasets.train, s_dim=datasets.s_dim, batch_size=ARGS.test_batch_size, num_workers=ARGS.num_workers, upsample=ARGS.upsample)
-    train_loader = DataLoader(dataset=datasets.train, batch_size=ARGS.batch_size, num_workers=ARGS.num_workers, drop_last=True, shuffle=False, sampler=train_sampler, pin_memory=True)
+    train_sampler = build_weighted_sampler_from_dataset(
+        dataset=datasets.train,
+        s_dim=datasets.s_dim,
+        batch_size=ARGS.test_batch_size,
+        num_workers=ARGS.num_workers,
+        upsample=ARGS.upsample,
+    )
+    train_loader = DataLoader(
+        dataset=datasets.train,
+        batch_size=ARGS.batch_size,
+        num_workers=ARGS.num_workers,
+        drop_last=True,
+        shuffle=False,
+        sampler=train_sampler,
+        pin_memory=True,
+    )
     test_loader = DataLoader(
         datasets.test,
         shuffle=False,
@@ -262,10 +307,11 @@ def main(
         )
         discriminator.to(args._device)
         if args.snorm:
+
             def _spectral_norm(m: nn.Module) -> Optional[nn.Module]:
                 if hasattr(m, "weight"):
                     return torch.nn.utils.spectral_norm(m)
-    
+
             discriminator.apply(_spectral_norm)
 
         disc_distinguish = None
@@ -375,9 +421,14 @@ def main(
     log_metrics(ARGS, model=generator, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr)
     return generator
 
-def build_weighted_sampler_from_dataset(dataset: Dataset, s_dim: int, upsample: bool, batch_size: int, num_workers: int) -> WeightedRandomSampler:
-    # Extract the s and y labels in a dataset-agnostic way (by iterating)
-    data_loader = DataLoader(dataset=dataset, drop_last=False, batch_size=batch_size, num_workers=num_workers)
+
+def build_weighted_sampler_from_dataset(
+    dataset: Dataset, s_dim: int, upsample: bool, batch_size: int, num_workers: int
+) -> WeightedRandomSampler:
+    #  Extract the s and y labels in a dataset-agnostic way (by iterating)
+    data_loader = DataLoader(
+        dataset=dataset, drop_last=False, batch_size=batch_size, num_workers=num_workers
+    )
     s_all, y_all = [], []
     for _, s, y in data_loader:
         s_all.append(s)
@@ -385,9 +436,7 @@ def build_weighted_sampler_from_dataset(dataset: Dataset, s_dim: int, upsample: 
     s_all = torch.cat(s_all, dim=0)
     y_all = torch.cat(y_all, dim=0)
     #  Balance the batches of the training set via weighted sampling
-    cluster_ids = get_class_id(
-        s=s_all, y=y_all, to_cluster="both", s_count=s_dim
-    )
+    cluster_ids = get_class_id(s=s_all, y=y_all, to_cluster="both", s_count=s_dim)
     weights, n_clusters, min_count, max_count = weight_for_balance(cluster_ids)
     num_samples = n_clusters * max_count if upsample else n_clusters * min_count
     return WeightedRandomSampler(weights.squeeze(), num_samples, replacement=upsample)
