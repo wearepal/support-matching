@@ -109,7 +109,7 @@ def main(
         context_sampler = WeightedRandomSampler(weights, num_samples, replacement=ARGS.upsample)
         dataloader_kwargs = dict(sampler=context_sampler)
     elif ARGS.balanced_context:
-        context_sampler = build_weighted_sampler_from_dataset(dataset=datasets.context, batch_size=ARGS.test_batch_size, num_workers=ARGS.num_workers, upsample=ARGS.upsample)
+        context_sampler = build_weighted_sampler_from_dataset(dataset=datasets.context, s_dim=datasets.s_dim, batch_size=ARGS.test_batch_size, num_workers=ARGS.num_workers, upsample=ARGS.upsample)
         dataloader_kwargs = dict(sampler=context_sampler)
     else:
         dataloader_kwargs = dict(shuffle=True)
@@ -123,7 +123,7 @@ def main(
         **dataloader_kwargs,
     )
 
-    train_sampler = build_weighted_sampler_from_dataset(dataset=datasets.train, batch_size=ARGS.test_batch_size, num_workers=ARGS.num_workers, upsample=ARGS.upsample)
+    train_sampler = build_weighted_sampler_from_dataset(dataset=datasets.train, s_dim=datasets.s_dim, batch_size=ARGS.test_batch_size, num_workers=ARGS.num_workers, upsample=ARGS.upsample)
     train_loader = DataLoader(dataset=datasets.train, batch_size=ARGS.batch_size, num_workers=ARGS.num_workers, drop_last=True, shuffle=False, sampler=train_sampler, pin_memory=True)
     test_loader = DataLoader(
         datasets.test,
@@ -375,7 +375,7 @@ def main(
     log_metrics(ARGS, model=generator, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr)
     return generator
 
-def build_weighted_sampler_from_dataset(dataset: Dataset, upsample: bool, batch_size: int, num_workers: int) -> WeightedRandomSampler:
+def build_weighted_sampler_from_dataset(dataset: Dataset, s_dim: int, upsample: bool, batch_size: int, num_workers: int) -> WeightedRandomSampler:
     # Extract the s and y labels in a dataset-agnostic way (by iterating)
     data_loader = DataLoader(dataset=dataset, drop_last=False, batch_size=batch_size, num_workers=num_workers)
     s_all, y_all = [], []
@@ -386,7 +386,7 @@ def build_weighted_sampler_from_dataset(dataset: Dataset, upsample: bool, batch_
     y_all = torch.cat(y_all, dim=0)
     #  Balance the batches of the training set via weighted sampling
     cluster_ids = get_class_id(
-        s=s_all, y=y_all, to_cluster="both", s_count=datasets.s_dim
+        s=s_all, y=y_all, to_cluster="both", s_count=s_dim
     )
     weights, n_clusters, min_count, max_count = weight_for_balance(cluster_ids)
     num_samples = n_clusters * max_count if upsample else n_clusters * min_count
