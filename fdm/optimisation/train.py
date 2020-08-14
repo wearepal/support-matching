@@ -4,8 +4,19 @@ from __future__ import annotations
 import time
 from logging import Logger
 from pathlib import Path
-from typing import (Any, Callable, Dict, Iterator, List, Literal, NamedTuple, Optional, Sequence,
-                    Tuple, Union)
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Literal,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 import git
 import numpy as np
@@ -18,14 +29,27 @@ from torch.utils.data import DataLoader, Dataset, Subset, WeightedRandomSampler
 
 from clustering.optimisation import get_class_id
 from fdm.configs import VaeArgs
-from fdm.models import (AutoEncoder, Classifier, EncodingSize, PartitionedAeInn, Regressor,
-                        build_discriminator)
+from fdm.models import (
+    AutoEncoder,
+    Classifier,
+    EncodingSize,
+    PartitionedAeInn,
+    Regressor,
+    build_discriminator,
+)
 from fdm.models.configs import residual_64x64_net, strided_28x28_net
 from shared.data import DatasetTriplet, load_dataset
 from shared.models.configs import conv_autoencoder, fc_autoencoder
 from shared.models.configs.classifiers import fc_net
-from shared.utils import (count_parameters, get_logger, inf_generator, load_results, prod,
-                          random_seed, wandb_log)
+from shared.utils import (
+    count_parameters,
+    get_logger,
+    inf_generator,
+    load_results,
+    prod,
+    random_seed,
+    wandb_log,
+)
 
 from .build import build_ae, build_inn
 from .evaluation import baseline_metrics, log_metrics
