@@ -69,4 +69,4 @@ def weight_for_balance(cluster_ids: Tensor) -> Tuple[Tensor, int, int, int]:
     n_clusters = int(unique.max() + 1)
     weights = torch.zeros((n_clusters,))
     weights[unique.long()] = 1 / counts.float()  # the higher the count the lower the weight to balance out
-    return weights[cluster_ids], counts.size(0), int(counts.min()), int(counts.max())
+    return weights[cluster_ids.long()], counts.size(0), int(counts.min()), int(counts.max())
