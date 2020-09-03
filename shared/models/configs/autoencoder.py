@@ -1,7 +1,7 @@
 from typing import List, Optional, Tuple
 
 import torch.nn as nn
-from fdm.layers.misc import View
+from shared.layers import View
 
 __all__ = ["conv_autoencoder", "fc_autoencoder"]
 
