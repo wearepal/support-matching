@@ -102,13 +102,18 @@ class AutoEncoder(Encoder):
                     step += 1
                     wandb_log(args, {"enc_loss": enc_loss}, step)
 
-    def routine(self, x: Tensor) -> Tuple[Tensor, Tensor, Dict[str, float]]:
+    def routine(
+        self, x: Tensor, recon_loss_fn: Callable, kl_weight: float
+    ) -> Tuple[Tensor, Tensor, Dict[str, float]]:
         encoding = self.encode(x)
 
         recon_all = self.decode(encoding)
-        recon_loss = self.recon_loss_fn(recon_all, x)
-        recon_loss /= x.size(0)
-        return encoding, recon_loss, {"Loss reconstruction": recon_loss.item()}
+        recon_loss = recon_loss_fn(recon_all, x)
+        recon_loss /= x.nelement()
+        prior_loss = kl_weight * encoding.norm(dim=1).mean()
+        loss = recon_loss + prior_loss
+
+        return encoding, loss, {"Loss reconstruction": recon_loss.item(), "Prior Loss": prior_loss}
 
     def freeze_initial_layers(self, num_layers: int, optimizer_kwargs: Dict[str, Any]) -> None:
         self.encoder.freeze_initial_layers(num_layers=num_layers, optimizer_kwargs=optimizer_kwargs)
