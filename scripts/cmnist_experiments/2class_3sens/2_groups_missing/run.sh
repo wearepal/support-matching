@@ -6,7 +6,7 @@
 # ===========================================================
 
 MAX_SEED=10
-seeds=(seq 1 $MAX_SEED)
+seeds=$(seq 1 $MAX_SEED)
 etas=( 0.01 0.1 0.5 1.0 )
 gpu_id=0
 save_dir="experiments/cmnist/2digits/3colors/2missing"
