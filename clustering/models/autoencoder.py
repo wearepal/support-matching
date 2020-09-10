@@ -101,9 +101,7 @@ class AutoEncoder(Encoder):
                     step += 1
                     wandb_log(args, {"enc_loss": enc_loss}, step)
 
-    def routine(
-        self, x: Tensor
-    ) -> Tuple[Tensor, Tensor, Dict[str, float]]:
+    def routine(self, x: Tensor) -> Tuple[Tensor, Tensor, Dict[str, float]]:
         encoding = self.encode(x)
         recon_all = self.decode(encoding)
         recon_loss = self.recon_loss_fn(recon_all, x)

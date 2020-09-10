@@ -188,10 +188,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         )
         assert dataset is not None
         all_data = TorchImageDataset(
-            data=dataset.load(),
-            root=base_dir,
-            transform=transform,
-            target_transform=None,
+            data=dataset.load(), root=base_dir, transform=transform, target_transform=None,
         )
 
         size = len(all_data)
