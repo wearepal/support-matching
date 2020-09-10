@@ -36,7 +36,6 @@ d_disc-hidden: 256 256
 d_disc-lr: 3e-4
 d_disc-weight: 1
 d_enc-chan: 16
-d_epochs: 250
 d_eval-on-recon: False
 d_init-channels: 32
 d_kl-weight: 0
