@@ -14,7 +14,7 @@ save_dir="experiments/cmnist/2digits/3colors/2missing"
 function run_ssl() {
     for seed in $seeds; do
         echo $seed
-        python run_both.py @flags/the_phantom_menace.yaml \
+        python run_both.py @flags/vague_spaceship.yaml \
         --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir --b-use-wandb False "$@"
     done
 }
@@ -22,7 +22,7 @@ function run_ssl() {
 function run_no_cluster() {
     for seed in $seeds; do
         echo $seed
-        python run_no_balancing.py @flags/the_phantom_menace.yaml \
+        python run_no_balancing.py @flags/vague_spaceship.yaml \
         --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir --b-use-wandb False "$@"
     done
 }
