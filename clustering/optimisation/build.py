@@ -28,7 +28,7 @@ def build_ae(
         #     decoder_out_act = nn.Sigmoid() if args.dataset == "cmnist" else nn.Tanh()
         encoder, decoder, enc_shape = conv_autoencoder(
             input_shape,
-            args.init_channels,
+            args.enc_init_channels,
             encoding_dim=args.enc_channels,
             decoding_dim=decoding_dim,
             levels=args.enc_levels,
@@ -38,7 +38,7 @@ def build_ae(
     else:
         encoder, decoder, enc_shape = fc_autoencoder(
             input_shape,
-            args.init_channels,
+            args.enc_init_channels,
             encoding_dim=args.enc_channels,
             levels=args.enc_levels,
             variational=variational,

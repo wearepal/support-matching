@@ -58,7 +58,7 @@ def save_model(
 def restore_model(args: VaeArgs, filename: Path, model: nn.Module):
     chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
     args_chkpt = chkpt["args"]
-    assert args.levels == args_chkpt["levels"]
+    assert args.enc_levels == args_chkpt["levels"]
 
     model.load_state_dict(chkpt["model"])
     return model, chkpt["itr"]
