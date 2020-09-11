@@ -11,7 +11,7 @@ from tqdm import trange
 from typing_extensions import Literal
 
 from ethicml.algorithms.inprocess import compute_instance_weights
-from ethicml.evaluators import run_metrics
+from ethicml import run_metrics
 from ethicml.metrics import TPR, Accuracy, ProbPos, RenyiCorrelation, TNR
 from ethicml.utility import DataTuple, Prediction
 from ethicml import implementations
