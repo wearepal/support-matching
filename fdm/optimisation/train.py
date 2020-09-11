@@ -453,8 +453,8 @@ def get_batch(
 
 def train_step(
     components: Union[AeComponents, InnComponents],
-    context_data_itr: Iterator[List[Tensor, Tensor, Tensor]],
-    train_data_itr: Iterator[List[Tensor, Tensor, Tensor]],
+    context_data_itr: Iterator[List[Tensor]],
+    train_data_itr: Iterator[List[Tensor]],
     itr: int,
 ) -> int:
 
