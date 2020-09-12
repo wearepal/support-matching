@@ -93,7 +93,7 @@ class VaeArgs(BaseArgs):
     disc_weight: float = 1
     num_disc_updates: int = 3
     distinguish_weight: float = 1
-    pred_weight: float = 0
+    pred_weight: float = 1
 
     # misc
     _cluster_test_acc: float = 0.0
