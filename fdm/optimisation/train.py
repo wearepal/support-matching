@@ -197,7 +197,7 @@ def main(
             ARGS.init_channels,
             encoding_dim=ARGS.enc_channels,
             decoding_dim=decoding_dim,
-            levels=ARGS.levels,
+            levels=ARGS.enc_levels,
             decoder_out_act=decoder_out_act,
             variational=ARGS.vae,
         )
@@ -206,7 +206,7 @@ def main(
             input_shape,
             ARGS.init_channels,
             encoding_dim=ARGS.enc_channels,
-            levels=ARGS.levels,
+            levels=ARGS.enc_levels,
             variational=ARGS.vae,
         )
 
