@@ -23,7 +23,7 @@ class VaeArgs(BaseArgs):
     gamma: float = 1.0  # Gamma value for Exponential Learning Rate scheduler.
     train_on_recon: bool = False  # whether to train the discriminator on recons or encodings
     recon_detach: bool = True  # Whether to apply the stop gradient operator to the reconstruction.
-    eval_on_recon: bool = True
+    eval_on_recon: bool = False
     upsample: bool = False  # Whether to upsample when doing weighted sampling.
 
     # Evaluation settings
@@ -88,7 +88,7 @@ class VaeArgs(BaseArgs):
     # Training settings
     lr: float = 1e-3
     disc_lr: float = 3e-4
-    kl_weight: float = 1
+    kl_weight: float = 0
     elbo_weight: float = 1
     disc_weight: float = 1
     num_disc_updates: int = 3
