@@ -222,10 +222,10 @@ def run_baseline(args: BaselineArgs) -> None:
         classifier_fn = mp_32x32_net
     elif args.dataset == "adult":
 
-        def adult_fc_net(in_dim, target_dim):
+        def adult_fc_net(in_dim: int, target_dim: int) -> nn.Sequential:
             encoder = fc_net(in_dim, 35, hidden_dims=[35])
             classifier = torch.nn.Linear(35, target_dim)
-            return torch.nn.Sequential(encoder, classifier)
+            return nn.Sequential(encoder, classifier)
 
         classifier_fn = adult_fc_net
     else:
