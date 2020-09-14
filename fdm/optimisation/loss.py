@@ -128,9 +128,7 @@ class VGGLoss(nn.Module):
         with torch.no_grad():
             vgg_clean = self._extract_feature(clean.detach())
 
-        loss = self.prefactor * F.mse_loss(vgg_noisy, vgg_clean)
-
-        return loss
+        return self.prefactor * F.mse_loss(vgg_noisy, vgg_clean)
 
 
 class MixedLoss(nn.Module):

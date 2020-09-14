@@ -144,9 +144,7 @@ class VAE(AutoEncoder):
         log_p = self.prior.log_prob(sample)
         log_q = posterior.log_prob(sample)
 
-        kl_div = (log_q - log_p).sum()
-
-        return kl_div
+        return (log_q - log_p).sum()
 
     def encode_with_posterior(self, x: Tensor) -> Tuple[Tensor, td.Distribution]:
         loc, scale = self.encoder(x).chunk(2, dim=1)

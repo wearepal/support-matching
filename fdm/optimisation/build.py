@@ -26,11 +26,7 @@ def build_inn(
     ae_enc_shape: Tuple[int, ...],
     context_loader: DataLoader,
 ) -> PartitionedAeInn:
-    if is_image_data:
-        inn_fn = build_conv_inn
-    else:
-        inn_fn = build_fc_inn
-
+    inn_fn = build_conv_inn if is_image_data else build_fc_inn
     inn = PartitionedAeInn(
         args=args,
         optimizer_args={"lr": args.inn_lr, "weight_decay": args.weight_decay},

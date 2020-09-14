@@ -134,11 +134,7 @@ class HaarDownsampling(Bijector):
 
     def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
 
-        if self.permute:
-            x_perm = y[:, self.perm_inv]
-        else:
-            x_perm = y
-
+        x_perm = y[:, self.perm_inv] if self.permute else y
         out = F.conv_transpose2d(
             x_perm * self.fac_rev, self.haar_weights, bias=None, stride=2, groups=self.in_channels
         )

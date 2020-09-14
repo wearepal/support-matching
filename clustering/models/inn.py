@@ -110,8 +110,7 @@ class AeInn(ModelBase, Encoder):
 
     def compute_log_pz(self, z: Tensor) -> Tensor:
         """Log of the base probability: log(p(z))"""
-        log_pz = self.base_density.log_prob(z)
-        return log_pz
+        return self.base_density.log_prob(z)
 
     def nll(self, z: Tensor, sum_logdet: Tensor) -> Tensor:
         log_pz = self.compute_log_pz(z)
@@ -121,8 +120,7 @@ class AeInn(ModelBase, Encoder):
         #     bits_per_dim = -(log_px_per_dim - np.log(256)) / np.log(2)
         #     return bits_per_dim
         # else:
-        nll = -log_px / z.nelement()
-        return nll
+        return -log_px / z.nelement()
 
     def routine(self, data: torch.Tensor) -> Tuple[Tensor, Tensor]:
         """Training routine for the Split INN.

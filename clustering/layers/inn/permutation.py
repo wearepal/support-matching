@@ -35,9 +35,7 @@ class Permutation(Bijector):
                 "Dimension {} in inputs must be of size {}.".format(dim, len(permutation))
             )
         batch_size = inputs.shape[0]
-        outputs = torch.index_select(inputs, dim, permutation)
-
-        return outputs
+        return torch.index_select(inputs, dim, permutation)
 
     def _forward(
         self, inputs: Tensor, sum_ldj: Optional[Tensor] = None

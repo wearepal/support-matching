@@ -73,5 +73,4 @@ def _sigmoid(
 
 def _logdet_of_logit(x: Tensor, alpha: float) -> Tensor:
     s = alpha + (1 - 2 * alpha) * x
-    logdetgrad = -torch.log(s - s * s) + math.log(1 - 2 * alpha)
-    return logdetgrad
+    return -torch.log(s - s * s) + math.log(1 - 2 * alpha)

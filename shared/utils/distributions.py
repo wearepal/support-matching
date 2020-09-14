@@ -11,8 +11,7 @@ __all__ = ["DLogistic", "MixtureDistribution", "logistic_distribution", "uniform
 def logistic_distribution(loc: Tensor, scale: Tensor):
     base_distribution = td.Uniform(loc.new_zeros(1), scale.new_zeros(1))
     transforms = [td.SigmoidTransform().inv, td.AffineTransform(loc=loc, scale=scale)]
-    logistic = td.TransformedDistribution(base_distribution, transforms)
-    return logistic
+    return td.TransformedDistribution(base_distribution, transforms)
 
 
 class DLogistic(td.Distribution):
