@@ -194,7 +194,7 @@ def main(
         #     decoder_out_act = nn.Sigmoid() if ARGS.dataset == "cmnist" else nn.Tanh()
         encoder, decoder, enc_shape = conv_autoencoder(
             input_shape,
-            ARGS.enc_init_channels,
+            ARGS.init_channels,
             encoding_dim=ARGS.enc_channels,
             decoding_dim=decoding_dim,
             levels=ARGS.enc_levels,
@@ -204,7 +204,7 @@ def main(
     else:
         encoder, decoder, enc_shape = fc_autoencoder(
             input_shape,
-            ARGS.enc_init_channels,
+            ARGS.init_channels,
             encoding_dim=ARGS.enc_channels,
             levels=ARGS.enc_levels,
             variational=ARGS.vae,
