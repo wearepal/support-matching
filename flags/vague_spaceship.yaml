@@ -4,7 +4,6 @@ b_context-pcnt: 0.66666666
 b_dataset: "cmnist"
 b_batch_size: 256
 b_enc-channels: 32
-b_enc-init-channels: 32
 b_enc-levels: 4
 b_recon_loss: l2
 b_filter-labels: 2 4
@@ -31,11 +30,13 @@ c_epochs: 100
 c_method: "pl_enc_no_norm"
 c_val-freq: 10
 c_use-wandb: True
+c_init-channels: 32
 
 # ===== disentangling flags =====
 d_disc-hidden: 256 256
 d_disc-lr: 3e-4
 d_disc-weight: 1
+d_enc-init-channels: 32
 d_eval-on-recon: False
 d_kl-weight: 0
 d_log-freq: 50
