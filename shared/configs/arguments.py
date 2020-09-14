@@ -115,6 +115,6 @@ class BaseArgs(TypedFlags):
     _s_dim: int
     _y_dim: int
 
-    def process_args(self):
+    def process_args(self) -> None:
         if not 0 < self.data_pcnt <= 1:
             raise ValueError("data_pcnt has to be between 0 and 1")

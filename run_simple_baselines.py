@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
+from typing import Any
 from fdm.optimisation.train import build_weighted_sampler_from_dataset
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import torch
-from torch import nn
+from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import trange
 from typing_extensions import Literal
@@ -26,17 +27,17 @@ BASELINE_METHODS = Literal["cnn", "dro", "kamiran"]
 
 
 class IntanceWeightedDataset(Dataset):
-    def __init__(self, dataset, instance_weights):
+    def __init__(self, dataset: Dataset, instance_weights: Dataset) -> None:
         super().__init__()
         if len(dataset) != len(instance_weights):
             raise ValueError("Number of instance weights must equal the number of data samples.")
         self.dataset = dataset
         self.instance_weights = instance_weights
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.dataset)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> Tensor:
         data = self.dataset[index]
         if not isinstance(data, tuple):
             data = (data,)
@@ -63,10 +64,10 @@ class BaselineArgs(BaseArgs):
     save_dir: str = "experiments/baseline"
 
     # Misc settings
-    method: BASELINE_METHODS = "dro"
+    method: BASELINE_METHODS = "cnn"
     pred_s: bool = False
 
-    def process_args(self):
+    def process_args(self) -> None:
         if self.method == "kamiran":
             if self.dataset == "cmnist":
                 raise ValueError(
@@ -204,7 +205,7 @@ def run_baseline(args: BaselineArgs) -> None:
         pin_memory=True,
         shuffle=args.method == "kamiran",
         num_workers=args.num_workers,
-        sampler=train_sampler
+        sampler=train_sampler,
     )
     test_loader = DataLoader(
         test_data,
