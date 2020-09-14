@@ -41,8 +41,8 @@ class ClusterArgs(BaseArgs):
     encoder: Literal["ae", "vae", "rotnet"] = "ae"
     enc_levels: int = 4
     enc_channels: int = 64
-    enc_init_channels: int = 32
-    recon_loss: Literal["l1", "l2", "bce", "huber", "ce", "mixed"] = "l2"
+    init_channels: int = 32
+    recon_loss: Literal["l1", "l2", "bce", "huber", "ce", "mixed"] = "l1"
     vgg_weight: float = 0
     std_transform: Literal["softplus", "exp"] = "exp"
     kl_weight: float = 1

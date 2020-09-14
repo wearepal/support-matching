@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
+from typing import Any
+from fdm.optimisation.train import build_weighted_sampler_from_dataset
 from pathlib import Path
 
-import ethicml
 import numpy as np
 import pandas as pd
 import torch
-from torch import nn
+from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import trange
 from typing_extensions import Literal
@@ -22,21 +23,21 @@ from shared.data import load_dataset
 from shared.models.configs.classifiers import mp_32x32_net, fc_net, mp_64x64_net
 from shared.utils import random_seed, get_data_dim
 
-BASELINE_METHODS = Literal["cnn", "dro"]
+BASELINE_METHODS = Literal["cnn", "dro", "kamiran"]
 
 
 class IntanceWeightedDataset(Dataset):
-    def __init__(self, dataset, instance_weights):
+    def __init__(self, dataset: Dataset, instance_weights: Dataset) -> None:
         super().__init__()
         if len(dataset) != len(instance_weights):
             raise ValueError("Number of instance weights must equal the number of data samples.")
         self.dataset = dataset
         self.instance_weights = instance_weights
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.dataset)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> Tensor:
         data = self.dataset[index]
         if not isinstance(data, tuple):
             data = (data,)
@@ -63,10 +64,10 @@ class BaselineArgs(BaseArgs):
     save_dir: str = "experiments/baseline"
 
     # Misc settings
-    method: BASELINE_METHODS = "dro"
+    method: BASELINE_METHODS = "cnn"
     pred_s: bool = False
 
-    def process_args(self):
+    def process_args(self) -> None:
         if self.method == "kamiran":
             if self.dataset == "cmnist":
                 raise ValueError(
@@ -172,7 +173,7 @@ class TrainKamiran(Trainer):
         pbar.close()
 
 
-def run_baseline(args: BaselineArgs):
+def run_baseline(args: BaselineArgs) -> None:
 
     use_gpu = torch.cuda.is_available() and not args.gpu < 0
     random_seed(args.seed, use_gpu)
@@ -189,13 +190,22 @@ def run_baseline(args: BaselineArgs):
     if args.method == "kamiran":
         instance_weights = get_instance_weights(train_data, batch_size=args.test_batch_size)
         train_data = IntanceWeightedDataset(train_data, instance_weights=instance_weights)
-
+        train_sampler = None
+    else:
+        train_sampler = build_weighted_sampler_from_dataset(
+            dataset=datasets.train,
+            s_dim=datasets.s_dim,
+            batch_size=args.test_batch_size,
+            num_workers=args.num_workers,
+            upsample=args.upsample,
+        )
     train_loader = DataLoader(
         train_data,
         batch_size=args.batch_size,
         pin_memory=True,
-        shuffle=True,
+        shuffle=args.method == "kamiran",
         num_workers=args.num_workers,
+        sampler=train_sampler,
     )
     test_loader = DataLoader(
         test_data,
@@ -212,10 +222,10 @@ def run_baseline(args: BaselineArgs):
         classifier_fn = mp_32x32_net
     elif args.dataset == "adult":
 
-        def adult_fc_net(in_dim, target_dim):
+        def adult_fc_net(in_dim: int, target_dim: int) -> nn.Sequential:
             encoder = fc_net(in_dim, 35, hidden_dims=[35])
             classifier = torch.nn.Linear(35, target_dim)
-            return torch.nn.Sequential(encoder, classifier)
+            return nn.Sequential(encoder, classifier)
 
         classifier_fn = adult_fc_net
     else:
