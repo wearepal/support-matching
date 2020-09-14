@@ -14,7 +14,7 @@ slots=6
 function run_ssl() {
     for seed in $seeds; do
         echo $seed
-        qsub -pe smpslots $slots run_both.py @flags/vague_spaceship.yaml \
+        qsub -pe smpslots $slots python-ot.job run_both.py @flags/vague_spaceship.yaml \
         --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir "$@"
     done
 }
@@ -22,7 +22,7 @@ function run_ssl() {
 function run_no_cluster() {
     for seed in $seeds; do
         echo $seed
-        qsub -pe smpslots $slots run_no_balancing.py @flags/vague_spaceship.yaml \
+        qsub -pe smpslots $slots python-ot.job run_no_balancing.py @flags/vague_spaceship.yaml \
         --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir "$@"
     done
 }
@@ -30,7 +30,7 @@ function run_no_cluster() {
 function run_baseline() {
     for seed in $seeds; do
         echo $seed
-        qsub -pe smpslots $slots run_simple_baselines.py \
+        qsub -pe smpslots $slots python-ot.job run_simple_baselines.py \
         --gpu $gpu_id --seed $seed --data-split-seed $seed --context-pcnt 0.66666666 --padding 2 --filter-labels 2 4 --scale 0 --balanced-context False --balanced-test True --biased-train True --save-dir $save_dir "$@"
     done
 }

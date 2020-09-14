@@ -10,11 +10,12 @@ seeds=$(seq 1 $MAX_SEED)
 etas=( 0.01 0.1 0.5 1.0 )
 gpu_id=0
 save_dir="experiments/cmnist/2digits/3colors/2missing"
+slots=6
 
 function run_ssl() {
     for seed in $seeds; do
         echo $seed
-        python run_both.py @flags/the_phantom_menace.yaml \
+        qsub -pe smpslots $slots python-ot.job run_both.py @flags/the_phantom_menace.yaml \
         --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir "$@"
     done
 }
@@ -22,7 +23,7 @@ function run_ssl() {
 function run_no_cluster() {
     for seed in $seeds; do
         echo $seed
-        python run_no_balancing.py @flags/the_phantom_menace.yaml \
+        qsub -pe smpslots $slots python-ot.job run_no_balancing.py @flags/the_phantom_menace.yaml \
         --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir "$@"
     done
 }
@@ -30,7 +31,7 @@ function run_no_cluster() {
 function run_baseline() {
     for seed in $seeds; do
         echo $seed
-        python run_simple_baselines.py \
+        qsub -pe smpslots $slots python-ot.job run_simple_baselines.py \
         --gpu $gpu_id --seed $seed --data-split-seed $seed --context-pcnt 0.66666666 --padding 2 --filter-labels 2 4 --scale 0 --balanced-context False --balanced-test True --biased-train True --save-dir $save_dir "$@"
     done
 }
