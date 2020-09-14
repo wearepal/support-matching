@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
+from fdm.optimisation.train import build_weighted_sampler_from_dataset
 from pathlib import Path
 
-import ethicml
 import numpy as np
 import pandas as pd
 import torch
@@ -22,7 +22,7 @@ from shared.data import load_dataset
 from shared.models.configs.classifiers import mp_32x32_net, fc_net, mp_64x64_net
 from shared.utils import random_seed, get_data_dim
 
-BASELINE_METHODS = Literal["cnn", "dro"]
+BASELINE_METHODS = Literal["cnn", "dro", "kamiran"]
 
 
 class IntanceWeightedDataset(Dataset):
@@ -172,7 +172,7 @@ class TrainKamiran(Trainer):
         pbar.close()
 
 
-def run_baseline(args: BaselineArgs):
+def run_baseline(args: BaselineArgs) -> None:
 
     use_gpu = torch.cuda.is_available() and not args.gpu < 0
     random_seed(args.seed, use_gpu)
@@ -189,13 +189,22 @@ def run_baseline(args: BaselineArgs):
     if args.method == "kamiran":
         instance_weights = get_instance_weights(train_data, batch_size=args.test_batch_size)
         train_data = IntanceWeightedDataset(train_data, instance_weights=instance_weights)
-
+        train_sampler = None
+    else:
+        train_sampler = build_weighted_sampler_from_dataset(
+            dataset=datasets.train,
+            s_dim=datasets.s_dim,
+            batch_size=args.test_batch_size,
+            num_workers=args.num_workers,
+            upsample=args.upsample,
+        )
     train_loader = DataLoader(
         train_data,
         batch_size=args.batch_size,
         pin_memory=True,
-        shuffle=True,
+        shuffle=args.method == "kamiran",
         num_workers=args.num_workers,
+        sampler=train_sampler
     )
     test_loader = DataLoader(
         test_data,

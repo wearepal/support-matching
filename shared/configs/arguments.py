@@ -74,6 +74,7 @@ class BaseArgs(TypedFlags):
     balanced_context: bool = False
     balanced_test: bool = True
     balance_all_quadrants: bool = True
+    upsample: bool = False  # Whether to upsample when doing weighted sampling.
 
     # Colored MNIST settings
     scale: float = 0.02
