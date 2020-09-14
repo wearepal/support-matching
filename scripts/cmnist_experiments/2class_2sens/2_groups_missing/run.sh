@@ -14,7 +14,7 @@ function run_ssl() {
     for seed in $seeds; do
         echo $seed
         python run_both.py @flags/vague_spaceship.yaml \
-        --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir --b-use-wandb False "$@"
+        --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir "$@"
     done
 }
 
@@ -22,7 +22,7 @@ function run_no_cluster() {
     for seed in $seeds; do
         echo $seed
         python run_no_balancing.py @flags/vague_spaceship.yaml \
-        --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir --b-use-wandb False "$@"
+        --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir "$@"
     done
 }
 

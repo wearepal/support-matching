@@ -30,6 +30,7 @@ c_cl-hidden_dims:
 c_epochs: 100
 c_method: "pl_enc_no_norm"
 c_val-freq: 10
+c_use-wandb: True
 
 # ===== disentangling flags =====
 d_disc-hidden: 256 256
