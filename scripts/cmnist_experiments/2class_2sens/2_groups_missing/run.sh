@@ -4,30 +4,30 @@
 # ===========================================================
 # ====================== 2 groups missing ===================
 # ===========================================================
-MAX_SEED=100
-seeds=(seq 1 $MAX_SEED)
+MAX_SEED=10
+seeds=$(seq 1 $MAX_SEED)
 etas=( 0.01 0.1 0.5 1.0 )
 gpu_id=0
 save_dir="experiments/cmnist/2digits/2colors/2missing"
 
 function run_ssl() {
-    for seed in $(seq 1 $MAX_SEED); do
+    for seed in $seeds; do
         echo $seed
-        python run_both.py @flags/the_phantom_menace.yaml \
-        --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir --b-use-wandb False "$@"
+        python run_both.py @flags/vague_spaceship.yaml \
+        --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir "$@"
     done
 }
 
 function run_no_cluster() {
-    for seed in $(seq $MAX_SEED); do
+    for seed in $seeds; do
         echo $seed
-        python run_no_balancing.py @flags/the_phantom_menace.yaml \
-        --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir --b-use-wandb False "$@"
+        python run_no_balancing.py @flags/vague_spaceship.yaml \
+        --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir "$@"
     done
 }
 
 function run_baseline() {
-    for seed in $(seq $MAX_SEED); do
+    for seed in $seeds; do
         echo $seed
         python run_simple_baselines.py \
         --gpu $gpu_id --seed $seed --data-split-seed $seed --context-pcnt 0.66666666 --padding 2 --filter-labels 2 4 --scale 0 --balanced-context False --balanced-test True --biased-train True --save-dir $save_dir "$@"
