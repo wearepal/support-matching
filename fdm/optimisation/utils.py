@@ -37,7 +37,7 @@ def log_images(
 
 
 def save_model(
-    args: VaeArgs, save_dir: Path, model: nn.Module, itr: int, sha: str, best: bool = False,
+    args: VaeArgs, save_dir: Path, model: nn.Module, itr: int, sha: str, best: bool = False
 ) -> Path:
     if best:
         filename = save_dir / "checkpt_best.pth"

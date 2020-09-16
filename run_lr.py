@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethicml.algorithms import inprocess as algos
-from ethicml.utility import DataTuple
+import ethicml as em
 from fdm.optimisation.evaluation import compute_metrics, make_tuple_from_data
 from shared.data import DatasetTriplet, get_data_tuples, load_dataset
 from shared.configs import BaseArgs
@@ -19,18 +18,18 @@ def baseline_metrics(args: BaselineArgs) -> None:
     data: DatasetTriplet = load_dataset(args)
     train_data = data.train
     test_data = data.test
-    if not isinstance(train_data, DataTuple):
+    if not isinstance(train_data, em.DataTuple):
         train_data, test_data = get_data_tuples(train_data, test_data)
 
     train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=False)
 
     for clf in [
-        algos.SVM(kernel="linear"),
-        algos.SVM(),
-        algos.Majority(),
-        algos.Kamiran(classifier="LR"),
-        algos.LRCV(),
-        algos.LR(),
+        em.SVM(kernel="linear"),
+        em.SVM(),
+        em.Majority(),
+        em.Kamiran(classifier="LR"),
+        em.LRCV(),
+        em.LR(),
     ]:
         preds = clf.run(train_data, test_data)
 

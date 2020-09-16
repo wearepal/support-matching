@@ -61,8 +61,7 @@ class _Invertible1x1ConvBase(Bijector):
 
 
 class _Invertible1x1ConvLrDecomp(_Invertible1x1ConvBase):
-    """ Invertible 1x1 convolution using an LR decomposition of the weight.
-    """
+    """Invertible 1x1 convolution using an LR decomposition of the weight."""
 
     def __init__(self, num_channels: int):
         super().__init__(num_channels=num_channels)

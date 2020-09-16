@@ -87,8 +87,8 @@ def normalize_homography(
     src_pix_trans_src_norm = torch.inverse(src_norm_trans_src_pix)
     dst_norm_trans_dst_pix: torch.Tensor = normal_transform_pixel(dst_h, dst_w).to(device, dtype)
     # compute chain transformations
-    dst_norm_trans_src_norm: torch.Tensor = (
-        dst_norm_trans_dst_pix @ (dst_pix_trans_src_pix @ src_pix_trans_src_norm)
+    dst_norm_trans_src_norm: torch.Tensor = dst_norm_trans_dst_pix @ (
+        dst_pix_trans_src_pix @ src_pix_trans_src_norm
     )
     return dst_norm_trans_src_norm
 
@@ -149,7 +149,7 @@ def warp_affine(
         align_corners=align_corners,
     )
     return F.grid_sample(
-        src, grid, align_corners=align_corners, mode=flags, padding_mode=padding_mode,
+        src, grid, align_corners=align_corners, mode=flags, padding_mode=padding_mode
     )
 
 
@@ -346,7 +346,7 @@ def rotate(
         raise TypeError("Input angle type is not a torch.Tensor. Got {}".format(type(angle)))
     if center is not None and not torch.is_tensor(angle):
         raise TypeError("Input center type is not a torch.Tensor. Got {}".format(type(center)))
-    if len(tensor.shape) not in (3, 4,):
+    if len(tensor.shape) not in (3, 4):
         raise ValueError(
             "Invalid tensor shape, we expect CxHxW or BxCxHxW. " "Got: {}".format(tensor.shape)
         )

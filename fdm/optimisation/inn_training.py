@@ -21,7 +21,7 @@ class InnComponents(NamedTuple):
 
 
 def update_disc_on_inn(
-    args: VaeArgs, x_c: Tensor, x_t: Tensor, models: InnComponents, warmup: bool = False,
+    args: VaeArgs, x_c: Tensor, x_t: Tensor, models: InnComponents, warmup: bool = False
 ) -> Tuple[Tensor, float]:
     """Train the discriminator while keeping the generator constant.
 
@@ -76,7 +76,7 @@ def update_disc_on_inn(
 
 
 def update_inn(
-    args: VaeArgs, x_c: Tensor, x_t: Tensor, models: InnComponents, disc_weight: float,
+    args: VaeArgs, x_c: Tensor, x_t: Tensor, models: InnComponents, disc_weight: float
 ) -> Tuple[Tensor, Dict[str, float]]:
     """Compute all losses.
 

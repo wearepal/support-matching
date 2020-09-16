@@ -1,7 +1,6 @@
 import platform
 from typing import Dict, Literal, NamedTuple, Tuple
 
-import numpy as np
 import torch
 import torch.nn as nn
 from torch import Tensor
@@ -9,9 +8,8 @@ from torch.utils.data import Dataset, Subset, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
 
-from ethicml.data import celeba
-from ethicml.vision import create_celeba_dataset, create_genfaces_dataset, TorchImageDataset
-from ethicml.vision.data import LdColorizer
+import ethicml as em
+import ethicml.vision as emvi
 from shared.configs import BaseArgs
 
 from .dataset_wrappers import TensorDataTupleDataset
@@ -72,7 +70,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             _filter_(test_data)
 
         num_colors = len(args.colors) if len(args.colors) > 0 else num_classes
-        colorizer = LdColorizer(
+        colorizer = emvi.LdColorizer(
             scale=args.scale,
             background=args.background,
             black=args.black,
@@ -141,11 +139,17 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             if args.missing_s:
                 raise RuntimeError("Don't use subsample_train and missing_s together!")
             # when we manually subsample the training set, we ignore color correlation
-            train_data_t = _colorize_subset(train_data, _correlation=0, _decorr_op="random",)
+            train_data_t = _colorize_subset(
+                train_data,
+                _correlation=0,
+                _decorr_op="random",
+            )
             train_data_t = _subsample_by_s_and_y(train_data_t, args.subsample_train)
         else:
             train_data_t = _colorize_subset(
-                train_data, _correlation=args.color_correlation, _decorr_op="shift",
+                train_data,
+                _correlation=args.color_correlation,
+                _decorr_op="shift",
             )
         test_data_t = _colorize_subset(test_data, _correlation=0, _decorr_op="random")
         context_data_t = _colorize_subset(context_data, _correlation=0, _decorr_op="random")
@@ -179,7 +183,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         transform = transforms.Compose(transform)
 
         # unbiased_pcnt = args.test_pcnt + args.context_pcnt
-        dataset, base_dir = celeba(
+        dataset, base_dir = em.celeba(
             download_dir=data_root,
             label=args.celeba_target_attr,
             sens_attr=args.celeba_sens_attr,
@@ -187,8 +191,11 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             check_integrity=True,
         )
         assert dataset is not None
-        all_data = TorchImageDataset(
-            data=dataset.load(), root=base_dir, transform=transform, target_transform=None,
+        all_data = emvi.TorchImageDataset(
+            data=dataset.load(),
+            root=base_dir,
+            transform=transform,
+            target_transform=None,
         )
 
         size = len(all_data)
@@ -204,7 +211,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         args._s_dim = all_data.s_dim
 
         def _subsample_inds_by_s_and_y(
-            _data: TorchImageDataset, _subset_inds: Tensor, _target_props: Dict[int, float]
+            _data: emvi.TorchImageDataset, _subset_inds: Tensor, _target_props: Dict[int, float]
         ) -> Tensor:
             _y_dim = max(2, args._y_dim)
             _s_dim = max(2, args._s_dim)
@@ -250,7 +257,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         transform = transforms.Compose(transform)
 
         unbiased_pcnt = args.test_pcnt + args.context_pcnt
-        unbiased_data = create_genfaces_dataset(
+        unbiased_data = emvi.create_genfaces_dataset(
             root=data_root,
             sens_attr_name=args.genfaces_sens_attr,
             target_attr_name=args.genfaces_target_attr,
@@ -266,7 +273,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         test_len = len(unbiased_data) - context_len
         context_data, test_data = random_split(unbiased_data, lengths=(context_len, test_len))
 
-        train_data = create_genfaces_dataset(
+        train_data = emvi.create_genfaces_dataset(
             root=data_root,
             sens_attr_name=args.genfaces_sens_attr,
             target_attr_name=args.genfaces_target_attr,

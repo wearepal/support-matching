@@ -320,7 +320,7 @@ def main(
             disc_dist_kwargs = {"hidden_dims": args.disc_hidden_dims}
             output_dim = prod((encoding_size.zy,) + enc_shape[1:])
             disc_distinguish = Regressor(
-                disc_dist_fn(enc_shape, output_dim, **disc_dist_kwargs), disc_optimizer_kwargs,
+                disc_dist_fn(enc_shape, output_dim, **disc_dist_kwargs), disc_optimizer_kwargs
             )
             disc_distinguish.to(args._device)
         pred_kwargs = {"hidden_dims": args.disc_hidden_dims}
@@ -508,7 +508,7 @@ class AeComponents(NamedTuple):
     type: Literal["ae"] = "ae"
 
 
-def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False,) -> Tensor:
+def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False) -> Tensor:
     """Train the discriminator while keeping the generator constant.
 
     Args:
@@ -576,7 +576,7 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False
 
 
 def update(
-    x_c: Tensor, x_t: Tensor, s_t: Tensor, y_t: Tensor, ae: AeComponents, warmup: bool,
+    x_c: Tensor, x_t: Tensor, s_t: Tensor, y_t: Tensor, ae: AeComponents, warmup: bool
 ) -> Tuple[Tensor, Dict[str, float]]:
     """Compute all losses.
 

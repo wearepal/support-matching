@@ -11,10 +11,7 @@ from torch import Tensor
 from tqdm import tqdm
 
 import wandb
-from ethicml.algorithms import inprocess as algos
-from ethicml import run_metrics
-from ethicml.metrics import TNR, TPR, Accuracy, ProbPos, RenyiCorrelation
-from ethicml.utility import DataTuple, Prediction
+import ethicml as em
 from shared.configs import BaseArgs
 from shared.data import DatasetTriplet, get_data_tuples
 from shared.models.configs.classifiers import mp_32x32_net, fc_net, mp_64x64_net
@@ -34,7 +31,7 @@ def log_sample_images(args, data, name, step):
 
 
 def log_metrics(
-    args: VaeArgs, model, data: DatasetTriplet, step: int, save_to_csv: Optional[Path] = None,
+    args: VaeArgs, model, data: DatasetTriplet, step: int, save_to_csv: Optional[Path] = None
 ) -> None:
     """Compute and log a variety of metrics."""
     model.eval()
@@ -82,17 +79,17 @@ def baseline_metrics(args: VaeArgs, data: DatasetTriplet, save_to_csv: Optional[
         print("Baselines...")
         train_data = data.train
         test_data = data.test
-        if not isinstance(train_data, DataTuple):
+        if not isinstance(train_data, em.DataTuple):
             train_data, test_data = get_data_tuples(train_data, test_data)
 
         train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=False)
 
         for clf in [
-            algos.LR(),
-            algos.Majority(),
-            algos.Kamiran(classifier="LR"),
-            algos.LRCV(),
-            algos.SVM(),
+            em.LR(),
+            em.Majority(),
+            em.Kamiran(classifier="LR"),
+            em.LRCV(),
+            em.SVM(),
         ]:
             preds = clf.run(train_data, test_data)
             compute_metrics(
@@ -110,8 +107,8 @@ def baseline_metrics(args: VaeArgs, data: DatasetTriplet, save_to_csv: Optional[
 
 def compute_metrics(
     args: BaseArgs,
-    predictions: Prediction,
-    actual,
+    predictions: em.Prediction,
+    actual: em.DataTuple,
     data_exp_name: str,
     model_name: str,
     step: int,
@@ -122,11 +119,12 @@ def compute_metrics(
     """Compute accuracy and fairness metrics and log them"""
 
     predictions._info = {}
-    metrics = run_metrics(
+    metrics = em.run_metrics(
         predictions,
         actual,
-        metrics=[Accuracy(), TPR(), TNR(), RenyiCorrelation()],
-        per_sens_metrics=[Accuracy(), ProbPos(), TPR(), TNR()],
+        metrics=[em.Accuracy(), em.TPR(), em.TNR(), em.RenyiCorrelation()],
+        per_sens_metrics=[em.Accuracy(), em.ProbPos(), em.TPR(), em.TNR()],
+        diffs_and_ratios=args._s_dim < 4,  # this just gets too much with higher s dim
     )
 
     if use_wandb:
@@ -201,7 +199,9 @@ def fit_classifier(
     return clf
 
 
-def make_tuple_from_data(train, test, pred_s):
+def make_tuple_from_data(
+    train: em.DataTuple, test: em.DataTuple, pred_s: bool
+) -> Tuple[em.DataTuple, em.DataTuple]:
     train_x = train.x
     test_x = test.x
 
@@ -212,7 +212,7 @@ def make_tuple_from_data(train, test, pred_s):
         train_y = train.y
         test_y = test.y
 
-    return (DataTuple(x=train_x, s=train.s, y=train_y), DataTuple(x=test_x, s=test.s, y=test_y))
+    return em.DataTuple(x=train_x, s=train.s, y=train_y), em.DataTuple(x=test_x, s=test.s, y=test_y)
 
 
 def evaluate(
@@ -246,7 +246,7 @@ def evaluate(
         )
 
         preds, actual, sens = clf.predict_dataset(test_loader, device=args._device)
-        preds = Prediction(hard=pd.Series(preds))
+        preds = em.Prediction(hard=pd.Series(preds))
         if args.dataset == "cmnist":
             sens_name = "colour"
         elif args.dataset == "celeba":
@@ -255,7 +255,7 @@ def evaluate(
             sens_name = "sens_Label"
         sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=[sens_name])
         labels = pd.DataFrame(actual, columns=["labels"])
-        actual = DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels)
+        actual = em.DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels)
         compute_metrics(
             args,
             preds,
@@ -268,11 +268,11 @@ def evaluate(
             use_wandb=args.use_wandb,
         )
     else:
-        if not isinstance(train_data, DataTuple):
+        if not isinstance(train_data, em.DataTuple):
             train_data, test_data = get_data_tuples(train_data, test_data)
 
         train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=pred_s)
-        for eth_clf in [algos.LR(), algos.LRCV()]:  # , algos.LRCV(), algos.SVM(kernel="linear")]:
+        for eth_clf in [em.LR(), em.LRCV()]:  # , em.LRCV(), em.SVM(kernel="linear")]:
             preds = eth_clf.run(train_data, test_data)
             compute_metrics(
                 args,

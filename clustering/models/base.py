@@ -28,7 +28,7 @@ class ModelBase(nn.Module):
 
     def _reset_optimizer(self, optimizer_kwargs: Dict[str, float]) -> None:
         self.optimizer = Adam(
-            filter(lambda p: p.requires_grad, self.model.parameters()), **optimizer_kwargs,
+            filter(lambda p: p.requires_grad, self.model.parameters()), **optimizer_kwargs
         )
 
     def reset_parameters(self) -> None:

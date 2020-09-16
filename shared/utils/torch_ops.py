@@ -21,8 +21,7 @@ class RoundSTE(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output: Tensor):
-        """Straight-through estimator
-        """
+        """Straight-through estimator"""
         return grad_output
 
 

@@ -215,7 +215,7 @@ class ActNorm(Bijector):
 
     def _initialize(self, inputs: Tensor) -> None:
         """Data-dependent initialization, s.t. post-actnorm activations have zero mean and unit
-        variance. """
+        variance."""
         if inputs.dim() == 4:
             num_channels = inputs.shape[1]
             inputs = inputs.permute(0, 2, 3, 1).reshape(-1, num_channels)
