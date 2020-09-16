@@ -121,7 +121,7 @@ def get_class_id(
         class_id = y
     else:
         class_id = y * s_count + s
-    return class_id.squeeze()
+    return class_id.view(-1)
 
 
 def get_cluster_label_path(args: ClusterArgs, save_dir: Path) -> Path:
