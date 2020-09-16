@@ -37,6 +37,7 @@ d_disc-hidden: 256 256
 d_disc-lr: 3e-4
 d_disc-weight: 1
 d_eval-on-recon: False
+d_iters: 1000
 d_kl-weight: 0
 d_log-freq: 50
 d_lr: 3e-4
