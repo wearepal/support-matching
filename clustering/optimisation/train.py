@@ -201,7 +201,9 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
 
     LOGGER.info("Encoding shape: {}", enc_shape)
 
+    enc_path: Path
     if args.enc_path:
+        enc_path = Path(args.enc_path)
         if args.encoder == "rotnet":
             assert isinstance(encoder, SelfSupervised)
             encoder = encoder.get_encoder()
@@ -220,8 +222,9 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
             encoder = encoder.get_encoder()
         # the args names follow the convention of the standalone VAE commandline args
         args_encoder = {"encoder_type": args.encoder, "levels": args.enc_levels}
-        torch.save({"encoder": encoder.state_dict(), "args": args_encoder}, save_dir / "encoder")
-        LOGGER.info("To make use of this encoder:\n--enc-path {}", save_dir.resolve() / "encoder")
+        enc_path = save_dir.resolve() / "encoder"
+        torch.save({"encoder": encoder.state_dict(), "args": args_encoder}, enc_path)
+        LOGGER.info("To make use of this encoder:\n--enc-path {}", enc_path)
         if ARGS.enc_wandb:
             LOGGER.info("Stopping here because W&B will be messed up...")
             return
@@ -328,6 +331,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
                 ARGS,
                 cluster_label_path,
                 classify_dataset(ARGS, model, datasets.context),
+                enc_path=enc_path,
                 context_acc=float("nan"),  # TODO: compute this
             )
             return model, pth_path
@@ -385,6 +389,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
         ARGS,
         cluster_label_path=cluster_label_path,
         results=classify_dataset(ARGS, model, datasets.context),
+        enc_path=enc_path,
         context_acc=context_acc,
         test_acc=test_acc,
     )
