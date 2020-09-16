@@ -4,8 +4,7 @@ __all__ = ["NoisyDequantize", "Quantize"]
 
 
 class Augmentation:
-    """Base class for label-dependent augmentations.
-    """
+    """Base class for label-dependent augmentations."""
 
     def _augment(self, data: torch.Tensor) -> torch.Tensor:
         """Augment the input data

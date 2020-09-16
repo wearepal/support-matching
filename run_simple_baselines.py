@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Any
 from fdm.optimisation.train import build_weighted_sampler_from_dataset
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -9,12 +9,8 @@ import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import trange
-from typing_extensions import Literal
 
-from ethicml.algorithms.inprocess import compute_instance_weights
-from ethicml import run_metrics
-from ethicml.metrics import TPR, Accuracy, ProbPos, RenyiCorrelation, TNR
-from ethicml.utility import DataTuple, Prediction
+import ethicml as em
 from ethicml import implementations
 
 from fdm.models import Classifier
@@ -92,9 +88,9 @@ def get_instance_weights(dataset: Dataset, batch_size: int) -> TensorDataset:
 
     s = pd.DataFrame(s_all, columns=["sens"])
     y = pd.DataFrame(y_all, columns=["labels"])
-    labels = DataTuple(x=y, s=s, y=y)
+    labels = em.DataTuple(x=y, s=s, y=y)
 
-    instance_weights = compute_instance_weights(labels).to_numpy()
+    instance_weights = em.compute_instance_weights(labels).to_numpy()
     instance_weights = torch.as_tensor(instance_weights).view(-1)
     instance_weights = TensorDataset(instance_weights)
 
@@ -234,7 +230,8 @@ def run_baseline(args: BaselineArgs) -> None:
         else:
             criterion = implementations.dro_modules.DROLoss(nn.CrossEntropyLoss, eta=args.eta)
 
-    classifier: Classifier = Classifier(  # TODO: Using FDM Classifier - should this be clustering classifier?
+    # TODO: Using FDM Classifier - should this be clustering classifier?
+    classifier: Classifier = Classifier(
         classifier_fn(input_shape[0], target_dim),
         num_classes=2 if target_dim == 1 else target_dim,
         optimizer_kwargs={"lr": args.lr, "weight_decay": args.weight_decay},
@@ -257,9 +254,9 @@ def run_baseline(args: BaselineArgs) -> None:
     )
 
     preds, ground_truths, sens = classifier.predict_dataset(test_data, device=device)
-    preds = Prediction(pd.Series(preds))
+    preds = em.Prediction(pd.Series(preds))
 
-    ground_truths = DataTuple(
+    ground_truths = em.DataTuple(
         x=pd.DataFrame(sens, columns=["sens"]),
         s=pd.DataFrame(sens, columns=["sens"]),
         y=pd.DataFrame(ground_truths, columns=["labels"]),
@@ -273,11 +270,11 @@ def run_baseline(args: BaselineArgs) -> None:
         full_name += f"_{args.celeba_target_attr}"
     full_name += f"_{str(args.epochs)}epochs.csv"
 
-    metrics = run_metrics(
+    metrics = em.run_metrics(
         preds,
         ground_truths,
-        metrics=[Accuracy(), TPR(), TNR(), RenyiCorrelation()],
-        per_sens_metrics=[Accuracy(), ProbPos(), TPR(), TNR()],
+        metrics=[em.Accuracy(), em.TPR(), em.TNR(), em.RenyiCorrelation()],
+        per_sens_metrics=[em.Accuracy(), em.ProbPos(), em.TPR(), em.TNR()],
     )
     print(f"Results for {full_name}:")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
