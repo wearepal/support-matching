@@ -15,6 +15,7 @@ class ClusterResults(NamedTuple):
     flags: Dict[str, Any]
     cluster_ids: torch.Tensor
     class_ids: torch.Tensor
+    enc_path: Path
     context_acc: float
     test_acc: float = float("nan")
 
@@ -25,6 +26,7 @@ def save_results(save_path: Path, cluster_results: ClusterResults) -> Path:
         "args": cluster_results.flags,
         "cluster_ids": cluster_results.cluster_ids,
         "class_ids": cluster_results.class_ids,
+        "enc_path": str(cluster_results.enc_path.resolve()),
         "test_acc": cluster_results.test_acc,
         "context_acc": cluster_results.context_acc,
     }
@@ -58,6 +60,7 @@ def load_results(args: BaseArgs, check: bool = True) -> ClusterResults:
         flags=data["args"],
         cluster_ids=data["cluster_ids"],
         class_ids=class_ids,
+        enc_path=Path(data["enc_path"]),
         context_acc=data.get("context_acc", float("nan")),
         test_acc=data.get("test_acc", float("nan")),
     )

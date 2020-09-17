@@ -48,6 +48,7 @@ class VaeArgs(BaseArgs):
     _device: torch.device
 
     # VAEsettings
+    use_pretrained_enc: bool = True
     enc_levels: int = 4
     zs_frac: float = 0.1
     enc_channels: int = 64

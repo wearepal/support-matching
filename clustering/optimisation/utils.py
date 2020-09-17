@@ -135,6 +135,7 @@ def convert_and_save_results(
     args: ClusterArgs,
     cluster_label_path: Path,
     results: Tuple[Tensor, Tensor, Tensor],
+    enc_path: Path,
     context_acc: float,
     test_acc: float = float("nan"),
 ) -> Path:
@@ -145,6 +146,7 @@ def convert_and_save_results(
         flags=args.as_dict(),
         cluster_ids=clusters,
         class_ids=class_ids,
+        enc_path=enc_path,
         context_acc=context_acc,
         test_acc=test_acc,
     )

@@ -124,6 +124,7 @@ def main(
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
     dataloader_args: Dict[str, Any]
 
+    cluster_results = None
     if ARGS.cluster_label_file:
         cluster_results = load_results(ARGS)
         ARGS._cluster_test_acc = cluster_results.test_acc
@@ -271,6 +272,16 @@ def main(
             encoding_size=encoding_size,
             feature_group_slices=feature_group_slices,
         )
+        # load pretrained encoder if one is provided
+        if args.use_pretrained_enc and cluster_results is not None:
+            save_dict = torch.load(
+                cluster_results.enc_path, map_location=lambda storage, loc: storage
+            )
+            generator.load_state_dict(save_dict["encoder"])
+            if "args" in save_dict:
+                args_encoder = save_dict["args"]
+                assert args_encoder["encoder_type"] == "vae" if args.vae else "ae"
+                assert args_encoder["levels"] == args.enc_levels
 
     LOGGER.info("Encoding shape: {}, {}", enc_shape, encoding_size)
 
@@ -443,8 +454,8 @@ def build_weighted_sampler_from_dataset(
 
 
 def get_batch(
-    context_data_itr: Iterator[List[Tensor, Tensor, Tensor]],
-    train_data_itr: Iterator[List[Tensor, Tensor, Tensor]],
+    context_data_itr: Iterator[Tuple[Tensor, Tensor, Tensor]],
+    train_data_itr: Iterator[Tuple[Tensor, Tensor, Tensor]],
 ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
     x_c = to_device(next(context_data_itr)[0])
     x_t, s_t, y_t = to_device(*next(train_data_itr))

@@ -44,6 +44,7 @@ def main():
         flags=y_results.flags,
         cluster_ids=cluster_ids,
         class_ids=class_ids,
+        enc_path=y_results.enc_path,
         test_acc=0.5 * (y_results.test_acc + s_results.test_acc),
         context_acc=0.5 * (y_results.context_acc + s_results.context_acc),
     )
