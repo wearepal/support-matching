@@ -67,6 +67,9 @@ def restore_model(args: VaeArgs, filename: Path, model: nn.Module):
 def weight_for_balance(cluster_ids: Tensor) -> Tuple[Tensor, int, int, int]:
     unique, counts = torch.unique(cluster_ids, sorted=False, return_counts=True)
     n_clusters = int(unique.max() + 1)
+    print(f"{unique=}")
+    print(f"{counts=}")
+    print(f"{n_clusters=}")
     weights = torch.zeros((n_clusters,))
     weights[unique.long()] = (
         1 / counts.float()
