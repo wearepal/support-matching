@@ -126,6 +126,8 @@ def inf_generator(iterable: Iterable[T]) -> Iterator[T]:
     for i, (x, y) in enumerate(inf_generator(train_loader))
     """
     iterator = iter(iterable)
+    # try to take one element to ensure that the iterator is not empty
+    yield next(iterator)
     while True:
         try:
             yield next(iterator)
