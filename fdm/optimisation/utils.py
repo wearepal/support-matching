@@ -74,4 +74,5 @@ def weight_for_balance(cluster_ids: Tensor) -> Tuple[Tensor, int, int, int]:
     weights[unique.long()] = (
         1 / counts.float()
     )  # the higher the count the lower the weight to balance out
+    print(f"{weights=}")
     return weights[cluster_ids.long()], counts.size(0), int(counts.min()), int(counts.max())
