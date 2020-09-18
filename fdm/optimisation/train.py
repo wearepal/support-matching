@@ -129,9 +129,12 @@ def main(
         cluster_results = load_results(ARGS)
         ARGS._cluster_test_acc = cluster_results.test_acc
         ARGS._cluster_context_acc = cluster_results.context_acc
-        weights, n_clusters, min_count, max_count = weight_for_balance(cluster_results.cluster_ids)
+        weights, n_clusters, min_count, max_count = weight_for_balance(
+            cluster_results.cluster_ids, min_size=None if ARGS.oversample else ARGS.batch_size
+        )
         # if ARGS.oversample, oversample the smaller clusters instead of undersample the larger ones
         num_samples = n_clusters * max_count if ARGS.oversample else n_clusters * min_count
+        assert num_samples > ARGS.batch_size, "not enough samples for a batch"
         context_sampler = WeightedRandomSampler(weights, num_samples, replacement=ARGS.oversample)
         dataloader_kwargs = dict(sampler=context_sampler)
     elif ARGS.balanced_context:
