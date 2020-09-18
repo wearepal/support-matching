@@ -1,7 +1,10 @@
 """Call the main functions of both parts one after the other."""
+import argparse
 from pathlib import Path
 import sys
 from tempfile import TemporaryDirectory
+
+import wandb
 
 assert sys.version_info >= (3, 8), f"please use Python 3.8 (this is 3.{sys.version_info.minor})"
 
@@ -20,17 +23,25 @@ def main() -> None:
         )
         raise RuntimeError("all flags have to use the prefix '--b-', '--c-' or '--d-'.")
 
+    clust_args = [arg.replace("--c-", "--").replace("--b-", "--") for arg in raw_args]
+    dis_args = [arg.replace("--d-", "--").replace("--b-", "--") for arg in raw_args]
+
+    # find out whether wandb was turned on
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--use-wandb", default=True, type=eval, choices=[True, False])
+    temp_args, _ = parser.parse_known_args(dis_args)
+    if temp_args.use_wandb:
+        wandb.init(entity="predictive-analytics-lab", project="fdm")
+
     with TemporaryDirectory() as tmpdir:
         clf = str(Path(tmpdir) / "labels.pth")
         clf_flag = ["--cluster-label-file", clf]
-        clust_args = [arg.replace("--c-", "--").replace("--b-", "--") for arg in raw_args]
         from clustering.optimisation import main as cluster
 
         cluster(clust_args + clf_flag + ["--use-wandb", "False"], known_only=True)
-        dis_args = [arg.replace("--d-", "--").replace("--b-", "--") for arg in raw_args]
         from fdm.optimisation import main as disentangle
 
-        disentangle(dis_args + clf_flag, known_only=True)
+        disentangle(dis_args + clf_flag, known_only=True, initialize_wandb=False)
 
 
 if __name__ == "__main__":

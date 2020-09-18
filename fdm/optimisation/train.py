@@ -42,12 +42,14 @@ from shared.data import DatasetTriplet, load_dataset
 from shared.models.configs import conv_autoencoder, fc_autoencoder
 from shared.models.configs.classifiers import fc_net
 from shared.utils import (
+    AverageMeter,
     count_parameters,
     get_logger,
     inf_generator,
     load_results,
     prod,
     random_seed,
+    readable_duration,
     wandb_log,
 )
 
@@ -68,6 +70,7 @@ def main(
     raw_args: Optional[List[str]] = None,
     known_only: bool = False,
     cluster_label_file: Optional[Path] = None,
+    initialize_wandb: bool = True,
 ) -> Generator:
     """Main function
 
@@ -100,7 +103,10 @@ def main(
     ARGS = args
 
     if ARGS.use_wandb:
-        wandb.init(entity="predictive-analytics-lab", project="fdm", config=args.as_dict())
+        if initialize_wandb:
+            wandb.init(entity="predictive-analytics-lab", project="fdm", config=args.as_dict())
+        else:
+            wandb.config.update(args.as_dict())
 
     save_dir = Path(ARGS.save_dir) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -405,22 +411,41 @@ def main(
     # Logging
     LOGGER.info("Number of trainable parameters: {}", count_parameters(generator))
 
-    super_val_freq = ARGS.super_val_freq or ARGS.val_freq
-
-    itr = 0
+    itr = start_itr
     disc: nn.Module
+    loss_meters: Optional[Dict[str, AverageMeter]] = None
+    start_time = time.monotonic()
 
     for itr in range(start_itr, ARGS.iters + 1):
 
-        train_step(
+        logging_dict = train_step(
             components=components,
             context_data_itr=context_data_itr,
             train_data_itr=train_data_itr,
             itr=itr,
         )
+        if loss_meters is None:
+            loss_meters = {name: AverageMeter() for name in logging_dict}
+        for name, value in logging_dict.items():
+            loss_meters[name].update(value)
 
-        if ARGS.super_val and itr % super_val_freq == 0:
-            if itr == super_val_freq:
+        if itr % ARGS.log_freq == 0:
+            assert loss_meters is not None
+            log_string = " | ".join(f"{name}: {loss.avg:.5g}" for name, loss in loss_meters.items())
+            elapsed = time.monotonic() - start_time
+            LOGGER.info(
+                "[TRN] Iteration {:04d} | Elapsed: {} | Iterations/s: {:.4g} | {}",
+                itr,
+                readable_duration(elapsed),
+                ARGS.log_freq / elapsed,
+                log_string,
+            )
+
+            loss_meters = None
+            start_time = time.monotonic()
+
+        if ARGS.super_val and itr % ARGS.super_val_freq == 0:
+            if itr == ARGS.super_val_freq:  # first super val
                 baseline_metrics(ARGS, datasets, save_to_csv=Path(ARGS.save_dir))
             log_metrics(ARGS, model=generator, data=datasets, step=itr)
             save_model(ARGS, save_dir, model=generator, itr=itr, sha=sha)
@@ -478,7 +503,7 @@ def train_step(
     context_data_itr: Iterator[List[Tensor]],
     train_data_itr: Iterator[List[Tensor]],
     itr: int,
-) -> int:
+) -> Dict[str, float]:
 
     disc_weight = 0.0 if itr < ARGS.warmup_steps else ARGS.disc_weight
     # Train the discriminator on its own for a number of iterations
@@ -513,10 +538,7 @@ def train_step(
                 generator = components.inn
                 x_log = x_c
             log_recons(generator=generator, x=x_log, itr=itr)
-
-    log_string = " | ".join(f"{name}: {value:.5g}" for name, value in logging_dict.items())
-    LOGGER.info(f"[TRN] Iteration {itr} | {log_string}")
-    return itr
+    return logging_dict
 
 
 class AeComponents(NamedTuple):
