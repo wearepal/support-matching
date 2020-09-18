@@ -1,0 +1,58 @@
+# ===== dataset flags =====
+b_colors: 2 4
+b_context-pcnt: 0.66666666
+b_dataset: "cmnist"
+b_batch_size: 256
+b_enc-channels: 32
+b_enc-levels: 3
+b_init-channels: 32
+b_recon_loss: l2
+b_filter-labels: 2 4
+b_padding: 2
+# bias the context set
+b_scale: 0
+b_subsample-context:
+        0:0.7
+        1:0.4
+        2:0.2
+        3:1.0
+b_subsample-train:
+        1: 0.3
+        2: 0.0  # remove this group entirely
+
+# ===== clustering flags =====
+c_encoder: "ae"
+c_enc-epochs: 90
+c_kl-weight: 1
+c_std-transform: exp
+c_log-freq: 50
+c_cl-hidden_dims:
+c_epochs: 100
+c_method: pl_enc_no_norm
+c_val-freq: 10
+c_use-wandb: True
+
+# ===== disentangling flags =====
+d_disc-hidden: 256 256
+d_disc-lr: 3.0e-4
+d_disc-weight: 1
+d_eval-on-recon: False
+d_kl-weight: 0
+d_iters: 2000
+d_log-freq: 50
+d_lr: 3e-4
+d_num-discs: 1
+d_num-disc-updates: 5
+d_oversample: true
+d_pred-weight: 1
+d_recon-loss: l2
+d_std-transform: exp
+d_super-val-freq: 500
+d_super-val: True
+d_three-way: False
+d_train-on-recon: False
+d_use-wandb: True
+d_use-pretrained-enc: true
+d_vae: False
+d_warmup: 0
+d_zs-frac: 0.0469  # this makes zs channels be 1
