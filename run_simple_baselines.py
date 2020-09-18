@@ -187,7 +187,7 @@ def run_baseline(args: BaselineArgs) -> None:
             s_dim=datasets.s_dim,
             batch_size=args.test_batch_size,
             num_workers=args.num_workers,
-            upsample=args.upsample,
+            oversample=args.oversample,
         )
     train_loader = DataLoader(
         train_data,

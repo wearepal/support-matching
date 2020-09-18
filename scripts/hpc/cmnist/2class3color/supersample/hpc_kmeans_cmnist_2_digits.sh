@@ -15,7 +15,7 @@ for seed in "${seeds[@]}"; do
     --b-colors 1 4 8 \
     --b-subsample-context 0=0.5 1=1.0 2=0.3 3=0.2 4=0.4 5=0.2 \
     --d-batch-size 256 \
-    --d-upsample True \
+    --d-oversample True \
     --d-results cmnist_kmeans_2digits_3colors_supersample.csv \
     --b-save-dir experiments/cmnist/2digits/3colors/missings2/kmeans $@
     sleep 1

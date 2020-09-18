@@ -36,16 +36,16 @@ function run_baseline() {
 
 # OVERSAMPLE
 # ========================== ranking ========================
-run_ssl --b-missing-s 0 --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 2group_ranking_oversample.csv --d-upsample True "$@"
+run_ssl --b-missing-s 0 --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 2group_ranking_oversample.csv --d-oversample True "$@"
 # ========================== k means ========================
-run_ssl --b-missing-s 0 --c-method kmeans --d-results 2group_kmeans_oversample.csv --d-upsample True "$@"
+run_ssl --b-missing-s 0 --c-method kmeans --d-results 2group_kmeans_oversample.csv --d-oversample True "$@"
 
 
 # UNDERSAMPLE
 # ======================== ranking ========================
-run_ssl --b-missing-s 0 --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 2group_ranking_undersample.csv --d-upsample False "$@"
+run_ssl --b-missing-s 0 --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 2group_ranking_undersample.csv --d-oversample False "$@"
 # ======================== k means ========================
-run_ssl --b-missing-s 0 --c-method kmeans --d-results 2group_kmeans_undersample.csv --d-upsample False "$@"
+run_ssl --b-missing-s 0 --c-method kmeans --d-results 2group_kmeans_undersample.csv --d-oversample False "$@"
 
 # TRUE BALANCING
 # ===================== no clustering =====================
@@ -60,7 +60,7 @@ run_ssl --b-missing-s 0 --c-method kmeans --d-results 2group_kmeans_eval_on_reco
 
 # SAMPLING STRATEGY UNUSED
 # ===================== no clustering =====================
-run_no_cluster --b-missing-s 0 --d-results 2group_no_cluster.csv --d-upsample True "$@"
+run_no_cluster --b-missing-s 0 --d-results 2group_no_cluster.csv --d-oversample True "$@"
 # ===================== baseline  cnn =====================
 run_baseline --dataset adult --missing-s 0 --method cnn --padding 2 --balanced-context False --balanced-test True --biased-train True  "$@"
 # ===================== baseline  fwd =====================
