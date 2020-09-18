@@ -22,18 +22,18 @@ function run_sweep() {
 # ===========================================================
 
 # ========================== ranking ========================
-run_sweep --b-missing-s --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 1group_ranking_supersample.csv --d-upsample True "$@"
+run_sweep --b-missing-s --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 1group_ranking_supersample.csv --d-oversample True "$@"
 # ========================== k means ========================
-run_sweep --b-missing-s --c-method kmeans --d-results 1group_kmeans_supersample.csv --d-upsample True "$@"
+run_sweep --b-missing-s --c-method kmeans --d-results 1group_kmeans_supersample.csv --d-oversample True "$@"
 
 # ===========================================================
 # ====================== 2 group missing ====================
 # ===========================================================
 
 # ========================== ranking ========================
-run_sweep --b-missing-s 0 --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 2groups_ranking_supersample.csv --d-upsample True "$@"
+run_sweep --b-missing-s 0 --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 2groups_ranking_supersample.csv --d-oversample True "$@"
 # ========================== k means ========================
-run_sweep --b-missing-s 0 --c-method kmeans --d-results 2groups_kmeans_supersample.csv --d-upsample True "$@"
+run_sweep --b-missing-s 0 --c-method kmeans --d-results 2groups_kmeans_supersample.csv --d-oversample True "$@"
 
 # eval on recon
 

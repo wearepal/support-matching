@@ -129,18 +129,22 @@ def main(
         cluster_results = load_results(ARGS)
         ARGS._cluster_test_acc = cluster_results.test_acc
         ARGS._cluster_context_acc = cluster_results.context_acc
-        weights, n_clusters, min_count, max_count = weight_for_balance(cluster_results.cluster_ids)
-        # if ARGS.upsample, we upsample the smaller clusters rather than subsample the larger ones
-        num_samples = n_clusters * max_count if ARGS.upsample else n_clusters * min_count
-        context_sampler = WeightedRandomSampler(weights, num_samples, replacement=ARGS.upsample)
+        weights, n_clusters, min_count, max_count = weight_for_balance(
+            cluster_results.cluster_ids, min_size=None if ARGS.oversample else ARGS.batch_size
+        )
+        # if ARGS.oversample, oversample the smaller clusters instead of undersample the larger ones
+        num_samples = n_clusters * max_count if ARGS.oversample else n_clusters * min_count
+        assert num_samples > ARGS.batch_size, "not enough samples for a batch"
+        context_sampler = WeightedRandomSampler(weights, num_samples, replacement=ARGS.oversample)
         dataloader_kwargs = dict(sampler=context_sampler)
     elif ARGS.balanced_context:
         context_sampler = build_weighted_sampler_from_dataset(
             dataset=datasets.context,
             s_dim=datasets.s_dim,
-            batch_size=ARGS.test_batch_size,
+            test_batch_size=ARGS.test_batch_size,
+            batch_size=ARGS.batch_size,
             num_workers=ARGS.num_workers,
-            upsample=ARGS.upsample,
+            oversample=ARGS.oversample,
         )
         dataloader_kwargs = dict(sampler=context_sampler)
     else:
@@ -158,9 +162,10 @@ def main(
     train_sampler = build_weighted_sampler_from_dataset(
         dataset=datasets.train,
         s_dim=datasets.s_dim,
-        batch_size=ARGS.test_batch_size,
+        test_batch_size=ARGS.test_batch_size,
+        batch_size=ARGS.batch_size,
         num_workers=ARGS.num_workers,
-        upsample=ARGS.upsample,
+        oversample=ARGS.oversample,
     )
     train_loader = DataLoader(
         dataset=datasets.train,
@@ -434,11 +439,16 @@ def main(
 
 
 def build_weighted_sampler_from_dataset(
-    dataset: Dataset, s_dim: int, upsample: bool, batch_size: int, num_workers: int
+    dataset: Dataset,
+    s_dim: int,
+    oversample: bool,
+    test_batch_size: int,
+    batch_size: int,
+    num_workers: int,
 ) -> WeightedRandomSampler:
     #  Extract the s and y labels in a dataset-agnostic way (by iterating)
     data_loader = DataLoader(
-        dataset=dataset, drop_last=False, batch_size=batch_size, num_workers=num_workers
+        dataset=dataset, drop_last=False, batch_size=test_batch_size, num_workers=num_workers
     )
     s_all, y_all = [], []
     for _, s, y in data_loader:
@@ -447,10 +457,11 @@ def build_weighted_sampler_from_dataset(
     s_all = torch.cat(s_all, dim=0)
     y_all = torch.cat(y_all, dim=0)
     #  Balance the batches of the training set via weighted sampling
-    cluster_ids = get_class_id(s=s_all, y=y_all, to_cluster="both", s_count=s_dim)
-    weights, n_clusters, min_count, max_count = weight_for_balance(cluster_ids)
-    num_samples = n_clusters * max_count if upsample else n_clusters * min_count
-    return WeightedRandomSampler(weights.squeeze(), num_samples, replacement=upsample)
+    class_ids = get_class_id(s=s_all, y=y_all, to_cluster="both", s_count=s_dim)
+    weights, n_clusters, min_count, max_count = weight_for_balance(class_ids)
+    num_samples = n_clusters * max_count if oversample else n_clusters * min_count
+    assert num_samples > batch_size, f"not enough training samples ({num_samples}) to fill a batch"
+    return WeightedRandomSampler(weights.squeeze(), num_samples, replacement=oversample)
 
 
 def get_batch(

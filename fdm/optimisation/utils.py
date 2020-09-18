@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Optional
 
 import torch
 import torchvision
@@ -64,11 +64,27 @@ def restore_model(args: VaeArgs, filename: Path, model: nn.Module):
     return model, chkpt["itr"]
 
 
-def weight_for_balance(cluster_ids: Tensor) -> Tuple[Tensor, int, int, int]:
+def weight_for_balance(
+    cluster_ids: Tensor, min_size: Optional[int] = None
+) -> Tuple[Tensor, int, int, int]:
     unique, counts = torch.unique(cluster_ids, sorted=False, return_counts=True)
     n_clusters = int(unique.max() + 1)
     weights = torch.zeros((n_clusters,))
-    weights[unique.long()] = (
-        1 / counts.float()
-    )  # the higher the count the lower the weight to balance out
-    return weights[cluster_ids.long()], counts.size(0), int(counts.min()), int(counts.max())
+    # the higher the count the lower the weight to balance out
+    weights[unique.long()] = 1 / counts.float()
+
+    n_used_clusters = counts.size(0)
+    if min_size is not None:
+        smallest_used_cluster = int(counts.max())
+        for cluster, count in zip(unique, counts):
+            count_int = int(count)
+            if count_int < min_size:
+                print(f"Dropping cluster {cluster} with only {count_int} elements.")
+                print("Consider setting --oversample to True (or improve clustering).")
+                weights[cluster] = 0  # skip this cluster
+                n_used_clusters -= 1
+            elif count_int < smallest_used_cluster:
+                smallest_used_cluster = count_int
+    else:
+        smallest_used_cluster = int(counts.min())
+    return weights[cluster_ids.long()], n_used_clusters, smallest_used_cluster, int(counts.max())

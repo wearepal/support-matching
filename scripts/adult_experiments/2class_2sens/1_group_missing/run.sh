@@ -36,16 +36,16 @@ function run_baseline() {
 
 # OVERSAMPLE
 # ========================== ranking ========================
-run_ssl --b-missing-s --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 1group_ranking_oversample.csv --d-upsample True "$@"
+run_ssl --b-missing-s --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 1group_ranking_oversample.csv --d-oversample True "$@"
 # ========================== k means ========================
-run_ssl --b-missing-s --c-method kmeans --d-results 1group_kmeans_oversample.csv --d-upsample True "$@"
+run_ssl --b-missing-s --c-method kmeans --d-results 1group_kmeans_oversample.csv --d-oversample True "$@"
 
 
 # UNDERSAMPLE
 # ======================== ranking ========================
-run_ssl --b-missing-s --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 1group_ranking_undersample.csv --d-upsample False "$@"
+run_ssl --b-missing-s --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 1group_ranking_undersample.csv --d-oversample False "$@"
 # ======================== k means ========================
-run_ssl --b-missing-s --c-method kmeans --d-results 1group_kmeans_undersample.csv --d-upsample False "$@"
+run_ssl --b-missing-s --c-method kmeans --d-results 1group_kmeans_undersample.csv --d-oversample False "$@"
 
 # TRUE BALANCING
 # ===================== no clustering =====================

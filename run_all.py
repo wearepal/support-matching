@@ -25,9 +25,11 @@ def main() -> None:
         clf_flag = ["--cluster-label-file", clf]
         clust_args = [arg.replace("--c-", "--").replace("--b-", "--") for arg in raw_args]
         from clustering.optimisation import main as cluster
+
         cluster(clust_args + clf_flag + ["--use-wandb", "False"], known_only=True)
         dis_args = [arg.replace("--d-", "--").replace("--b-", "--") for arg in raw_args]
         from fdm.optimisation import main as disentangle
+
         disentangle(dis_args + clf_flag, known_only=True)
 
 
