@@ -141,7 +141,8 @@ def main(
         context_sampler = build_weighted_sampler_from_dataset(
             dataset=datasets.context,
             s_dim=datasets.s_dim,
-            batch_size=ARGS.test_batch_size,
+            test_batch_size=ARGS.test_batch_size,
+            batch_size=ARGS.batch_size,
             num_workers=ARGS.num_workers,
             oversample=ARGS.oversample,
         )
@@ -161,7 +162,8 @@ def main(
     train_sampler = build_weighted_sampler_from_dataset(
         dataset=datasets.train,
         s_dim=datasets.s_dim,
-        batch_size=ARGS.test_batch_size,
+        test_batch_size=ARGS.test_batch_size,
+        batch_size=ARGS.batch_size,
         num_workers=ARGS.num_workers,
         oversample=ARGS.oversample,
     )
@@ -437,11 +439,16 @@ def main(
 
 
 def build_weighted_sampler_from_dataset(
-    dataset: Dataset, s_dim: int, oversample: bool, batch_size: int, num_workers: int
+    dataset: Dataset,
+    s_dim: int,
+    oversample: bool,
+    test_batch_size: int,
+    batch_size: int,
+    num_workers: int,
 ) -> WeightedRandomSampler:
     #  Extract the s and y labels in a dataset-agnostic way (by iterating)
     data_loader = DataLoader(
-        dataset=dataset, drop_last=False, batch_size=batch_size, num_workers=num_workers
+        dataset=dataset, drop_last=False, batch_size=test_batch_size, num_workers=num_workers
     )
     s_all, y_all = [], []
     for _, s, y in data_loader:
@@ -450,9 +457,10 @@ def build_weighted_sampler_from_dataset(
     s_all = torch.cat(s_all, dim=0)
     y_all = torch.cat(y_all, dim=0)
     #  Balance the batches of the training set via weighted sampling
-    cluster_ids = get_class_id(s=s_all, y=y_all, to_cluster="both", s_count=s_dim)
-    weights, n_clusters, min_count, max_count = weight_for_balance(cluster_ids)
+    class_ids = get_class_id(s=s_all, y=y_all, to_cluster="both", s_count=s_dim)
+    weights, n_clusters, min_count, max_count = weight_for_balance(class_ids)
     num_samples = n_clusters * max_count if oversample else n_clusters * min_count
+    assert num_samples > batch_size, f"not enough training samples ({num_samples}) to fill a batch"
     return WeightedRandomSampler(weights.squeeze(), num_samples, replacement=oversample)
 
 
