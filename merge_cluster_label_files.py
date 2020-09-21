@@ -1,30 +1,28 @@
 from pathlib import Path
 
+print("starting up...")  # print this before loading all those heavy libraries
+
 from sklearn.metrics import confusion_matrix
-from typed_flags import TypedFlags
+import typer
 
 from clustering.optimisation.utils import get_class_id
 from shared.utils import ClusterResults, load_results, save_results
 
 
-class Args(TypedFlags):
-    s_labels: Path
-    y_labels: Path
-    merged_labels: Path
-
-
-def main():
-    args = Args().parse_args()
-
+def main(
+    s_labels: Path = typer.Option(...),
+    y_labels: Path = typer.Option(...),
+    merged_labels: Path = typer.Option(...),
+) -> None:
     class _ForYLabel:
-        cluster_label_file = str(args.y_labels)
+        cluster_label_file = str(y_labels)
 
     class _ForSLabel:
-        cluster_label_file = str(args.s_labels)
+        cluster_label_file = str(s_labels)
 
-    print(f"Loading from {args.y_labels}")
+    print(f"Loading from {y_labels}")
     y_results = load_results(_ForYLabel(), check=False)
-    print(f"Loading from {args.s_labels}")
+    print(f"Loading from {s_labels}")
     s_results = load_results(_ForSLabel(), check=False)
     s_count = int(s_results.class_ids.max() + 1)
     print(f"Computed s_count={s_count}")
@@ -48,8 +46,8 @@ def main():
         test_acc=0.5 * (y_results.test_acc + s_results.test_acc),
         context_acc=0.5 * (y_results.context_acc + s_results.context_acc),
     )
-    save_results(save_path=args.merged_labels, cluster_results=cluster_results)
+    save_results(save_path=merged_labels, cluster_results=cluster_results)
 
 
 if __name__ == "__main__":
-    main()
+    typer.run(main)

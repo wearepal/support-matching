@@ -1,8 +1,9 @@
-from typing import Protocol, Union, Sequence, Optional, List
+from typing import Union, Sequence, Optional, List
 
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import resnet50
+from typing_extensions import Protocol
 
 from fdm.models.resnet import ResidualNet
 from shared.utils import prod

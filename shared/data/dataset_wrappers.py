@@ -1,7 +1,6 @@
-from __future__ import annotations
 import random
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Tuple, Dict, Union, Callable, Set, Sequence, Final
+from typing import TYPE_CHECKING, List, Optional, Tuple, Dict, Union, Callable, Set, Sequence
 
 from kornia.geometry import rotate
 import numpy as np
@@ -10,6 +9,7 @@ import torch
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms
+from typing_extensions import Final
 from ethicml.utility import DataTuple
 
 from .misc import RandomSampler, grouped_features_indexes, set_transform
@@ -287,12 +287,13 @@ class TripletDataset(Dataset):
 
 
 def filter_by_labels(
-    dataset: Dataset[Tuple[torch.Tensor, torch.Tensor, torch.Tensor]], labels: Set[int]
+    dataset: "Dataset[Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]", labels: Set[int]
 ) -> Subset:
     """Filter samples from a dataset by labels."""
     indices: List[int] = []
     for _, _, y in dataset:
-        if (label := int(y.numpy())) in labels:
+        label = int(y.numpy())
+        if label in labels:
             indices.append(label)
     return Subset(dataset, indices)
 

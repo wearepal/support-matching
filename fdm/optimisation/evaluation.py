@@ -1,7 +1,5 @@
-from __future__ import annotations
-
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Literal, Sequence
+from typing import Dict, Optional, Tuple, Sequence
 
 import numpy as np
 import pandas as pd
@@ -9,6 +7,7 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset, Dataset
 from torch import Tensor
 from tqdm import tqdm
+from typing_extensions import Literal
 
 import wandb
 import ethicml as em
@@ -218,8 +217,8 @@ def make_tuple_from_data(
 def evaluate(
     args: VaeArgs,
     step: int,
-    train_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
-    test_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
+    train_data: "Dataset[Tuple[Tensor, Tensor, Tensor]]",
+    test_data: "Dataset[Tuple[Tensor, Tensor, Tensor]]",
     name: str,
     eval_on_recon: bool = True,
     pred_s: bool = False,
@@ -293,7 +292,7 @@ def encode_dataset(
     generator: AutoEncoder,
     recons: bool,
     invariant_to: Literal["s", "y"] = "s",
-) -> Dataset[Tuple[Tensor, Tensor, Tensor]]:
+) -> "Dataset[Tuple[Tensor, Tensor, Tensor]]":
     print("Encoding dataset...", flush=True)  # flush to avoid conflict with tqdm
     all_x_m = []
     all_s = []

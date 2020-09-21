@@ -60,7 +60,7 @@ def load_results(args: BaseArgs, check: bool = True) -> ClusterResults:
         flags=data["args"],
         cluster_ids=data["cluster_ids"],
         class_ids=class_ids,
-        enc_path=Path(data["enc_path"]),
+        enc_path=Path(data.get("enc_path", "")),
         context_acc=data.get("context_acc", float("nan")),
         test_acc=data.get("test_acc", float("nan")),
     )

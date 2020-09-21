@@ -1,5 +1,4 @@
 """Main training file"""
-from __future__ import annotations
 import time
 from logging import Logger
 from pathlib import Path
@@ -77,7 +76,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha
 
-    args = ClusterArgs(fromfile_prefix_chars="@")
+    args = ClusterArgs(fromfile_prefix_chars="@", explicit_bool=True, underscores_to_dashes=True)
     if known_only:
         args.parse_args(raw_args, known_only=True)
         remaining = args.extra_args

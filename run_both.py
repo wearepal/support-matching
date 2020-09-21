@@ -5,8 +5,6 @@ from subprocess import run, CalledProcessError
 import sys
 from tempfile import TemporaryDirectory
 
-assert sys.version_info >= (3, 8), f"please use Python 3.8 (this is 3.{sys.version_info.minor})"
-
 
 def main():
     """First run the clustering, then pass on the cluster labels to the fair representation code."""

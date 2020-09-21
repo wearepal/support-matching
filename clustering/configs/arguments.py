@@ -1,6 +1,7 @@
-from typing import Optional, Literal, List
+from typing import Optional, List
 
 import torch
+from typing_extensions import Literal
 from shared.configs import BaseArgs
 
 __all__ = ["ClusterArgs"]

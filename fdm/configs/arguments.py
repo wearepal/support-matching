@@ -1,8 +1,9 @@
-from typing import Optional, Literal, List, Dict
+from typing import Optional, List, Dict
 
 import torch
+from typing_extensions import Literal
 
-from shared.configs import BaseArgs
+from shared.configs import BaseArgs, StoreDictKeyPair
 
 __all__ = ["VaeArgs"]
 
@@ -97,6 +98,18 @@ class VaeArgs(BaseArgs):
     # misc
     _cluster_test_acc: float = 0.0
     _cluster_context_acc: float = 0.0
+
+    def add_arguments(self) -> None:
+        super().add_arguments()
+        self.add_argument(
+            "--inn-factor-splits",
+            action=StoreDictKeyPair,
+            nargs="+",
+            default={},
+            type=str,
+            key_type=str,
+            value_type=int,
+        )
 
     def process_args(self) -> None:
         super().process_args()

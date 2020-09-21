@@ -1,12 +1,12 @@
-from __future__ import annotations
 from pathlib import Path
-from typing import Tuple, Literal, Union, Dict
+from typing import Tuple, Union, Dict
 
 from lapjv import lapjv  # pylint: disable=no-name-in-module
 import numpy as np
 import torch
 import torchvision
 from torch import Tensor
+from typing_extensions import Literal
 import wandb
 
 from shared.utils import wandb_log, save_results, ClusterResults
@@ -98,7 +98,7 @@ def count_occurances(
 
 def find_assignment(
     counts: np.ndarray, num_total: int
-) -> Tuple[float, np.ndarray[np.int64], Dict[str, Union[float, str]]]:
+) -> Tuple[float, "np.ndarray[np.int64]", Dict[str, Union[float, str]]]:
     """Find an assignment of cluster to class such that the overall accuracy is maximized."""
     # row_ind maps from class ID to cluster ID: cluster_id = row_ind[class_id]
     # col_ind maps from cluster ID to class ID: class_id = row_ind[cluster_id]

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import Tuple, List
 
 import torch
@@ -23,7 +21,7 @@ def log_sample_images(args: ClusterArgs, data: Dataset, name: str, step: int) ->
 
 def encode_dataset(
     args: ClusterArgs, data: Dataset, generator: Encoder
-) -> Dataset[Tuple[Tensor, Tensor, Tensor]]:
+) -> "Dataset[Tuple[Tensor, Tensor, Tensor]]":
     print("Encoding dataset...", flush=True)  # flush to avoid conflict with tqdm
     all_enc = []
     all_s = []
