@@ -166,7 +166,7 @@ class BaseArgs(Tap):
                 self._add_argument(*name_or_flags, **kwargs)
             else:
                 flag_name = variable.replace("_", "-") if self._underscores_to_dashes else variable
-                self._add_argument(f'--{flag_name}')
+                self._add_argument(f"--{flag_name}")
 
         # Add any arguments that were added manually in add_arguments but aren't class variables (in order)
         for variable, (name_or_flags, kwargs) in self.argument_buffer.items():

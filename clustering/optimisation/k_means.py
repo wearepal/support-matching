@@ -2,6 +2,7 @@ import time
 from typing import Tuple, Union
 
 import numpy as np
+
 # from pykeops.torch import LazyTensor
 import faiss
 import torch
