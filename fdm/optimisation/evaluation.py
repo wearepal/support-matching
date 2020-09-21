@@ -140,24 +140,25 @@ def compute_metrics(
         # if hasattr(args, "eval_on_recon"):
         #     data_exp_name += "_on_recons" if args.eval_on_recon else "_on_encodings"
 
-        manual_keys = ["seed", "data", "method", "wandb_url"]
-        manual_values = [
-            str(getattr(args, "seed", args.data_split_seed)),
-            data_exp_name,
-            f'"{model_name}"',
-            wandb.run.get_url() if args.use_wandb else "(None)",
-        ]
+        manual_entries = {
+            "seed": str(getattr(args, "seed", args.data_split_seed)),
+            "data": data_exp_name,
+            "method": f'"{model_name}"',
+            "wandb_url": wandb.run.get_url() if args.use_wandb else "(None)",
+        }
 
         if hasattr(args, "_cluster_test_acc"):
-            manual_keys += ["cluster_test_acc", "cluster_context_acc"]
-            manual_values += [str(args._cluster_test_acc), str(args._cluster_context_acc)]
+            manual_entries.update({
+                "cluster_test_acc": str(args._cluster_test_acc),
+                "cluster_context_acc": str(args._cluster_context_acc),
+            })
 
         results_path = save_to_csv / f"{args.dataset}_{results_csv}"
-        value_list = ",".join(manual_values + [str(v) for v in metrics.values()])
+        value_list = ",".join(list(manual_entries.values()) + [str(v) for v in metrics.values()])
         if not results_path.is_file():
             with results_path.open("w") as f:
                 # ========= header =========
-                f.write(",".join(manual_keys + [str(k) for k in metrics.keys()]) + "\n")
+                f.write(",".join(list(manual_entries) + [str(k) for k in metrics.keys()]) + "\n")
                 f.write(value_list + "\n")
         else:
             with results_path.open("a") as f:  # append to existing file

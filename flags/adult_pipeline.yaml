@@ -1,13 +1,13 @@
 # Clustering arguments
 # ===== dataset =====
-b_dataset: adult
-b_drop_native: True
-b_mixing_factor: 0.0
-b_input_noise: False
-b_biased_train: True
-b_balanced_context: False
-b_balanced_test: True
-b_balance_all: True
+a_dataset: adult
+a_drop_native: True
+a_mixing_factor: 0.0
+a_input_noise: False
+a_biased_train: True
+a_balanced_context: False
+a_balanced_test: True
+a_balance_all: True
 
 # ===== encoder =====
 c_encoder: ae

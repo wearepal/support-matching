@@ -1,6 +1,7 @@
+import sys
 from abc import ABC, abstractmethod
-from fdm.optimisation.train import build_weighted_sampler_from_dataset
 from pathlib import Path
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -14,6 +15,7 @@ import ethicml as em
 from ethicml import implementations
 
 from fdm.models import Classifier
+from fdm.optimisation.train import build_weighted_sampler_from_dataset
 from shared.configs import BaseArgs
 from shared.data import load_dataset
 from shared.models.configs.classifiers import mp_32x32_net, fc_net, mp_64x64_net
@@ -75,6 +77,12 @@ class BaselineArgs(BaseArgs):
                 )
 
         return super().process_args()
+
+    def convert_arg_line_to_args(self, arg_line: str) -> List[str]:
+        """Parse each line like a YAML file."""
+        if arg_line.startswith(("a_", "b_", "a-", "b-")):
+            arg_line = arg_line[2:]
+        return super().convert_arg_line_to_args(arg_line)
 
 
 def get_instance_weights(dataset: Dataset, batch_size: int) -> TensorDataset:
@@ -300,8 +308,27 @@ def run_baseline(args: BaselineArgs) -> None:
 
 
 def main() -> None:
-    args = BaselineArgs()
-    args.parse_args()
+    raw_args = sys.argv[1:]
+    if not all(
+        (not arg.startswith("--")) or arg.startswith(("--c-", "--d-", "--a-", "--b-"))
+        for arg in raw_args
+    ):
+        print(
+            "\nUse --a- to prefix those flags that will be passed to all parts of the code.\n"
+            "Use --b- to prefix those flags that will only be passed to the baseline code.\n"
+            "Use --c- to prefix those flags that will only be passed to the clustering code.\n"
+            "Use --d- to prefix those flags that will only be passed to the disentangling code.\n"
+            "So, for example: --a-dataset cmnist --c-epochs 100"
+        )
+        raise RuntimeError("all flags have to use the prefix '--a-', '--c-','--d-' or '--s-'.")
+
+    baseline_args = [arg.replace("--b-", "--").replace("--a-", "--") for arg in raw_args]
+    args = BaselineArgs(fromfile_prefix_chars="@", explicit_bool=True, underscores_to_dashes=True)
+    args.parse_args(baseline_args, known_only=True)
+    remaining = args.extra_args
+    for arg in remaining:
+        if arg.startswith("--") and not arg.startswith(("--c-", "--d-")):
+            raise ValueError(f"unknown commandline argument: {arg}")
     print(args)
     run_baseline(args=args)
 

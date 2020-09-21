@@ -1,17 +1,17 @@
 # ===== dataset flags =====
-b_dataset: "cmnist"
-b_filter_labels: 2 4
-b_padding: 2
-b_context_pcnt: 0.66666666
+a_dataset: "cmnist"
+a_filter_labels: 2 4
+a_padding: 2
+a_context_pcnt: 0.66666666
 # bias the context set
-b_subsample_context:
+a_subsample_context:
         0: 0.7
         1: 0.5
         2: 0.3
-b_subsample_train:
+a_subsample_train:
         1: 0.3
         2: 0.0  # remove this group entirely
-b_scale: 0
+a_scale: 0
 
 # ===== clustering flags =====
 c_encoder: "ae"

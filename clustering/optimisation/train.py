@@ -81,7 +81,7 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
         args.parse_args(raw_args, known_only=True)
         remaining = args.extra_args
         for arg in remaining:
-            if arg.startswith("--") and not arg.startswith("--d-"):
+            if arg.startswith("--") and not arg.startswith(("--d-", "--b-")):
                 raise ValueError(f"unknown commandline argument: {arg}")
     else:
         args.parse_args(raw_args)

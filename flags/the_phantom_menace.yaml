@@ -1,54 +1,54 @@
 # ===== dataset flags =====
-b_dataset: "cmnist"
-b_filter_labels: 2 4
-b_padding: 2
-b_context_pcnt: 0.66666666
+a-dataset: "cmnist"
+a-filter-labels: 2 4
+a-padding: 2
+a-context-pcnt: 0.66666666
 # bias the context set
-b_subsample_context:
+a-subsample-context:
         0:0.7
         1:0.4
         2:0.2
         3:1.0
-b_subsample_train:
+a-subsample-train:
         1: 0.3
         2: 0.0  # remove this group entirely
-b_scale: 0
-b_colors: 2 4
+a-scale: 0
+a-colors: 2 4
 
 # ===== clustering flags =====
-c_encoder: "ae"
-c_enc_levels: 4
-c_enc_chan: 16
-c_enc_epochs: 90
-c_recon_loss: l2
-c_kl_weight: 1
-c_std_transform: exp
-c_log_freq: 50
-c_cl_hidden_dims:
-c_epochs: 100
-c_method: "pl_enc_no_norm"
-c_val_freq: 10
+c-encoder: "ae"
+c-enc-levels: 4
+c-enc-chan: 16
+c-enc-epochs: 90
+c-recon-loss: l2
+c-kl-weight: 1
+c-std-transform: exp
+c-log-freq: 50
+c-cl-hidden-dims:
+c-epochs: 100
+c-method: "pl_enc_no_norm"
+c-val-freq: 10
 
 # ===== disentangling flags =====
-d_batch-size: 128
-d_disc-hidden: 32 32
-d_disc-lr: 3e-4
-d_disc_weight: 2
-d_enc_chan: 16
-d_epochs: 250
-d_eval_on_recon: True
-d_kl_weight: 1
-d_levels: 4
-d_log_freq: 50
-d_lr: 1e-3
-d_num-disc-updates: 3
-d_pred-weight: 1
-d_recon_loss: l2
-d_std_transform: exp
-d_super-val-freq: 20
-d_super-val: True
-d_three_way: False
-d_train-on-recon: False
-d_vae: False
-d_warmup: 0
-d_zs_frac: 0.0469  # this makes zs channels be 1
+d-batch-size: 128
+d-disc-hidden: 32 32
+d-disc-lr: 3e-4
+d-disc-weight: 2
+d-enc-chan: 16
+d-epochs: 250
+d-eval-on-recon: True
+d-kl-weight: 1
+d-levels: 4
+d-log-freq: 50
+d-lr: 1e-3
+d-num-disc-updates: 3
+d-pred-weight: 1
+d-recon-loss: l2
+d-std-transform: exp
+d-super-val-freq: 20
+d-super-val: True
+d-three-way: False
+d-train-on-recon: False
+d-vae: False
+d-warmup: 0
+d-zs-frac: 0.0469  # this makes zs channels be 1

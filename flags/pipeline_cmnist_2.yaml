@@ -1,9 +1,9 @@
 # ===== dataset flags =====
-b_dataset: "cmnist"
-b_filter_labels: 2 4
-b_padding: 2
-b_context_pcnt: 0.66666666
-b_subsample_context:
+a_dataset: "cmnist"
+a_filter_labels: 2 4
+a_padding: 2
+a_context_pcnt: 0.66666666
+a_subsample_context:
         0: 0.5
         1: 0.5
 

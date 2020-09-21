@@ -122,6 +122,6 @@ class VaeArgs(BaseArgs):
 
     def convert_arg_line_to_args(self, arg_line: str) -> List[str]:
         """Parse each line like a YAML file."""
-        if arg_line.startswith(("b_", "d_")):
+        if arg_line.startswith(("a_", "d_", "a-", "d-")):
             arg_line = arg_line[2:]
         return super().convert_arg_line_to_args(arg_line)

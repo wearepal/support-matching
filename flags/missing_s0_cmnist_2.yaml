@@ -1,63 +1,63 @@
 # ===== dataset flags =====
-b_dataset: "cmnist"
-b_filter_labels: 2 4
-b_padding: 2
-b_missing_s: 0
+a_dataset: "cmnist"
+a_filter_labels: 2 4
+a_padding: 2
+a_missing_s: 0
 #b_context_pcnt: 0.66666666
-b_subsample_context:
+a_subsample_context:
     0: 0.5
     1: 0.5
 
 # --- flags that are used in clusetering and fdm
-b_background: False
-b_batch_size: 128
-b_biased_train: True
-b_binarize: True
-b_black: True
-b_celeba_sens_attr: Male
-b_celeba_target_attr: Smiling
-b_color_correlation: 1
-b_context_pcnt: 0.6667
-b_data_pcnt: 1
-b_data_split_seed: 888
-b_drop_discrete: False
-b_drop_native: True
-b_early_stopping: 30
-b_elbo_weight: 1
-b_enc_channels: 16
-b_encode_batch_size: 1000
-b_eval_epochs: 40
-b_eval_lr: 0.001
-b_eval_on_recon: True
-b_evaluate: False
-b_recon_loss: l2
-b_feat_attr: False
-b_genfaces_sens_attr: "gender"
-b_genfaces_target_attr: "emotion"
-b_gpu: 0
-b_greyscale: False
-b_lr: 0.001
-b_mixing_factor: 0
-b_num_workers:  4
-b_quant_level: 8
-b_results_csv: ""
-b_root: ""
-b_rotate_data: False
-b_save_dir: experiments/finn
-b_scale: 0.02
-b_seed: 42
-b_shift_data: False
-b_stochastic: False
-b_test_pcnt: 0.2
-b_use_wandb: True
-b_val_freq: 5
-b_vgg_weight: 0
-b_weight_decay: 0
-b_init_channels: 32
-b_input_noise: True
-b_kl_weight: 1
-b_std_transform: exp
-b_log_freq: 50
+a_background: False
+a_batch_size: 128
+a_biased_train: True
+a_binarize: True
+a_black: True
+a_celeba_sens_attr: Male
+a_celeba_target_attr: Smiling
+a_color_correlation: 1
+a_context_pcnt: 0.6667
+a_data_pcnt: 1
+a_data_split_seed: 888
+a_drop_discrete: False
+a_drop_native: True
+a_early_stopping: 30
+a_elbo_weight: 1
+a_enc_channels: 16
+a_encode_batch_size: 1000
+a_eval_epochs: 40
+a_eval_lr: 0.001
+a_eval_on_recon: True
+a_evaluate: False
+a_recon_loss: l2
+a_feat_attr: False
+a_genfaces_sens_attr: "gender"
+a_genfaces_target_attr: "emotion"
+a_gpu: 0
+a_greyscale: False
+a_lr: 0.001
+a_mixing_factor: 0
+a_num_workers:  4
+a_quant_level: 8
+a_results_csv: ""
+a_root: ""
+a_rotate_data: False
+a_save_dir: experiments/finn
+a_scale: 0.02
+a_seed: 42
+a_shift_data: False
+a_stochastic: False
+a_test_pcnt: 0.2
+a_use_wandb: True
+a_val_freq: 5
+a_vgg_weight: 0
+a_weight_decay: 0
+a_init_channels: 32
+a_input_noise: True
+a_kl_weight: 1
+a_std_transform: exp
+a_log_freq: 50
 
 
 # ===== clustering flags =====
