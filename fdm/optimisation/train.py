@@ -1,6 +1,4 @@
 """Main training file"""
-from __future__ import annotations
-
 import time
 from logging import Logger
 from pathlib import Path
@@ -10,7 +8,6 @@ from typing import (
     Dict,
     Iterator,
     List,
-    Literal,
     NamedTuple,
     Optional,
     Sequence,
@@ -26,6 +23,7 @@ import torch.nn.functional as F
 import wandb
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, Subset, WeightedRandomSampler
+from typing_extensions import Literal
 
 from clustering.optimisation import get_class_id
 from fdm.configs import VaeArgs
@@ -84,7 +82,7 @@ def main(
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha
 
-    args = VaeArgs(fromfile_prefix_chars="@")
+    args = VaeArgs(fromfile_prefix_chars="@", explicit_bool=True, underscores_to_dashes=True)
     if known_only:
         args.parse_args(raw_args, known_only=True)
         remaining = args.extra_args
@@ -499,7 +497,7 @@ def get_batch(
 
 
 def train_step(
-    components: Union[AeComponents, InnComponents],
+    components: Union["AeComponents", InnComponents],
     context_data_itr: Iterator[List[Tensor]],
     train_data_itr: Iterator[List[Tensor]],
     itr: int,

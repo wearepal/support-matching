@@ -127,7 +127,8 @@ def inf_generator(iterable: Iterable[T]) -> Iterator[T]:
     """
     iterator = iter(iterable)
     # try to take one element to ensure that the iterator is not empty
-    if (first_value := next(iterator, None)) is not None:
+    first_value = next(iterator, None)
+    if first_value is not None:
         yield first_value
     else:
         raise RuntimeError("The given iterable is empty.")

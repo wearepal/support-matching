@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union, overload
+from typing import Any, Dict, List, Optional, Tuple, Union, overload
 
 import torch
 import torch.distributions as td
@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch import Tensor
 from tqdm import tqdm
+from typing_extensions import Literal
 
 from shared.utils import to_discrete, sample_concrete
 

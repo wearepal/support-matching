@@ -1,9 +1,10 @@
-from typing import List, Optional, Sequence, Tuple, Literal
+from typing import List, Optional, Sequence, Tuple
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
+from typing_extensions import Literal
 
 from shared.utils import RoundSTE, sum_except_batch
 from shared.utils.typechecks import is_probability

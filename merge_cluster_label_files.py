@@ -1,20 +1,20 @@
 from pathlib import Path
 
 from sklearn.metrics import confusion_matrix
-from typed_flags import TypedFlags
+from tap import Tap
 
 from clustering.optimisation.utils import get_class_id
 from shared.utils import ClusterResults, load_results, save_results
 
 
-class Args(TypedFlags):
+class Args(Tap):
     s_labels: Path
     y_labels: Path
     merged_labels: Path
 
 
 def main():
-    args = Args().parse_args()
+    args = Args(explicit_bool=True, underscores_to_dashes=True).parse_args()
 
     class _ForYLabel:
         cluster_label_file = str(args.y_labels)

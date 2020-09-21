@@ -1,9 +1,10 @@
 """Main training file"""
-from typing import Dict, List, Tuple, Literal, NamedTuple, Optional
+from typing import Dict, List, Tuple, NamedTuple, Optional
 
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
+from typing_extensions import Literal
 
 from clustering.configs import ClusterArgs
 from clustering.models import PartitionedAeInn, Classifier

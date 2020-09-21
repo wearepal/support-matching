@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from fdm.optimisation.train import build_weighted_sampler_from_dataset
 from pathlib import Path
-from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -9,6 +8,7 @@ import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import trange
+from typing_extensions import Literal
 
 import ethicml as em
 from ethicml import implementations

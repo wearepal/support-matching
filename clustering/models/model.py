@@ -1,8 +1,9 @@
 """Model that contains all."""
-from typing import Tuple, final, Iterator, Optional
+from typing import Tuple, Iterator, Optional
 from torch import Tensor
 import torch
 import torch.nn as nn
+from typing_extensions import final
 
 from .base import Encoder
 from .classifier import Classifier
