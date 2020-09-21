@@ -10,7 +10,7 @@ function run_sweep() {
     for seed in "${seeds[@]}"; do
         echo $seed
         qsub -pe smpslots $slots $job_file run_both.py @flags/adult_pipeline.yaml \
-        --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed "$@"
+        --a-gpu $gpu_id --a-seed $seed --a-data-split-seed $seed "$@"
         sleep 1
     done
 }
@@ -22,18 +22,18 @@ function run_sweep() {
 # ===========================================================
 
 # ========================== ranking ========================
-run_sweep --b-missing-s --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 1group_ranking_supersample.csv --d-oversample True "$@"
+run_sweep --a-missing-s --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 1group_ranking_supersample.csv --d-oversample True "$@"
 # ========================== k means ========================
-run_sweep --b-missing-s --c-method kmeans --d-results 1group_kmeans_supersample.csv --d-oversample True "$@"
+run_sweep --a-missing-s --c-method kmeans --d-results 1group_kmeans_supersample.csv --d-oversample True "$@"
 
 # ===========================================================
 # ====================== 2 group missing ====================
 # ===========================================================
 
 # ========================== ranking ========================
-run_sweep --b-missing-s 0 --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 2groups_ranking_supersample.csv --d-oversample True "$@"
+run_sweep --a-missing-s 0 --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 2groups_ranking_supersample.csv --d-oversample True "$@"
 # ========================== k means ========================
-run_sweep --b-missing-s 0 --c-method kmeans --d-results 2groups_kmeans_supersample.csv --d-oversample True "$@"
+run_sweep --a-missing-s 0 --c-method kmeans --d-results 2groups_kmeans_supersample.csv --d-oversample True "$@"
 
 # eval on recon
 
@@ -42,15 +42,15 @@ run_sweep --b-missing-s 0 --c-method kmeans --d-results 2groups_kmeans_supersamp
 # ===========================================================
 
 # ========================== ranking ========================
-run_sweep --b-missing-s --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 1group_ranking_eval_on_recon.csv --d-eval-on-recon True "$@"
+run_sweep --a-missing-s --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 1group_ranking_eval_on_recon.csv --d-eval-on-recon True "$@"
 # ========================== k means ========================
-run_sweep --b-missing-s --c-method kmeans --d-results 1group_kmeans_eval_on_recon.csv --d-eval-on-recon True "$@"
+run_sweep --a-missing-s --c-method kmeans --d-results 1group_kmeans_eval_on_recon.csv --d-eval-on-recon True "$@"
 
 # ===========================================================
 # ====================== 2 group missing ====================
 # ===========================================================
 
 # ========================== ranking ========================
-run_sweep --b-missing-s 0 --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 2groups_ranking_eval_on_recon.csv --d-eval-on-recon True "$@"
+run_sweep --a-missing-s 0 --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 2groups_ranking_eval_on_recon.csv --d-eval-on-recon True "$@"
 # ========================== k means ========================
-run_sweep --b-missing-s 0 --c-method kmeans --d-results 2groups_kmeans_eval_on_recon.csv --d-eval-on-recon True "$@"
+run_sweep --a-missing-s 0 --c-method kmeans --d-results 2groups_kmeans_eval_on_recon.csv --d-eval-on-recon True "$@"

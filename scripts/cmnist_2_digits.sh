@@ -5,10 +5,10 @@ seeds=( 888 1 2410 1996 711 )
 for seed in "${seeds[@]}"; do
     echo $seed
     python run_both.py @flags/the_phantom_menace.yaml \
-    --b-gpu 0 \
-    --b-seed $seed \
-    --b-data-split-seed $seed \
+    --a-gpu 0 \
+    --a-seed $seed \
+    --a-data-split-seed $seed \
     --d-results cmnist_2digits_$seed.csv \
-    --b-save-dir experiments/cmnist1missing/ours/full/2digits/$seed $@
+    --a-save-dir experiments/cmnist1missing/ours/full/2digits/$seed $@
     sleep 1
 done

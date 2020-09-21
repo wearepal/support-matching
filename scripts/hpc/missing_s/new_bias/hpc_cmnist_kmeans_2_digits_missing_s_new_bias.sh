@@ -7,14 +7,14 @@ for seed in "${seeds[@]}"; do
     echo $seed
     qsub -pe smpslots $slots python-ot.job run_both.py @flags/the_phantom_menace.yaml \
     --c-method kmeans \
-    --b-subsample-train \
-    --b-missing-s 0 \
+    --a-subsample-train \
+    --a-missing-s 0 \
     --d-batch-size 256 \
-    --b-subsample-context 0=0.5 1=1.0 2=0.2 3=0.4 \
-    --b-gpu 0 \
-    --b-seed $seed \
-    --b-data-split-seed $seed \
+    --a-subsample-context 0=0.5 1=1.0 2=0.2 3=0.4 \
+    --a-gpu 0 \
+    --a-seed $seed \
+    --a-data-split-seed $seed \
     --d-results cmnist_missing_s0_kmeans_2digits_$seed.csv \
-    --b-save-dir experiments/cmnistmissings/ours/full/2digits/$seed $@
+    --a-save-dir experiments/cmnistmissings/ours/full/2digits/$seed $@
     sleep 1
 done

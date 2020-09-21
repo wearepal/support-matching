@@ -16,7 +16,7 @@ function run_ssl() {
     for seed in $seeds; do
         echo $seed
         qsub -pe smpslots $slots python-ot.job run_both.py @flags/vague_spaceship.yaml \
-        --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir "$@"
+        --a-gpu $gpu_id --a-seed $seed --a-data-split-seed $seed --a-save-dir $save_dir "$@"
         sleep 15
     done
 }
@@ -25,7 +25,7 @@ function run_no_cluster() {
     for seed in $seeds; do
         echo $seed
         qsub -pe smpslots $slots python-ot.job run_no_balancing.py @flags/vague_spaceship.yaml \
-        --b-gpu $gpu_id --b-seed $seed --b-data-split-seed $seed --b-save-dir $save_dir "$@"
+        --a-gpu $gpu_id --a-seed $seed --a-data-split-seed $seed --a-save-dir $save_dir "$@"
         sleep 15
     done
 }
@@ -42,14 +42,14 @@ function run_baseline() {
 
 # UNDERSAMPLE
 # ======================== ranking ========================
-run_ssl --b-missing-s --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 1group_ranking_undersample.csv "$@"
+run_ssl --a-missing-s --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results 1group_ranking_undersample.csv "$@"
 # ======================== k means ========================
-run_ssl --b-missing-s --c-method kmeans --d-results 1group_kmeans_undersample.csv "$@"
+run_ssl --a-missing-s --c-method kmeans --d-results 1group_kmeans_undersample.csv "$@"
 
 
 # SAMPLING STRATEGY UNUSED
 # ===================== no clustering =====================
-run_no_cluster --b-missing-s --d-results 1group_no_cluster.csv "$@"
+run_no_cluster --a-missing-s --d-results 1group_no_cluster.csv "$@"
 # ===================== baseline  cnn =====================
 run_baseline --dataset cmnist --method cnn --subsample-train 1=0.3 2=0.0 "$@"
 # ===================== baseline  fwd =====================

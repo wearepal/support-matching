@@ -6,10 +6,10 @@ slots=6
 for seed in "${seeds[@]}"; do
     echo $seed
     qsub -pe smpslots $slots python-ot.job run_no_balancing.py @flags/the_phantom_menace.yaml \
-    --b-gpu 0 \
-    --b-seed $seed \
-    --b-data-split-seed $seed \
+    --a-gpu 0 \
+    --a-seed $seed \
+    --a-data-split-seed $seed \
     --d-results cmnist_1missing_no_cluster_2digits_$seed.csv \
-    --b-save-dir experiments/cmnist1missing/ours/nocluster/2digits/$seed $@
+    --a-save-dir experiments/cmnist1missing/ours/nocluster/2digits/$seed $@
     sleep 1
 done

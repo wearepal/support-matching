@@ -6,8 +6,8 @@ slots=2
 for seed in "${seeds[@]}"; do
     echo $seed
     qsub -pe smpslots $slots python-ot.job run_both.py @flags/adult_pipeline.yaml \
-    --b-gpu 0 \
-    --b-seed $seed \
-    --b-data-split-seed $seed \
+    --a-gpu 0 \
+    --a-seed $seed \
+    --a-data-split-seed $seed \
     --d-results adult_pipeline.csv "$@"
 done

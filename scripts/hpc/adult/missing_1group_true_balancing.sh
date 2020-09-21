@@ -6,11 +6,11 @@ slots=2
 for seed in "${seeds[@]}"; do
     echo $seed
     qsub -pe smpslots $slots python-ot.job run_no_balancing.py @flags/adult_pipeline.yaml \
-    --b-gpu 0 \
-    --b-missing-s \
-    --b-balanced-context True \
-    --b-seed $seed \
-    --b-data-split-seed $seed \
+    --a-gpu 0 \
+    --a-missing-s \
+    --a-balanced-context True \
+    --a-seed $seed \
+    --a-data-split-seed $seed \
     --d-results 1group_true_balancing.csv "$@"
     sleep 1
 done
