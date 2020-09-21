@@ -27,6 +27,7 @@ setup(
         "tqdm >= 4.31",
         "typed-argument-parser == 1.4",
         # "typed-flags",
+        "typer",
         "wandb == 0.8.27",
     ],
 )
