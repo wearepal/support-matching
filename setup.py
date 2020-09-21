@@ -25,7 +25,7 @@ setup(
         "torch >= 1.2",
         "torchvision >= 0.4.0",
         "tqdm >= 4.31",
-        "typed-argument-parser == 1.5.4",
+        "typed-argument-parser == 1.4",
         # "typed-flags",
         "wandb == 0.8.27",
     ],
