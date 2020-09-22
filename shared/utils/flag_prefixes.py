@@ -18,7 +18,7 @@ def confirm_empty(args: List[str], *, to_ignore: Tuple[str, ...]) -> None:
         if not arg.startswith("--") or arg.startswith(to_ignore):
             continue
         print(
-            f"Unrecognized flag: \"{arg}\".\n\n"
+            f'Unrecognized flag: "{arg}".\n\n'
             "Use no prefix for those flags that will be passed to all parts of the code.\n"
             "Use --b- to prefix those flags that will only be passed to the baseline code.\n"
             "Use --c- to prefix those flags that will only be passed to the clustering code.\n"

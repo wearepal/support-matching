@@ -1,4 +1,5 @@
 from pathlib import Path
+
 # import time
 from typing import Union
 
@@ -9,6 +10,7 @@ import faiss
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset, DataLoader
+
 # from tqdm import tqdm
 
 from shared.utils import wandb_log, ClusterResults

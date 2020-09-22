@@ -36,7 +36,7 @@ def compute_metrics(
     save_to_csv: Optional[Path] = None,
     results_csv: str = "",
     use_wandb: bool = False,
-    additional_entries: Optional[Mapping[str, str]] = None
+    additional_entries: Optional[Mapping[str, str]] = None,
 ) -> Dict[str, float]:
     """Compute accuracy and fairness metrics and log them.
 
@@ -88,10 +88,12 @@ def compute_metrics(
             manual_entries.update(additional_entries)
 
         if hasattr(args, "_cluster_test_acc"):
-            manual_entries.update({
-                "cluster_test_acc": str(args._cluster_test_acc),
-                "cluster_context_acc": str(args._cluster_context_acc),
-            })
+            manual_entries.update(
+                {
+                    "cluster_test_acc": str(args._cluster_test_acc),
+                    "cluster_context_acc": str(args._cluster_context_acc),
+                }
+            )
 
         results_path = save_to_csv / f"{args.dataset}_{results_csv}"
         value_list = ",".join(list(manual_entries.values()) + [str(v) for v in metrics.values()])
