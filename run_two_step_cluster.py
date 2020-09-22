@@ -5,22 +5,14 @@ from subprocess import run, CalledProcessError
 import sys
 from tempfile import TemporaryDirectory
 
+from shared.utils.flag_prefixes import accept_prefixes, check_args
+
 
 def main() -> None:
     """First run the clustering, then pass on the cluster labels to the fair representation code."""
-    raw_args = sys.argv[1:]
-    if not all(
-        (not arg.startswith("--")) or arg.startswith(("--c-", "--d-", "--a-")) for arg in raw_args
-    ):
-        print(
-            "\nUse --a- to prefix those flags that will be passed to all parts of the code.\n"
-            "Use --c- to prefix those flags that will only be passed to the clustering code.\n"
-            "Use --d- to prefix those flags that will only be passed to the disentangling code.\n"
-            "So, for example: --a-dataset cmnist --c-epochs 100"
-        )
-        raise RuntimeError("all flags have to use the prefix '--a-', '--c-' or '--d-'.")
+    raw_args = check_args()
     with TemporaryDirectory() as tmpdir:
-        clust_args = [arg.replace("--c-", "--").replace("--a-", "--") for arg in raw_args]
+        clust_args = accept_prefixes(raw_args, ("--a-", "--c-", "--e-"))
 
         try:
             # cluster into y
@@ -40,7 +32,7 @@ def main() -> None:
 
             # disentangling
             clf_both_flag = ["--cluster-label-file", clf_merged]
-            dis_args = [arg.replace("--d-", "--").replace("--a-", "--") for arg in raw_args]
+            dis_args = accept_prefixes(raw_args, ("--a-", "--d-", "--e-"))
             run([sys.executable, "unsafe_run_d.py"] + dis_args + clf_both_flag, check=True)
         except CalledProcessError as cpe:
             # catching the exception ourselves leads to much nicer error messages

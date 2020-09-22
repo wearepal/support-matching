@@ -41,6 +41,7 @@ from shared.models.configs import conv_autoencoder, fc_autoencoder
 from shared.models.configs.classifiers import fc_net
 from shared.utils import (
     AverageMeter,
+    confirm_empty,
     count_parameters,
     get_logger,
     inf_generator,
@@ -85,10 +86,7 @@ def main(
     args = VaeArgs(fromfile_prefix_chars="@", explicit_bool=True, underscores_to_dashes=True)
     if known_only:
         args.parse_args(raw_args, known_only=True)
-        remaining = args.extra_args
-        for arg in remaining:
-            if arg.startswith("--") and not arg.startswith(("--c-", "--b-")):
-                raise ValueError(f"unknown commandline argument: {arg}")
+        confirm_empty(args.extra_args, to_ignore=("--b-", "--c-"))
     else:
         args.parse_args(raw_args)
     use_gpu = torch.cuda.is_available() and args.gpu >= 0

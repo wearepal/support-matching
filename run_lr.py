@@ -1,14 +1,24 @@
 from pathlib import Path
 
 import ethicml as em
-from fdm.optimisation.evaluation import compute_metrics, make_tuple_from_data
 from shared.data import DatasetTriplet, get_data_tuples, load_dataset
 from shared.configs import BaseArgs
+from shared.utils import (
+    compute_metrics,
+    make_tuple_from_data,
+    check_args,
+    accept_prefixes,
+    confirm_empty,
+)
 
 
 class BaselineArgs(BaseArgs):
     save_dir: Path = Path(".") / "experiments" / "finn"
     results_csv: str
+
+    def add_arguments(self) -> None:
+        super().add_arguments()
+        self.add_argument("--save-dir", type=Path)
 
 
 def baseline_metrics(args: BaselineArgs) -> None:
@@ -35,7 +45,7 @@ def baseline_metrics(args: BaselineArgs) -> None:
             args=args,
             predictions=preds,
             actual=test_data,
-            data_exp_name="baseline",
+            exp_name="baseline",
             model_name=clf.name,
             step=0,
             save_to_csv=args.save_dir,
@@ -44,6 +54,10 @@ def baseline_metrics(args: BaselineArgs) -> None:
 
 
 if __name__ == "__main__":
-    args = BaselineArgs()
-    args.parse_args()
-    baseline_metrics(args)
+    raw_args = check_args()
+    baseline_args = accept_prefixes(raw_args, ("--a-", "--b-"))
+    args = BaselineArgs(fromfile_prefix_chars="@", explicit_bool=True, underscores_to_dashes=True)
+    args.parse_args(baseline_args, known_only=True)
+    confirm_empty(args.extra_args, to_ignore=("--c-", "--d-", "--e-"))
+    print(args)
+    baseline_metrics(args=args)

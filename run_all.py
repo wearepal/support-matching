@@ -1,28 +1,19 @@
 """Call the main functions of both parts one after the other."""
 import argparse
 from pathlib import Path
-import sys
 from tempfile import TemporaryDirectory
 
 import wandb
 
+from shared.utils.flag_prefixes import check_args, accept_prefixes
+
 
 def main() -> None:
     """First run the clustering, then pass on the cluster labels to the fair representation code."""
-    raw_args = sys.argv[1:]
-    if not all(
-        (not arg.startswith("--")) or arg.startswith(("--c-", "--d-", "--a-")) for arg in raw_args
-    ):
-        print(
-            "\nUse --a- to prefix those flags that will be passed to all parts of the code.\n"
-            "Use --c- to prefix those flags that will only be passed to the clustering code.\n"
-            "Use --d- to prefix those flags that will only be passed to the disentangling code.\n"
-            "So, for example: --a-dataset cmnist --c-epochs 100"
-        )
-        raise RuntimeError("all flags have to use the prefix '--a-', '--c-' or '--d-'.")
+    raw_args = check_args()
 
-    clust_args = [arg.replace("--c-", "--").replace("--a-", "--") for arg in raw_args]
-    dis_args = [arg.replace("--d-", "--").replace("--a-", "--") for arg in raw_args]
+    clust_args = accept_prefixes(raw_args, ("--a-", "--c-", "--e-"))
+    dis_args = accept_prefixes(raw_args, ("--a-", "--d-", "--e-"))
 
     # find out whether wandb was turned on
     parser = argparse.ArgumentParser()

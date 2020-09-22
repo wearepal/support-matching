@@ -1,4 +1,3 @@
-import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List
@@ -19,7 +18,8 @@ from fdm.optimisation.train import build_weighted_sampler_from_dataset
 from shared.configs import BaseArgs
 from shared.data import load_dataset
 from shared.models.configs.classifiers import mp_32x32_net, fc_net, mp_64x64_net
-from shared.utils import random_seed, get_data_dim
+from shared.utils import compute_metrics, random_seed, get_data_dim
+from shared.utils.flag_prefixes import accept_prefixes, check_args, confirm_empty
 
 BASELINE_METHODS = Literal["cnn", "dro", "kamiran"]
 
@@ -193,7 +193,8 @@ def run_baseline(args: BaselineArgs) -> None:
         train_sampler = build_weighted_sampler_from_dataset(
             dataset=datasets.train,
             s_dim=datasets.s_dim,
-            batch_size=args.test_batch_size,
+            test_batch_size=args.test_batch_size,
+            batch_size=args.batch_size,
             num_workers=args.num_workers,
             oversample=args.oversample,
         )
@@ -261,16 +262,19 @@ def run_baseline(args: BaselineArgs) -> None:
         pred_s=False,
     )
 
-    preds, ground_truths, sens = classifier.predict_dataset(test_data, device=device)
+    preds, labels, sens = classifier.predict_dataset(test_data, device=device)
     preds = em.Prediction(pd.Series(preds))
+    if args.dataset == "cmnist":
+        sens_name = "colour"
+    elif args.dataset == "celeba":
+        sens_name = args.celeba_sens_attr
+    else:
+        sens_name = "sens_Label"
+    sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=[sens_name])
+    labels_pd = pd.DataFrame(labels, columns=["labels"])
+    actual = em.DataTuple(x=sens_pd, s=sens_pd, y=labels_pd)
 
-    ground_truths = em.DataTuple(
-        x=pd.DataFrame(sens, columns=["sens"]),
-        s=pd.DataFrame(sens, columns=["sens"]),
-        y=pd.DataFrame(ground_truths, columns=["labels"]),
-    )
-
-    full_name = f"{args.dataset}_{args.method}_baseline"
+    full_name = f"{args.method}_baseline"
     if args.dataset == "cmnist":
         full_name += "_greyscale" if args.greyscale else "_color"
     elif args.dataset == "celeba":
@@ -278,57 +282,26 @@ def run_baseline(args: BaselineArgs) -> None:
         full_name += f"_{args.celeba_target_attr}"
     full_name += f"_{str(args.epochs)}epochs.csv"
 
-    metrics = em.run_metrics(
-        preds,
-        ground_truths,
-        metrics=[em.Accuracy(), em.TPR(), em.TNR(), em.RenyiCorrelation()],
-        per_sens_metrics=[em.Accuracy(), em.ProbPos(), em.TPR(), em.TNR()],
+    compute_metrics(
+        args=args,
+        predictions=preds,
+        actual=actual,
+        exp_name="baseline",
+        model_name=args.method,
+        step=0,
+        save_to_csv=Path(args.save_dir) if args.save_dir else None,
+        results_csv=full_name,
+        use_wandb=False,
+        additional_entries={"eta": str(args.eta)} if args.method == "dro" else None,
     )
-    print(f"Results for {full_name}:")
-    print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
-    print()
-
-    if args.method == "dro":
-        metrics["eta"] = str(args.eta)
-
-    if args.save_dir is not None:
-        save_to_csv = Path(args.save_dir)
-        save_to_csv.mkdir(exist_ok=True, parents=True)
-
-        assert isinstance(save_to_csv, Path)
-        results_path = save_to_csv / full_name
-        value_list = ",".join([str(args.seed)] + [str(v) for v in metrics.values()])
-        if results_path.is_file():
-            with results_path.open("a") as f:
-                f.write(value_list + "\n")
-        else:
-            with results_path.open("w") as f:
-                f.write(",".join(["Seed"] + [str(k) for k in metrics.keys()]) + "\n")
-                f.write(value_list + "\n")
 
 
 def main() -> None:
-    raw_args = sys.argv[1:]
-    if not all(
-        (not arg.startswith("--")) or arg.startswith(("--c-", "--d-", "--a-", "--b-"))
-        for arg in raw_args
-    ):
-        print(
-            "\nUse --a- to prefix those flags that will be passed to all parts of the code.\n"
-            "Use --b- to prefix those flags that will only be passed to the baseline code.\n"
-            "Use --c- to prefix those flags that will only be passed to the clustering code.\n"
-            "Use --d- to prefix those flags that will only be passed to the disentangling code.\n"
-            "So, for example: --a-dataset cmnist --c-epochs 100"
-        )
-        raise RuntimeError("all flags have to use the prefix '--a-', '--c-','--d-' or '--s-'.")
-
-    baseline_args = [arg.replace("--b-", "--").replace("--a-", "--") for arg in raw_args]
+    raw_args = check_args()
+    baseline_args = accept_prefixes(raw_args, ("--a-", "--b-"))
     args = BaselineArgs(fromfile_prefix_chars="@", explicit_bool=True, underscores_to_dashes=True)
     args.parse_args(baseline_args, known_only=True)
-    remaining = args.extra_args
-    for arg in remaining:
-        if arg.startswith("--") and not arg.startswith(("--c-", "--d-")):
-            raise ValueError(f"unknown commandline argument: {arg}")
+    confirm_empty(args.extra_args, to_ignore=("--c-", "--d-", "--e-"))
     print(args)
     run_baseline(args=args)
 

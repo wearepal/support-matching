@@ -1,7 +1,15 @@
 # this file is meant to be `source`d:
 #
-#  source scripts/functions.sh
+#  source scripts/gpu_servers/method_loops.sh
 #
+
+# expected environment variables:
+#
+# seeds
+# etas
+# flag_file
+# shared_flags
+# save_dir
 
 function run_ranking() {
     echo "Starting run_ranking"

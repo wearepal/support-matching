@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Sequence
+from typing import Optional, Tuple, Sequence
 
 import numpy as np
 import pandas as pd
@@ -9,18 +9,14 @@ from torch import Tensor
 from tqdm import tqdm
 from typing_extensions import Literal
 
-import wandb
 import ethicml as em
-from shared.configs import BaseArgs
 from shared.data import DatasetTriplet, get_data_tuples
 from shared.models.configs.classifiers import mp_32x32_net, fc_net, mp_64x64_net
-from shared.utils import wandb_log, prod
+from shared.utils import compute_metrics, prod, make_tuple_from_data
 from fdm.configs import VaeArgs
 from fdm.models import Classifier, AutoEncoder
 
 from .utils import log_images
-
-__all__ = ["compute_metrics", "make_tuple_from_data"]
 
 
 def log_sample_images(args, data, name, step):
@@ -95,80 +91,13 @@ def baseline_metrics(args: VaeArgs, data: DatasetTriplet, save_to_csv: Optional[
                 args=args,
                 predictions=preds,
                 actual=test_data,
-                data_exp_name="original_data",
+                exp_name="original_data",
                 model_name=clf.name,
                 step=0,
                 save_to_csv=save_to_csv,
                 results_csv=args.results_csv,
                 use_wandb=False,
             )
-
-
-def compute_metrics(
-    args: BaseArgs,
-    predictions: em.Prediction,
-    actual: em.DataTuple,
-    data_exp_name: str,
-    model_name: str,
-    step: int,
-    save_to_csv: Optional[Path] = None,
-    results_csv: str = "",
-    use_wandb: bool = False,
-) -> Dict[str, float]:
-    """Compute accuracy and fairness metrics and log them"""
-
-    predictions._info = {}
-    metrics = em.run_metrics(
-        predictions,
-        actual,
-        metrics=[em.Accuracy(), em.TPR(), em.TNR(), em.RenyiCorrelation()],
-        per_sens_metrics=[em.Accuracy(), em.ProbPos(), em.TPR(), em.TNR()],
-        diffs_and_ratios=args._s_dim < 4,  # this just gets too much with higher s dim
-    )
-
-    if use_wandb:
-        wandb_log(args, {f"{k} ({model_name})": v for k, v in metrics.items()}, step=step)
-    print(f"Results for {data_exp_name} ({model_name}):")
-    print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
-    print()  # empty line
-
-    if save_to_csv is not None and results_csv:
-        assert isinstance(save_to_csv, Path)
-
-        # full_name = f"{args.dataset}_{data_exp_name}"
-        # data_exp_name += "_s" if pred_s else "_y"
-        # if hasattr(args, "eval_on_recon"):
-        #     data_exp_name += "_on_recons" if args.eval_on_recon else "_on_encodings"
-
-        manual_entries = {
-            "seed": str(getattr(args, "seed", args.data_split_seed)),
-            "data": data_exp_name,
-            "method": f'"{model_name}"',
-            "wandb_url": wandb.run.get_url() if args.use_wandb else "(None)",
-        }
-
-        if hasattr(args, "_cluster_test_acc"):
-            manual_entries.update({
-                "cluster_test_acc": str(args._cluster_test_acc),
-                "cluster_context_acc": str(args._cluster_context_acc),
-            })
-
-        results_path = save_to_csv / f"{args.dataset}_{results_csv}"
-        value_list = ",".join(list(manual_entries.values()) + [str(v) for v in metrics.values()])
-        if not results_path.is_file():
-            with results_path.open("w") as f:
-                # ========= header =========
-                f.write(",".join(list(manual_entries) + [str(k) for k in metrics.keys()]) + "\n")
-                f.write(value_list + "\n")
-        else:
-            with results_path.open("a") as f:  # append to existing file
-                f.write(value_list + "\n")
-        print(f"Results have been written to {results_path.resolve()}")
-        if use_wandb:
-            for metric_name, value in metrics.items():
-                wandb.run.summary[f"{model_name}_{metric_name}"] = value
-
-    return metrics
 
 
 def fit_classifier(
@@ -197,22 +126,6 @@ def fit_classifier(
     )
 
     return clf
-
-
-def make_tuple_from_data(
-    train: em.DataTuple, test: em.DataTuple, pred_s: bool
-) -> Tuple[em.DataTuple, em.DataTuple]:
-    train_x = train.x
-    test_x = test.x
-
-    if pred_s:
-        train_y = train.s
-        test_y = test.s
-    else:
-        train_y = train.y
-        test_y = test.y
-
-    return em.DataTuple(x=train_x, s=train.s, y=train_y), em.DataTuple(x=test_x, s=test.s, y=test_y)
 
 
 def evaluate(
@@ -245,7 +158,7 @@ def evaluate(
             test_data=test_loader,
         )
 
-        preds, actual, sens = clf.predict_dataset(test_loader, device=args._device)
+        preds, labels, sens = clf.predict_dataset(test_loader, device=args._device)
         preds = em.Prediction(hard=pd.Series(preds))
         if args.dataset == "cmnist":
             sens_name = "colour"
@@ -254,8 +167,8 @@ def evaluate(
         else:
             sens_name = "sens_Label"
         sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=[sens_name])
-        labels = pd.DataFrame(actual, columns=["labels"])
-        actual = em.DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels)
+        labels_pd = pd.DataFrame(labels, columns=["labels"])
+        actual = em.DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels_pd)
         compute_metrics(
             args,
             preds,
