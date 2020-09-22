@@ -12,15 +12,20 @@
 # save_dir
 
 function run_ranking() {
+    if [ -z "$seeds" ] || [ -z "$flag_file" ] || [ -z "$save_dir" ]; then
+        echo "one of 'seeds', 'flag_file', or 'save_dir' is not set"
+        exit 1
+    fi
     echo "Starting run_ranking"
     for seed in $seeds; do
         echo "seed=$seed"
         cmd="python run_pipeline.py @$flag_file \
-        --a-seed $seed --a-data-split-seed $seed --a-save-dir $save_dir \
+        --seed $seed --data-split-seed $seed --save-dir $save_dir \
         --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results ranking.csv \
         "$shared_flags" "$@" "
         echo $cmd
-        echo
+        echo ""
+        # execute command:
         $cmd
         sleep 5
     done
@@ -30,8 +35,8 @@ function run_k_means() {
     echo "Starting run_k_means"
     for seed in $seeds; do
         echo "seed=$seed"
-        python run_pipeline.py @$flag_file \
-        --a-seed $seed --a-data-split-seed $seed --a-save-dir $save_dir \
+        python run_both.py @$flag_file \
+        --seed $seed --data-split-seed $seed --save-dir $save_dir \
         --c-method kmeans --d-results kmeans.csv \
         "$shared_flags" "$@"
         sleep 5
@@ -43,7 +48,7 @@ function run_no_cluster() {
     for seed in $seeds; do
         echo "seed=$seed"
         python run_dist.py @$flag_file \
-        --a-seed $seed --a-data-split-seed $seed --a-save-dir $save_dir \
+        --seed $seed --data-split-seed $seed --save-dir $save_dir \
         --d-results no_cluster.csv \
         "$shared_flags" "$@"
         sleep 5
@@ -55,7 +60,7 @@ function run_cnn_baseline() {
     for seed in $seeds; do
         echo "seed=$seed"
         python run_simple_baselines.py @$flag_file \
-        --a-seed $seed --a-data-split-seed $seed --a-save-dir $save_dir \
+        --seed $seed --data-split-seed $seed --save-dir $save_dir \
         --b-method cnn \
         "$shared_flags" "$@"
         sleep 5
@@ -66,10 +71,13 @@ function run_dro_baseline() {
     echo "Starting run_dro_baseline"
     for seed in $seeds; do
         echo "seed=$seed"
-        python run_simple_baselines.py @$flag_file \
-        --a-seed $seed --a-data-split-seed $seed --a-save-dir $save_dir \
-        --b-method dro \
-        "$shared_flags" "$@"
-        sleep 5
+        for eta in "${etas[@]}"; do
+            echo "eta=$eta"
+            python run_simple_baselines.py @$flag_file \
+            --seed $seed --data-split-seed $seed --save-dir $save_dir \
+            --b-method dro --b-eta $eta \
+            "$shared_flags" "$@"
+            sleep 5
+        done
     done
 }

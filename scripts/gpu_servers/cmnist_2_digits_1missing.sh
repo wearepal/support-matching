@@ -9,23 +9,21 @@ MAX_SEED=5
 seeds=$(seq 1 $MAX_SEED)
 etas=( 0.01 0.1 0.5 1.0 )
 flag_file=flags/vague_spaceship_2digits.yaml
-shared_flags="--a-missing-s"
+shared_flags="--missing-s"
 save_dir="experiments/cmnist/2digits/2colors/1missing"
 
 # get the experiment loops for the methods
 source scripts/gpu_servers/method_loops.sh
 
 # ======================== ranking ========================
-# run_ranking "$@"
+run_ranking "$@"
 # ======================== k means ========================
 run_k_means "$@"
 
 # SAMPLING STRATEGY UNUSED
 # ===================== no clustering =====================
-# run_no_cluster "$@"
+run_no_cluster "$@"
 # ===================== baseline  cnn =====================
 run_cnn_baseline "$@"
 # ===================== baseline  fwd =====================
-for eta in "${etas[@]}"; do
-    run_dro_baseline --b-eta $eta "$@"
-done
+run_dro_baseline "$@"
