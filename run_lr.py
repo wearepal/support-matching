@@ -6,7 +6,6 @@ from shared.configs import BaseArgs
 from shared.data import DatasetTriplet, get_data_tuples, load_dataset
 from shared.utils import (
     accept_prefixes,
-    check_args,
     compute_metrics,
     confirm_empty,
     make_tuple_from_data,
@@ -55,10 +54,8 @@ def baseline_metrics(args: BaselineArgs) -> None:
 
 
 if __name__ == "__main__":
-    raw_args = check_args()
-    baseline_args = accept_prefixes(raw_args, ("--a-", "--b-"))
     args = BaselineArgs(fromfile_prefix_chars="@", explicit_bool=True, underscores_to_dashes=True)
-    args.parse_args(baseline_args, known_only=True)
+    args.parse_args(accept_prefixes(("--a-", "--b-")), known_only=True)
     confirm_empty(args.extra_args, to_ignore=("--c-", "--d-", "--e-"))
     print(args)
     baseline_metrics(args=args)

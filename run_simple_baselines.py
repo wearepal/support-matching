@@ -17,8 +17,7 @@ from fdm.optimisation.train import build_weighted_sampler_from_dataset
 from shared.configs import BaseArgs
 from shared.data import load_dataset
 from shared.models.configs.classifiers import fc_net, mp_32x32_net, mp_64x64_net
-from shared.utils import compute_metrics, get_data_dim, random_seed
-from shared.utils.flag_prefixes import accept_prefixes, check_args, confirm_empty
+from shared.utils import accept_prefixes, compute_metrics, confirm_empty, get_data_dim, random_seed
 
 BASELINE_METHODS = Literal["cnn", "dro", "kamiran"]
 
@@ -296,10 +295,8 @@ def run_baseline(args: BaselineArgs) -> None:
 
 
 def main() -> None:
-    raw_args = check_args()
-    baseline_args = accept_prefixes(raw_args, ("--a-", "--b-"))
     args = BaselineArgs(fromfile_prefix_chars="@", explicit_bool=True, underscores_to_dashes=True)
-    args.parse_args(baseline_args, known_only=True)
+    args.parse_args(accept_prefixes(("--a-", "--b-")), known_only=True)
     confirm_empty(args.extra_args, to_ignore=("--c-", "--d-", "--e-"))
     print(args)
     run_baseline(args=args)

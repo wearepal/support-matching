@@ -7,7 +7,6 @@ from shared.utils import prod
 __all__ = ["mp_32x32_net", "fc_net", "mp_64x64_net"]
 
 
-
 def mp_32x32_net(input_dim: int, target_dim: int, batch_norm: bool = True):
     def conv_block(in_dim, out_dim, kernel_size, stride, padding):
         _block = []

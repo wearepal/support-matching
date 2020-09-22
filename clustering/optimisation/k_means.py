@@ -1,4 +1,5 @@
 from pathlib import Path
+
 # import time
 from typing import Union
 
@@ -17,7 +18,6 @@ from .evaluation import encode_dataset
 from .utils import count_occurances, find_assignment, get_class_id
 
 # from tqdm import tqdm
-
 
 
 def train(
