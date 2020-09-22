@@ -24,7 +24,7 @@ function run_ssl() {
 function run_no_cluster() {
     for seed in $seeds; do
         echo $seed
-        qsub -pe smpslots $slots python-ot.job run_no_balancing.py @flags/vague_spaceship.yaml \
+        qsub -pe smpslots $slots python-ot.job run_dis.py @flags/vague_spaceship.yaml \
         --a-gpu $gpu_id --a-seed $seed --a-data-split-seed $seed --a-save-dir $save_dir "$@"
         sleep 15
     done

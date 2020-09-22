@@ -2,47 +2,50 @@
 a-colors: 2 4
 a-context-pcnt: 0.66666666
 a-dataset: "cmnist"
-a-batch-size: 256
-a-enc-channels: 32
-a-enc-levels: 3
-a-init-channels: 32
-a-recon-loss: l2
 a-filter-labels: 2 4
 a-padding: 2
 # bias the context set
 a-scale: 0
 a-subsample-context:
-        0:0.7
-        1:0.4
-        2:0.2
-        3:1.0
+        0: 0.7
+        1: 0.4
+        2: 0.2
+        3: 1.0
 a-subsample-train:
         1: 0.3
         2: 0.0  # remove this group entirely
 
+# ===== AE flags ====
+e-enc-channels: 32
+e-enc-levels: 3
+e-init-channels: 32
+e-recon-loss: l2
+
 # ===== clustering flags =====
-c-encoder: "ae"
-c-enc-epochs: 90
-c-kl-weight: 1
-c-std-transform: exp
-c-log-freq: 50
+c-batch-size: 256
 c-cl-hidden_dims:
+c-enc-epochs: 90
+c-encoder: "ae"
 c-epochs: 100
+c-kl-weight: 1
+c-log-freq: 50
 c-method: pl_enc_no_norm
-c-val-freq: 10
+c-std-transform: exp
 c-use-wandb: True
+c-val-freq: 10
 
 # ===== disentangling flags =====
+d-batch-size: 256
 d-disc-hidden: 256 256
 d-disc-lr: 3.0e-4
 d-disc-weight: 1
 d-eval-on-recon: False
-d-kl-weight: 0
 d-iters: 2000
+d-kl-weight: 0
 d-log-freq: 50
 d-lr: 3e-4
-d-num-discs: 1
 d-num-disc-updates: 5
+d-num-discs: 1
 d-oversample: true
 d-pred-weight: 1
 d-recon-loss: l2
@@ -51,8 +54,8 @@ d-super-val-freq: 500
 d-super-val: True
 d-three-way: False
 d-train-on-recon: False
-d-use-wandb: True
 d-use-pretrained-enc: false
+d-use-wandb: True
 d-vae: False
 d-warmup: 0
 d-zs-frac: 0.0469  # this makes zs channels be 1

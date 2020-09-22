@@ -9,7 +9,7 @@ for scale in "${scales[@]}"; do
     echo $scale
     for seed in "${seeds[@]}"; do
         echo $seed
-        qsub -pe smpslots $slots python-ot.job run_no_balancing.py @flags/pipeline_cmnist_2.yaml \
+        qsub -pe smpslots $slots python-ot.job run_dis.py @flags/pipeline_cmnist_2.yaml \
         --a-enc-channels 18 \
         --a-filter-labels \
         --d-zs-frac 0.05555 \

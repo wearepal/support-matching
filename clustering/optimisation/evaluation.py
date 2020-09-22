@@ -1,8 +1,8 @@
-from typing import Tuple, List
+from typing import List, Tuple
 
 import torch
-from torch.utils.data import DataLoader, TensorDataset, Dataset
 from torch import Tensor
+from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import tqdm
 
 from clustering.configs import ClusterArgs

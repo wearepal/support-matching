@@ -2,18 +2,7 @@
 import time
 from logging import Logger
 from pathlib import Path
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterator,
-    List,
-    NamedTuple,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
-)
+from typing import Any, Callable, Dict, Iterator, List, NamedTuple, Optional, Sequence, Tuple, Union
 
 import git
 import numpy as np
@@ -41,6 +30,8 @@ from shared.models.configs import conv_autoencoder, fc_autoencoder
 from shared.models.configs.classifiers import fc_net
 from shared.utils import (
     AverageMeter,
+    accept_prefixes,
+    confirm_empty,
     count_parameters,
     get_logger,
     inf_generator,
@@ -64,17 +55,12 @@ LOGGER: Logger = None  # type: ignore[assignment]
 Generator = Union[AutoEncoder, PartitionedAeInn]
 
 
-def main(
-    raw_args: Optional[List[str]] = None,
-    known_only: bool = False,
-    cluster_label_file: Optional[Path] = None,
-    initialize_wandb: bool = True,
-) -> Generator:
-    """Main function
+def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = True) -> Generator:
+    """Main function.
 
     Args:
-        raw_args: commandline arguments
         cluster_label_file: path to a pth file with cluster IDs
+        initialize_wandb: if False, we assume that W&B has already been initialized
 
     Returns:
         the trained generator
@@ -82,15 +68,11 @@ def main(
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha
 
+    # args
     args = VaeArgs(fromfile_prefix_chars="@", explicit_bool=True, underscores_to_dashes=True)
-    if known_only:
-        args.parse_args(raw_args, known_only=True)
-        remaining = args.extra_args
-        for arg in remaining:
-            if arg.startswith("--") and not arg.startswith(("--c-", "--b-")):
-                raise ValueError(f"unknown commandline argument: {arg}")
-    else:
-        args.parse_args(raw_args)
+    args.parse_args(accept_prefixes(("--a-", "--d-", "--e-")), known_only=True)
+    confirm_empty(args.extra_args, to_ignore=("--b-", "--c-"))
+
     use_gpu = torch.cuda.is_available() and args.gpu >= 0
     random_seed(args.seed, use_gpu)
     datasets: DatasetTriplet = load_dataset(args)

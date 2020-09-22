@@ -1,4 +1,4 @@
-from typing import Tuple, Union, List, Optional, Mapping
+from typing import List, Mapping, Optional, Tuple, Union
 
 from fdm import layers
 from fdm.configs import VaeArgs

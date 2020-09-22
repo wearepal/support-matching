@@ -4,7 +4,7 @@ seeds=( 888 1 2410 1996 711 )
 
 for seed in "${seeds[@]}"; do
     echo $seed
-    python run_no_balancing.py @flags/the_phantom_menace.yaml \
+    python run_dis.py @flags/the_phantom_menace.yaml \
     --a-subsample-train \
     --a-missing-s 0 \
     --a-gpu 0 \

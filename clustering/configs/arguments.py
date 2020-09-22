@@ -1,7 +1,8 @@
-from typing import Optional, List
+from typing import List, Optional
 
 import torch
 from typing_extensions import Literal
+
 from shared.configs import BaseArgs
 
 __all__ = ["ClusterArgs"]
@@ -94,6 +95,6 @@ class ClusterArgs(BaseArgs):
 
     def convert_arg_line_to_args(self, arg_line: str) -> List[str]:
         """Parse each line like a YAML file."""
-        if arg_line.startswith(("a_", "c_", "a-", "c-")):
+        if arg_line.startswith(("a_", "c_", "e_", "a-", "c-", "e-")):
             arg_line = arg_line[2:]
         return super().convert_arg_line_to_args(arg_line)

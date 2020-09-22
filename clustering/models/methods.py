@@ -1,6 +1,6 @@
 """Definition of loss and so on."""
 from abc import abstractmethod
-from typing import Tuple, Dict
+from typing import Dict, Tuple
 
 import torch
 from torch import Tensor, jit
@@ -9,8 +9,8 @@ from torch.nn import functional as F
 from shared.utils import dot_product, normalized_softmax
 
 from .base import Encoder
-from .pseudo_labelers import PseudoLabeler
 from .classifier import Classifier
+from .pseudo_labelers import PseudoLabeler
 
 __all__ = [
     "LoggingDict",

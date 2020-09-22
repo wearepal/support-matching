@@ -5,7 +5,7 @@ slots=2
 
 for seed in "${seeds[@]}"; do
     echo $seed
-    qsub -pe smpslots $slots python-ot.job run_no_balancing.py @flags/adult_pipeline.yaml \
+    qsub -pe smpslots $slots python-ot.job run_dis.py @flags/adult_pipeline.yaml \
     --a-gpu 0 \
     --a-missing-s 0 \
     --a-seed $seed \

@@ -1,19 +1,19 @@
 import random
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Tuple, Dict, Union, Callable, Set, Sequence
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
 
-from kornia.geometry import rotate
 import numpy as np
 import pandas as pd
 import torch
+from ethicml.utility import DataTuple
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms
 from typing_extensions import Final
-from ethicml.utility import DataTuple
+
+from kornia.geometry import rotate
 
 from .misc import RandomSampler, grouped_features_indexes, set_transform
-
 
 __all__ = ["LdAugmentedDataset", "TensorDataTupleDataset", "DataTupleDataset", "RotationPrediction"]
 

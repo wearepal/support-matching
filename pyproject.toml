@@ -1,3 +1,26 @@
 [tool.black]
 line-length = 100
 target-version = ['py36']
+
+[tool.isort]
+include_trailing_comma = "True"
+known_third_party = [
+  "black",
+  "click",
+  "click_option_group",
+  "ethicml",
+  "matplotlib",
+  "mypy",
+  "numpy",
+  "pandas",
+  "pylint",
+  "pytest",
+  "scipy",
+  "setuptools",
+  "sklearn",
+  "torch",
+  "tqdm",
+  "wandb",
+]
+line_length = 100
+multi_line_output = 3

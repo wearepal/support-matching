@@ -1,13 +1,13 @@
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
 import torch
 import torchvision
-from torch import nn, Tensor
-
 import wandb
-from shared.utils import wandb_log
+from torch import Tensor, nn
+
 from fdm.configs import VaeArgs
+from shared.utils import wandb_log
 
 __all__ = ["log_images", "save_model", "restore_model", "weight_for_balance"]
 

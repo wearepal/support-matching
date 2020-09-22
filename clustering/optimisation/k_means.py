@@ -1,24 +1,32 @@
-import time
-from typing import Tuple, Union
+from pathlib import Path
 
-import numpy as np
+# import time
+from typing import Union
 
 # from pykeops.torch import LazyTensor
 import faiss
+import numpy as np
 import torch
 from torch import Tensor
-from torch.utils.data import Dataset, DataLoader
-from tqdm import tqdm
+from torch.utils.data import DataLoader, Dataset
 
-from shared.utils import wandb_log, ClusterResults
 from clustering.configs import ClusterArgs
 from clustering.models import Encoder
+from shared.utils import ClusterResults, wandb_log
+
 from .evaluation import encode_dataset
 from .utils import count_occurances, find_assignment, get_class_id
 
+# from tqdm import tqdm
+
 
 def train(
-    args: ClusterArgs, encoder: Encoder, context_data: Dataset, num_clusters: int, s_count: int
+    args: ClusterArgs,
+    encoder: Encoder,
+    context_data: Dataset,
+    num_clusters: int,
+    s_count: int,
+    enc_path: Path,
 ) -> ClusterResults:
     # encode the training set with the encoder
     encoded = encode_dataset(args, context_data, encoder)
@@ -45,6 +53,7 @@ def train(
         flags=args.as_dict(),
         cluster_ids=preds,
         class_ids=get_class_id(s=s, y=y, s_count=s_count, to_cluster=args.cluster),
+        enc_path=enc_path,
         context_acc=context_acc,
     )
 

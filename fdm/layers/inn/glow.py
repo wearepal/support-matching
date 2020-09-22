@@ -1,7 +1,7 @@
+from abc import abstractmethod
 from typing import Optional, Tuple
 
 import numpy as np
-from abc import abstractmethod
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

@@ -5,12 +5,12 @@ import torch.distributions as td
 from torch import Tensor
 from torch.utils.data import DataLoader
 
-from shared.utils import DLogistic, MixtureDistribution, prod  # to_discrete, logistic_distribution
 from fdm.configs import VaeArgs
 from fdm.layers import Bijector
+from shared.utils import DLogistic, MixtureDistribution, prod  # to_discrete, logistic_distribution
 
 from .autoencoder import AutoEncoder
-from .base import ModelBase, SplitEncoding, EncodingSize, Reconstructions
+from .base import EncodingSize, ModelBase, Reconstructions, SplitEncoding
 
 __all__ = ["PartitionedAeInn"]
 

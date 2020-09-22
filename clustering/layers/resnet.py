@@ -1,8 +1,7 @@
 from typing import Callable, Optional
 
 import torch
-from torch import nn
-from torch import Tensor
+from torch import Tensor, nn
 from torch.nn import functional as F
 from torch.nn import init
 

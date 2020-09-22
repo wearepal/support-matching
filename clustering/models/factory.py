@@ -1,4 +1,5 @@
-from typing import Tuple, Union, List, Optional, Mapping, Dict
+from typing import Dict, List, Mapping, Optional, Tuple, Union
+
 import torch.nn as nn
 
 from clustering import layers

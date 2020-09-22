@@ -1,9 +1,8 @@
 from typing import NamedTuple
 
-from torch import Tensor
 import torch.nn as nn
+from torch import Tensor
 from torch.optim import Adam
-
 
 __all__ = ["ModelBase", "EncodingSize", "SplitEncoding", "Reconstructions"]
 

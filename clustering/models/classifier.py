@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Tuple, Union, Sequence
+from typing import Dict, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -8,8 +8,8 @@ from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader, Dataset
 from tqdm import trange
 
-from shared.utils import wandb_log
 from clustering.models.base import ModelBase
+from shared.utils import wandb_log
 
 __all__ = ["Classifier", "Regressor"]
 
