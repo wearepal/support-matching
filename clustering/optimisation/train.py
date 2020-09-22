@@ -19,6 +19,8 @@ from shared.data.misc import adaptive_collate
 from shared.models.configs.classifiers import fc_net, mp_64x64_net, mp_32x32_net
 from shared.utils import (
     AverageMeter,
+    accept_prefixes,
+    confirm_empty,
     count_parameters,
     get_logger,
     prod,
@@ -64,11 +66,14 @@ ARGS: ClusterArgs = None  # type: ignore[assignment]
 LOGGER: Logger = None  # type: ignore[assignment]
 
 
-def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tuple[Model, Path]:
+def main(
+    cluster_label_file: Optional[Path] = None, use_wandb: Optional[bool] = None
+) -> Tuple[Model, Path]:
     """Main function
 
     Args:
-        raw_args: commandline arguments
+        cluster_label_file: path to a pth file with cluster IDs
+        use_wandb: this arguments overwrites the flag
 
     Returns:
         the trained generator
@@ -76,22 +81,22 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha
 
+    # args
     args = ClusterArgs(fromfile_prefix_chars="@", explicit_bool=True, underscores_to_dashes=True)
-    if known_only:
-        args.parse_args(raw_args, known_only=True)
-        remaining = args.extra_args
-        for arg in remaining:
-            if arg.startswith("--") and not arg.startswith(("--d-", "--b-")):
-                raise ValueError(f"unknown commandline argument: {arg}")
-    else:
-        args.parse_args(raw_args)
+    args.parse_args(accept_prefixes(("--a-", "--c-", "--e-")), known_only=True)
+    confirm_empty(args.extra_args, to_ignore=("--b-", "--d-"))
+
     use_gpu = torch.cuda.is_available() and args.gpu >= 0
     random_seed(args.seed, use_gpu)
     datasets: DatasetTriplet = load_dataset(args)
+    if cluster_label_file is not None:
+        args.cluster_label_file = str(cluster_label_file)
     # ==== initialize globals ====
     global ARGS, LOGGER
     ARGS = args
 
+    if use_wandb is not None:
+        ARGS.use_wandb = use_wandb
     if ARGS.use_wandb:
         wandb.init(entity="predictive-analytics-lab", project="fcm", config=args.as_dict())
 
@@ -230,7 +235,9 @@ def main(raw_args: Optional[List[str]] = None, known_only: bool = False) -> Tupl
 
     cluster_label_path = get_cluster_label_path(ARGS, save_dir)
     if ARGS.method == "kmeans":
-        kmeans_results = train_k_means(ARGS, encoder, datasets.context, num_clusters, s_count)
+        kmeans_results = train_k_means(
+            ARGS, encoder, datasets.context, num_clusters, s_count, enc_path
+        )
         pth = save_results(save_path=cluster_label_path, cluster_results=kmeans_results)
         return (), pth
     if ARGS.finetune_encoder:

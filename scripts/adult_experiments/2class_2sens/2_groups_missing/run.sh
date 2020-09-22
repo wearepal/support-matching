@@ -21,7 +21,7 @@ function run_ssl() {
 function run_no_cluster() {
     for seed in $(seq $MAX_SEED); do
         echo $seed
-        python run_no_balancing.py @flags/adult_pipeline.yaml \
+        python run_dis.py @flags/adult_pipeline.yaml \
         --a-gpu $gpu_id --a-seed $seed --a-data-split-seed $seed --a-save-dir $save_dir --a-use-wandb False "$@"
     done
 }

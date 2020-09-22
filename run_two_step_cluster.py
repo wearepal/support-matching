@@ -5,25 +5,21 @@ from subprocess import run, CalledProcessError
 import sys
 from tempfile import TemporaryDirectory
 
-from shared.utils.flag_prefixes import accept_prefixes, check_args
-
 
 def main() -> None:
     """First run the clustering, then pass on the cluster labels to the fair representation code."""
-    raw_args = check_args()
+    args = sys.argv[1:]
     with TemporaryDirectory() as tmpdir:
-        clust_args = accept_prefixes(raw_args, ("--a-", "--c-", "--e-"))
-
         try:
             # cluster into y
             clf_y = str(Path(tmpdir) / "labels_y.pth")
             clf_y_flag = ["--cluster-label-file", clf_y, "--cluster", "y"]
-            run([sys.executable, "unsafe_run_cl.py"] + clust_args + clf_y_flag, check=True)
+            run([sys.executable, "run_clust.py"] + args + clf_y_flag, check=True)
 
             # cluster into s
             clf_s = str(Path(tmpdir) / "labels_s.pth")
             clf_s_flag = ["--cluster-label-file", clf_s, "--cluster", "s"]
-            run([sys.executable, "unsafe_run_cl.py"] + clust_args + clf_s_flag, check=True)
+            run([sys.executable, "run_clust.py"] + args + clf_s_flag, check=True)
 
             # merge the two cluster label files
             clf_merged = str(Path(tmpdir) / "class_ids.pth")
@@ -32,8 +28,7 @@ def main() -> None:
 
             # disentangling
             clf_both_flag = ["--cluster-label-file", clf_merged]
-            dis_args = accept_prefixes(raw_args, ("--a-", "--d-", "--e-"))
-            run([sys.executable, "unsafe_run_d.py"] + dis_args + clf_both_flag, check=True)
+            run([sys.executable, "run_dis.py"] + args + clf_both_flag, check=True)
         except CalledProcessError as cpe:
             # catching the exception ourselves leads to much nicer error messages
             print(f"\nCommand '{shlex.join(cpe.cmd)}'")

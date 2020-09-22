@@ -15,7 +15,7 @@ function run_ranking() {
     echo "Starting run_ranking"
     for seed in $seeds; do
         echo "seed=$seed"
-        cmd="python run_all.py @$flag_file \
+        cmd="python run_pipeline.py @$flag_file \
         --a-seed $seed --a-data-split-seed $seed --a-save-dir $save_dir \
         --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results ranking.csv \
         "$shared_flags" "$@" "
@@ -30,7 +30,7 @@ function run_k_means() {
     echo "Starting run_k_means"
     for seed in $seeds; do
         echo "seed=$seed"
-        python run_all.py @$flag_file \
+        python run_pipeline.py @$flag_file \
         --a-seed $seed --a-data-split-seed $seed --a-save-dir $save_dir \
         --c-method kmeans --d-results kmeans.csv \
         "$shared_flags" "$@"
@@ -42,7 +42,7 @@ function run_no_cluster() {
     echo "Starting run_no_cluster"
     for seed in $seeds; do
         echo "seed=$seed"
-        python run_no_balancing.py @$flag_file \
+        python run_dist.py @$flag_file \
         --a-seed $seed --a-data-split-seed $seed --a-save-dir $save_dir \
         --d-results no_cluster.csv \
         "$shared_flags" "$@"

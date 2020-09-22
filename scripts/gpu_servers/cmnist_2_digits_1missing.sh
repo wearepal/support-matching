@@ -18,7 +18,7 @@ source scripts/gpu_servers/method_loops.sh
 # ======================== ranking ========================
 # run_ranking "$@"
 # ======================== k means ========================
-# run_k_means "$@"
+run_k_means "$@"
 
 # SAMPLING STRATEGY UNUSED
 # ===================== no clustering =====================

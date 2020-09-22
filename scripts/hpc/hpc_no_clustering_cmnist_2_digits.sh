@@ -5,7 +5,7 @@ slots=6
 
 for seed in "${seeds[@]}"; do
     echo $seed
-    qsub -pe smpslots $slots python-ot.job run_no_balancing.py @flags/the_phantom_menace.yaml \
+    qsub -pe smpslots $slots python-ot.job run_dis.py @flags/the_phantom_menace.yaml \
     --a-gpu 0 \
     --a-seed $seed \
     --a-data-split-seed $seed \
