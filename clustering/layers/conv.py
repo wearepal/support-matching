@@ -1,6 +1,6 @@
-from typing import List, Union, Optional
+from typing import List, Optional, Union
 
-from torch import nn, Tensor
+from torch import Tensor, nn
 from torch.nn import functional as F
 
 __all__ = ["BottleneckConvBlock"]

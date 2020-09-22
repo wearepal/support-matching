@@ -1,14 +1,15 @@
 """Model that contains all."""
-from typing import Tuple, Iterator, Optional
-from torch import Tensor
+from typing import Iterator, Optional, Tuple
+
 import torch
 import torch.nn as nn
+from torch import Tensor
 from typing_extensions import final
 
 from .base import Encoder
 from .classifier import Classifier
+from .methods import LoggingDict, Method
 from .pseudo_labelers import PseudoLabeler
-from .methods import Method, LoggingDict
 
 __all__ = ["Model", "MultiHeadModel"]
 

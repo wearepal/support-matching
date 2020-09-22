@@ -1,17 +1,17 @@
 from pathlib import Path
-from typing import Optional, List, Tuple, Dict
+from typing import Dict, List, Optional, Tuple
 
 import torch
 from torch.utils.data import DataLoader
 
 from fdm.configs import VaeArgs
 from fdm.models import (
+    VAE,
     AutoEncoder,
+    EncodingSize,
     PartitionedAeInn,
     build_conv_inn,
     build_fc_inn,
-    VAE,
-    EncodingSize,
 )
 
 __all__ = ["build_inn", "build_ae"]

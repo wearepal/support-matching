@@ -1,6 +1,8 @@
 import platform
 from typing import Dict, NamedTuple, Tuple
 
+import ethicml as em
+import ethicml.vision as emvi
 import torch
 import torch.nn as nn
 from torch import Tensor
@@ -9,12 +11,10 @@ from torchvision import transforms
 from torchvision.datasets import MNIST
 from typing_extensions import Literal
 
-import ethicml as em
-import ethicml.vision as emvi
 from shared.configs import BaseArgs
 
-from .dataset_wrappers import TensorDataTupleDataset
 from .adult import load_adult_data
+from .dataset_wrappers import TensorDataTupleDataset
 from .misc import shrink_dataset
 from .transforms import NoisyDequantize, Quantize
 

@@ -1,18 +1,18 @@
 """Autoencoders"""
-from typing import Any, Dict, List, Optional, Tuple, Callable
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import torch
 import torch.distributions as td
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
 from torch import Tensor
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 from typing_extensions import Literal
 
 from shared.utils import to_discrete, wandb_log
 
-from .base import ModelBase, Encoder
+from .base import Encoder, ModelBase
 
 __all__ = ["AutoEncoder", "VAE"]
 

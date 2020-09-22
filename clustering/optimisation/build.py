@@ -1,12 +1,13 @@
-from typing import Optional, List, Tuple, Dict, Callable
+from typing import Callable, Dict, List, Optional, Tuple
 
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 
-from shared.models.configs import conv_autoencoder, fc_autoencoder
 from clustering.configs import ClusterArgs
-from clustering.models import AutoEncoder, VAE
+from clustering.models import VAE, AutoEncoder
+from shared.models.configs import conv_autoencoder, fc_autoencoder
+
 from .loss import MixedLoss, PixelCrossEntropy, VGGLoss
 
 __all__ = ["build_ae"]

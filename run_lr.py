@@ -1,14 +1,15 @@
 from pathlib import Path
 
 import ethicml as em
-from shared.data import DatasetTriplet, get_data_tuples, load_dataset
+
 from shared.configs import BaseArgs
+from shared.data import DatasetTriplet, get_data_tuples, load_dataset
 from shared.utils import (
-    compute_metrics,
-    make_tuple_from_data,
-    check_args,
     accept_prefixes,
+    check_args,
+    compute_metrics,
     confirm_empty,
+    make_tuple_from_data,
 )
 
 

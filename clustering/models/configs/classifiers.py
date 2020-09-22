@@ -1,9 +1,9 @@
-from typing import Union, Sequence, Optional, List
+from typing import List, Optional, Sequence, Union
 
-from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
-from torchvision.models import resnet50, ResNet
+from torch import Tensor
+from torchvision.models import ResNet, resnet50
 from typing_extensions import Protocol
 
 from clustering.models.resnet import ResidualNet

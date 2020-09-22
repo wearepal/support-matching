@@ -1,12 +1,13 @@
 """Definition of the Adult dataset"""
-from typing import NamedTuple, Tuple, List
+from typing import List, NamedTuple, Tuple
 
+import ethicml as em
 import numpy as np
 import pandas as pd
+from ethicml.preprocessing.domain_adaptation import make_valid_variable_name
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
-import ethicml as em
-from ethicml.preprocessing.domain_adaptation import make_valid_variable_name
+
 from shared.configs import BaseArgs
 
 from .dataset_wrappers import DataTupleDataset

@@ -1,5 +1,5 @@
 """Main training file"""
-from typing import Dict, List, Tuple, NamedTuple, Optional
+from typing import Dict, List, NamedTuple, Optional, Tuple
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,7 +7,7 @@ from torch import Tensor
 from typing_extensions import Literal
 
 from clustering.configs import ClusterArgs
-from clustering.models import PartitionedAeInn, Classifier
+from clustering.models import Classifier, PartitionedAeInn
 
 __all__ = ["update_inn", "update_disc_on_inn"]
 

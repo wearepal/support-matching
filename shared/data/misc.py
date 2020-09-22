@@ -1,7 +1,7 @@
 import csv
 import os
 from itertools import groupby
-from typing import Iterator, List, Tuple, Dict, Any
+from typing import Any, Dict, Iterator, List, Tuple
 
 import numpy as np
 import torch

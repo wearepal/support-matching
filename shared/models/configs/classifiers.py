@@ -1,10 +1,11 @@
-from typing import Union, Sequence, Optional
+from typing import Optional, Sequence, Union
 
 from torch import nn
 
+from shared.utils import prod
+
 __all__ = ["mp_32x32_net", "fc_net", "mp_64x64_net"]
 
-from shared.utils import prod
 
 
 def mp_32x32_net(input_dim: int, target_dim: int, batch_norm: bool = True):

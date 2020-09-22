@@ -1,20 +1,20 @@
 from pathlib import Path
-from typing import Optional, Tuple, Sequence
+from typing import Optional, Sequence, Tuple
 
+import ethicml as em
 import numpy as np
 import pandas as pd
 import torch
-from torch.utils.data import DataLoader, TensorDataset, Dataset
 from torch import Tensor
+from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import tqdm
 from typing_extensions import Literal
 
-import ethicml as em
-from shared.data import DatasetTriplet, get_data_tuples
-from shared.models.configs.classifiers import mp_32x32_net, fc_net, mp_64x64_net
-from shared.utils import compute_metrics, prod, make_tuple_from_data
 from fdm.configs import VaeArgs
-from fdm.models import Classifier, AutoEncoder
+from fdm.models import AutoEncoder, Classifier
+from shared.data import DatasetTriplet, get_data_tuples
+from shared.models.configs.classifiers import fc_net, mp_32x32_net, mp_64x64_net
+from shared.utils import compute_metrics, make_tuple_from_data, prod
 
 from .utils import log_images
 

@@ -1,6 +1,7 @@
-from setuptools import find_packages, setup
 import subprocess
 import sys
+
+from setuptools import find_packages, setup
 
 setup(
     name="fdm",

@@ -1,12 +1,11 @@
 from abc import abstractmethod
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 import torch
-from torch import Tensor
 import torch.nn as nn
-from torch.utils.data import DataLoader
+from torch import Tensor
 from torch.optim import Adam
-
+from torch.utils.data import DataLoader
 
 __all__ = ["ModelBase", "Encoder"]
 

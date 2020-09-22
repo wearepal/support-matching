@@ -1,17 +1,17 @@
 from pathlib import Path
-from typing import Tuple, Union, Dict
+from typing import Dict, Tuple, Union
 
-from lapjv import lapjv  # pylint: disable=no-name-in-module
 import numpy as np
 import torch
 import torchvision
+import wandb
+from lapjv import lapjv  # pylint: disable=no-name-in-module
 from torch import Tensor
 from typing_extensions import Literal
-import wandb
 
-from shared.utils import wandb_log, save_results, ClusterResults
-from clustering.models import Model
 from clustering.configs import ClusterArgs
+from clustering.models import Model
+from shared.utils import ClusterResults, save_results, wandb_log
 
 __all__ = [
     "convert_and_save_results",

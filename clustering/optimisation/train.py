@@ -6,47 +6,50 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import git
 import numpy as np
-from sklearn.metrics import confusion_matrix
 import torch
-from torch import Tensor
-from torch.utils.data import DataLoader, ConcatDataset
-from torchvision.models import resnet18, resnet50
 import wandb
+from sklearn.metrics import confusion_matrix
+from torch import Tensor
+from torch.utils.data import ConcatDataset, DataLoader
+from torchvision.models import resnet18, resnet50
 
+from clustering.configs import ClusterArgs
+from clustering.models import (
+    Classifier,
+    CosineSimThreshold,
+    Encoder,
+    Method,
+    Model,
+    MultiHeadModel,
+    PseudoLabelEnc,
+    PseudoLabelEncNoNorm,
+    PseudoLabeler,
+    PseudoLabelOutput,
+    RankingStatistics,
+    SelfSupervised,
+    build_classifier,
+)
+from shared.data.data_loading import DatasetTriplet, load_dataset
 from shared.data.dataset_wrappers import RotationPrediction
-from shared.data.data_loading import load_dataset, DatasetTriplet
 from shared.data.misc import adaptive_collate
-from shared.models.configs.classifiers import fc_net, mp_64x64_net, mp_32x32_net
+from shared.models.configs.classifiers import fc_net, mp_32x32_net, mp_64x64_net
 from shared.utils import (
     AverageMeter,
     accept_prefixes,
     confirm_empty,
     count_parameters,
+    get_data_dim,
     get_logger,
     prod,
     random_seed,
     readable_duration,
     save_results,
     wandb_log,
-    get_data_dim,
-)
-from clustering.configs import ClusterArgs
-from clustering.models import (
-    Classifier,
-    CosineSimThreshold,
-    Encoder,
-    PseudoLabeler,
-    Method,
-    Model,
-    MultiHeadModel,
-    PseudoLabelEnc,
-    PseudoLabelEncNoNorm,
-    PseudoLabelOutput,
-    RankingStatistics,
-    SelfSupervised,
-    build_classifier,
 )
 
+from .build import build_ae
+from .evaluation import classify_dataset
+from .k_means import train as train_k_means
 from .utils import (
     convert_and_save_results,
     count_occurances,
@@ -56,9 +59,6 @@ from .utils import (
     restore_model,
     save_model,
 )
-from .evaluation import classify_dataset
-from .build import build_ae
-from .k_means import train as train_k_means
 
 __all__ = ["main"]
 

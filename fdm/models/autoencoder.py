@@ -4,14 +4,14 @@ import torch
 import torch.distributions as td
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
 from torch import Tensor
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 from typing_extensions import Literal
 
-from shared.utils import to_discrete, sample_concrete
+from shared.utils import sample_concrete, to_discrete
 
-from .base import ModelBase, EncodingSize, SplitEncoding, Reconstructions
+from .base import EncodingSize, ModelBase, Reconstructions, SplitEncoding
 
 __all__ = ["AutoEncoder", "VAE"]
 

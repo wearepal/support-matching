@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Sequence, Tuple, overload, Callable
+from typing import Callable, Dict, Optional, Sequence, Tuple, overload
 
 import torch
 import torch.distributions as td

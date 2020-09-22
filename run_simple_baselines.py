@@ -2,23 +2,22 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List
 
+import ethicml as em
 import numpy as np
 import pandas as pd
 import torch
+from ethicml import implementations
 from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import trange
 from typing_extensions import Literal
 
-import ethicml as em
-from ethicml import implementations
-
 from fdm.models import Classifier
 from fdm.optimisation.train import build_weighted_sampler_from_dataset
 from shared.configs import BaseArgs
 from shared.data import load_dataset
-from shared.models.configs.classifiers import mp_32x32_net, fc_net, mp_64x64_net
-from shared.utils import compute_metrics, random_seed, get_data_dim
+from shared.models.configs.classifiers import fc_net, mp_32x32_net, mp_64x64_net
+from shared.utils import compute_metrics, get_data_dim, random_seed
 from shared.utils.flag_prefixes import accept_prefixes, check_args, confirm_empty
 
 BASELINE_METHODS = Literal["cnn", "dro", "kamiran"]

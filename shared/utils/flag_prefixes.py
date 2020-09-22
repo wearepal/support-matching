@@ -1,5 +1,5 @@
 import sys
-from typing import List, Sequence, Tuple, Optional
+from typing import List, Optional, Sequence, Tuple
 
 __all__ = ["accept_prefixes", "confirm_empty"]
 

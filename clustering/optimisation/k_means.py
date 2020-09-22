@@ -1,23 +1,23 @@
 from pathlib import Path
-
 # import time
 from typing import Union
 
-import numpy as np
-
 # from pykeops.torch import LazyTensor
 import faiss
+import numpy as np
 import torch
 from torch import Tensor
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, Dataset
+
+from clustering.configs import ClusterArgs
+from clustering.models import Encoder
+from shared.utils import ClusterResults, wandb_log
+
+from .evaluation import encode_dataset
+from .utils import count_occurances, find_assignment, get_class_id
 
 # from tqdm import tqdm
 
-from shared.utils import wandb_log, ClusterResults
-from clustering.configs import ClusterArgs
-from clustering.models import Encoder
-from .evaluation import encode_dataset
-from .utils import count_occurances, find_assignment, get_class_id
 
 
 def train(

@@ -4,6 +4,7 @@ import torch
 from torch import Tensor
 
 from shared.utils import is_positive_int
+
 from .bijector import Bijector
 
 __all__ = ["RandomPermutation", "ReversePermutation"]

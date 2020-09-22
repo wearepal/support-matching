@@ -7,7 +7,7 @@ possible combinations.
 from itertools import product
 from subprocess import run
 from time import sleep
-from typing import Dict, List, Union, Tuple
+from typing import Dict, List, Tuple, Union
 
 BASE_CMD = "qsub -pe smpslots {} python.job {}"
 SLOTS = 6

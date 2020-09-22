@@ -1,13 +1,13 @@
 import logging
 import os
 import random
-from typing import Any, Dict, Sequence, TypeVar, Iterable, Iterator, Tuple
+from typing import Any, Dict, Iterable, Iterator, Sequence, Tuple, TypeVar
 
 import numpy as np
 import torch
+import wandb
 from torch.utils.data import DataLoader
 
-import wandb
 from shared.configs import BaseArgs
 
 LOGGER = None

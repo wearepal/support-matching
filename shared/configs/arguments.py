@@ -1,11 +1,10 @@
 from argparse import Action
-from typing import List, Dict, Any, get_type_hints
-
-from tap import Tap
-from typing_extensions import Literal
+from typing import Any, Dict, List, get_type_hints
 
 import ethicml as em
 from ethicml.data.tabular_data.adult import AdultSplits
+from tap import Tap
+from typing_extensions import Literal
 
 __all__ = ["BaseArgs", "StoreDictKeyPair"]
 
