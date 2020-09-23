@@ -312,14 +312,12 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
             disc_list.append(disc)
         disc_ensemble = nn.ModuleList(disc_list)
         disc_ensemble.to(args._device)
-        if args.snorm:
-
-            def _spectral_norm(m: nn.Module) -> Optional[nn.Module]:
-                if hasattr(m, "weight"):
-                    return torch.nn.utils.spectral_norm(m)
-
-            for discriminator in disc_ensemble:
-                discriminator.apply(_spectral_norm)
+        # if args.snorm:
+        #     def _spectral_norm(m: nn.Module) -> Optional[nn.Module]:
+        #         if hasattr(m, "weight"):
+        #             return torch.nn.utils.spectral_norm(m)
+        #     for discriminator in disc_ensemble:
+        #         discriminator.apply(_spectral_norm)
 
         disc_distinguish = None
         if ARGS.three_way_split:  # this is always trained on encodings
