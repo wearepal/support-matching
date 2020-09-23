@@ -125,7 +125,7 @@ class BaseArgs(Tap):
         key, value = arg_line.split(sep=":", maxsplit=1)
         key = key.rstrip()
         value = value.strip()
-        if key[0] == " ":
+        if key[0] in (" ", "\t"):
             key = key.strip()
             return [f"{key}={value}"]
         if not value:  # no associated value

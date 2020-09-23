@@ -19,7 +19,7 @@ function run_ranking() {
     echo "Starting run_ranking"
     for seed in $seeds; do
         echo "seed=$seed"
-        cmd="python run_pipeline.py @$flag_file \
+        cmd="python run_both.py @$flag_file \
         --seed $seed --data-split-seed $seed --save-dir $save_dir \
         --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results ranking.csv \
         "$shared_flags" "$@" "

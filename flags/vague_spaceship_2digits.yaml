@@ -1,19 +1,19 @@
 # ===== dataset flags =====
-a-colors: 2 4
-a-context-pcnt: 0.66666666
-a-dataset: "cmnist"
-a-filter-labels: 2 4
-a-padding: 2
+colors: 2 4
+context-pcnt: 0.66666666
+dataset: "cmnist"
+filter-labels: 2 4
+padding: 2
 # bias the context set
-a-scale: 0
-a-subsample-context:
-        0: 0.7
-        1: 0.4
-        2: 0.2
-        3: 1.0
-a-subsample-train:
-        1: 0.3
-        2: 0.0  # remove this group entirely
+scale: 0
+subsample-context:
+	0: 0.7
+	1: 0.4
+	2: 0.2
+	3: 1.0
+subsample-train:
+	1: 0.3
+	2: 0.0  # remove this group entirely
 
 # ===== AE flags ====
 e-enc-channels: 32
@@ -37,13 +37,13 @@ c-val-freq: 10
 # ===== disentangling flags =====
 d-batch-size: 256
 d-disc-hidden: 256 256
-d-disc-lr: 3.0e-4
+d-disc-lr: 3.e-4
 d-disc-weight: 1
 d-eval-on-recon: False
 d-iters: 2000
 d-kl-weight: 0
 d-log-freq: 50
-d-lr: 3e-4
+d-lr: 3.e-4
 d-num-disc-updates: 5
 d-num-discs: 1
 d-oversample: true
@@ -58,4 +58,6 @@ d-use-pretrained-enc: false
 d-use-wandb: True
 d-vae: False
 d-warmup: 0
-d-zs-frac: 0.0469  # this makes zs channels be 1
+d-zs-frac: 0.0469
+# d-zs-frac: 0.002
+# d-zs-frac: 0.01
