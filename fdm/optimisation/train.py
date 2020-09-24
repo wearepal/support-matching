@@ -604,7 +604,7 @@ def update(
         disc_loss = x_t.new_zeros(())
         for discriminator in ae.disc_ensemble:
             discriminator.eval()
-            disc_loss += discriminator.routine(disc_input_no_s, zeros)[0]
+            disc_loss -= discriminator.routine(disc_input_no_s, zeros)[0]
     else:
         disc_loss = quadratic_time_mmd(
             x=disc_input_no_s,
@@ -629,7 +629,7 @@ def update(
     elbo *= ARGS.elbo_weight
     disc_loss *= disc_weight
 
-    gen_loss = elbo - disc_loss + pred_y_loss
+    gen_loss = elbo + disc_loss + pred_y_loss
 
     # Update the generator's parameters
     ae.generator.zero_grad()
