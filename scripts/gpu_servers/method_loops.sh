@@ -51,7 +51,7 @@ function run_no_cluster() {
     echo "Starting run_no_cluster"
     for seed in $seeds; do
         echo "seed=$seed"
-        cmd="python run_dist.py @$flag_file \
+        cmd="python run_dis.py @$flag_file \
         --seed $seed --data-split-seed $seed --save-dir $save_dir \
         --d-results no_cluster.csv \
         "$shared_flags" "$@" "
