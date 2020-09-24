@@ -38,7 +38,7 @@ c-val-freq: 10
 d-batch-size: 256
 d-disc-hidden: 256 256
 d-disc-lr: 3.e-4
-d-disc-reset-prob: 0.005
+d-disc-reset-prob: 0.001
 d-disc-weight: 1
 d-eval-on-recon: False
 d-iters: 2000
