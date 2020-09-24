@@ -610,7 +610,7 @@ def update(
         y = get_disc_input(ae.generator, encoding_c, invariant_to="s")
         if ARGS.mmd_scale is None:
             with torch.no_grad():
-                scale = torch.median(torch.square(x[None] - y[:, None]).sum(-1)).item()
+                scale = torch.median(torch.norm(x[None] - y[:, None], dim=1)).item()
         else:
             scale = ARGS.mmd_scale
         disc_loss = quadratic_time_mmd(
