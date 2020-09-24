@@ -96,7 +96,7 @@ class BaseArgs(Tap):
         self.add_argument(
             "--subsample-context",
             action=StoreDictKeyPair,
-            nargs="+",
+            nargs="*",
             default={},
             type=str,
             key_type=int,
@@ -105,7 +105,7 @@ class BaseArgs(Tap):
         self.add_argument(
             "--subsample-train",
             action=StoreDictKeyPair,
-            nargs="+",
+            nargs="*",
             default={},
             type=str,
             key_type=int,
