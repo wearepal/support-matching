@@ -667,10 +667,10 @@ def get_disc_input(
         return zs_m if invariant_to == "s" else zy_m
 
 
-def to_device(*tensors: Tensor) -> Iterator[Tensor]:
+def to_device(*tensors: Tensor) -> Union[Tensor, Tuple[Tensor, ...]]:
     """Place tensors on the correct device and set type to float32"""
-    for tensor in tensors:
-        yield tensor.to(ARGS._device, non_blocking=True)
+    moved = [tensor.to(ARGS._device, non_blocking=True) for tensor in tensors]
+    return moved[0] if len(moved) == 1 else tuple(moved)
 
 
 def log_recons(
