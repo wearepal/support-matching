@@ -460,7 +460,7 @@ def get_batch(
     context_data_itr: Iterator[Tuple[Tensor, Tensor, Tensor]],
     train_data_itr: Iterator[Tuple[Tensor, Tensor, Tensor]],
 ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
-    x_c, = to_device(next(context_data_itr)[0])
+    x_c = to_device(next(context_data_itr)[0])
     x_t, s_t, y_t = to_device(*next(train_data_itr))
     return x_c, x_t, s_t, y_t
 
@@ -667,10 +667,10 @@ def get_disc_input(
         return zs_m if invariant_to == "s" else zy_m
 
 
-def to_device(*tensors: Tensor) -> Union[Tensor, Tuple[Tensor, ...]]:
+def to_device(*tensors: Tensor) -> Iterator[Tensor]:
     """Place tensors on the correct device and set type to float32"""
-    moved = [tensor.to(ARGS._device, non_blocking=True) for tensor in tensors]
-    return moved[0] if len(moved) == 1 else tuple(moved)
+    for tensor in tensors:
+        yield tensor.to(ARGS._device, non_blocking=True)
 
 
 def log_recons(
