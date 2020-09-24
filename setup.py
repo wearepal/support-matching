@@ -33,7 +33,7 @@ setup(
     ],
 )
 
-try:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "faiss-gpu"])
-except:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "faiss-cpu"])
+# try:
+#     subprocess.check_call([sys.executable, "-m", "pip", "install", "faiss-gpu"])
+# except:
+#     subprocess.check_call([sys.executable, "-m", "pip", "install", "faiss-cpu"])
