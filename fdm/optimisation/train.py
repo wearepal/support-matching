@@ -629,10 +629,17 @@ def update(
             disc_loss -= discriminator.routine(disc_input_no_s, zeros)[0]
             disc_loss /= len(ae.disc_ensemble)
     else:
+        x = disc_input_no_s
+        y = get_disc_input(ae.generator, encoding_c, invariant_to="s")
+        if ARGS.mmd_scale is None:
+            with torch.no_grad():
+                scale = torch.median(torch.square(x[None] - y[:, None])).item()
+        else:
+            scale = ARGS.mmd_scale
         disc_loss = quadratic_time_mmd(
-            x=disc_input_no_s,
-            y=get_disc_input(ae.generator, encoding_c, invariant_to="s"),
-            sigma=ARGS.mmd_scale,
+            x=x,
+            y=y,
+            sigma=scale,
         )
     pred_y_loss = x_t.new_zeros(())
     if ARGS.pred_weight > 0:
