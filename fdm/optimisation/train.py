@@ -579,6 +579,7 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False
             disc_loss_true, _ = discriminator.routine(disc_input_c, ones)
             disc_loss_false, _ = discriminator.routine(disc_input_t, zeros)
             disc_loss += disc_loss_true + disc_loss_false
+        disc_loss /= len(ae.disc_ensemble)
         # if ARGS.three_way_split:
         #     assert ae.disc_distinguish is not None
         #     # the distinguisher is always applied to the encoding (regardless of the other disc)
@@ -615,8 +616,7 @@ def update(
     """
     disc_weight = 0.0 if warmup else ARGS.disc_weight
     # Compute losses for the generator.
-    for discriminator in ae.disc_ensemble:
-        discriminator.eval()
+    ae.disc_ensemble.eval()
     if ae.disc_distinguish is not None:
         ae.disc_distinguish.eval()
     ae.predictor_y.train()
@@ -642,6 +642,7 @@ def update(
     disc_loss = x_t.new_zeros(())
     for discriminator in ae.disc_ensemble:
         disc_loss += discriminator.routine(disc_input_no_s, zeros)[0]
+    disc_loss /= len(ae.disc_ensemble)
 
     pred_y_loss = x_t.new_zeros(())
     if ARGS.pred_weight > 0:
