@@ -83,7 +83,7 @@ class VaeArgs(BaseArgs):
 
     # Discriminator settings
     disc_method: Literal["nn", "mmd"] = "nn"
-    mmd_scale: float = 0.5
+    mmd_scale: Optional[float] = None
     disc_hidden_dims: List[int] = [256]
 
     # Training settings
