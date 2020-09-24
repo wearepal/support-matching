@@ -14,4 +14,4 @@ save_dir="experiments/cmnist/2digits/2colors/1missing/no_subsample"
 # get the experiment loops for the methods
 source scripts/gpu_servers/method_loops.sh
 
-run_ranking --gpu 0 "$@"
+run_no_cluster --gpu 0 "$@"

@@ -44,13 +44,21 @@ function run_k_means() {
 }
 
 function run_no_cluster() {
+    if [ -z "$seeds" ] || [ -z "$flag_file" ] || [ -z "$save_dir" ]; then
+        echo "one of 'seeds', 'flag_file', or 'save_dir' is not set"
+        exit 1
+    fi
     echo "Starting run_no_cluster"
     for seed in $seeds; do
         echo "seed=$seed"
-        python run_dist.py @$flag_file \
+        cmd="python run_dist.py @$flag_file \
         --seed $seed --data-split-seed $seed --save-dir $save_dir \
         --d-results no_cluster.csv \
-        "$shared_flags" "$@"
+        "$shared_flags" "$@" "
+        echo $cmd
+        echo ""
+        # execute command:
+        $cmd
         sleep 5
     done
 }
