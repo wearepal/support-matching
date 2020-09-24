@@ -82,6 +82,8 @@ class VaeArgs(BaseArgs):
     disc_reset_prob: float = 0.0
 
     # Discriminator settings
+    disc_method: Literal["nn", "mmd"] = "nn"
+    mmd_scale: float = 0.5
     disc_hidden_dims: List[int] = [256]
 
     # Training settings

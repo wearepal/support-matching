@@ -18,7 +18,7 @@ class InnComponents(NamedTuple):
     inn: PartitionedAeInn
     disc_ensemble: nn.ModuleList
     predictor: Optional[Classifier]
-    type: Literal["inn"] = "inn"
+    type_: Literal["inn"] = "inn"
 
 
 def update_disc_on_inn(

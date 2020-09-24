@@ -7,7 +7,7 @@ from shared.layers import View
 __all__ = ["conv_autoencoder", "fc_autoencoder"]
 
 
-def gated_conv(in_channels, out_channels, kernel_size, stride, padding):
+def gated_conv(in_channels: int, out_channels: int, kernel_size: int, stride: int, padding: int):
     return nn.Sequential(
         nn.Conv2d(
             in_channels, out_channels * 2, kernel_size=kernel_size, stride=stride, padding=padding
@@ -16,7 +16,7 @@ def gated_conv(in_channels, out_channels, kernel_size, stride, padding):
     )
 
 
-def gated_up_conv(in_channels, out_channels, kernel_size, stride, padding, output_padding):
+def gated_up_conv(in_channels: int, out_channels: int, kernel_size: int, stride: int, padding: int, output_padding: int):
     return nn.Sequential(
         nn.ConvTranspose2d(
             in_channels,
@@ -31,14 +31,14 @@ def gated_up_conv(in_channels, out_channels, kernel_size, stride, padding, outpu
 
 
 def conv_autoencoder(
-    input_shape,
+    input_shape: Tuple[int, int, int],
     initial_hidden_channels: int,
     levels: int,
     encoding_dim,
     decoding_dim,
     variational: bool,
     decoder_out_act: Optional[nn.Module] = None,
-) -> Tuple[nn.Sequential, nn.Sequential, Tuple[int, int, int]]:
+) -> Tuple[nn.Sequential, nn.Sequential, Tuple[int]]:
     encoder: List[nn.Module] = []
     decoder: List[nn.Module] = []
     c_in, height, width = input_shape
