@@ -83,6 +83,7 @@ def conv_autoencoder(
 
     encoder = nn.Sequential(*encoder)
     decoder = nn.Sequential(*decoder)
+    import pdb; pdb.set_trace()
 
     enc_shape = (encoder_out_dim,)
 
