@@ -84,9 +84,9 @@ def conv_autoencoder(
     encoder = nn.Sequential(*encoder)
     decoder = nn.Sequential(*decoder)
 
-    enc_shape = encoding_dim
+    enc_shape = (encoder_out_dim,)
 
-    return encoder, decoder, (enc_shape,)
+    return encoder, decoder, enc_shape
 
 
 def _linear_block(in_channels: int, out_channels: int) -> nn.Sequential:
