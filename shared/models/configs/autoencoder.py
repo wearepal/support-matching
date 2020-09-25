@@ -7,7 +7,7 @@ from shared.layers import View
 __all__ = ["conv_autoencoder", "fc_autoencoder"]
 
 
-def gated_conv(in_channels: int, out_channels: int, kernel_size: int, stride: int, padding: int):
+def gated_conv(in_channels, out_channels, kernel_size, stride, padding):
     return nn.Sequential(
         nn.Conv2d(
             in_channels, out_channels * 2, kernel_size=kernel_size, stride=stride, padding=padding
@@ -16,7 +16,7 @@ def gated_conv(in_channels: int, out_channels: int, kernel_size: int, stride: in
     )
 
 
-def gated_up_conv(in_channels: int, out_channels: int, kernel_size: int, stride: int, padding: int, output_padding: int):
+def gated_up_conv(in_channels, out_channels, kernel_size, stride, padding, output_padding):
     return nn.Sequential(
         nn.ConvTranspose2d(
             in_channels,
@@ -31,14 +31,14 @@ def gated_up_conv(in_channels: int, out_channels: int, kernel_size: int, stride:
 
 
 def conv_autoencoder(
-    input_shape: Tuple[int, int, int],
+    input_shape,
     initial_hidden_channels: int,
     levels: int,
     encoding_dim,
     decoding_dim,
     variational: bool,
     decoder_out_act: Optional[nn.Module] = None,
-) -> Tuple[nn.Sequential, nn.Sequential, Tuple[int]]:
+) -> Tuple[nn.Sequential, nn.Sequential, Tuple[int, int, int]]:
     encoder: List[nn.Module] = []
     decoder: List[nn.Module] = []
     c_in, height, width = input_shape
@@ -69,16 +69,17 @@ def conv_autoencoder(
 
     encoder_out_dim = 2 * encoding_dim if variational else encoding_dim
 
-    encoder += [nn.Conv2d(c_out, encoder_out_dim, kernel_size=1, stride=1, padding=0)]
-    decoder += [nn.Conv2d(encoding_dim, c_out, kernel_size=1, stride=1, padding=0)]
+    encoder += [nn.Flatten()]
+    encoder += [nn.Linear(c_out * height * width, encoder_out_dim)]
+
     decoder += [View((encoder_out_dim, height, width))]
+    encoder += [nn.Linear(encoder_out_dim, c_out * height * width)]
+
     decoder = decoder[::-1]
     decoder += [nn.Conv2d(input_shape[0], decoding_dim, kernel_size=1, stride=1, padding=0)]
 
     if decoder_out_act is not None:
         decoder += [decoder_out_act]
-
-    encoder += [nn.Flatten()]
 
     encoder = nn.Sequential(*encoder)
     decoder = nn.Sequential(*decoder)
