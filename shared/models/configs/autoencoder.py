@@ -72,8 +72,8 @@ def conv_autoencoder(
     encoder += [nn.Flatten()]
     encoder += [nn.Linear(c_out * height * width, encoder_out_dim)]
 
+    decoder += [nn.Conv2d(encoding_dim, c_out, kernel_size=1, stride=1, padding=0)]
     decoder += [View((encoder_out_dim, height, width))]
-    encoder += [nn.Linear(encoder_out_dim, c_out * height * width)]
 
     decoder = decoder[::-1]
     decoder += [nn.Conv2d(input_shape[0], decoding_dim, kernel_size=1, stride=1, padding=0)]
