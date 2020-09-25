@@ -26,8 +26,9 @@ from fdm.models import (
 )
 from fdm.models.configs import residual_64x64_net, strided_28x28_net
 from shared.data import DatasetTriplet, load_dataset
+from shared.layers import AttentionAggregator, SimpleAggregator, SimpleAggregatorT
 from shared.models.configs import conv_autoencoder, fc_autoencoder
-from shared.models.configs.classifiers import fc_net
+from shared.models.configs.classifiers import fc_net, ModelAggregatorWrapper, ModelFn
 from shared.utils import (
     AverageMeter,
     accept_prefixes,
@@ -282,6 +283,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     disc_kwargs: Dict[str, Any] = {}
     disc_input_shape: Tuple[int, ...] = input_shape if ARGS.train_on_recon else enc_shape
     # FIXME: Architectures need to be GAN specific (e.g. incorporate spectral norm)
+    disc_fn: ModelFn
     if is_image_data and ARGS.train_on_recon:
         if args.dataset == "cmnist":
             disc_fn = strided_28x28_net
@@ -297,6 +299,20 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
             else disc_input_shape
         )  # fc_net first flattens the input
 
+    if args.batch_wise_loss != "none":
+        aggregator: nn.Module
+        if args.batch_wise_loss == "attention":
+            aggregator = AttentionAggregator(args.batch_wise_latent)
+        elif args.batch_wise_loss == "simple":
+            aggregator = SimpleAggregator(latent_dim=args.batch_wise_latent)
+        elif args.batch_wise_loss == "transposed":
+            aggregator = SimpleAggregatorT(batch_dim=args.batch_size)
+
+        disc_fn = ModelAggregatorWrapper(disc_fn, aggregator, embed_dim=args.batch_wise_latent)
+        batch_wise_loss = True
+    else:
+        batch_wise_loss = False
+
     components: Union[AeComponents, InnComponents]
     disc: Classifier
     if not ARGS.use_inn:
@@ -307,6 +323,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
                 target_dim=1,  # real vs fake
                 model_fn=disc_fn,
                 model_kwargs=disc_kwargs,
+                batch_wise_loss=batch_wise_loss,
                 optimizer_kwargs=disc_optimizer_kwargs,
             )
             disc_list.append(disc)

@@ -1,28 +1,13 @@
-from typing import List, Optional, Sequence, Union
+from typing import List
 
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from torchvision.models import ResNet, resnet50
-from typing_extensions import Protocol
 
 from clustering.models.resnet import ResidualNet
-from shared.utils import prod
 
-__all__ = [
-    "linear_resnet",
-    "mp_28x28_net",
-    "residual_64x64_net",
-    "strided_28x28_net",
-    "ModelFn",
-]
-
-
-class ModelFn(Protocol):
-    def __call__(
-        self, input_dim: int, target_dim: int, **model_kwargs: Union[float, str, bool]
-    ) -> nn.Module:
-        ...
+__all__ = ["linear_resnet", "mp_28x28_net", "residual_64x64_net", "strided_28x28_net"]
 
 
 class ResidualBlock(nn.Module):

@@ -1,10 +1,18 @@
 from typing import Optional, Sequence, Union
 
 from torch import nn
+from typing_extensions import Protocol
 
 from shared.utils import prod
 
-__all__ = ["mp_32x32_net", "fc_net", "mp_64x64_net"]
+__all__ = ["mp_32x32_net", "fc_net", "mp_64x64_net", "ModelFn", "ModelAggregatorWrapper"]
+
+
+class ModelFn(Protocol):
+    def __call__(
+        self, input_dim: int, target_dim: int, **model_kwargs: Union[float, str, bool]
+    ) -> nn.Module:
+        ...
 
 
 def mp_32x32_net(input_dim: int, target_dim: int, batch_norm: bool = True):
@@ -92,3 +100,18 @@ def mp_64x64_net(input_dim, target_dim, batch_norm=True):
     layers += [nn.Linear(512, target_dim)]
 
     return nn.Sequential(*layers)
+
+
+class ModelAggregatorWrapper:
+    def __init__(self, model_fn: ModelFn, aggregator: nn.Module, embed_dim: int):
+        self.model_fn = model_fn
+        self.aggregator = aggregator
+        self.embed_dim = embed_dim
+
+    def __call__(
+        self, input_dim: int, target_dim: int, **model_kwargs: Union[float, str, bool]
+    ) -> nn.Module:
+        assert target_dim == 1, "aggregation only works for binary classification for now"
+        return nn.Sequential(
+            self.model_fn(input_dim, self.embed_dim, **model_kwargs), self.aggregator
+        )
