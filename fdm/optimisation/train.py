@@ -26,7 +26,7 @@ from fdm.models import (
 )
 from fdm.models.configs import residual_64x64_net, strided_28x28_net
 from shared.data import DatasetTriplet, load_dataset
-from shared.layers import AttentionAggregator, SimpleAggregator, SimpleAggregatorT
+from shared.layers import Aggregator, AttentionAggregator, SimpleAggregator, SimpleAggregatorT
 from shared.models.configs import conv_autoencoder, fc_autoencoder
 from shared.models.configs.classifiers import fc_net, ModelAggregatorWrapper, ModelFn
 from shared.utils import (
@@ -300,7 +300,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         )  # fc_net first flattens the input
 
     if args.batch_wise_loss != "none":
-        aggregator: nn.Module
+        aggregator: Aggregator
         if args.batch_wise_loss == "attention":
             aggregator = AttentionAggregator(args.batch_wise_latent)
         elif args.batch_wise_loss == "simple":
@@ -565,8 +565,12 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False
     if ae.disc_distinguish is not None:
         ae.disc_distinguish.train()
 
-    ones = x_c.new_ones((x_c.size(0),))
-    zeros = x_t.new_zeros((x_t.size(0),))
+    if ARGS.batch_wise_loss == "none":
+        ones = x_c.new_ones((x_c.size(0),))
+        zeros = x_t.new_zeros((x_t.size(0),))
+    else:
+        ones = x_c.new_ones((1,))
+        zeros = x_t.new_zeros((1,))
     # in case of the three-way split, we have to check more than one invariance
     invariances: List[Literal["s", "y"]] = ["s", "y"] if ARGS.three_way_split else ["s"]
 
@@ -593,8 +597,8 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False
 
         # discriminator is trained to distinguish `disc_input_c` and `disc_input_t`
         for discriminator in ae.disc_ensemble:
-            disc_loss_true, _ = discriminator.routine(disc_input_c, ones)
-            disc_loss_false, _ = discriminator.routine(disc_input_t, zeros)
+            disc_loss_true = discriminator.routine(disc_input_c, ones)[0]
+            disc_loss_false = discriminator.routine(disc_input_t, zeros)[0]
             disc_loss += disc_loss_true + disc_loss_false
         disc_loss /= len(ae.disc_ensemble)
         # if ARGS.three_way_split:
@@ -655,7 +659,10 @@ def update(
 
     # ==================================== adversarial losses =====================================
     disc_input_no_s = get_disc_input(ae.generator, encoding, invariant_to="s")
-    zeros = x_t.new_zeros((x_t.size(0),))
+    if ARGS.batch_wise_loss == "none":
+        zeros = x_t.new_zeros((x_t.size(0),))
+    else:
+        zeros = x_t.new_zeros((1,))
     disc_loss = x_t.new_zeros(())
     for discriminator in ae.disc_ensemble:
         disc_loss += discriminator.routine(disc_input_no_s, zeros)[0]

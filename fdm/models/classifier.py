@@ -23,7 +23,6 @@ class Classifier(ModelBase):
         num_classes: int,
         optimizer_kwargs: Optional[Dict] = None,
         criterion: Optional[Union[str, _Loss]] = None,
-        batch_wise_loss: bool = False,
     ):
         """Build classifier model.
 
@@ -47,7 +46,6 @@ class Classifier(ModelBase):
                 self.criterion = "ce"
         else:
             self.criterion = criterion
-        self.batch_wise_loss = batch_wise_loss
 
     def apply_criterion(self, logits: Tensor, targets: Tensor) -> Tensor:
         if isinstance(self.criterion, str):
@@ -161,8 +159,6 @@ class Classifier(ModelBase):
             Tuple of classification loss (Tensor) and accuracy (float)
         """
         outputs = super().__call__(data)
-        if self.batch_wise_loss:
-            targets = targets[0]
         loss = self.apply_criterion(outputs, targets)
         if instance_weights is not None:
             loss = loss.view(-1) * instance_weights.view(-1)

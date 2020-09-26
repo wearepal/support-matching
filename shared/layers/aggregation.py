@@ -7,16 +7,21 @@ from torch import nn
 from torch.nn import functional as F
 from typing_extensions import Literal
 
-__all__ = ["AttentionAggregator", "SimpleAggregator", "SimpleAggregatorT"]
+__all__ = ["Aggregator", "AttentionAggregator", "SimpleAggregator", "SimpleAggregatorT"]
 
 
-class AttentionAggregator(nn.Module):
+class Aggregator(nn.Module):
+    output_dim: int
+
+
+class AttentionAggregator(Aggregator):
     def __init__(
         self,
         latent_dim: int,
         activation: Literal["relu", "gelu"] = "relu",
         dropout: float = 0.0,
         final_proj: Optional[nn.Module] = None,
+        output_dim: int = 1,
     ):
         super().__init__()
         self.latent_dim = latent_dim
@@ -26,7 +31,7 @@ class AttentionAggregator(nn.Module):
         if final_proj is not None:
             self.final_proj = final_proj
         else:
-            self.final_proj = nn.Linear(latent_dim, 1)
+            self.final_proj = nn.Linear(latent_dim, output_dim)
         self.act: Callable[[Tensor], Tensor]
         if activation == "relu":
             self.act = F.relu
@@ -34,6 +39,7 @@ class AttentionAggregator(nn.Module):
             self.act = F.gelu
         else:
             raise ValueError(f"Unknown activation {activation}")
+        self.output_dim = output_dim
 
     def forward(self, inputs: Tensor) -> Tensor:
         # for the query we just use an average of all inputs
@@ -46,14 +52,17 @@ class AttentionAggregator(nn.Module):
         return self.final_proj(output.view(1, self.latent_dim)).view(1)
 
 
-class SimpleAggregator(nn.Module):
-    def __init__(self, *, latent_dim: int, final_proj: Optional[nn.Module] = None):
+class SimpleAggregator(Aggregator):
+    def __init__(
+        self, *, latent_dim: int, final_proj: Optional[nn.Module] = None, output_dim: int = 1
+    ):
         super().__init__()
         self.weight_proj = nn.Linear(latent_dim, 1)
         if final_proj is not None:
             self.final_proj = final_proj
         else:
-            self.final_proj = nn.Linear(latent_dim, 1)
+            self.final_proj = nn.Linear(latent_dim, output_dim)
+        self.output_dim = output_dim
 
     def forward(self, inputs: Tensor) -> Tensor:
         weights = F.softmax(self.weight_proj(inputs), dim=0)
@@ -61,16 +70,19 @@ class SimpleAggregator(nn.Module):
         return self.final_proj(weighted)
 
 
-class SimpleAggregatorT(nn.Module):
+class SimpleAggregatorT(Aggregator):
     """Transposed version of `SimpleAggregator`."""
 
-    def __init__(self, *, batch_dim: int, final_proj: Optional[nn.Module] = None):
+    def __init__(
+        self, *, batch_dim: int, final_proj: Optional[nn.Module] = None, output_dim: int = 1
+    ):
         super().__init__()
         self.weight_proj = nn.Linear(batch_dim, 1)
         if final_proj is not None:
             self.final_proj = final_proj
         else:
-            self.final_proj = nn.Linear(batch_dim, 1)
+            self.final_proj = nn.Linear(batch_dim, output_dim)
+        self.output_dim = output_dim
 
     def forward(self, inputs: Tensor) -> Tensor:
         weights = F.softmax(self.weight_proj(inputs.t()).view(-1), dim=-1)
