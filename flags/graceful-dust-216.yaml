@@ -17,7 +17,7 @@ num_disc_updates: 3
 log_freq: 50
 disc_hidden_dims: 256 256
 # which digits to use from MNIST
-filter_labels: 2 4
+filter-map-labels: 2=0 4=1
 epochs: 40
 val_freq: 10
 validate: true

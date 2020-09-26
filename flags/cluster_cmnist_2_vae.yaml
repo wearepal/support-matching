@@ -1,6 +1,6 @@
 # dataset flags
 dataset: "cmnist"
-filter_labels: 2 4
+filter-map-labels: 2=0 4=1
 padding: 2
 context_pcnt: 0.66666666
 # VAE settings

@@ -7,7 +7,7 @@ a-enc-out-dim: 32
 a-enc-levels: 4
 a-enc-init-chans: 32
 a-recon_loss: l2
-a-filter-labels: 2 4
+a-filter-map-labels: 2=0 4=1
 a-padding: 2
 # bias the context set
 a-scale: 0

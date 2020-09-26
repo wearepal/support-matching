@@ -29,7 +29,7 @@ eval-lr: 0.001
 eval-on-recon: false
 evaluate: false
 feat-attr: false
-filter-labels: 2 4
+filter-map-labels: 2=0 4=1
 gamma: 1.0
 greyscale: false
 enc-init-chans: 16
