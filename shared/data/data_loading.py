@@ -1,5 +1,5 @@
 import platform
-from typing import Dict, NamedTuple, Tuple
+from typing import Dict, NamedTuple, Tuple, Optional
 
 import ethicml as em
 import ethicml.vision as emvi
@@ -55,14 +55,14 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         test_data = MNIST(root=data_root, download=True, train=False)
 
         num_classes = 10
-        if args.filter_labels:
-            num_classes = len(args.filter_labels)
+        if args.filter_map_labels:
+            num_classes = max(args.filter_map_labels.values()) + 1
 
             def _filter_(dataset: MNIST):
                 final_mask = torch.zeros_like(dataset.targets).bool()
-                for index, label in enumerate(args.filter_labels):
-                    mask = dataset.targets == label
-                    dataset.targets[mask] = index
+                for old_label, new_label in args.filter_map_labels.items():
+                    mask = dataset.targets == old_label
+                    dataset.targets[mask] = new_label
                     final_mask |= mask
                 dataset.data = dataset.data[final_mask]
                 dataset.targets = dataset.targets[final_mask]
@@ -123,24 +123,32 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             _x = _data.x
             _s = _data.s
             _y = _data.y
+            smallest: Tuple[int, Optional[int], Optional[int]] = (int(1e10), None, None)
             for _class_id, _prop in _target_props.items():
                 assert 0 <= _prop <= 1, "proportions should be between 0 and 1"
                 target_y = _class_id // num_classes
                 target_s = _class_id % num_colors
                 _indexes = (_y == int(target_y)) & (_s == int(target_s))
                 _n_matches = len(_indexes.nonzero(as_tuple=False))
-                _to_keep = torch.randperm(_n_matches) < (round(_prop * (_n_matches - 1)))
+                _num_to_keep = round(_prop * (_n_matches - 1))
+                _to_keep = torch.randperm(_n_matches) < _num_to_keep
                 _indexes[_indexes.nonzero(as_tuple=False)[_to_keep]] = False
                 _x = _x[~_indexes]
                 _s = _s[~_indexes]
                 _y = _y[~_indexes]
+
+                if _num_to_keep != 0 and _num_to_keep < smallest[0]:
+                    smallest = (_num_to_keep, target_y, target_s)
+            if smallest[1] is not None:
+                print(f"    Smallest cluster (y={smallest[1]}, s={smallest[2]}): {smallest[0]}")
             return RawDataTuple(x=_x, s=_s, y=_y)
 
         if args.subsample_train:
             if args.missing_s:
                 raise RuntimeError("Don't use subsample_train and missing_s together!")
             # when we manually subsample the training set, we ignore color correlation
-            train_data_t = _colorize_subset(train_data, _correlation=0, _decorr_op="random",)
+            train_data_t = _colorize_subset(train_data, _correlation=0, _decorr_op="random")
+            print("Subsampling training set...")
             train_data_t = _subsample_by_s_and_y(train_data_t, args.subsample_train)
         else:
             train_data_t = _colorize_subset(
@@ -150,6 +158,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         context_data_t = _colorize_subset(context_data, _correlation=0, _decorr_op="random")
 
         if args.subsample_context:
+            print("Subsampling context set...")
             context_data_t = _subsample_by_s_and_y(context_data_t, args.subsample_context)
             # test data remains balanced
             # test_data = _subsample_by_class(*test_data, args.subsample)
