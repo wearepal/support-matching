@@ -49,7 +49,7 @@ class AttentionAggregator(Aggregator):
         key = inputs.view(-1, 1, self.latent_dim)
         value = key
         output = self.act(self.attn(query=query, key=key, value=value, need_weights=False)[0])
-        return self.final_proj(output.view(1, self.latent_dim)).view(1)
+        return self.final_proj(output.view(1, self.latent_dim)).view(1, -1)
 
 
 class SimpleAggregator(Aggregator):
@@ -67,7 +67,7 @@ class SimpleAggregator(Aggregator):
     def forward(self, inputs: Tensor) -> Tensor:
         weights = F.softmax(self.weight_proj(inputs), dim=0)
         weighted = torch.sum(weights * inputs, dim=0)
-        return self.final_proj(weighted)
+        return self.final_proj(weighted).view(1, -1)
 
 
 class SimpleAggregatorT(Aggregator):
@@ -87,4 +87,4 @@ class SimpleAggregatorT(Aggregator):
     def forward(self, inputs: Tensor) -> Tensor:
         weights = F.softmax(self.weight_proj(inputs.t()).view(-1), dim=-1)
         weighted = torch.sum(weights * inputs, dim=-1)
-        return self.final_proj(weighted)
+        return self.final_proj(weighted).view(1, -1)
