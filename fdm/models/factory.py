@@ -3,7 +3,7 @@ from typing import List, Mapping, Optional, Tuple, Union
 from fdm import layers
 from fdm.configs import VaeArgs
 from fdm.models import Classifier
-from fdm.models.configs import ModelFn
+from shared.models.configs.classifiers import ModelFn
 
 __all__ = ["build_discriminator", "build_fc_inn", "build_conv_inn"]
 

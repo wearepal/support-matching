@@ -5,7 +5,7 @@ import torch.nn as nn
 from clustering import layers
 from clustering.configs import ClusterArgs
 from clustering.models import Classifier
-from clustering.models.configs import ModelFn
+from shared.models.configs.classifiers import ModelFn
 
 __all__ = ["build_classifier", "build_fc_inn", "build_conv_inn"]
 
