@@ -13,7 +13,6 @@ def build_discriminator(
     target_dim: int,
     model_fn: ModelFn,
     model_kwargs: Mapping[str, Union[float, str, bool]],
-    batch_wise_loss: bool,
     optimizer_kwargs=None,
 ) -> Classifier:
     in_dim = input_shape[0]
@@ -23,7 +22,6 @@ def build_discriminator(
         model_fn(in_dim, target_dim, **model_kwargs),
         num_classes=num_classes,
         optimizer_kwargs=optimizer_kwargs,
-        batch_wise_loss=batch_wise_loss,
     )
 
 

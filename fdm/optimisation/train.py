@@ -309,9 +309,6 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
             aggregator = SimpleAggregatorT(batch_dim=args.batch_size)
 
         disc_fn = ModelAggregatorWrapper(disc_fn, aggregator, embed_dim=args.batch_wise_latent)
-        batch_wise_loss = True
-    else:
-        batch_wise_loss = False
 
     components: Union[AeComponents, InnComponents]
     disc: Classifier
@@ -323,7 +320,6 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
                 target_dim=1,  # real vs fake
                 model_fn=disc_fn,
                 model_kwargs=disc_kwargs,
-                batch_wise_loss=batch_wise_loss,
                 optimizer_kwargs=disc_optimizer_kwargs,
             )
             disc_list.append(disc)
