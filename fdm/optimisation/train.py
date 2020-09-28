@@ -207,7 +207,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
 
         def _snorm(_module: nn.Module) -> nn.Module:
             if hasattr(_module, "weight"):
-                return torch.utils.spectral_norm(_module)
+                return torch.nn.utils.spectral_norm(_module)
             return _module
 
         encoder.apply(_snorm)
@@ -559,11 +559,11 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False
 
     if not ARGS.vae:
         encoding_t = ae.generator.encode(x_t)
-        if (not ARGS.train_on_recon):
+        if not ARGS.train_on_recon:
             encoding_c = ae.generator.encode(x_c)
     if ARGS.vae:
         encoding_t = ae.generator.encode(x_t, stochastic=True)
-        if (not ARGS.train_on_recon):
+        if not ARGS.train_on_recon:
             encoding_c = ae.generator.encode(x_c, stochastic=True)
 
     if ARGS.train_on_recon:
@@ -722,6 +722,7 @@ def log_recons(
     log_images(ARGS, recon.rand_s, "reconstruction_rand_s", step=itr, prefix=prefix)
     log_images(ARGS, recon.zero_s, "reconstruction_zero_s", step=itr, prefix=prefix)
     log_images(ARGS, recon.just_s, "reconstruction_just_s", step=itr, prefix=prefix)
+
 
 if __name__ == "__main__":
     main()
