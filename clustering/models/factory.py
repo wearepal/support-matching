@@ -5,7 +5,7 @@ import torch.nn as nn
 from clustering import layers
 from clustering.configs import ClusterArgs
 from clustering.models import Classifier
-from shared.models.configs.classifiers import ModelFn
+from shared.utils import ModelFn
 
 __all__ = ["build_classifier", "build_fc_inn", "build_conv_inn"]
 
@@ -14,7 +14,6 @@ def build_classifier(
     input_shape: Tuple[int, ...],
     target_dim: int,
     model_fn: ModelFn,
-    model_kwargs: Mapping[str, Union[float, str, bool]],
     optimizer_kwargs: Optional[Dict[str, float]] = None,
     num_heads: int = 1,
 ) -> Union[nn.ModuleList, Classifier]:
@@ -26,7 +25,7 @@ def build_classifier(
         for _ in range(num_heads):
             heads.append(
                 Classifier(
-                    model_fn(in_dim, target_dim, **model_kwargs),
+                    model_fn(in_dim, target_dim),
                     num_classes=num_classes,
                     optimizer_kwargs=optimizer_kwargs,
                 )
@@ -34,9 +33,7 @@ def build_classifier(
         classifier = nn.ModuleList(heads)
     else:
         classifier = Classifier(
-            model_fn(in_dim, target_dim, **model_kwargs),
-            num_classes=num_classes,
-            optimizer_kwargs=optimizer_kwargs,
+            model_fn(in_dim, target_dim), num_classes=num_classes, optimizer_kwargs=optimizer_kwargs
         )
 
     return classifier

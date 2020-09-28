@@ -6,7 +6,9 @@ from typing import Any, Dict, Iterable, Iterator, Sequence, Tuple, TypeVar, Opti
 import numpy as np
 import torch
 import wandb
+from torch import nn
 from torch.utils.data import DataLoader
+from typing_extensions import Protocol
 
 from shared.configs import BaseArgs
 
@@ -14,6 +16,7 @@ LOGGER = None
 
 __all__ = [
     "AverageMeter",
+    "ModelFn",
     "RunningAverageMeter",
     "count_parameters",
     "get_logger",
@@ -27,6 +30,11 @@ __all__ = [
 ]
 
 T = TypeVar("T")
+
+
+class ModelFn(Protocol):
+    def __call__(self, input_dim: int, target_dim: int) -> nn.Module:
+        ...
 
 
 def get_data_dim(data_loader: DataLoader) -> Tuple[int, ...]:

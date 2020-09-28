@@ -92,6 +92,7 @@ class FdmArgs(BaseArgs):
     disc_hidden_dims: List[int] = [256]
     batch_wise_loss: Literal["none", "attention", "simple", "transposed"] = "none"
     batch_wise_latent: int = 32
+    batch_wise_hidden_dims: List[int] = []
 
     # Training settings
     lr: float = 1e-3
