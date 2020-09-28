@@ -1,7 +1,7 @@
 from typing import List, Mapping, Optional, Tuple, Union
 
 from fdm import layers
-from fdm.configs import VaeArgs
+from fdm.configs import FdmArgs
 from fdm.models import Classifier
 from shared.models.configs.classifiers import ModelFn
 
@@ -26,7 +26,7 @@ def build_discriminator(
 
 
 def build_fc_inn(
-    args: VaeArgs, input_shape: Tuple[int, ...], level_depth: Optional[int] = None
+    args: FdmArgs, input_shape: Tuple[int, ...], level_depth: Optional[int] = None
 ) -> layers.Bijector:
     """Build the model with args.inn_depth many layers
 
@@ -60,7 +60,7 @@ def build_fc_inn(
     return layers.BijectorChain(chain)
 
 
-def _block(args: VaeArgs, input_dim: int) -> layers.Bijector:
+def _block(args: FdmArgs, input_dim: int) -> layers.Bijector:
     """Construct one block of the conv INN"""
     _chain: List[layers.Bijector] = []
 
@@ -103,7 +103,7 @@ def _block(args: VaeArgs, input_dim: int) -> layers.Bijector:
 
 
 def _build_multi_scale_chain(
-    args: VaeArgs, input_dim, factor_splits, unsqueeze=False
+    args: FdmArgs, input_dim, factor_splits, unsqueeze=False
 ) -> List[layers.Bijector]:
     chain: List[layers.Bijector] = []
 
@@ -134,7 +134,7 @@ def _build_multi_scale_chain(
     return chain
 
 
-def build_conv_inn(args: VaeArgs, input_shape: Tuple[int, ...]) -> layers.Bijector:
+def build_conv_inn(args: FdmArgs, input_shape: Tuple[int, ...]) -> layers.Bijector:
     input_dim = input_shape[0]
 
     full_chain: List[layers.Bijector] = []

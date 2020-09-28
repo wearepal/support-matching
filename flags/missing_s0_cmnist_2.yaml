@@ -24,7 +24,7 @@ a_drop_discrete: False
 a_drop_native: True
 a_early_stopping: 30
 a_elbo_weight: 1
-a_enc_channels: 16
+a_enc_out_dim: 16
 a_encode_batch_size: 1000
 a_eval_epochs: 40
 a_eval_lr: 0.001
@@ -38,7 +38,7 @@ a_gpu: 0
 a_greyscale: False
 a_lr: 0.001
 a_mixing_factor: 0
-a_num_workers:  4
+a_num_workers: 4
 a_quant_level: 8
 a_results_csv: ""
 a_root: ""
@@ -53,12 +53,11 @@ a_use_wandb: True
 a_val_freq: 5
 a_vgg_weight: 0
 a_weight_decay: 0
-a_init_channels: 32
+a_enc_init_chans: 32
 a_input_noise: True
 a_kl_weight: 1
-a_std_transform: exp
+a_vae_std_tform: exp
 a_log_freq: 50
-
 
 # ===== clustering flags =====
 c_encoder: "ae"
@@ -90,8 +89,6 @@ c_with_supervision: True
 
 # --- clustering flags ---
 #c_enc_path: /srv/galene0/pal/fair-dist-matching/experiments/finn/1590951542.6321526/encoder
-
-
 
 # ===== disentangling flags =====
 d_three_way: False

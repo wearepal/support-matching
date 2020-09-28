@@ -42,11 +42,11 @@ class ClusterArgs(BaseArgs):
     # Encoder settings
     encoder: Literal["ae", "vae", "rotnet"] = "ae"
     enc_levels: int = 4
-    enc_channels: int = 64
-    init_channels: int = 32
+    enc_out_dim: int = 64
+    enc_init_chans: int = 32
     recon_loss: Literal["l1", "l2", "bce", "huber", "ce", "mixed"] = "l1"
     vgg_weight: float = 0
-    std_transform: Literal["softplus", "exp"] = "exp"
+    vae_std_tform: Literal["softplus", "exp"] = "exp"
     kl_weight: float = 1
     elbo_weight: float = 1
     stochastic: bool = False

@@ -1,0 +1,12 @@
+dataset: "cmnist"
+balanced-test: true
+biased-train: true
+binarize: true
+black: true
+color-correlation: 1.0
+subsample-train:
+    2: 0.0
+colors: 2 4
+subsample-context:
+filter-labels: 2 4
+test-pcnt: 0.2

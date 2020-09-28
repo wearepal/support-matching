@@ -151,7 +151,7 @@ class VAE(AutoEncoder):
         encoder: nn.Module,
         decoder: nn.Module,
         encoding_size: Optional[EncodingSize],
-        std_transform: Literal["softplus", "exp"],
+        vae_std_tform: Literal["softplus", "exp"],
         feature_group_slices: Optional[Dict[str, List[slice]]] = None,
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
     ):
@@ -167,7 +167,7 @@ class VAE(AutoEncoder):
 
         self.prior = td.Normal(0, 1)
         self.posterior_fn = td.Normal
-        self.std_transform = std_transform
+        self.vae_std_tform = vae_std_tform
 
     def compute_divergence(self, sample: Tensor, posterior: td.Distribution) -> Tensor:
         log_p = self.prior.log_prob(sample)
@@ -193,7 +193,7 @@ class VAE(AutoEncoder):
         loc, scale = self.encoder(x).chunk(2, dim=1)
 
         if stochastic or return_posterior:
-            if self.std_transform == "softplus":
+            if self.vae_std_tform == "softplus":
                 scale = F.softplus(scale)
             else:
                 scale = torch.exp(0.5 * scale).clamp(min=0.005, max=3.0)

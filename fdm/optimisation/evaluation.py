@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import tqdm
 from typing_extensions import Literal
 
-from fdm.configs import VaeArgs
+from fdm.configs import FdmArgs
 from fdm.models import AutoEncoder, Classifier
 from shared.data import DatasetTriplet, get_data_tuples
 from shared.models.configs.classifiers import fc_net, mp_32x32_net, mp_64x64_net
@@ -26,7 +26,7 @@ def log_sample_images(args, data, name, step):
 
 
 def log_metrics(
-    args: VaeArgs, model, data: DatasetTriplet, step: int, save_to_csv: Optional[Path] = None
+    args: FdmArgs, model, data: DatasetTriplet, step: int, save_to_csv: Optional[Path] = None
 ) -> None:
     """Compute and log a variety of metrics."""
     model.eval()
@@ -54,7 +54,7 @@ def log_metrics(
     )
 
 
-def baseline_metrics(args: VaeArgs, data: DatasetTriplet, save_to_csv: Optional[Path]) -> None:
+def baseline_metrics(args: FdmArgs, data: DatasetTriplet, save_to_csv: Optional[Path]) -> None:
     if args.dataset not in ("cmnist", "celeba", "ssrp", "genfaces"):
         print("Baselines...")
         train_data = data.train
@@ -86,7 +86,7 @@ def baseline_metrics(args: VaeArgs, data: DatasetTriplet, save_to_csv: Optional[
 
 
 def fit_classifier(
-    args: VaeArgs,
+    args: FdmArgs,
     input_shape: Sequence[int],
     train_data: DataLoader,
     train_on_recon: bool,
@@ -114,7 +114,7 @@ def fit_classifier(
 
 
 def evaluate(
-    args: VaeArgs,
+    args: FdmArgs,
     step: int,
     train_data: "Dataset[Tuple[Tensor, Tensor, Tensor]]",
     test_data: "Dataset[Tuple[Tensor, Tensor, Tensor]]",
@@ -186,7 +186,7 @@ def evaluate(
 
 
 def encode_dataset(
-    args: VaeArgs,
+    args: FdmArgs,
     data: Dataset,
     generator: AutoEncoder,
     recons: bool,
@@ -211,9 +211,7 @@ def encode_dataset(
             enc = generator.encode(x, stochastic=False)
             if recons:
                 if args.train_on_recon:
-                    raise ValueError(
-                        "This evaluation is meant to work with training on encoding."
-                    )
+                    raise ValueError("This evaluation is meant to work with training on encoding.")
                 zs_m, zy_m = generator.mask(enc, random=False)
                 z_m = zs_m if invariant_to == "s" else zy_m
                 x_m = generator.decode(z_m, mode="hard")

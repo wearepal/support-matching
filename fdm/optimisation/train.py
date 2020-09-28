@@ -1,4 +1,5 @@
 """Main training file"""
+from fdm.optimisation.mmd import mmd2
 import time
 from logging import Logger
 from pathlib import Path
@@ -11,12 +12,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import wandb
 from torch import Tensor
-from ethicml.implementations.pytorch_common import quadratic_time_mmd
 from torch.utils.data import DataLoader, Dataset, Subset, WeightedRandomSampler
 from typing_extensions import Literal
 
 from clustering.optimisation import get_class_id
-from fdm.configs import VaeArgs
+from fdm.configs import FdmArgs
 from fdm.models import (
     AutoEncoder,
     Classifier,
@@ -51,7 +51,7 @@ from .utils import log_images, restore_model, save_model, weight_for_balance
 
 __all__ = ["main"]
 
-ARGS: VaeArgs = None  # type: ignore[assignment]
+ARGS: FdmArgs = None  # type: ignore[assignment]
 LOGGER: Logger = None  # type: ignore[assignment]
 Generator = Union[AutoEncoder, PartitionedAeInn]
 
@@ -70,7 +70,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     sha = repo.head.object.hexsha
 
     # args
-    args = VaeArgs(fromfile_prefix_chars="@", explicit_bool=True, underscores_to_dashes=True)
+    args = FdmArgs(fromfile_prefix_chars="@", explicit_bool=True, underscores_to_dashes=True)
     args.parse_args(accept_prefixes(("--a-", "--d-", "--e-")), known_only=True)
     confirm_empty(args.extra_args, to_ignore=("--b-", "--c-"))
 
@@ -133,7 +133,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
             num_workers=ARGS.num_workers,
             oversample=ARGS.oversample,
         )
-        dataloader_kwargs = dict(sampler=context_sampler)
+        dataloader_kwargs = dict(sampler=context_sampler, shuffle=False)
     else:
         dataloader_kwargs = dict(shuffle=True)
 
@@ -187,8 +187,8 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         #     decoder_out_act = nn.Sigmoid() if ARGS.dataset == "cmnist" else nn.Tanh()
         encoder, decoder, enc_shape = conv_autoencoder(
             input_shape,
-            ARGS.init_channels,
-            encoding_dim=ARGS.enc_channels,
+            ARGS.enc_init_chan,
+            encoding_dim=ARGS.enc_out_dim,
             decoding_dim=decoding_dim,
             levels=ARGS.enc_levels,
             decoder_out_act=decoder_out_act,
@@ -197,11 +197,20 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     else:
         encoder, decoder, enc_shape = fc_autoencoder(
             input_shape,
-            ARGS.init_channels,
-            encoding_dim=ARGS.enc_channels,
+            ARGS.enc_init_chan,
+            encoding_dim=ARGS.enc_out_dim,
             levels=ARGS.enc_levels,
             variational=ARGS.vae,
         )
+
+    if ARGS.enc_snorm:
+
+        def _snorm(_module: nn.Module) -> nn.Module:
+            if hasattr(_module, "weight"):
+                return torch.utils.spectral_norm(_module)
+            return _module
+
+        encoder.apply(_snorm)
 
     recon_loss_fn_: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
     if ARGS.recon_loss == "l1":
@@ -631,12 +640,14 @@ def update(
     else:
         x = disc_input_no_s
         y = get_disc_input(ae.generator, encoding_c, invariant_to="s")
-        if ARGS.mmd_scale is None:
-            with torch.no_grad():
-                scale = torch.median(torch.sum(torch.abs(x[None] - y[:, None]), dim=1)).item()
-        else:
-            scale = ARGS.mmd_scale
-        disc_loss = quadratic_time_mmd(x=x, y=y, sigma=scale)
+        disc_loss = mmd2(
+            x=x,
+            y=y,
+            kernel=ARGS.mmd_kernel,
+            scales=ARGS.mmd_scales,
+            wts=ARGS.mmd_wts,
+            add_dot=ARGS.mmd_add_dot,
+        )
     pred_y_loss = x_t.new_zeros(())
     if ARGS.pred_weight > 0:
         # predictor is on encodings

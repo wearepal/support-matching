@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 from torch.utils.data import DataLoader
 
-from fdm.configs import VaeArgs
+from fdm.configs import FdmArgs
 from fdm.models import (
     VAE,
     AutoEncoder,
@@ -18,7 +18,7 @@ __all__ = ["build_inn", "build_ae"]
 
 
 def build_inn(
-    args: VaeArgs,
+    args: FdmArgs,
     autoencoder: AutoEncoder,
     ae_loss_fn,
     is_image_data: bool,
@@ -41,7 +41,7 @@ def build_inn(
         autoencoder.load_state_dict(save_dict["model"])
         if "args" in save_dict:
             args_ae = save_dict["args"]
-            assert args.init_channels == args_ae["init_channels"]
+            assert args.enc_init_chan == args_ae["enc_init_chans"]
             assert args.enc_levels == args_ae["levels"]
     else:
         inn.fit_ae(
@@ -52,13 +52,13 @@ def build_inn(
             kl_weight=args.kl_weight,
         )
         # the args names follow the convention of the standalone VAE commandline args
-        args_ae = {"init_channels": args.init_channels, "levels": args.enc_levels}
+        args_ae = {"enc_init_chans": args.enc_init_chan, "levels": args.enc_levels}
         torch.save({"model": autoencoder.state_dict(), "args": args_ae}, save_dir / "autoencoder")
     return inn
 
 
 def build_ae(
-    args: VaeArgs,
+    args: FdmArgs,
     encoder,
     decoder,
     encoding_size: Optional[EncodingSize],
@@ -71,7 +71,7 @@ def build_ae(
             encoder=encoder,
             decoder=decoder,
             encoding_size=encoding_size,
-            std_transform=args.std_transform,
+            vae_std_tform=args.vae_std_tform,
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_args,
         )

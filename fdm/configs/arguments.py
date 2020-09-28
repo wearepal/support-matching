@@ -5,10 +5,10 @@ from typing_extensions import Literal
 
 from shared.configs import BaseArgs, StoreDictKeyPair
 
-__all__ = ["VaeArgs"]
+__all__ = ["FdmArgs"]
 
 
-class VaeArgs(BaseArgs):
+class FdmArgs(BaseArgs):
 
     # Optimization settings
     early_stopping: int = 30
@@ -45,17 +45,18 @@ class VaeArgs(BaseArgs):
 
     _device: torch.device
 
-    # VAEsettings
+    # Encoder settings
     use_pretrained_enc: bool = True
     enc_levels: int = 4
+    enc_out_dim: int = 64
+    enc_init_chan: int = 32
+    enc_snorm: bool = False
     zs_frac: float = 0.1
-    enc_channels: int = 64
-    init_channels: int = 32
+
     recon_loss: Optional[Literal["l1", "l2", "bce", "huber", "ce", "mixed"]] = None
     vgg_weight: float = 0
     vae: bool = False
-    three_way_split: bool = False
-    std_transform: Literal["softplus", "exp"] = "exp"
+    vae_std_tform: Literal["softplus", "exp"] = "exp"
     stochastic: bool = False
 
     # INN settings
@@ -83,7 +84,11 @@ class VaeArgs(BaseArgs):
 
     # Discriminator settings
     disc_method: Literal["nn", "mmd"] = "nn"
-    mmd_scale: Optional[float] = None
+    mmd_kernel: Literal["linear", "rbf", "rq"] = "rq"
+    mmd_scales: Optional[float] = None
+    mmd_wts: Optional[List[float]] = None
+    mmd_add_dot: float = 0.0
+
     disc_hidden_dims: List[int] = [256]
     batch_wise_loss: Literal["none", "attention", "simple", "transposed"] = "none"
     batch_wise_latent: int = 32

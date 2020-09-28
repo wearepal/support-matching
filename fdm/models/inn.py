@@ -5,7 +5,7 @@ import torch.distributions as td
 from torch import Tensor
 from torch.utils.data import DataLoader
 
-from fdm.configs import VaeArgs
+from fdm.configs import FdmArgs
 from fdm.layers import Bijector
 from shared.utils import DLogistic, MixtureDistribution, prod  # to_discrete, logistic_distribution
 
@@ -22,7 +22,7 @@ class PartitionedAeInn(ModelBase):
 
     def __init__(
         self,
-        args: VaeArgs,
+        args: FdmArgs,
         model: Bijector,
         autoencoder: AutoEncoder,
         input_shape: Sequence[int],
