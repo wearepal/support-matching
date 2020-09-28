@@ -11,12 +11,12 @@ a_balance_all: True
 
 # ===== encoder =====
 c_encoder: ae
-c_enc_channels: 35
+c_enc_out_dim: 35
 c_enc_epochs: 100
 c_enc_lr: 0.001
 c_enc_levels: 0
 c_recon_loss: mixed
-c_init_channels: 61
+c_enc_init_chans: 61
 c_kl_weight: 0.01
 
 # ===== clustering =====
@@ -42,10 +42,10 @@ c_early_stopping: 10000
 # FDM arguments
 d_batch_size: 1000
 d_disc_hidden_dims: 32
-d_enc_channels: 35
+d_enc_out_dim: 35
 d_epochs: 1000
 d_eval_on_recon: false
-d_init_channels: 61
+d_enc_init_chans: 61
 d_levels: 0
 d_num_disc_updates: 3
 d_recon_loss: mixed

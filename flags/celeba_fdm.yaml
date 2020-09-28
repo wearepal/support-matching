@@ -1,7 +1,7 @@
 levels: 5
 recon_loss: l1
 dataset: celeba
-init_channels: 32
+enc_init_chans: 32
 lr: 1e-3
 zs_frac: 0.015625
 num_disc_updates: 3

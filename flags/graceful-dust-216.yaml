@@ -9,7 +9,7 @@ recon_loss: "l2"
 vae: false
 pred_s_weight: 2
 kl_weight: 1
-std_transform: "exp"
+vae_std_tform: "exp"
 # this makes zs channels be 1
 zs_frac: 0.0469
 # number of training steps for the discriminator while we do 1 step for the generator

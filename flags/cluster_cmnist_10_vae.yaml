@@ -9,10 +9,10 @@ enc_chan: 34
 enc_epochs: 500
 enc_levels: 4
 enc_lr: 1e-4
-init_channels: 64
+enc_init_chans: 64
 kl_weight: 0.1
 recon_loss: l2
-std_transform: exp
+vae_std_tform: exp
 # cluster settings
 method: "pl_enc_no_norm"
 log_freq: 50

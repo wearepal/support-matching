@@ -17,7 +17,7 @@ recon_loss: l2
 vae: False
 disc_weight: 2
 kl_weight: 1
-std_transform: exp
+vae_std_tform: exp
 # this makes zs channels be 1
 zs_frac: 0.0469
 num_disc_updates: 3
