@@ -46,7 +46,6 @@ d-recon-loss: l2
 d-vae-std-tform: exp
 d-super-val-freq: 20
 d-super-val: True
-d-three-way: False
 d-train-on-recon: False
 d-vae: False
 d-warmup: 0

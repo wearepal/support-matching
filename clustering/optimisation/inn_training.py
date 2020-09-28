@@ -35,8 +35,7 @@ def update_disc_on_inn(
 
     ones = x_c.new_ones((x_c.size(0),))
     zeros = x_t.new_zeros((x_t.size(0),))
-    # in case of the three-way split, we have to check more than one invariance
-    invariances: List[Literal["s", "y"]] = ["s", "y"]
+    invariances = ["s"]
 
     for _ in range(args.num_disc_updates):
         encoding_t = models.inn.encode(x_t, stochastic=args.stochastic)

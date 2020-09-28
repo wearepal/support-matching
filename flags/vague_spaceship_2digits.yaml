@@ -53,7 +53,6 @@ d-recon-loss: l2
 d-vae-std-tform: exp
 d-super-val-freq: 500
 d-super-val: True
-d-three-way: False
 d-train-on-recon: False
 d-use-pretrained-enc: false
 d-use-wandb: True

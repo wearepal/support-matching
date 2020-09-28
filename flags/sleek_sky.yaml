@@ -63,7 +63,6 @@ subsample-train:
 super-val: true
 super-val-freq: 450
 test-pcnt: 0.2
-three-way-split: false
 train-on-recon: false
 use-inn: false
 use-pretrained-enc: false

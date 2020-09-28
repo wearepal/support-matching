@@ -262,7 +262,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         encoding_size = generator.encoding_size
     else:
         zs_dim = round(ARGS.zs_frac * enc_shape[0])
-        zy_dim = zs_dim if ARGS.three_way_split else 0
+        zy_dim = enc_shape - zs_dim
         encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim)
         generator = build_ae(
             args=ARGS,
@@ -555,16 +555,15 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False
     else:
         ones = x_c.new_ones((1,))
         zeros = x_t.new_zeros((1,))
-    # in case of the three-way split, we have to check more than one invariance
-    invariances: List[Literal["s", "y"]] = ["s", "y"] if ARGS.three_way_split else ["s"]
+    invariances = ["s"]
 
     if not ARGS.vae:
         encoding_t = ae.generator.encode(x_t)
-        if (not ARGS.train_on_recon) or ARGS.three_way_split:
+        if (not ARGS.train_on_recon):
             encoding_c = ae.generator.encode(x_c)
     if ARGS.vae:
         encoding_t = ae.generator.encode(x_t, stochastic=True)
-        if (not ARGS.train_on_recon) or ARGS.three_way_split:
+        if (not ARGS.train_on_recon):
             encoding_c = ae.generator.encode(x_c, stochastic=True)
 
     if ARGS.train_on_recon:

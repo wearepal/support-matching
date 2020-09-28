@@ -91,7 +91,6 @@ c_with_supervision: True
 #c_enc_path: /srv/galene0/pal/fair-dist-matching/experiments/finn/1590951542.6321526/encoder
 
 # ===== disentangling flags =====
-d_three_way: False
 d_train_on_recon: True
 d_levels: 4
 d_vae: False
@@ -131,6 +130,5 @@ d_recon_detach: True
 d_recon_stability_weight: 0
 d_super_val: True
 d_super_val_freq: 20
-d_three_way_split: False
 d_use_inn: False
 d_warmup_steps: 1000
