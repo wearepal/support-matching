@@ -29,7 +29,7 @@ setup(
         "typed-argument-parser == 1.4",
         # "typed-flags",
         "typer",
-        "wandb == 0.8.27",
+        "wandb >= 0.10.2",
     ],
 )
 

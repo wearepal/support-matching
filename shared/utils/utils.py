@@ -1,7 +1,7 @@
 import logging
 import os
 import random
-from typing import Any, Dict, Iterable, Iterator, Sequence, Tuple, TypeVar
+from typing import Any, Dict, Iterable, Iterator, Sequence, Tuple, TypeVar, Optional
 
 import numpy as np
 import torch
@@ -36,7 +36,9 @@ def get_data_dim(data_loader: DataLoader) -> Tuple[int, ...]:
     return tuple(x_dim)
 
 
-def wandb_log(args: BaseArgs, row: Dict[str, Any], step: int, commit: bool = True):
+def wandb_log(
+    args: BaseArgs, row: Dict[str, Any], step: int, commit: Optional[bool] = None
+) -> None:
     """Wrapper around wandb's log function"""
     if args.use_wandb:
         wandb.log(row, commit=commit, step=step)

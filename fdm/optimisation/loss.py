@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
-from ethicml.implementations.pytorch_common import quadratic_time_mmd
 from torch import Tensor
 from typing_extensions import Literal
 
@@ -15,7 +14,6 @@ __all__ = [
     "VGGLoss",
     "contrastive_gradient_penalty",
     "grad_reverse",
-    "MMDLoss",
 ]
 
 
@@ -163,11 +161,3 @@ class MixedLoss(nn.Module):
             input[:, self.cont_start :], target[:, self.cont_start :], reduction=self.reduction
         )
         return self.disc_loss_factor * disc_loss + cont_loss
-
-
-class MMDLoss(nn.Module):
-    def __init__(self, scale: float):
-        self.scale = scale
-
-    def forward(self, input: Tensor, target: Tensor) -> Tensor:
-        return quadratic_time_mmd(x=input, y=target, sigma=self.scale)
