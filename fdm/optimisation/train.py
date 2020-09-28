@@ -616,18 +616,17 @@ def update(
     # ==================================== adversarial losses =====================================
     disc_input_no_s = get_disc_input(ae.generator, encoding, invariant_to="s")
 
-    if ARGS.batch_wise_loss == "none":
-        zeros = x_t.new_zeros((x_t.size(0),))
-    else:
-        zeros = x_t.new_zeros((1,))
-
     if ARGS.disc_method == "nn":
-        zeros = x_t.new_zeros((x_t.size(0),))
+        if ARGS.batch_wise_loss == "none":
+            zeros = x_t.new_zeros((x_t.size(0),))
+        else:
+            zeros = x_t.new_zeros((1,))
+
         disc_loss = x_t.new_zeros(())
         for discriminator in ae.disc_ensemble:
             discriminator.eval()
             disc_loss -= discriminator.routine(disc_input_no_s, zeros)[0]
-            disc_loss /= len(ae.disc_ensemble)
+        disc_loss /= len(ae.disc_ensemble)
 
     else:
         x = disc_input_no_s
@@ -637,11 +636,7 @@ def update(
                 scale = torch.median(torch.sum(torch.abs(x[None] - y[:, None]), dim=1)).item()
         else:
             scale = ARGS.mmd_scale
-        disc_loss = quadratic_time_mmd(
-            x=x,
-            y=y,
-            sigma=scale,
-        )
+        disc_loss = quadratic_time_mmd(x=x, y=y, sigma=scale)
     pred_y_loss = x_t.new_zeros(())
     if ARGS.pred_weight > 0:
         # predictor is on encodings
