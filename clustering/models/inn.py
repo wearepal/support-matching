@@ -70,10 +70,6 @@ class AeInn(ModelBase, Encoder):
             self.x_dim = x_dim
             self.output_dim = prod(self.input_shape)
 
-        zs_dim: int = round(args.zs_frac * self.output_dim)
-        zy_dim: int = zs_dim
-        zn_dim: int = self.output_dim - zs_dim - zy_dim
-        # self.encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim, zn=zn_dim)
         self.autoencoder = autoencoder
 
     def decode_with_ae_enc(self, z: Tensor, discretize: bool = False) -> Tuple[Tensor, Tensor]:

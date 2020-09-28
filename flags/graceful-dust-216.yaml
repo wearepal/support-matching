@@ -1,6 +1,5 @@
 # link to logging: https://app.wandb.ai/predictive-analytics-lab/fdm/runs/zw7nogh7/overview
 dataset: "cmnist"
-three_way: false
 train_on_recon: true
 eval_on_recon: true
 levels: 4

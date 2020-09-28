@@ -1,5 +1,4 @@
 dataset: "cmnist"
-three_way: False
 train_on_recon: False
 eval_on_recon: False
 levels: 4

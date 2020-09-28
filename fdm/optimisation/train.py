@@ -242,7 +242,6 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
 
     generator: Generator
     if ARGS.use_inn:
-        # assert ARGS.three_way_split, "for now, INN can only do three way split"
         autoencoder = build_ae(
             ARGS, encoder, decoder, encoding_size=None, feature_group_slices=feature_group_slices
         )
@@ -264,8 +263,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     else:
         zs_dim = round(ARGS.zs_frac * enc_shape[0])
         zy_dim = zs_dim if ARGS.three_way_split else 0
-        zn_dim = enc_shape[0] - zs_dim - zy_dim
-        encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim, zn=zn_dim)
+        encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim)
         generator = build_ae(
             args=ARGS,
             encoder=encoder,
@@ -725,10 +723,6 @@ def log_recons(
     log_images(ARGS, recon.rand_s, "reconstruction_rand_s", step=itr, prefix=prefix)
     log_images(ARGS, recon.zero_s, "reconstruction_zero_s", step=itr, prefix=prefix)
     log_images(ARGS, recon.just_s, "reconstruction_just_s", step=itr, prefix=prefix)
-    if ARGS.three_way_split:
-        log_images(ARGS, recon.rand_y, "reconstruction_rand_2", step=itr, prefix=prefix)
-        log_images(ARGS, recon.zero_y, "reconstruction_zero_2", step=itr, prefix=prefix)
-
 
 if __name__ == "__main__":
     main()

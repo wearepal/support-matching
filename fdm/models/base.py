@@ -10,13 +10,11 @@ __all__ = ["ModelBase", "EncodingSize", "SplitEncoding", "Reconstructions"]
 class EncodingSize(NamedTuple):
     zs: int
     zy: int
-    zn: int
 
 
 class SplitEncoding(NamedTuple):
     zs: Tensor
     zy: Tensor
-    zn: Tensor
 
 
 class Reconstructions(NamedTuple):

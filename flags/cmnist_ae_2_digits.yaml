@@ -8,7 +8,6 @@ subsample_context:
         1: 0.5
 
 # ===== disentangling flags =====
-three_way: False
 train_on_recon: True
 eval_on_recon: True
 levels: 4

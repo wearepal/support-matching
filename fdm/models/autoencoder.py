@@ -67,8 +67,8 @@ class AutoEncoder(nn.Module):
     def all_recons(self, z: Tensor, mode: Literal["soft", "hard", "relaxed"]) -> Reconstructions:
         rand_s, rand_y = self.mask(z, random=True)
         zero_s, zero_y = self.mask(z)
-        zs, zy, zn = self.split_encoding(z)
-        just_s = torch.cat([zs, torch.zeros_like(zy), torch.zeros_like(zn)], dim=1)
+        zs, zy = self.split_encoding(z)
+        just_s = torch.cat([zs, torch.zeros_like(zy)], dim=1)
         return Reconstructions(
             all=self.decode(z, mode=mode),
             rand_s=self.decode(rand_s, mode=mode),
@@ -91,25 +91,25 @@ class AutoEncoder(nn.Module):
 
     def split_encoding(self, z: Tensor) -> SplitEncoding:
         assert self.encoding_size is not None
-        zs, zy, zn = z.split(
-            (self.encoding_size.zs, self.encoding_size.zy, self.encoding_size.zn), dim=1
+        zs, zy = z.split(
+            (self.encoding_size.zs, self.encoding_size.zy), dim=1
         )
-        return SplitEncoding(zs=zs, zy=zy, zn=zn)
+        return SplitEncoding(zs=zs, zy=zy)
 
     def mask(self, z: Tensor, random: bool = False) -> Tuple[Tensor, Tensor]:
         """Split the encoding and mask out zs and zy. This is a cheap function."""
-        zs, zy, zn = self.split_encoding(z)
+        zs, zy = self.split_encoding(z)
         if random:
             # the question here is whether to have one random number per sample
             # or whether to also have distinct random numbers for all the dimensions of zs.
             # if we don't expect s to be complicated, then the former should suffice
             rand_zs = torch.randn((zs.size(0),) + (zs.dim() - 1) * (1,), device=zs.device)
-            zs_m = torch.cat([rand_zs + torch.zeros_like(zs), zy, zn], dim=1)
+            zs_m = torch.cat([rand_zs + torch.zeros_like(zs), zy], dim=1)
             rand_zy = torch.randn((zy.size(0),) + (zy.dim() - 1) * (1,), device=zy.device)
-            zy_m = torch.cat([zs, rand_zy + torch.zeros_like(zy), zn], dim=1)
+            zy_m = torch.cat([zs, rand_zy + torch.zeros_like(zy)], dim=1)
         else:
-            zs_m = torch.cat([torch.zeros_like(zs), zy, zn], dim=1)
-            zy_m = torch.cat([zs, torch.zeros_like(zy), zn], dim=1)
+            zs_m = torch.cat([torch.zeros_like(zs), zy], dim=1)
+            zy_m = torch.cat([zs, torch.zeros_like(zy)], dim=1)
         return zs_m, zy_m
 
     def fit(self, train_data: DataLoader, epochs: int, device, loss_fn, kl_weight: float):

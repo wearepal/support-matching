@@ -71,9 +71,8 @@ class PartitionedAeInn(ModelBase):
             self.output_dim = prod(self.input_shape)
 
         zs_dim: int = round(args.zs_frac * self.output_dim)
-        zy_dim: int = zs_dim if args.three_way_split else 0
-        zn_dim: int = self.output_dim - zs_dim - zy_dim
-        self.encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim, zn=zn_dim)
+        zy_dim: int = self.output_dim - zs_dim
+        self.encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim)
         self.autoencoder = autoencoder
 
     def decode_with_ae_enc(self, z, discretize: bool = False) -> Tuple[Tensor, Tensor]:
@@ -121,10 +120,10 @@ class PartitionedAeInn(ModelBase):
         return -log_px / z.nelement()
 
     def split_encoding(self, z: Tensor) -> SplitEncoding:
-        zs, zy, zn = z.split(
-            (self.encoding_size.zs, self.encoding_size.zy, self.encoding_size.zn), dim=1
+        zs, zy = z.split(
+            (self.encoding_size.zs, self.encoding_size.zy), dim=1
         )
-        return SplitEncoding(zs=zs, zy=zy, zn=zn)
+        return SplitEncoding(zs=zs, zy=zy)
 
     def mask(self, zs: Tensor, random: bool = False) -> Tuple[Tensor, Tensor]:
         """Split the encoding and mask out zs and zy. This is a cheap function."""
@@ -136,14 +135,14 @@ class PartitionedAeInn(ModelBase):
             rand_zs = torch.randn(
                 (split.zs.size(0),) + (split.zs.dim() - 1) * (1,), device=split.zs.device
             )
-            zs_m = torch.cat([rand_zs + torch.zeros_like(split.zs), split.zy, split.zn], dim=1)
+            zs_m = torch.cat([rand_zs + torch.zeros_like(split.zs), split.zy], dim=1)
             rand_zy = torch.randn(
                 (split.zy.size(0),) + (split.zy.dim() - 1) * (1,), device=split.zy.device
             )
-            zy_m = torch.cat([split.zs, rand_zy + torch.zeros_like(split.zy), split.zn], dim=1)
+            zy_m = torch.cat([split.zs, rand_zy + torch.zeros_like(split.zy)], dim=1)
         else:
-            zs_m = torch.cat([torch.zeros_like(split.zs), split.zy, split.zn], dim=1)
-            zy_m = torch.cat([split.zs, torch.zeros_like(split.zy), split.zn], dim=1)
+            zs_m = torch.cat([torch.zeros_like(split.zs), split.zy], dim=1)
+            zy_m = torch.cat([split.zs, torch.zeros_like(split.zy)], dim=1)
         return zs_m, zy_m
 
     def all_recons(self, z: Tensor, discretize: bool = False) -> Reconstructions:
@@ -151,7 +150,7 @@ class PartitionedAeInn(ModelBase):
         zero_s, zero_y = self.mask(z)
         splits = self.split_encoding(z)
         just_s = torch.cat(
-            [splits.zs, torch.zeros_like(splits.zy), torch.zeros_like(splits.zn)], dim=1
+            [splits.zs, torch.zeros_like(splits.zy)], dim=1
         )
         return Reconstructions(
             all=self.decode(z, discretize=discretize),

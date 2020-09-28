@@ -28,7 +28,6 @@ c_method: "pl_enc_no_norm"
 c_val_freq: 10
 
 # ===== disentangling flags =====
-d_three_way: False
 d_eval_on_recon: True
 d_levels: 4
 d_enc_chan: 16
