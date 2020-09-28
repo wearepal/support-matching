@@ -5,10 +5,10 @@ from typing_extensions import Literal
 
 from shared.configs import BaseArgs, StoreDictKeyPair
 
-__all__ = ["VaeArgs"]
+__all__ = ["FdmArgs"]
 
 
-class VaeArgs(BaseArgs):
+class FdmArgs(BaseArgs):
 
     # Optimization settings
     early_stopping: int = 30

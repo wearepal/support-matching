@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch import Tensor
 from typing_extensions import Literal
 
-from fdm.configs import VaeArgs
+from fdm.configs import FdmArgs
 from fdm.models import Classifier, PartitionedAeInn
 
 __all__ = ["update_inn", "update_disc_on_inn"]
@@ -22,7 +22,7 @@ class InnComponents(NamedTuple):
 
 
 def update_disc_on_inn(
-    args: VaeArgs, x_c: Tensor, x_t: Tensor, models: InnComponents, warmup: bool = False
+    args: FdmArgs, x_c: Tensor, x_t: Tensor, models: InnComponents, warmup: bool = False
 ) -> Tuple[Tensor, float]:
     """Train the discriminator while keeping the generator constant.
 
@@ -77,7 +77,7 @@ def update_disc_on_inn(
 
 
 def update_inn(
-    args: VaeArgs, x_c: Tensor, x_t: Tensor, models: InnComponents, disc_weight: float
+    args: FdmArgs, x_c: Tensor, x_t: Tensor, models: InnComponents, disc_weight: float
 ) -> Tuple[Tensor, Dict[str, float]]:
     """Compute all losses.
 
@@ -180,7 +180,7 @@ def update_inn(
 
 
 def get_disc_input(
-    args: VaeArgs,
+    args: FdmArgs,
     inn: PartitionedAeInn,
     encoding: Tensor,
     invariant_to: Literal["s", "y"] = "s",

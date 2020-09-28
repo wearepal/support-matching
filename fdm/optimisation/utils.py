@@ -6,14 +6,14 @@ import torchvision
 import wandb
 from torch import Tensor, nn
 
-from fdm.configs import VaeArgs
+from fdm.configs import FdmArgs
 from shared.utils import wandb_log
 
 __all__ = ["log_images", "save_model", "restore_model", "weight_for_balance"]
 
 
 def log_images(
-    args: VaeArgs, image_batch, name, step, nsamples=64, nrows=8, monochrome=False, prefix=None
+    args: FdmArgs, image_batch, name, step, nsamples=64, nrows=8, monochrome=False, prefix=None
 ):
     """Make a grid of the given images, save them in a file and log them with W&B"""
     prefix = "train_" if prefix is None else f"{prefix}_"
@@ -37,7 +37,7 @@ def log_images(
 
 
 def save_model(
-    args: VaeArgs, save_dir: Path, model: nn.Module, itr: int, sha: str, best: bool = False
+    args: FdmArgs, save_dir: Path, model: nn.Module, itr: int, sha: str, best: bool = False
 ) -> Path:
     if best:
         filename = save_dir / "checkpt_best.pth"
@@ -55,7 +55,7 @@ def save_model(
     return filename
 
 
-def restore_model(args: VaeArgs, filename: Path, model: nn.Module):
+def restore_model(args: FdmArgs, filename: Path, model: nn.Module):
     chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
     args_chkpt = chkpt["args"]
     assert args.enc_levels == args_chkpt["levels"]

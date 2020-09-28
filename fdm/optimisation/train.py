@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader, Dataset, Subset, WeightedRandomSampler
 from typing_extensions import Literal
 
 from clustering.optimisation import get_class_id
-from fdm.configs import VaeArgs
+from fdm.configs import FdmArgs
 from fdm.models import (
     AutoEncoder,
     Classifier,
@@ -51,7 +51,7 @@ from .utils import log_images, restore_model, save_model, weight_for_balance
 
 __all__ = ["main"]
 
-ARGS: VaeArgs = None  # type: ignore[assignment]
+ARGS: FdmArgs = None  # type: ignore[assignment]
 LOGGER: Logger = None  # type: ignore[assignment]
 Generator = Union[AutoEncoder, PartitionedAeInn]
 
@@ -70,7 +70,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     sha = repo.head.object.hexsha
 
     # args
-    args = VaeArgs(fromfile_prefix_chars="@", explicit_bool=True, underscores_to_dashes=True)
+    args = FdmArgs(fromfile_prefix_chars="@", explicit_bool=True, underscores_to_dashes=True)
     args.parse_args(accept_prefixes(("--a-", "--d-", "--e-")), known_only=True)
     confirm_empty(args.extra_args, to_ignore=("--b-", "--c-"))
 

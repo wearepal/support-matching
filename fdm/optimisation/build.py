@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 from torch.utils.data import DataLoader
 
-from fdm.configs import VaeArgs
+from fdm.configs import FdmArgs
 from fdm.models import (
     VAE,
     AutoEncoder,
@@ -18,7 +18,7 @@ __all__ = ["build_inn", "build_ae"]
 
 
 def build_inn(
-    args: VaeArgs,
+    args: FdmArgs,
     autoencoder: AutoEncoder,
     ae_loss_fn,
     is_image_data: bool,
@@ -58,7 +58,7 @@ def build_inn(
 
 
 def build_ae(
-    args: VaeArgs,
+    args: FdmArgs,
     encoder,
     decoder,
     encoding_size: Optional[EncodingSize],
