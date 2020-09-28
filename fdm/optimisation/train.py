@@ -1,4 +1,5 @@
 """Main training file"""
+from fdm.optimisation.mmd import mmd2
 import time
 from logging import Logger
 from pathlib import Path
@@ -633,15 +634,13 @@ def update(
     else:
         x = disc_input_no_s
         y = get_disc_input(ae.generator, encoding_c, invariant_to="s")
-        if ARGS.mmd_scale is None:
-            with torch.no_grad():
-                scale = torch.median(torch.sum(torch.abs(x[None] - y[:, None]), dim=1)).item()
-        else:
-            scale = ARGS.mmd_scale
-        disc_loss = quadratic_time_mmd(
+        disc_loss = mmd2(
             x=x,
             y=y,
-            sigma=scale,
+            kernel=ARGS.mmd_kernel,
+            scales=ARGS.mmd_scales,
+            wts=ARGS.mmd_wts,
+            add_dot=ARGS.mmd_add_dot,
         )
     pred_y_loss = x_t.new_zeros(())
     if ARGS.pred_weight > 0:

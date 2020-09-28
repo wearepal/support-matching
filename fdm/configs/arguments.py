@@ -83,7 +83,11 @@ class VaeArgs(BaseArgs):
 
     # Discriminator settings
     disc_method: Literal["nn", "mmd"] = "nn"
-    mmd_scale: Optional[float] = None
+    mmd_kernel: Literal["linear", "rbf", "rq"] = "rq"
+    mmd_scales: Optional[float] = None
+    mmd_wts: Optional[List[float]] = None
+    mmd_add_dot: float = 0.0
+
     disc_hidden_dims: List[int] = [256]
     batch_wise_loss: Literal["none", "attention", "simple", "transposed"] = "none"
     batch_wise_latent: int = 32
