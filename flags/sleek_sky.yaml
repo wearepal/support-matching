@@ -60,8 +60,8 @@ stochastic: false
 subsample-context:
 subsample-train:
     2: 0.0
-super-val: true
-super-val-freq: 450
+validate: true
+val-freq: 450
 test-pcnt: 0.2
 train-on-recon: false
 use-inn: false

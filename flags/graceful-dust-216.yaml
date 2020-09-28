@@ -19,8 +19,8 @@ disc_hidden_dims: 256 256
 # which digits to use from MNIST
 filter_labels: 2 4
 epochs: 40
-super_val_freq: 10
-super_val: true
+val_freq: 10
+validate: true
 disc_hidden: 256 256
 # only start discriminator after 1000 steps
 warmup_steps: 1000

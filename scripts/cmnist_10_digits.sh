@@ -14,8 +14,8 @@ for scale in "${scales[@]}"; do
         --a-filter-labels \
         --d-zs-frac 0.05555 \
         --a-subsample 0=0.3 1=0.4 2=0.5 3=0.6 4=0.7 5=0.8 6=0.9 \
-        --a-super-val-freq 20 \
-        --a-super-val True \
+        --a-val-freq 20 \
+        --a-validate True \
         --a-gpu 0 \
         --a-seed $seed \
         --a-data-split-seed $seed \

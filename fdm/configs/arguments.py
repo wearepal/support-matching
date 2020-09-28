@@ -36,8 +36,8 @@ class FdmArgs(BaseArgs):
     resume: Optional[str] = None
     save_dir: str = "experiments/finn"
     evaluate: bool = False
-    super_val: bool = False  # Train classifier on encodings as part of validation step.
-    super_val_freq: int = 1_000  # how often to do super val
+    validate: bool = True
+    val_freq: int = 1_000  # how often to do validation
     log_freq: int = 50
     use_wandb: bool = True
     results_csv: str = ""  # name of CSV file to save results to
@@ -49,7 +49,7 @@ class FdmArgs(BaseArgs):
     use_pretrained_enc: bool = True
     enc_levels: int = 4
     enc_out_dim: int = 64
-    enc_init_chan: int = 32
+    enc_init_chans: int = 32
     enc_snorm: bool = False
     zs_frac: float = 0.1
 
@@ -124,7 +124,7 @@ class FdmArgs(BaseArgs):
         super().process_args()
         if self.recon_loss is None:
             self.recon_loss = "mixed" if self.dataset == "adult" else "l1"
-        if self.super_val_freq < 0:
+        if self.val_freq < 0:
             raise ValueError("frequency cannot be negative")
 
     def convert_arg_line_to_args(self, arg_line: str) -> List[str]:
