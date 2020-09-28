@@ -12,7 +12,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import wandb
 from torch import Tensor
-from ethicml.implementations.pytorch_common import quadratic_time_mmd
 from torch.utils.data import DataLoader, Dataset, Subset, WeightedRandomSampler
 from typing_extensions import Literal
 
