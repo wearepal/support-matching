@@ -45,8 +45,8 @@ d-num-disc-updates: 5
 d-pred-weight: 1
 d-recon-loss: l2
 d-vae-std-tform: exp
-d-super-val-freq: 2500
-d-super-val: True
+d-val-freq: 2500
+d-validate: True
 d-train-on-recon: False
 d-use-wandb: True
 d-vae: False

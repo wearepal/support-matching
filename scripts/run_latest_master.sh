@@ -7,8 +7,8 @@ slots=1
 for seed in "${seeds[@]}"; do
     echo $seed
     python run_both.py @flags/pipeline_cmnist_2.yaml \
-    --a-super-val-freq 20 \
-    --a-super-val True \
+    --a-val-freq 20 \
+    --a-validate True \
     --a-gpu 0 \
     --d-num-disc-updates 3 \
     --d-disc-hidden 256 256 \

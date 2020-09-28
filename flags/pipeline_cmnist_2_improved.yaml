@@ -42,8 +42,8 @@ d_num_disc_updates: 3
 d_log_freq: 50
 d_disc_hidden_dims: 256 256
 d_warmup_steps: 1000
-d_super_val_freq: 20
-d_super_val: True
+d_val_freq: 20
+d_validate: True
 d_pred_weight: 1
 # Myles says this works better:
 #d_train_on_recon: False

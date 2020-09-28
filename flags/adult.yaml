@@ -24,7 +24,7 @@ nll_weight: 1
 pred_s_weight: 3e-3
 # pred_s_weight: 2.0
 results_csv: adult_ae_on_recon.csv
-super_val: true
+validate: true
 mixing_factor: 0.0
 train_on_recon: true
 vae: false

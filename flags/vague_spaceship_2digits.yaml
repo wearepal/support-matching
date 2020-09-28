@@ -51,8 +51,8 @@ d-oversample: true
 d-pred-weight: 1
 d-recon-loss: l2
 d-vae-std-tform: exp
-d-super-val-freq: 500
-d-super-val: True
+d-val-freq: 500
+d-validate: True
 d-train-on-recon: False
 d-use-pretrained-enc: false
 d-use-wandb: True

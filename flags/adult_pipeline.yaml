@@ -50,8 +50,8 @@ d_levels: 0
 d_num_disc_updates: 3
 d_recon_loss: mixed
 d_pred_weight: 0.0
-d_super_val: true
-d_super_val_freq: 10
+d_validate: true
+d_val_freq: 10
 # if the following is turned off, warmup_steps should also be off
 d_train_on_recon: false
 d_vae: false

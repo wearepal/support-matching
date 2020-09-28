@@ -30,8 +30,6 @@ class ClusterArgs(BaseArgs):
     resume: Optional[str] = None
     save_dir: str = "experiments/finn"
     evaluate: bool = False
-    super_val: bool = False  # Train classifier on encodings as part of validation step.
-    super_val_freq: int = 0  # how often to do super val, if 0, do it together with the normal val
     val_freq: int = 5
     log_freq: int = 50
     results_csv: str = ""  # name of CSV file to save results to
@@ -87,11 +85,6 @@ class ClusterArgs(BaseArgs):
     labeler_hidden_dims: List[int] = [100, 100]
     labeler_epochs: int = 100
     labeler_wandb: bool = False
-
-    def process_args(self) -> None:
-        super().process_args()
-        if self.super_val_freq < 0:
-            raise ValueError("frequency cannot be negative")
 
     def convert_arg_line_to_args(self, arg_line: str) -> List[str]:
         """Parse each line like a YAML file."""

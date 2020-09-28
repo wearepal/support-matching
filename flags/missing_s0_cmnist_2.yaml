@@ -80,8 +80,6 @@ c_freeze_layers: 0
 c_k_num: 5
 c_labeler: "ranking"
 c_lower_threshold: 0.5
-c_super_val: False
-c_super_val_freq: 0
 #c_train_on_recon: False
 c_upper_threshold: 0.5
 #c_warmup_steps: 0
@@ -128,7 +126,7 @@ d_path_to_ae: ""
 d_pred_weight: 1
 d_recon_detach: True
 d_recon_stability_weight: 0
-d_super_val: True
-d_super_val_freq: 20
+d_validate: True
+d_val_freq: 20
 d_use_inn: False
 d_warmup_steps: 1000
