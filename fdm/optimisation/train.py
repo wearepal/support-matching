@@ -205,10 +205,12 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         )
 
     if ARGS.enc_snorm:
+
         def _snorm(_module: nn.Module) -> nn.Module:
             if hasattr(_module, "weight"):
                 return torch.utils.spectral_norm(_module)
             return _module
+
         encoder.apply(_snorm)
 
     recon_loss_fn_: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
