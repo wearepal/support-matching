@@ -10,7 +10,7 @@ for scale in "${scales[@]}"; do
     for seed in "${seeds[@]}"; do
         echo $seed
         qsub -pe smpslots $slots python-ot.job run_dis.py @flags/pipeline_cmnist_2.yaml \
-        --a-enc-channels 18 \
+        --a-enc-out-dim 18 \
         --a-filter-labels \
         --d-zs-frac 0.05555 \
         --a-subsample 0=0.3 1=0.4 2=0.5 3=0.6 4=0.7 5=0.8 6=0.9 \

@@ -21,7 +21,7 @@ drop-discrete: false
 drop-native: true
 early-stopping: 30
 elbo-weight: 100.0
-enc-channels: 32
+enc-out-dim: 32
 enc-levels: 4
 encode-batch-size: 1000
 eval-epochs: 40
@@ -32,7 +32,7 @@ feat-attr: false
 filter-labels: 2 4
 gamma: 1.0
 greyscale: false
-init-channels: 16
+enc-init-chans: 16
 input-noise: false
 iters: 4000
 kl-weight: 0.0
@@ -55,11 +55,11 @@ rotate-data: false
 save-dir: "experiments/finn"
 scale: 0.0
 shift-data: false
-std-transform: "exp"
+vae-std-tform: "exp"
 stochastic: false
 subsample-context:
 subsample-train:
-  2: 0.0
+    2: 0.0
 super-val: true
 super-val-freq: 450
 test-pcnt: 0.2

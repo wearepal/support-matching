@@ -24,6 +24,6 @@ def confirm_empty(args: List[str], *, to_ignore: Tuple[str, ...]) -> None:
             "Use --c- to prefix those flags that will only be passed to the clustering code.\n"
             "Use --d- to prefix those flags that will only be passed to the disentangling code.\n"
             "Use --e- to prefix those flags that will be passed to clustering and disentangling.\n"
-            "So, for example: --a-dataset cmnist --c-epochs 100 --e-enc-channels 32"
+            "So, for example: --a-dataset cmnist --c-epochs 100 --e-enc-out-dim 32"
         )
         raise ValueError(f"unknown commandline argument: {arg}")

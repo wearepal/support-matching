@@ -7,18 +7,18 @@ padding: 2
 # bias the context set
 scale: 0
 subsample-context:
-  0: 0.7
-  1: 0.4
-  2: 0.2
-  3: 1.0
+    0: 0.7
+    1: 0.4
+    2: 0.2
+    3: 1.0
 subsample-train:
-  1: 0.3
-  2: 0.0  # remove this group entirely
+    1: 0.3
+    2: 0.0 # remove this group entirely
 
 # ===== AE flags ====
-e-enc-channels: 32
+e-enc-out-dim: 32
 e-enc-levels: 3
-e-init-channels: 32
+e-enc-init-chans: 32
 e-recon-loss: l2
 
 # ===== clustering flags =====
@@ -30,7 +30,7 @@ c-epochs: 100
 c-kl-weight: 1
 c-log-freq: 50
 c-method: pl_enc_no_norm
-c-std-transform: exp
+c-vae-std-tform: exp
 c-use-wandb: True
 c-val-freq: 10
 
@@ -50,7 +50,7 @@ d-num-discs: 10
 d-oversample: true
 d-pred-weight: 1
 d-recon-loss: l2
-d-std-transform: exp
+d-vae-std-tform: exp
 d-super-val-freq: 500
 d-super-val: True
 d-three-way: False

@@ -4,14 +4,13 @@ a-filter-labels: 2 4
 a-padding: 2
 a-context-pcnt: 0.66666666
 # bias the context set
-a-subsample-context:
-        0:0.7
-        1:0.4
-        2:0.2
-        3:1.0
+a-subsample-context: 0:0.7
+    1:0.4
+    2:0.2
+    3:1.0
 a-subsample-train:
-        1: 0.3
-        2: 0.0  # remove this group entirely
+    1: 0.3
+    2: 0.0 # remove this group entirely
 a-scale: 0
 a-colors: 2 4
 
@@ -22,7 +21,7 @@ c-enc-chan: 16
 c-enc-epochs: 90
 c-recon-loss: l2
 c-kl-weight: 1
-c-std-transform: exp
+c-vae-std-tform: exp
 c-log-freq: 50
 c-cl-hidden-dims:
 c-epochs: 100
@@ -44,11 +43,11 @@ d-lr: 1e-3
 d-num-disc-updates: 3
 d-pred-weight: 1
 d-recon-loss: l2
-d-std-transform: exp
+d-vae-std-tform: exp
 d-super-val-freq: 20
 d-super-val: True
 d-three-way: False
 d-train-on-recon: False
 d-vae: False
 d-warmup: 0
-d-zs-frac: 0.0469  # this makes zs channels be 1
+d-zs-frac: 0.0469 # this makes zs channels be 1
