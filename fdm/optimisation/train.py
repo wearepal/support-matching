@@ -326,12 +326,11 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         disc_ensemble = nn.ModuleList(disc_list)
         disc_ensemble.to(args._device)
 
-        pred_kwargs = {"hidden_dims": args.disc_hidden_dims}
         predictor_y = build_discriminator(  # this is always trained on encodings
             input_shape=(prod(enc_shape),),
-            target_dim=args._y_dim,
+            target_dim=ARGS._y_dim,
             model_fn=fc_net,
-            model_kwargs=pred_kwargs,
+            model_kwargs={},  # no hidden layers
             optimizer_kwargs=disc_optimizer_kwargs,
         )
         predictor_y.to(args._device)
