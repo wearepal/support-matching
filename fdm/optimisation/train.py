@@ -134,7 +134,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
             num_workers=ARGS.num_workers,
             oversample=ARGS.oversample,
         )
-        dataloader_kwargs = dict(sampler=context_sampler)
+        dataloader_kwargs = dict(sampler=context_sampler, shuffle=False)
     else:
         dataloader_kwargs = dict(shuffle=True)
 
@@ -188,8 +188,8 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         #     decoder_out_act = nn.Sigmoid() if ARGS.dataset == "cmnist" else nn.Tanh()
         encoder, decoder, enc_shape = conv_autoencoder(
             input_shape,
-            ARGS.init_channels,
-            encoding_dim=ARGS.enc_channels,
+            ARGS.enc_init_chan,
+            encoding_dim=ARGS.enc_out_dim,
             decoding_dim=decoding_dim,
             levels=ARGS.enc_levels,
             decoder_out_act=decoder_out_act,
@@ -198,11 +198,18 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     else:
         encoder, decoder, enc_shape = fc_autoencoder(
             input_shape,
-            ARGS.init_channels,
-            encoding_dim=ARGS.enc_channels,
+            ARGS.enc_init_chan,
+            encoding_dim=ARGS.enc_out_dim,
             levels=ARGS.enc_levels,
             variational=ARGS.vae,
         )
+
+    if ARGS.enc_snorm:
+        def _snorm(_module: nn.Module) -> nn.Module:
+            if hasattr(_module, "weight"):
+                return torch.utils.spectral_norm(_module)
+            return _module
+        encoder.apply(_snorm)
 
     recon_loss_fn_: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
     if ARGS.recon_loss == "l1":

@@ -41,7 +41,7 @@ def build_inn(
         autoencoder.load_state_dict(save_dict["model"])
         if "args" in save_dict:
             args_ae = save_dict["args"]
-            assert args.init_channels == args_ae["init_channels"]
+            assert args.enc_init_chan == args_ae["init_channels"]
             assert args.enc_levels == args_ae["levels"]
     else:
         inn.fit_ae(
@@ -52,7 +52,7 @@ def build_inn(
             kl_weight=args.kl_weight,
         )
         # the args names follow the convention of the standalone VAE commandline args
-        args_ae = {"init_channels": args.init_channels, "levels": args.enc_levels}
+        args_ae = {"init_channels": args.enc_init_chan, "levels": args.enc_levels}
         torch.save({"model": autoencoder.state_dict(), "args": args_ae}, save_dir / "autoencoder")
     return inn
 
@@ -71,7 +71,7 @@ def build_ae(
             encoder=encoder,
             decoder=decoder,
             encoding_size=encoding_size,
-            std_transform=args.std_transform,
+            std_transform=args.vae_std_tform,
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_args,
         )
