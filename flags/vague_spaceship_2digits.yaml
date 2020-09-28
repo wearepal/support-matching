@@ -7,13 +7,13 @@ padding: 2
 # bias the context set
 scale: 0
 subsample-context:
-	0: 0.7
-	1: 0.4
-	2: 0.2
-	3: 1.0
+  0: 0.7
+  1: 0.4
+  2: 0.2
+  3: 1.0
 subsample-train:
-	1: 0.3
-	2: 0.0  # remove this group entirely
+  1: 0.3
+  2: 0.0  # remove this group entirely
 
 # ===== AE flags ====
 e-enc-channels: 32
@@ -38,7 +38,7 @@ c-val-freq: 10
 d-batch-size: 256
 d-disc-hidden: 256 256
 d-disc-lr: 3.e-4
-d-disc-reset-prob: 0.005
+d-disc-reset-prob: 0.001
 d-disc-weight: 1
 d-eval-on-recon: False
 d-iters: 2000

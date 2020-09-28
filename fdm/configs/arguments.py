@@ -105,7 +105,7 @@ class VaeArgs(BaseArgs):
         self.add_argument(
             "--inn-factor-splits",
             action=StoreDictKeyPair,
-            nargs="+",
+            nargs="*",
             default={},
             type=str,
             key_type=str,

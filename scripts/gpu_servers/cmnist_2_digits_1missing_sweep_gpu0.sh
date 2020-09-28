@@ -7,17 +7,11 @@
 
 MAX_SEED=10
 seeds=$(seq 1 $MAX_SEED)
-flag_file=flags/vague_spaceship_2digits.yaml
-shared_flags="--missing-s --d-disc-reset 0.001 --d-iters 3000 --d-disc-weight 0.1 --gpu 0"
+flag_file=flags/sleek_sky.yaml
+shared_flags="--missing-s"
+save_dir="experiments/cmnist/2digits/2colors/1missing/no_subsample"
 
 # get the experiment loops for the methods
 source scripts/gpu_servers/method_loops.sh
 
-save_dir="experiments/cmnist/2digits/2colors/1missing_ensemble"
-run_ranking --d-zs-frac 0.04 --d-elbo-weight 100 --d-batch-size 256 --d-warmup 500 "$@"
-
-save_dir="experiments/cmnist/2digits/2colors/1missing_lr4"
-run_ranking --d-zs-frac 0.04 --d-elbo-weight 100 --d-batch-size 256 --d-warmup 500 --d-lr 1e-4 "$@"
-
-save_dir="experiments/cmnist/2digits/2colors/1missing_zs02"
-run_ranking --d-zs-frac 0.02 --d-elbo-weight 100 --d-batch-size 256 --d-warmup 500 "$@"
+run_no_cluster --gpu 0 "$@"
