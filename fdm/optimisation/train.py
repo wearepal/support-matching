@@ -335,12 +335,11 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         disc_ensemble = nn.ModuleList(disc_list)
         disc_ensemble.to(args._device)
 
-        pred_kwargs = {"hidden_dims": args.disc_hidden_dims}
         predictor_y = build_discriminator(  # this is always trained on encodings
             input_shape=(prod(enc_shape),),
-            target_dim=args._y_dim,
+            target_dim=ARGS._y_dim,
             model_fn=fc_net,
-            model_kwargs=pred_kwargs,
+            model_kwargs={},  # no hidden layers
             optimizer_kwargs=disc_optimizer_kwargs,
         )
         predictor_y.to(args._device)
@@ -626,18 +625,17 @@ def update(
     # ==================================== adversarial losses =====================================
     disc_input_no_s = get_disc_input(ae.generator, encoding, invariant_to="s")
 
-    if ARGS.batch_wise_loss == "none":
-        zeros = x_t.new_zeros((x_t.size(0),))
-    else:
-        zeros = x_t.new_zeros((1,))
-
     if ARGS.disc_method == "nn":
-        zeros = x_t.new_zeros((x_t.size(0),))
+        if ARGS.batch_wise_loss == "none":
+            zeros = x_t.new_zeros((x_t.size(0),))
+        else:
+            zeros = x_t.new_zeros((1,))
+
         disc_loss = x_t.new_zeros(())
         for discriminator in ae.disc_ensemble:
             discriminator.eval()
             disc_loss -= discriminator.routine(disc_input_no_s, zeros)[0]
-            disc_loss /= len(ae.disc_ensemble)
+        disc_loss /= len(ae.disc_ensemble)
 
     else:
         x = disc_input_no_s
