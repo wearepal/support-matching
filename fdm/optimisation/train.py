@@ -305,14 +305,15 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
             else disc_input_shape
         )
 
-    if args.batch_wise_loss != "none":
+    if ARGS.batch_wise_loss != "none":
+        final_proj = FcNet(ARGS.batch_wise_hidden_dims) if ARGS.batch_wise_hidden_dims else None
         aggregator: Aggregator
         if args.batch_wise_loss == "attention":
-            aggregator = AttentionAggregator(args.batch_wise_latent)
+            aggregator = AttentionAggregator(args.batch_wise_latent, final_proj=final_proj)
         elif args.batch_wise_loss == "simple":
-            aggregator = SimpleAggregator(latent_dim=args.batch_wise_latent)
+            aggregator = SimpleAggregator(latent_dim=args.batch_wise_latent, final_proj=final_proj)
         elif args.batch_wise_loss == "transposed":
-            aggregator = SimpleAggregatorT(batch_dim=args.batch_size)
+            aggregator = SimpleAggregatorT(batch_dim=args.batch_size, final_proj=final_proj)
 
         disc_fn = ModelAggregatorWrapper(disc_fn, aggregator, embed_dim=args.batch_wise_latent)
 
