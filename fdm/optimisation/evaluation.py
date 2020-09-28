@@ -13,8 +13,8 @@ from typing_extensions import Literal
 from fdm.configs import FdmArgs
 from fdm.models import AutoEncoder, Classifier
 from shared.data import DatasetTriplet, get_data_tuples
-from shared.models.configs.classifiers import fc_net, mp_32x32_net, mp_64x64_net
-from shared.utils import compute_metrics, make_tuple_from_data, prod
+from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
+from shared.utils import compute_metrics, make_tuple_from_data, prod, ModelFn
 
 from .utils import log_images
 
@@ -92,14 +92,15 @@ def fit_classifier(
     train_on_recon: bool,
     pred_s: bool,
     test_data: Optional[DataLoader] = None,
-):
+) -> Classifier:
     input_dim = input_shape[0]
+    clf_fn: ModelFn
     if args.dataset == "cmnist" and train_on_recon:
-        clf_fn = mp_32x32_net
+        clf_fn = Mp32x23Net(batch_norm=True)
     elif args.dataset in ("celeba", "ssrp", "genfaces") and train_on_recon:
-        clf_fn = mp_64x64_net
+        clf_fn = Mp64x64Net(batch_norm=True)
     else:
-        clf_fn = fc_net
+        clf_fn = FcNet(hidden_dims=None)
         input_dim = prod(input_shape)
     clf = clf_fn(input_dim, target_dim=args._y_dim)
 

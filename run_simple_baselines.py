@@ -16,8 +16,15 @@ from fdm.models import Classifier
 from fdm.optimisation.train import build_weighted_sampler_from_dataset
 from shared.configs import BaseArgs
 from shared.data import load_dataset
-from shared.models.configs.classifiers import fc_net, mp_32x32_net, mp_64x64_net
-from shared.utils import accept_prefixes, compute_metrics, confirm_empty, get_data_dim, random_seed
+from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
+from shared.utils import (
+    ModelFn,
+    accept_prefixes,
+    compute_metrics,
+    confirm_empty,
+    get_data_dim,
+    random_seed,
+)
 
 BASELINE_METHODS = Literal["cnn", "dro", "kamiran"]
 
@@ -215,18 +222,19 @@ def run_baseline(args: BaselineArgs) -> None:
     input_shape = get_data_dim(train_loader)
 
     #  Construct the network
+    classifier_fn: ModelFn
     if args.dataset == "cmnist":
-        classifier_fn = mp_32x32_net
+        classifier_fn = Mp32x23Net(batch_norm=True)
     elif args.dataset == "adult":
 
-        def adult_fc_net(in_dim: int, target_dim: int) -> nn.Sequential:
-            encoder = fc_net(in_dim, 35, hidden_dims=[35])
+        def adult_fc_net(input_dim: int, target_dim: int) -> nn.Sequential:
+            encoder = FcNet(hidden_dims=[35])(input_dim=input_dim, target_dim=35)
             classifier = torch.nn.Linear(35, target_dim)
             return nn.Sequential(encoder, classifier)
 
         classifier_fn = adult_fc_net
     else:
-        classifier_fn = mp_64x64_net
+        classifier_fn = Mp64x64Net(batch_norm=True)
 
     target_dim = datasets.s_dim if args.pred_s else datasets.y_dim
 
