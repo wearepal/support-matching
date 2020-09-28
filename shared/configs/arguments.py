@@ -53,7 +53,7 @@ class BaseArgs(Tap):
     oversample: bool = False  # Whether to oversample when doing weighted sampling.
 
     # Colored MNIST settings
-    scale: float = 0.02
+    scale: float = 0.0
     greyscale: bool = False
     background: bool = False
     black: bool = True
