@@ -188,7 +188,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         #     decoder_out_act = nn.Sigmoid() if ARGS.dataset == "cmnist" else nn.Tanh()
         encoder, decoder, enc_shape = conv_autoencoder(
             input_shape,
-            ARGS.enc_init_chan,
+            ARGS.enc_init_chans,
             encoding_dim=ARGS.enc_out_dim,
             decoding_dim=decoding_dim,
             levels=ARGS.enc_levels,
@@ -198,7 +198,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     else:
         encoder, decoder, enc_shape = fc_autoencoder(
             input_shape,
-            ARGS.enc_init_chan,
+            ARGS.enc_init_chans,
             encoding_dim=ARGS.enc_out_dim,
             levels=ARGS.enc_levels,
             variational=ARGS.vae,

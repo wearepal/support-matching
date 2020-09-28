@@ -49,7 +49,7 @@ class FdmArgs(BaseArgs):
     use_pretrained_enc: bool = True
     enc_levels: int = 4
     enc_out_dim: int = 64
-    enc_init_chan: int = 32
+    enc_init_chans: int = 32
     enc_snorm: bool = False
     zs_frac: float = 0.1
 
