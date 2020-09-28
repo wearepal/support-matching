@@ -85,8 +85,8 @@ class FdmArgs(BaseArgs):
     # Discriminator settings
     disc_method: Literal["nn", "mmd"] = "nn"
     mmd_kernel: Literal["linear", "rbf", "rq"] = "rq"
-    mmd_scales: Optional[float] = None
-    mmd_wts: Optional[List[float]] = None
+    mmd_scales: List[float] = None
+    mmd_wts: List[float] = None
     mmd_add_dot: float = 0.0
 
     disc_hidden_dims: List[int] = [256]
