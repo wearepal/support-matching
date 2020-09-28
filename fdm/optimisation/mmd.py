@@ -42,9 +42,9 @@ def _mix_rq_kernel(
     def pad_second(x: Tensor) -> Tensor:
         return torch.unsqueeze(x, 1)
 
-    xx_sqnorm = torch.max(-2 * xx_gm + pad_second(x_sqnorms) + pad_first(x_sqnorms), dim=0)[0]
-    xy_sqnorm = torch.max(-2 * xy_gm + pad_second(x_sqnorms) + pad_first(y_sqnorms), dim=0)[0]
-    yy_sqnorm = torch.max(-2 * yy_gm + pad_second(x_sqnorms) + pad_first(x_sqnorms), dim=0)[0]
+    xx_sqnorm = torch.clamp(-2 * xx_gm + pad_second(x_sqnorms) + pad_first(x_sqnorms), min=0.0)
+    xy_sqnorm = torch.clamp(-2 * xy_gm + pad_second(x_sqnorms) + pad_first(y_sqnorms), min=0.0)
+    yy_sqnorm = torch.clamp(-2 * yy_gm + pad_second(x_sqnorms) + pad_first(x_sqnorms), min=0.0)
 
     k_xx, k_xy, k_yy = (
         x.new_zeros(xx_sqnorm.shape),
