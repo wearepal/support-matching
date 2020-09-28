@@ -577,7 +577,6 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False
             disc_loss_false = discriminator.routine(disc_input_t, zeros)[0]
             disc_loss += disc_loss_true + disc_loss_false
         disc_loss /= len(ae.disc_ensemble)
-
     if not warmup:
         for discriminator in ae.disc_ensemble:
             discriminator.zero_grad()
@@ -598,9 +597,6 @@ def update(
     """
     disc_weight = 0.0 if warmup else ARGS.disc_weight
     # Compute losses for the generator.
-    ae.disc_ensemble.eval()
-    if ae.disc_distinguish is not None:
-        ae.disc_distinguish.eval()
     ae.predictor_y.train()
     ae.generator.train()
     logging_dict = {}
@@ -621,15 +617,19 @@ def update(
     # ==================================== adversarial losses =====================================
     disc_input_no_s = get_disc_input(ae.generator, encoding, invariant_to="s")
 
+    if ARGS.batch_wise_loss == "none":
+        zeros = x_t.new_zeros((x_t.size(0),))
+    else:
+        zeros = x_t.new_zeros((1,))
+
     if ARGS.disc_method == "nn":
-        if ARGS.batch_wise_loss == "none":
-            zeros = x_t.new_zeros((x_t.size(0),))
-        else:
-            zeros = x_t.new_zeros((1,))
+        zeros = x_t.new_zeros((x_t.size(0),))
         disc_loss = x_t.new_zeros(())
         for discriminator in ae.disc_ensemble:
-            disc_loss += discriminator.routine(disc_input_no_s, zeros)[0]
-        disc_loss /= len(ae.disc_ensemble)
+            discriminator.eval()
+            disc_loss -= discriminator.routine(disc_input_no_s, zeros)[0]
+            disc_loss /= len(ae.disc_ensemble)
+
     else:
         x = disc_input_no_s
         y = get_disc_input(ae.generator, encoding_c, invariant_to="s")
