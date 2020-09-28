@@ -262,7 +262,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         encoding_size = generator.encoding_size
     else:
         zs_dim = round(ARGS.zs_frac * enc_shape[0])
-        zy_dim = enc_shape - zs_dim
+        zy_dim = enc_shape[0] - zs_dim
         encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim)
         generator = build_ae(
             args=ARGS,
