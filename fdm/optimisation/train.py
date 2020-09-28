@@ -3,7 +3,7 @@ from fdm.optimisation.mmd import mmd2
 import time
 from logging import Logger
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterator, List, NamedTuple, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, Iterator, List, NamedTuple, Optional, Sequence, Tuple, Union
 
 import git
 import numpy as np
@@ -24,13 +24,14 @@ from fdm.models import (
     PartitionedAeInn,
     build_discriminator,
 )
-from fdm.models.configs import residual_64x64_net, strided_28x28_net
+from fdm.models.configs import Residual64x64Net, Strided28x28Net
 from shared.data import DatasetTriplet, load_dataset
 from shared.layers import Aggregator, AttentionAggregator, SimpleAggregator, SimpleAggregatorT
 from shared.models.configs import conv_autoencoder, fc_autoencoder
-from shared.models.configs.classifiers import fc_net, ModelAggregatorWrapper, ModelFn
+from shared.models.configs.classifiers import FcNet, ModelAggregatorWrapper
 from shared.utils import (
     AverageMeter,
+    ModelFn,
     accept_prefixes,
     confirm_empty,
     count_parameters,
@@ -287,24 +288,22 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     # ================================== Initialise Discriminator =================================
 
     disc_optimizer_kwargs = {"lr": args.disc_lr}
-    disc_kwargs: Dict[str, Any] = {}
     disc_input_shape: Tuple[int, ...] = input_shape if ARGS.train_on_recon else enc_shape
     # FIXME: Architectures need to be GAN specific (e.g. incorporate spectral norm)
     disc_fn: ModelFn
     if is_image_data and ARGS.train_on_recon:
         if args.dataset == "cmnist":
-            disc_fn = strided_28x28_net
+            disc_fn = Strided28x28Net(batch_norm=False)
         else:
-            disc_fn = residual_64x64_net
-        disc_kwargs["batch_norm"] = False
+            disc_fn = Residual64x64Net(batch_norm=False)
     else:
-        disc_fn = fc_net
-        disc_kwargs["hidden_dims"] = args.disc_hidden_dims
+        disc_fn = FcNet(hidden_dims=ARGS.disc_hidden_dims)
+        # FcNet first flattens the input
         disc_input_shape = (
             (prod(disc_input_shape),)
             if isinstance(disc_input_shape, Sequence)
             else disc_input_shape
-        )  # fc_net first flattens the input
+        )
 
     if args.batch_wise_loss != "none":
         aggregator: Aggregator
@@ -326,7 +325,6 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
                 input_shape=disc_input_shape,
                 target_dim=1,  # real vs fake
                 model_fn=disc_fn,
-                model_kwargs=disc_kwargs,
                 optimizer_kwargs=disc_optimizer_kwargs,
             )
             disc_list.append(disc)
@@ -336,8 +334,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         predictor_y = build_discriminator(  # this is always trained on encodings
             input_shape=(prod(enc_shape),),
             target_dim=ARGS._y_dim,
-            model_fn=fc_net,
-            model_kwargs={},  # no hidden layers
+            model_fn=FcNet(hidden_dims=None),  # no hidden layers
             optimizer_kwargs=disc_optimizer_kwargs,
         )
         predictor_y.to(args._device)
@@ -354,7 +351,6 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
                 input_shape=disc_input_shape,
                 target_dim=1,  # real vs fake
                 model_fn=disc_fn,
-                model_kwargs=disc_kwargs,
                 optimizer_kwargs=disc_optimizer_kwargs,
             )
             disc_list.append(disc)
@@ -362,23 +358,20 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         disc_ensemble.to(args._device)
 
         # classifier for y
-        class_kwargs = {}
+        class_fn: ModelFn
         if is_image_data:
             if args.dataset == "cmnist":
-                class_fn = strided_28x28_net
+                class_fn = Strided28x28Net(batch_norm=False)
             else:
-                class_fn = residual_64x64_net
-            class_kwargs["batch_norm"] = False
+                class_fn = Residual64x64Net(batch_norm=False)
         else:
-            class_fn = fc_net
-            class_kwargs["hidden_dims"] = args.disc_hidden_dims
+            class_fn = FcNet(hidden_dims=ARGS.disc_hidden_dims)
         predictor = None
         if ARGS.train_on_recon and ARGS.pred_weight > 0:
             predictor = build_discriminator(
                 input_shape=input_shape,
                 target_dim=args._y_dim,  # real vs fake
                 model_fn=class_fn,
-                model_kwargs=class_kwargs,
                 optimizer_kwargs=disc_optimizer_kwargs,
             )
             predictor.to(args._device)

@@ -7,6 +7,8 @@ from torch import nn
 from torch.nn import functional as F
 from typing_extensions import Literal
 
+from shared.utils import ModelFn
+
 __all__ = ["Aggregator", "AttentionAggregator", "SimpleAggregator", "SimpleAggregatorT"]
 
 
@@ -20,7 +22,7 @@ class AttentionAggregator(Aggregator):
         latent_dim: int,
         activation: Literal["relu", "gelu"] = "relu",
         dropout: float = 0.0,
-        final_proj: Optional[nn.Module] = None,
+        final_proj: Optional[ModelFn] = None,
         output_dim: int = 1,
     ):
         super().__init__()
@@ -29,7 +31,7 @@ class AttentionAggregator(Aggregator):
             embed_dim=latent_dim, num_heads=1, dropout=dropout, bias=True
         )
         if final_proj is not None:
-            self.final_proj = final_proj
+            self.final_proj = final_proj(latent_dim, output_dim)
         else:
             self.final_proj = nn.Linear(latent_dim, output_dim)
         self.act: Callable[[Tensor], Tensor]
@@ -54,12 +56,12 @@ class AttentionAggregator(Aggregator):
 
 class SimpleAggregator(Aggregator):
     def __init__(
-        self, *, latent_dim: int, final_proj: Optional[nn.Module] = None, output_dim: int = 1
+        self, *, latent_dim: int, final_proj: Optional[ModelFn] = None, output_dim: int = 1
     ):
         super().__init__()
         self.weight_proj = nn.Linear(latent_dim, 1)
         if final_proj is not None:
-            self.final_proj = final_proj
+            self.final_proj = final_proj(latent_dim, output_dim)
         else:
             self.final_proj = nn.Linear(latent_dim, output_dim)
         self.output_dim = output_dim
@@ -74,12 +76,12 @@ class SimpleAggregatorT(Aggregator):
     """Transposed version of `SimpleAggregator`."""
 
     def __init__(
-        self, *, batch_dim: int, final_proj: Optional[nn.Module] = None, output_dim: int = 1
+        self, *, batch_dim: int, final_proj: Optional[ModelFn] = None, output_dim: int = 1
     ):
         super().__init__()
         self.weight_proj = nn.Linear(batch_dim, 1)
         if final_proj is not None:
-            self.final_proj = final_proj
+            self.final_proj = final_proj(batch_dim, output_dim)
         else:
             self.final_proj = nn.Linear(batch_dim, output_dim)
         self.output_dim = output_dim
@@ -87,4 +89,4 @@ class SimpleAggregatorT(Aggregator):
     def forward(self, inputs: Tensor) -> Tensor:
         weights = F.softmax(self.weight_proj(inputs.t()).view(-1), dim=-1)
         weighted = torch.sum(weights * inputs, dim=-1)
-        return self.final_proj(weighted).view(1, -1)
+        return self.final_proj(weighted.view(1, -1))

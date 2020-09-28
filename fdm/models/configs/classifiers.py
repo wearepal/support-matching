@@ -6,7 +6,7 @@ from torchvision.models import resnet50
 
 from fdm.models.resnet import ResidualNet
 
-__all__ = ["linear_resnet", "mp_28x28_net", "residual_64x64_net", "strided_28x28_net"]
+__all__ = ["linear_resnet", "mp_28x28_net", "Residual64x64Net", "Strided28x28Net"]
 
 
 class ResidualBlock(nn.Module):
@@ -100,52 +100,64 @@ def mp_28x28_net(input_dim, target_dim, batch_norm=True):
     return nn.Sequential(*layers)
 
 
-def strided_28x28_net(input_dim, target_dim, batch_norm=True):
-    def conv_block(in_dim, out_dim, kernel_size, stride):
-        _block = []
+class Strided28x28Net:
+    def __init__(self, batch_norm: bool):
+        self.batch_norm = batch_norm
+
+    def _conv_block(
+        self, in_dim: int, out_dim: int, kernel_size: int, stride: int
+    ) -> List[nn.Module]:
+        _block: List[nn.Module] = []
         _block += [nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size, stride=stride, padding=1)]
-        if batch_norm:
+        if self.batch_norm:
             _block += [nn.BatchNorm2d(out_dim)]
         _block += [nn.LeakyReLU()]
         return _block
 
-    layers = []
-    layers.extend(conv_block(input_dim, 64, 3, 1))
-    layers.extend(conv_block(64, 64, 4, 2))
+    def __call__(self, input_dim: int, target_dim: int) -> nn.Sequential:
+        layers = []
+        layers.extend(self._conv_block(input_dim, 64, 3, 1))
+        layers.extend(self._conv_block(64, 64, 4, 2))
 
-    layers.extend(conv_block(64, 128, 3, 1))
-    layers.extend(conv_block(128, 128, 4, 2))
+        layers.extend(self._conv_block(64, 128, 3, 1))
+        layers.extend(self._conv_block(128, 128, 4, 2))
 
-    layers.extend(conv_block(128, 256, 3, 1))
-    layers.extend(conv_block(256, 256, 4, 2))
+        layers.extend(self._conv_block(128, 256, 3, 1))
+        layers.extend(self._conv_block(256, 256, 4, 2))
 
-    layers.extend(conv_block(256, 512, 3, 1))
-    layers.extend(conv_block(512, 512, 4, 2))
+        layers.extend(self._conv_block(256, 512, 3, 1))
+        layers.extend(self._conv_block(512, 512, 4, 2))
 
-    layers += [nn.AdaptiveAvgPool2d(1)]
-    layers += [nn.Flatten()]
-    layers += [nn.Linear(512, target_dim)]
+        layers += [nn.AdaptiveAvgPool2d(1)]
+        layers += [nn.Flatten()]
+        layers += [nn.Linear(512, target_dim)]
 
-    return nn.Sequential(*layers)
+        return nn.Sequential(*layers)
 
 
-def residual_64x64_net(input_dim, target_dim, batch_norm=False):
+class Residual64x64Net:
+    def __init__(self, batch_norm: bool):
+        self.batch_norm = batch_norm
 
-    layers = []
-    for out_channels in [64, 128, 256, 512]:
-        layers += [
-            ResidualBlock(
-                in_channels=input_dim, out_channels=out_channels, stride=2, batch_norm=batch_norm
-            )
-        ]
-        input_dim = out_channels
+    def __call__(self, input_dim: int, target_dim: int) -> nn.Sequential:
+        layers: List[nn.Module] = []
+        for out_channels in [64, 128, 256, 512]:
+            layers += [
+                ResidualBlock(
+                    in_channels=input_dim,
+                    out_channels=out_channels,
+                    stride=2,
+                    batch_norm=self.batch_norm,
+                )
+            ]
+            input_dim = out_channels
 
-    layers.append(
-        ResidualBlock(in_channels=512, out_channels=1024, stride=1, batch_norm=batch_norm)
-    )
+        layers.append(
+            ResidualBlock(in_channels=512, out_channels=1024, stride=1, batch_norm=self.batch_norm)
+        )
 
-    layers += [nn.AdaptiveAvgPool2d(1)]
-    layers += [nn.Flatten()]
-    layers += [nn.Linear(1024, target_dim)]
+        layers += [nn.AdaptiveAvgPool2d(1)]
+        layers += [nn.Flatten()]
+        layers += [nn.Linear(1024, target_dim)]
 
-    return nn.Sequential(*layers)
+        return nn.Sequential(*layers)

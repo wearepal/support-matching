@@ -32,7 +32,7 @@ from clustering.models import (
 from shared.data.data_loading import DatasetTriplet, load_dataset
 from shared.data.dataset_wrappers import RotationPrediction
 from shared.data.misc import adaptive_collate
-from shared.models.configs.classifiers import fc_net, mp_32x32_net, mp_64x64_net
+from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import (
     AverageMeter,
     accept_prefixes,
@@ -266,9 +266,8 @@ def main(
     # ================================= classifier =================================
     clf_optimizer_kwargs = {"lr": ARGS.lr, "weight_decay": ARGS.weight_decay}
     clf_kwargs = {}
-    clf_fn = fc_net
-    clf_kwargs["hidden_dims"] = args.cl_hidden_dims
-    clf_input_shape = (prod(enc_shape),)  # fc_net first flattens the input
+    clf_fn = FcNet(hidden_dims=ARGS.cl_hidden_dims)
+    clf_input_shape = (prod(enc_shape),)  # FcNet first flattens the input
 
     classifier = build_classifier(
         input_shape=clf_input_shape,
@@ -282,23 +281,18 @@ def main(
 
     model: Union[Model, MultiHeadModel]
     if ARGS.use_multi_head:
-        labeler_kwargs = {}
         if args.dataset == "cmnist":
-            labeler_fn = mp_32x32_net
+            labeler_fn = Mp32x23Net()
         elif args.dataset == "celeba":
-            labeler_fn = mp_64x64_net
+            labeler_fn = Mp64x64Net()
         else:
-            labeler_fn = fc_net
-            labeler_kwargs["hidden_dims"] = args.labeler_hidden_dims
+            labeler_fn = FcNet(hidden_dims=ARGS.labeler_hidden_dims)
 
         labeler_optimizer_kwargs = {"lr": ARGS.labeler_lr, "weight_decay": ARGS.labeler_wd}
-        clf_fn = fc_net
-        clf_kwargs["hidden_dims"] = args.cl_hidden_dims
         labeler: Classifier = build_classifier(
             input_shape=input_shape,
             target_dim=s_count,
             model_fn=labeler_fn,
-            model_kwargs=labeler_kwargs,
             optimizer_kwargs=labeler_optimizer_kwargs,
         )
         labeler.to(args._device)

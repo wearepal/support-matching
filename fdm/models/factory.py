@@ -1,9 +1,9 @@
-from typing import List, Mapping, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 from fdm import layers
 from fdm.configs import FdmArgs
 from fdm.models import Classifier
-from shared.models.configs.classifiers import ModelFn
+from shared.utils import ModelFn
 
 __all__ = ["build_discriminator", "build_fc_inn", "build_conv_inn"]
 
@@ -12,16 +12,13 @@ def build_discriminator(
     input_shape: Tuple[int, ...],
     target_dim: int,
     model_fn: ModelFn,
-    model_kwargs: Mapping[str, Union[float, str, bool]],
-    optimizer_kwargs=None,
+    optimizer_kwargs: Optional[dict] = None,
 ) -> Classifier:
     in_dim = input_shape[0]
 
     num_classes = target_dim if target_dim > 1 else 2
     return Classifier(
-        model_fn(in_dim, target_dim, **model_kwargs),
-        num_classes=num_classes,
-        optimizer_kwargs=optimizer_kwargs,
+        model_fn(in_dim, target_dim), num_classes=num_classes, optimizer_kwargs=optimizer_kwargs
     )
 
 
