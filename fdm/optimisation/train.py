@@ -624,14 +624,18 @@ def update(
     disc_input_no_s = get_disc_input(ae.generator, encoding, invariant_to="s")
 
     if ARGS.disc_method == "nn":
+        # disc_input_c_no_s = get_disc_input(ae.generator, encoding_c, invariant_to="s")
         if ARGS.batch_wise_loss == "none":
+            # ones = x_c.new_ones((x_c.size(0),))
             zeros = x_t.new_zeros((x_t.size(0),))
         else:
+            # ones = x_c.new_ones((1,))
             zeros = x_t.new_zeros((1,))
 
         disc_loss = x_t.new_zeros(())
         for discriminator in ae.disc_ensemble:
             discriminator.eval()
+            # disc_loss -= discriminator.routine(disc_input_c_no_s, ones)[0]
             disc_loss -= discriminator.routine(disc_input_no_s, zeros)[0]
         disc_loss /= len(ae.disc_ensemble)
 
