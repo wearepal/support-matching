@@ -35,6 +35,7 @@ from shared.data.misc import adaptive_collate
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import (
     AverageMeter,
+    ModelFn,
     accept_prefixes,
     confirm_empty,
     count_parameters,
@@ -265,7 +266,6 @@ def main(
 
     # ================================= classifier =================================
     clf_optimizer_kwargs = {"lr": ARGS.lr, "weight_decay": ARGS.weight_decay}
-    clf_kwargs = {}
     clf_fn = FcNet(hidden_dims=ARGS.cl_hidden_dims)
     clf_input_shape = (prod(enc_shape),)  # FcNet first flattens the input
 
@@ -273,7 +273,6 @@ def main(
         input_shape=clf_input_shape,
         target_dim=s_count if ARGS.use_multi_head else num_clusters,
         model_fn=clf_fn,
-        model_kwargs=clf_kwargs,
         optimizer_kwargs=clf_optimizer_kwargs,
         num_heads=y_count if ARGS.use_multi_head else 1,
     )
@@ -281,10 +280,11 @@ def main(
 
     model: Union[Model, MultiHeadModel]
     if ARGS.use_multi_head:
+        labeler_fn: ModelFn
         if args.dataset == "cmnist":
-            labeler_fn = Mp32x23Net()
+            labeler_fn = Mp32x23Net(batch_norm=True)
         elif args.dataset == "celeba":
-            labeler_fn = Mp64x64Net()
+            labeler_fn = Mp64x64Net(batch_norm=True)
         else:
             labeler_fn = FcNet(hidden_dims=ARGS.labeler_hidden_dims)
 
