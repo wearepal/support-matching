@@ -82,6 +82,8 @@ class VaeArgs(BaseArgs):
     disc_reset_prob: float = 0.0
 
     # Discriminator settings
+    disc_method: Literal["nn", "mmd"] = "nn"
+    mmd_scale: Optional[float] = None
     disc_hidden_dims: List[int] = [256]
     batch_wise_loss: Literal["none", "attention", "simple", "transposed"] = "none"
     batch_wise_latent: int = 32

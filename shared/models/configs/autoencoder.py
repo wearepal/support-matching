@@ -69,23 +69,24 @@ def conv_autoencoder(
 
     encoder_out_dim = 2 * encoding_dim if variational else encoding_dim
 
-    encoder += [nn.Conv2d(c_out, encoder_out_dim, kernel_size=1, stride=1, padding=0)]
-    decoder += [nn.Conv2d(encoding_dim, c_out, kernel_size=1, stride=1, padding=0)]
-    decoder += [View((encoder_out_dim, height, width))]
+    flattened_size = c_out * height * width
+    encoder += [nn.Flatten()]
+    encoder += [nn.Linear(flattened_size, encoder_out_dim)]
+
+    decoder += [View((c_out, height, width))]
+    decoder += [nn.Linear(encoder_out_dim, flattened_size)]
     decoder = decoder[::-1]
     decoder += [nn.Conv2d(input_shape[0], decoding_dim, kernel_size=1, stride=1, padding=0)]
 
     if decoder_out_act is not None:
         decoder += [decoder_out_act]
 
-    encoder += [nn.Flatten()]
-
     encoder = nn.Sequential(*encoder)
     decoder = nn.Sequential(*decoder)
 
-    enc_shape = encoding_dim * height * width
+    enc_shape = (encoder_out_dim,)
 
-    return encoder, decoder, (enc_shape,)
+    return encoder, decoder, enc_shape
 
 
 def _linear_block(in_channels: int, out_channels: int) -> nn.Sequential:

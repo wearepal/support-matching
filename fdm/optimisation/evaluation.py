@@ -47,26 +47,11 @@ def log_metrics(
         step,
         train_inv_s,
         test_repr,
-        name="x_rand_s",
+        name="x_zero_s",
         eval_on_recon=args.eval_on_recon,
         pred_s=False,
         save_to_csv=save_to_csv,
     )
-    if args.three_way_split:
-        print("Encoding training dataset (random y)...")
-        train_rand_y = encode_dataset(
-            args, data.train, model, recons=args.eval_on_recon, invariant_to="y"
-        )
-        evaluate(
-            args,
-            step,
-            train_rand_y,
-            test_repr,
-            name="x_rand_y",
-            eval_on_recon=args.eval_on_recon,
-            pred_s=False,
-            save_to_csv=save_to_csv,
-        )
 
 
 def baseline_metrics(args: VaeArgs, data: DatasetTriplet, save_to_csv: Optional[Path]) -> None:
@@ -206,7 +191,7 @@ def encode_dataset(
     generator: AutoEncoder,
     recons: bool,
     invariant_to: Literal["s", "y"] = "s",
-) -> "Dataset[Tuple[Tensor, Tensor, Tensor]]":
+) -> "TensorDataset":
     print("Encoding dataset...", flush=True)  # flush to avoid conflict with tqdm
     all_x_m = []
     all_s = []
@@ -225,7 +210,11 @@ def encode_dataset(
 
             enc = generator.encode(x, stochastic=False)
             if recons:
-                zs_m, zy_m = generator.mask(enc, random=True)
+                if args.train_on_recon:
+                    raise ValueError(
+                        "This evaluation is meant to work with training on encoding."
+                    )
+                zs_m, zy_m = generator.mask(enc, random=False)
                 z_m = zs_m if invariant_to == "s" else zy_m
                 x_m = generator.decode(z_m, mode="hard")
 
