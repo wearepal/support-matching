@@ -6,9 +6,9 @@ from typing import Any, Dict, Iterable, Iterator, Optional, Sequence, Tuple, Typ
 import numpy as np
 import torch
 import wandb
-from torch import nn
+from torch import Tensor, nn
 from torch.utils.data import DataLoader
-from typing_extensions import Protocol
+from typing_extensions import Literal, Protocol
 
 from shared.configs import BaseArgs
 
@@ -18,18 +18,22 @@ __all__ = [
     "AverageMeter",
     "ModelFn",
     "RunningAverageMeter",
+    "class_id_to_label",
     "count_parameters",
+    "get_data_dim",
     "get_logger",
     "inf_generator",
+    "label_to_class_id",
     "prod",
     "random_seed",
     "readable_duration",
     "save_checkpoint",
     "wandb_log",
-    "get_data_dim",
 ]
 
 T = TypeVar("T")
+
+Int = TypeVar("Int", Tensor, int)
 
 
 class ModelFn(Protocol):
@@ -42,6 +46,17 @@ def get_data_dim(data_loader: DataLoader) -> Tuple[int, ...]:
     x_dim = x.shape[1:]
 
     return tuple(x_dim)
+
+
+def label_to_class_id(*, s: Int, y: Int, s_count: int) -> Int:
+    return y * s_count + s
+
+
+def class_id_to_label(class_id: Int, s_count: int, label: Literal["s", "y"]) -> Int:
+    if label == "s":
+        return class_id % s_count
+    else:
+        return class_id // s_count
 
 
 def wandb_log(

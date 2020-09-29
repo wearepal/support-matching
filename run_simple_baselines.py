@@ -202,6 +202,7 @@ def run_baseline(args: BaselineArgs) -> None:
             batch_size=args.batch_size,
             num_workers=args.num_workers,
             oversample=args.oversample,
+            balance_hierarchical=False,
         )
     train_loader = DataLoader(
         train_data,

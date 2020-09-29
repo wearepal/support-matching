@@ -14,7 +14,6 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, Subset, WeightedRandomSampler
 from typing_extensions import Literal
 
-from clustering.optimisation import get_class_id
 from fdm.configs import FdmArgs
 from fdm.models import AutoEncoder, Classifier, EncodingSize, PartitionedAeInn, build_discriminator
 from fdm.models.configs import Residual64x64Net, Strided28x28Net
@@ -31,6 +30,7 @@ from shared.utils import (
     count_parameters,
     get_logger,
     inf_generator,
+    label_to_class_id,
     load_results,
     prod,
     random_seed,
@@ -42,7 +42,14 @@ from .build import build_ae, build_inn
 from .evaluation import baseline_metrics, log_metrics
 from .inn_training import InnComponents, update_disc_on_inn, update_inn
 from .loss import MixedLoss, PixelCrossEntropy, VGGLoss
-from .utils import log_images, restore_model, save_model, weight_for_balance
+from .utils import (
+    get_all_num_samples,
+    log_images,
+    restore_model,
+    save_model,
+    weight_for_balance,
+    weights_with_counts,
+)
 
 __all__ = ["main"]
 
@@ -127,6 +134,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
             batch_size=ARGS.batch_size,
             num_workers=ARGS.num_workers,
             oversample=ARGS.oversample,
+            balance_hierarchical=False,
         )
         dataloader_kwargs = dict(sampler=context_sampler, shuffle=False)
     else:
@@ -148,6 +156,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         batch_size=ARGS.batch_size,
         num_workers=ARGS.num_workers,
         oversample=ARGS.oversample,
+        balance_hierarchical=True,
     )
     train_loader = DataLoader(
         dataset=datasets.train,
@@ -444,6 +453,7 @@ def build_weighted_sampler_from_dataset(
     test_batch_size: int,
     batch_size: int,
     num_workers: int,
+    balance_hierarchical: bool,
 ) -> WeightedRandomSampler:
     #  Extract the s and y labels in a dataset-agnostic way (by iterating)
     data_loader = DataLoader(
@@ -455,10 +465,21 @@ def build_weighted_sampler_from_dataset(
         y_all.append(y)
     s_all = torch.cat(s_all, dim=0)
     y_all = torch.cat(y_all, dim=0)
-    #  Balance the batches of the training set via weighted sampling
-    class_ids = get_class_id(s=s_all, y=y_all, to_cluster="both", s_count=s_dim)
-    weights, n_clusters, min_count, max_count = weight_for_balance(class_ids)
-    num_samples = n_clusters * max_count if oversample else n_clusters * min_count
+    # Balance the batches of the training set via weighted sampling
+    class_ids = label_to_class_id(s=s_all, y=y_all, s_count=s_dim).view(-1)
+    if balance_hierarchical:
+        # here we make sure that in a batch, y is balanced and within the y subsets, s is balanced
+        y_weights, y_unique_weights_counts = weights_with_counts(y_all.view(-1))
+        quad_weights, quad_unique_weights_counts = weights_with_counts(class_ids)
+        weights = y_weights * quad_weights
+
+        all_num_samples = get_all_num_samples(
+            quad_unique_weights_counts, y_unique_weights_counts, s_dim
+        )
+        num_samples = max(all_num_samples) if oversample else min(all_num_samples)
+    else:
+        weights, n_clusters, min_count, max_count = weight_for_balance(class_ids)
+        num_samples = n_clusters * max_count if oversample else n_clusters * min_count
     assert num_samples > batch_size, f"not enough training samples ({num_samples}) to fill a batch"
     return WeightedRandomSampler(weights.squeeze(), num_samples, replacement=oversample)
 
