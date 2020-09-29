@@ -3,7 +3,7 @@ from fdm.optimisation.mmd import mmd2
 import time
 from logging import Logger
 from pathlib import Path
-from typing import Callable, Dict, Iterator, List, NamedTuple, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, Iterator, NamedTuple, Optional, Sequence, Tuple, Union
 
 import git
 import numpy as np
@@ -554,8 +554,7 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False
     if not ARGS.vae:
         encoding_t = ae.generator.encode(x_t)
         if not ARGS.train_on_recon:
-            encoding_c = ae.generator.encode(x_c)
-    if ARGS.vae:
+
         encoding_t = ae.generator.encode(x_t, stochastic=True)
         if not ARGS.train_on_recon:
             encoding_c = ae.generator.encode(x_c, stochastic=True)
@@ -607,9 +606,6 @@ def update(
     # we need a reconstruction loss for x_c because...
     # ...when we train on encodings, the network will otherwise just falsify encodings for x_c
     # ...when we train on recons, the GAN loss has it too easy to distinguish the two
-    encoding_c, elbo_c, logging_dict_elbo_c = ae.generator.routine(
-        x_c, ae.recon_loss_fn, ARGS.kl_weight
-    )
     logging_dict.update({k: v + logging_dict_elbo_c[k] for k, v in logging_dict_elbo.items()})
     elbo = 0.5 * (elbo + elbo_c)  # take average of the two recon losses
 
@@ -629,8 +625,11 @@ def update(
         disc_loss /= len(ae.disc_ensemble)
 
     else:
+        encoding_c, elbo_c, logging_dict_elbo_c = ae.generator.routine(
+            x_c, ae.recon_loss_fn, ARGS.kl_weight
+        )
         x = disc_input_no_s
-        y = get_disc_input(ae.generator, encoding_c, invariant_to="s")
+        y = get_disc_input(ae.generator, encoding_c.detach(), invariant_to="s")
         disc_loss = mmd2(
             x=x,
             y=y,
