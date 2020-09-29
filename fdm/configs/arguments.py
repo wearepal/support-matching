@@ -103,6 +103,7 @@ class FdmArgs(BaseArgs):
     num_disc_updates: int = 3
     distinguish_weight: float = 1
     pred_weight: float = 1
+    use_s_pred: bool = False
 
     # misc
     _cluster_test_acc: float = 0.0

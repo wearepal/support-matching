@@ -676,8 +676,9 @@ def update(
         # predict y from the part that is invariant to s
         pred_y_loss, pred_y_acc = ae.predictor_y.routine(enc_no_s, y_t)
         pred_y_loss *= ARGS.pred_weight
-        pred_s_loss, pred_s_acc = ae.predictor_s.routine(enc_no_y, s_t)
-        pred_s_loss *= ARGS.pred_weight
+        if ARGS.use_s_pred:
+            pred_s_loss, pred_s_acc = ae.predictor_s.routine(enc_no_y, s_t)
+            pred_s_loss *= ARGS.pred_weight
 
         logging_dict.update(
             {
@@ -700,12 +701,14 @@ def update(
     ae.generator.zero_grad()
     if ARGS.pred_weight > 0:
         ae.predictor_y.zero_grad()
-        ae.predictor_s.zero_grad()
+        if ARGS.use_s_pred:
+            ae.predictor_s.zero_grad()
     gen_loss.backward()
     ae.generator.step()
     if ARGS.pred_weight > 0:
         ae.predictor_y.step()
-        ae.predictor_s.step()
+        if ARGS.use_s_pred:
+            ae.predictor_s.step()
 
     final_logging = {
         "ELBO": elbo.item(),

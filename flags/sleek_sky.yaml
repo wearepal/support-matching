@@ -66,6 +66,7 @@ test-pcnt: 0.2
 train-on-recon: false
 use-inn: false
 use-pretrained-enc: false
+use-s-pred: true
 use-wandb: true
 vae: false
 vgg-weight: 0
