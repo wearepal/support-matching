@@ -606,6 +606,9 @@ def update(
     # we need a reconstruction loss for x_c because...
     # ...when we train on encodings, the network will otherwise just falsify encodings for x_c
     # ...when we train on recons, the GAN loss has it too easy to distinguish the two
+    encoding_c, elbo_c, logging_dict_elbo_c = ae.generator.routine(
+        x_c, ae.recon_loss_fn, ARGS.kl_weight
+    )
     logging_dict.update({k: v + logging_dict_elbo_c[k] for k, v in logging_dict_elbo.items()})
     elbo = 0.5 * (elbo + elbo_c)  # take average of the two recon losses
 
@@ -625,9 +628,6 @@ def update(
         disc_loss /= len(ae.disc_ensemble)
 
     else:
-        encoding_c, elbo_c, logging_dict_elbo_c = ae.generator.routine(
-            x_c, ae.recon_loss_fn, ARGS.kl_weight
-        )
         x = disc_input_no_s
         y = get_disc_input(ae.generator, encoding_c.detach(), invariant_to="s")
         disc_loss = mmd2(
