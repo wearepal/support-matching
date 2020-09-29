@@ -1,9 +1,8 @@
 """Main training file"""
-from fdm.optimisation.mmd import mmd2
 import time
 from logging import Logger
 from pathlib import Path
-from typing import Callable, Dict, Iterator, List, NamedTuple, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, NamedTuple, Optional, Sequence, Tuple, Union
 
 import git
 import numpy as np
@@ -17,14 +16,9 @@ from typing_extensions import Literal
 
 from clustering.optimisation import get_class_id
 from fdm.configs import FdmArgs
-from fdm.models import (
-    AutoEncoder,
-    Classifier,
-    EncodingSize,
-    PartitionedAeInn,
-    build_discriminator,
-)
+from fdm.models import AutoEncoder, Classifier, EncodingSize, PartitionedAeInn, build_discriminator
 from fdm.models.configs import Residual64x64Net, Strided28x28Net
+from fdm.optimisation.mmd import mmd2
 from shared.data import DatasetTriplet, load_dataset
 from shared.layers import Aggregator, AttentionAggregator, SimpleAggregator, SimpleAggregatorT
 from shared.models.configs import conv_autoencoder, fc_autoencoder

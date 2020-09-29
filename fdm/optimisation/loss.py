@@ -3,10 +3,11 @@ from typing import Dict, List, Optional, Sequence, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.modules.module import Module
 import torchvision
 from torch import Tensor
+from torch.nn.modules.module import Module
 from typing_extensions import Literal
+
 from . import mmd
 
 __all__ = [

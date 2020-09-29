@@ -4,12 +4,7 @@ import ethicml as em
 
 from shared.configs import BaseArgs
 from shared.data import DatasetTriplet, get_data_tuples, load_dataset
-from shared.utils import (
-    accept_prefixes,
-    compute_metrics,
-    confirm_empty,
-    make_tuple_from_data,
-)
+from shared.utils import accept_prefixes, compute_metrics, confirm_empty, make_tuple_from_data
 
 
 class BaselineArgs(BaseArgs):

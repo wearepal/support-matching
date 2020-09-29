@@ -1,9 +1,9 @@
-from typing import Optional, Sequence, Union, List
+from typing import List, Optional, Sequence, Union
 
 from torch import nn
 
 from shared.layers import Aggregator
-from shared.utils import prod, ModelFn
+from shared.utils import ModelFn, prod
 
 __all__ = ["Mp32x23Net", "Mp64x64Net", "FcNet", "ModelAggregatorWrapper"]
 

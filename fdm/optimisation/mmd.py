@@ -1,8 +1,7 @@
+from typing import Any, Literal, Optional, Sequence, Tuple
+
 import torch
 from torch import Tensor
-
-from typing import Literal, Sequence, Optional, Tuple, Any
-
 
 __all__ = ["mmd2"]
 
@@ -75,8 +74,7 @@ def _mix_rbf_kernel(
     wts: Optional[Sequence[float]] = None,
     add_dot: float = 0.0,
 ) -> Tuple[Tensor, Tensor, Tensor, float]:
-    """
-    """
+    """"""
     scales = (2.0, 5.0, 10.0, 20.0, 40.0, 80.0) or scales
     wts = [1.0] * len(scales) or wts
 

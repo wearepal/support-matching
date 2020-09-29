@@ -91,9 +91,7 @@ class AutoEncoder(nn.Module):
 
     def split_encoding(self, z: Tensor) -> SplitEncoding:
         assert self.encoding_size is not None
-        zs, zy = z.split(
-            (self.encoding_size.zs, self.encoding_size.zy), dim=1
-        )
+        zs, zy = z.split((self.encoding_size.zs, self.encoding_size.zy), dim=1)
         return SplitEncoding(zs=zs, zy=zy)
 
     def mask(self, z: Tensor, random: bool = False) -> Tuple[Tensor, Tensor]:

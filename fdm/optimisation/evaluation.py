@@ -14,7 +14,7 @@ from fdm.configs import FdmArgs
 from fdm.models import AutoEncoder, Classifier
 from shared.data import DatasetTriplet, get_data_tuples
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
-from shared.utils import compute_metrics, make_tuple_from_data, prod, ModelFn
+from shared.utils import ModelFn, compute_metrics, make_tuple_from_data, prod
 
 from .utils import log_images
 

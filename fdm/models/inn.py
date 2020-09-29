@@ -120,9 +120,7 @@ class PartitionedAeInn(ModelBase):
         return -log_px / z.nelement()
 
     def split_encoding(self, z: Tensor) -> SplitEncoding:
-        zs, zy = z.split(
-            (self.encoding_size.zs, self.encoding_size.zy), dim=1
-        )
+        zs, zy = z.split((self.encoding_size.zs, self.encoding_size.zy), dim=1)
         return SplitEncoding(zs=zs, zy=zy)
 
     def mask(self, zs: Tensor, random: bool = False) -> Tuple[Tensor, Tensor]:
@@ -149,9 +147,7 @@ class PartitionedAeInn(ModelBase):
         rand_s, rand_y = self.mask(z, random=True)
         zero_s, zero_y = self.mask(z)
         splits = self.split_encoding(z)
-        just_s = torch.cat(
-            [splits.zs, torch.zeros_like(splits.zy)], dim=1
-        )
+        just_s = torch.cat([splits.zs, torch.zeros_like(splits.zy)], dim=1)
         return Reconstructions(
             all=self.decode(z, discretize=discretize),
             rand_s=self.decode(rand_s, discretize=discretize),

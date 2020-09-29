@@ -1,7 +1,7 @@
 import logging
 import os
 import random
-from typing import Any, Dict, Iterable, Iterator, Sequence, Tuple, TypeVar, Optional
+from typing import Any, Dict, Iterable, Iterator, Optional, Sequence, Tuple, TypeVar
 
 import numpy as np
 import torch
