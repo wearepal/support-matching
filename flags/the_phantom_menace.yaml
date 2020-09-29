@@ -41,7 +41,7 @@ d-levels: 4
 d-log-freq: 50
 d-lr: 1e-3
 d-num-disc-updates: 3
-d-pred-weight: 1
+d-pred-y-weight: 1
 d-recon-loss: l2
 d-vae-std-tform: exp
 d-val-freq: 20

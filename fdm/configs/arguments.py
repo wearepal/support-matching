@@ -102,8 +102,8 @@ class FdmArgs(BaseArgs):
     disc_weight: float = 1
     num_disc_updates: int = 3
     distinguish_weight: float = 1
-    pred_weight: float = 1
-    use_s_pred: bool = False
+    pred_y_weight: float = 1
+    pred_s_weight: float = 0
 
     # misc
     _cluster_test_acc: float = 0.0

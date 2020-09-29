@@ -6,6 +6,6 @@ lr: 1e-3
 zs_frac: 0.015625
 num_disc_updates: 3
 distinguish_weight: 0
-pred_weight: 0
+pred_y_weight: 0
 vae: False
 elbo_weight: 1e-2

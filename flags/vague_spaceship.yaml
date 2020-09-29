@@ -42,7 +42,7 @@ d-log-freq: 50
 d-lr: 3e-4
 d-num-discs: 1
 d-num-disc-updates: 5
-d-pred-weight: 1
+d-pred-y-weight: 1
 d-recon-loss: l2
 d-vae-std-tform: exp
 d-val-freq: 2500

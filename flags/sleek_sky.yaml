@@ -46,7 +46,8 @@ num-discs: 10
 num-workers: 4
 oversample: true
 padding: 2
-pred-weight: 1.0
+pred-s-weight: 1.0
+pred-y-weight: 1.0
 quant-level: "8"
 recon-detach: true
 recon-loss: "l2"
@@ -66,7 +67,6 @@ test-pcnt: 0.2
 train-on-recon: false
 use-inn: false
 use-pretrained-enc: false
-use-s-pred: true
 use-wandb: true
 vae: false
 vgg-weight: 0

@@ -382,7 +382,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         else:
             class_fn = FcNet(hidden_dims=ARGS.disc_hidden_dims)
         predictor = None
-        if ARGS.train_on_recon and ARGS.pred_weight > 0:
+        if ARGS.train_on_recon and ARGS.pred_y_weight > 0:
             predictor = build_discriminator(
                 input_shape=input_shape,
                 target_dim=args._y_dim,  # real vs fake
@@ -670,28 +670,20 @@ def update(
         )
     pred_y_loss = x_t.new_zeros(())
     pred_s_loss = x_t.new_zeros(())
-    if ARGS.pred_weight > 0:
-        # predictor is on encodings
-        enc_no_s, enc_no_y = ae.generator.mask(encoding, random=False)
-        # predict y from the part that is invariant to s
+    pred_y_acc, pred_s_acc = 0.0, 0.0
+    # this is a pretty cheap masking operation, so it's okay if it's not used
+    enc_no_s, enc_no_y = ae.generator.mask(encoding, random=False)
+    if ARGS.pred_y_weight > 0:
+        # predictor is on encodings; predict y from the part that is invariant to s
         pred_y_loss, pred_y_acc = ae.predictor_y.routine(enc_no_s, y_t)
-        pred_y_loss *= ARGS.pred_weight
-        if ARGS.use_s_pred:
-            pred_s_loss, pred_s_acc = ae.predictor_s.routine(enc_no_y, s_t)
-            pred_s_loss *= ARGS.pred_weight
-
-        logging_dict.update(
-            {
-                "Loss Predictor y": pred_y_loss.item(),
-                "Accuracy Predictor y": pred_y_acc,
-                "Loss Predictor s": pred_s_loss.item(),
-                "Accuracs Predictor s": pred_s_acc,
-            }
-        )
-
-    else:
-        logging_dict.update({"Loss Predictor y": 0.0, "Accuracy Predictor y": 0.0})
-        logging_dict.update({"Loss Predictor s": 0.0, "Accuracs Predictor s": 0.0})
+        pred_y_loss *= ARGS.pred_y_weight
+    if ARGS.pred_s_weight > 0:
+        pred_s_loss, pred_s_acc = ae.predictor_s.routine(enc_no_y, s_t)
+        pred_s_loss *= ARGS.pred_s_weight
+    logging_dict["Loss Predictor y"] = pred_y_loss.item()
+    logging_dict["Accuracy Predictor y"] = pred_y_acc
+    logging_dict["Loss Predictor s"] = pred_s_loss.item()
+    logging_dict["Accuracs Predictor s"] = pred_s_acc
 
     elbo *= ARGS.elbo_weight
     disc_loss *= disc_weight
@@ -699,16 +691,16 @@ def update(
     gen_loss = elbo + disc_loss + pred_y_loss + pred_s_loss
     # Update the generator's parameters
     ae.generator.zero_grad()
-    if ARGS.pred_weight > 0:
+    if ARGS.pred_y_weight > 0:
         ae.predictor_y.zero_grad()
-        if ARGS.use_s_pred:
-            ae.predictor_s.zero_grad()
+    if ARGS.pred_s_weight > 0:
+        ae.predictor_s.zero_grad()
     gen_loss.backward()
     ae.generator.step()
-    if ARGS.pred_weight > 0:
+    if ARGS.pred_y_weight > 0:
         ae.predictor_y.step()
-        if ARGS.use_s_pred:
-            ae.predictor_s.step()
+    if ARGS.pred_s_weight > 0:
+        ae.predictor_s.step()
 
     final_logging = {
         "ELBO": elbo.item(),
