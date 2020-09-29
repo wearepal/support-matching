@@ -16,7 +16,7 @@ subsample-train:
     2: 0.0 # remove this group entirely
 
 # ===== AE flags ====
-e-enc-out-dim: 32
+e-enc-out-dim: 512
 e-enc-levels: 3
 e-enc-init-chans: 32
 e-recon-loss: l2
