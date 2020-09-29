@@ -212,8 +212,11 @@ def encode_dataset(
             enc = generator.encode(x, stochastic=False)
             if recons:
                 if args.train_on_recon:
-                    raise ValueError("This evaluation is meant to work with training on encoding.")
-                zs_m, zy_m = generator.mask(enc, random=False)
+                    zs_m, zy_m = generator.mask(enc, random=True)
+                else:
+                    # if we didn't train with the random encodings, it probably doesn't make much
+                    # sense to evaluate with them; better to use null-sampling
+                    zs_m, zy_m = generator.mask(enc, random=False)
                 z_m = zs_m if invariant_to == "s" else zy_m
                 x_m = generator.decode(z_m, mode="hard")
 
