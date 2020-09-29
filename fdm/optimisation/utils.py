@@ -111,11 +111,16 @@ def weights_with_counts(cluster_ids: Tensor) -> Tuple[Tensor, Dict[int, Tuple[fl
 def get_all_num_samples(
     quad_w_and_c: Dict[int, Tuple[float, int]], y_w_and_c: Dict[int, Tuple[float, int]], s_dim: int
 ) -> List[int]:
+    # multiply the quad weights with the correct y weights
     combined_w_and_c = []
     for class_id, (weight, count) in quad_w_and_c.items():
         y_weight, _ = y_w_and_c[class_id_to_label(class_id, s_dim, "y")]
         combined_w_and_c.append((weight * y_weight, count))
+
+    # compute what the intended proportions were for a balanced batch
     intended_proportions = [weight * count for weight, count in combined_w_and_c]
     sum_int_prop = sum(intended_proportions)
     intended_proportions = [prop / sum_int_prop for prop in intended_proportions]
+    # compute what the size of the dataset would be if we were to use all the samples from the
+    # individual clusters and the correct proportions for all the other clusters
     return [round(count / prop) for (_, count), prop in zip(combined_w_and_c, intended_proportions)]
