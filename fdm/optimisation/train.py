@@ -554,8 +554,7 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False
     if not ARGS.vae:
         encoding_t = ae.generator.encode(x_t)
         if not ARGS.train_on_recon:
-
-        encoding_t = ae.generator.encode(x_t, stochastic=True)
+            encoding_t = ae.generator.encode(x_t, stochastic=True)
         if not ARGS.train_on_recon:
             encoding_c = ae.generator.encode(x_c, stochastic=True)
 
