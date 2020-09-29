@@ -44,7 +44,7 @@ d_disc_hidden_dims: 256 256
 d_warmup_steps: 1000
 d_val_freq: 20
 d_validate: True
-d_pred_weight: 1
+d_pred_y_weight: 1
 # Myles says this works better:
 #d_train_on_recon: False
 d_train_on_recon: True

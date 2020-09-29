@@ -336,18 +336,28 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         disc_ensemble = nn.ModuleList(disc_list)
         disc_ensemble.to(args._device)
 
-        predictor_y = build_discriminator(  # this is always trained on encodings
-            input_shape=(prod(enc_shape),),
+        predictor_y = build_discriminator(
+            input_shape=(prod(enc_shape),),  # this is always trained on encodings
             target_dim=datasets.y_dim,
             model_fn=FcNet(hidden_dims=None),  # no hidden layers
             optimizer_kwargs=disc_optimizer_kwargs,
         )
         predictor_y.to(args._device)
+
+        predictor_s = build_discriminator(
+            input_shape=(prod(enc_shape),),  # this is always trained on encodings
+            target_dim=datasets.s_dim,
+            model_fn=FcNet(hidden_dims=None),  # no hidden layers
+            optimizer_kwargs=disc_optimizer_kwargs,
+        )
+        predictor_s.to(args._device)
+
         components = AeComponents(
             generator=generator,
             disc_ensemble=disc_ensemble,
             recon_loss_fn=recon_loss_fn,
             predictor_y=predictor_y,
+            predictor_s=predictor_s,
         )
     else:
         disc_list = []
@@ -372,7 +382,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         else:
             class_fn = FcNet(hidden_dims=ARGS.disc_hidden_dims)
         predictor = None
-        if ARGS.train_on_recon and ARGS.pred_weight > 0:
+        if ARGS.train_on_recon and ARGS.pred_y_weight > 0:
             predictor = build_discriminator(
                 input_shape=input_shape,
                 target_dim=args._y_dim,  # real vs fake
@@ -545,6 +555,7 @@ class AeComponents(NamedTuple):
     disc_ensemble: nn.ModuleList
     recon_loss_fn: Callable
     predictor_y: Classifier
+    predictor_s: Classifier
     type_: Literal["ae"] = "ae"
 
 
@@ -557,6 +568,7 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False
     """
     ae.generator.eval()
     ae.predictor_y.eval()
+    ae.predictor_s.eval()
     ae.disc_ensemble.train()
 
     if ARGS.batch_wise_loss == "none":
@@ -613,6 +625,7 @@ def update(
     disc_weight = 0.0 if warmup else ARGS.disc_weight
     # Compute losses for the generator.
     ae.predictor_y.train()
+    ae.predictor_s.train()
     ae.generator.train()
     logging_dict = {}
 
@@ -656,32 +669,37 @@ def update(
             add_dot=ARGS.mmd_add_dot,
         )
     pred_y_loss = x_t.new_zeros(())
-    if ARGS.pred_weight > 0:
-        # predictor is on encodings
-        enc_no_s, _ = ae.generator.mask(encoding, random=False)
-        # predict y from the part that is invariant to s
+    pred_s_loss = x_t.new_zeros(())
+    # this is a pretty cheap masking operation, so it's okay if it's not used
+    enc_no_s, enc_no_y = ae.generator.mask(encoding, random=False)
+    if ARGS.pred_y_weight > 0:
+        # predictor is on encodings; predict y from the part that is invariant to s
         pred_y_loss, pred_y_acc = ae.predictor_y.routine(enc_no_s, y_t)
-        pred_y_loss *= ARGS.pred_weight
-
-        logging_dict.update(
-            {"Loss Predictor y": pred_y_loss.item(), "Accuracy Predictor y": pred_y_acc}
-        )
-
-    else:
-        logging_dict.update({"Loss Predictor y": 0.0, "Accuracy Predictor y": 0.0})
+        pred_y_loss *= ARGS.pred_y_weight
+        logging_dict["Loss Predictor y"] = pred_y_loss.item()
+        logging_dict["Accuracy Predictor y"] = pred_y_acc
+    if ARGS.pred_s_weight > 0:
+        pred_s_loss, pred_s_acc = ae.predictor_s.routine(enc_no_y, s_t)
+        pred_s_loss *= ARGS.pred_s_weight
+        logging_dict["Loss Predictor s"] = pred_s_loss.item()
+        logging_dict["Accuracs Predictor s"] = pred_s_acc
 
     elbo *= ARGS.elbo_weight
     disc_loss *= disc_weight
 
-    gen_loss = elbo + disc_loss + pred_y_loss
+    gen_loss = elbo + disc_loss + pred_y_loss + pred_s_loss
     # Update the generator's parameters
     ae.generator.zero_grad()
-    if ARGS.pred_weight > 0:
+    if ARGS.pred_y_weight > 0:
         ae.predictor_y.zero_grad()
+    if ARGS.pred_s_weight > 0:
+        ae.predictor_s.zero_grad()
     gen_loss.backward()
     ae.generator.step()
-    if ARGS.pred_weight > 0:
+    if ARGS.pred_y_weight > 0:
         ae.predictor_y.step()
+    if ARGS.pred_s_weight > 0:
+        ae.predictor_s.step()
 
     final_logging = {
         "ELBO": elbo.item(),

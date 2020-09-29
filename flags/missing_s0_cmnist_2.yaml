@@ -123,7 +123,7 @@ d_inn_spectral_norm: False
 d_nll_weight: 0.01
 d_num_discs: 1
 d_path_to_ae: ""
-d_pred_weight: 1
+d_pred_y_weight: 1
 d_recon_detach: True
 d_recon_stability_weight: 0
 d_validate: True

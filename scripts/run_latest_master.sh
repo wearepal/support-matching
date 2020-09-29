@@ -13,7 +13,7 @@ for seed in "${seeds[@]}"; do
     --d-num-disc-updates 3 \
     --d-disc-hidden 256 256 \
     --d-warmup-steps 1000 \
-    --d-pred-weight 1 \
+    --d-pred-y-weight 1 \
     --d-train-on-recon False \
     --a-missing-s 0 \
     --a-seed $seed \

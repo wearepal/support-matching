@@ -49,7 +49,7 @@ d_enc_init_chans: 61
 d_levels: 0
 d_num_disc_updates: 3
 d_recon_loss: mixed
-d_pred_weight: 0.0
+d_pred_y_weight: 0.0
 d_validate: true
 d_val_freq: 10
 # if the following is turned off, warmup_steps should also be off
