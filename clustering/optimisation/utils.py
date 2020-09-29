@@ -11,7 +11,7 @@ from typing_extensions import Literal
 
 from clustering.configs import ClusterArgs
 from clustering.models import Model
-from shared.utils import ClusterResults, save_results, wandb_log
+from shared.utils import ClusterResults, label_to_class_id, save_results, wandb_log
 
 __all__ = [
     "convert_and_save_results",
@@ -120,7 +120,7 @@ def get_class_id(
     elif to_cluster == "y":
         class_id = y
     else:
-        class_id = y * s_count + s
+        class_id = label_to_class_id(s=s, y=y, s_count=s_count)
     return class_id.view(-1)
 
 

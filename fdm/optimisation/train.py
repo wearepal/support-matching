@@ -14,7 +14,6 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, Subset, WeightedRandomSampler
 from typing_extensions import Literal
 
-from clustering.optimisation import get_class_id
 from fdm.configs import FdmArgs
 from fdm.models import AutoEncoder, Classifier, EncodingSize, PartitionedAeInn, build_discriminator
 from fdm.models.configs import Residual64x64Net, Strided28x28Net
@@ -31,6 +30,7 @@ from shared.utils import (
     count_parameters,
     get_logger,
     inf_generator,
+    label_to_class_id,
     load_results,
     prod,
     random_seed,
@@ -42,7 +42,14 @@ from .build import build_ae, build_inn
 from .evaluation import baseline_metrics, log_metrics
 from .inn_training import InnComponents, update_disc_on_inn, update_inn
 from .loss import MixedLoss, PixelCrossEntropy, VGGLoss
-from .utils import log_images, restore_model, save_model, weight_for_balance
+from .utils import (
+    get_all_num_samples,
+    log_images,
+    restore_model,
+    save_model,
+    weight_for_balance,
+    weights_with_counts,
+)
 
 __all__ = ["main"]
 
@@ -456,11 +463,15 @@ def build_weighted_sampler_from_dataset(
     s_all = torch.cat(s_all, dim=0)
     y_all = torch.cat(y_all, dim=0)
     #  Balance the batches of the training set via weighted sampling
-    class_ids = get_class_id(s=s_all, y=y_all, to_cluster="both", s_count=s_dim)
-    weights, n_clusters, min_count, max_count = weight_for_balance(class_ids)
-    num_samples = n_clusters * max_count if oversample else n_clusters * min_count
+    class_ids = label_to_class_id(s=s_all, y=y_all, s_count=s_dim).view(-1)
+    y_weights, y_w_and_c = weights_with_counts(y_all.view(-1))
+    quad_weights, quad_w_and_c = weights_with_counts(class_ids)
+    combined_weights = y_weights * quad_weights
+
+    all_num_samples = get_all_num_samples(quad_w_and_c, y_w_and_c, s_dim)
+    num_samples = max(all_num_samples) if oversample else min(all_num_samples)
     assert num_samples > batch_size, f"not enough training samples ({num_samples}) to fill a batch"
-    return WeightedRandomSampler(weights.squeeze(), num_samples, replacement=oversample)
+    return WeightedRandomSampler(combined_weights.squeeze(), num_samples, replacement=oversample)
 
 
 def get_batch(
