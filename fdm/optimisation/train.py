@@ -670,20 +670,19 @@ def update(
         )
     pred_y_loss = x_t.new_zeros(())
     pred_s_loss = x_t.new_zeros(())
-    pred_y_acc, pred_s_acc = 0.0, 0.0
     # this is a pretty cheap masking operation, so it's okay if it's not used
     enc_no_s, enc_no_y = ae.generator.mask(encoding, random=False)
     if ARGS.pred_y_weight > 0:
         # predictor is on encodings; predict y from the part that is invariant to s
         pred_y_loss, pred_y_acc = ae.predictor_y.routine(enc_no_s, y_t)
         pred_y_loss *= ARGS.pred_y_weight
+        logging_dict["Loss Predictor y"] = pred_y_loss.item()
+        logging_dict["Accuracy Predictor y"] = pred_y_acc
     if ARGS.pred_s_weight > 0:
         pred_s_loss, pred_s_acc = ae.predictor_s.routine(enc_no_y, s_t)
         pred_s_loss *= ARGS.pred_s_weight
-    logging_dict["Loss Predictor y"] = pred_y_loss.item()
-    logging_dict["Accuracy Predictor y"] = pred_y_acc
-    logging_dict["Loss Predictor s"] = pred_s_loss.item()
-    logging_dict["Accuracs Predictor s"] = pred_s_acc
+        logging_dict["Loss Predictor s"] = pred_s_loss.item()
+        logging_dict["Accuracs Predictor s"] = pred_s_acc
 
     elbo *= ARGS.elbo_weight
     disc_loss *= disc_weight
