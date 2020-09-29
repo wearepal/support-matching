@@ -49,10 +49,12 @@ def get_data_dim(data_loader: DataLoader) -> Tuple[int, ...]:
 
 
 def label_to_class_id(*, s: Int, y: Int, s_count: int) -> Int:
+    assert s_count > 1
     return y * s_count + s
 
 
 def class_id_to_label(class_id: Int, s_count: int, label: Literal["s", "y"]) -> Int:
+    assert s_count > 1
     if label == "s":
         return class_id % s_count
     else:

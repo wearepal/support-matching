@@ -109,12 +109,14 @@ def weights_with_counts(cluster_ids: Tensor) -> Tuple[Tensor, Dict[int, Tuple[fl
 
 
 def get_all_num_samples(
-    quad_w_and_c: Dict[int, Tuple[float, int]], y_w_and_c: Dict[int, Tuple[float, int]], s_dim: int
+    quad_w_and_c: Dict[int, Tuple[float, int]],
+    y_w_and_c: Dict[int, Tuple[float, int]],
+    s_count: int,
 ) -> List[int]:
     # multiply the quad weights with the correct y weights
     combined_w_and_c = []
     for class_id, (weight, count) in quad_w_and_c.items():
-        y_weight, _ = y_w_and_c[class_id_to_label(class_id, s_dim, "y")]
+        y_weight, _ = y_w_and_c[class_id_to_label(class_id, s_count, "y")]
         combined_w_and_c.append((weight * y_weight, count))
 
     # compute what the intended proportions were for a balanced batch

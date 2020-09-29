@@ -112,6 +112,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     )
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
     dataloader_args: Dict[str, Any]
+    s_count = max(datasets.s_dim, 2)
 
     cluster_results = None
     if ARGS.cluster_label_file:
@@ -129,7 +130,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     elif ARGS.balanced_context:
         context_sampler = build_weighted_sampler_from_dataset(
             dataset=datasets.context,
-            s_dim=datasets.s_dim,
+            s_count=s_count,
             test_batch_size=ARGS.test_batch_size,
             batch_size=ARGS.batch_size,
             num_workers=ARGS.num_workers,
@@ -151,7 +152,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
 
     train_sampler = build_weighted_sampler_from_dataset(
         dataset=datasets.train,
-        s_dim=datasets.s_dim,
+        s_count=s_count,
         test_batch_size=ARGS.test_batch_size,
         batch_size=ARGS.batch_size,
         num_workers=ARGS.num_workers,
@@ -337,7 +338,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
 
         predictor_y = build_discriminator(  # this is always trained on encodings
             input_shape=(prod(enc_shape),),
-            target_dim=ARGS._y_dim,
+            target_dim=datasets.y_dim,
             model_fn=FcNet(hidden_dims=None),  # no hidden layers
             optimizer_kwargs=disc_optimizer_kwargs,
         )
@@ -448,7 +449,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
 
 def build_weighted_sampler_from_dataset(
     dataset: Dataset,
-    s_dim: int,
+    s_count: int,
     oversample: bool,
     test_batch_size: int,
     batch_size: int,
@@ -466,7 +467,7 @@ def build_weighted_sampler_from_dataset(
     s_all = torch.cat(s_all, dim=0)
     y_all = torch.cat(y_all, dim=0)
     # Balance the batches of the training set via weighted sampling
-    class_ids = label_to_class_id(s=s_all, y=y_all, s_count=s_dim).view(-1)
+    class_ids = label_to_class_id(s=s_all, y=y_all, s_count=s_count).view(-1)
     if balance_hierarchical:
         # here we make sure that in a batch, y is balanced and within the y subsets, s is balanced
         y_weights, y_unique_weights_counts = weights_with_counts(y_all.view(-1))
@@ -474,7 +475,7 @@ def build_weighted_sampler_from_dataset(
         weights = y_weights * quad_weights
 
         all_num_samples = get_all_num_samples(
-            quad_unique_weights_counts, y_unique_weights_counts, s_dim
+            quad_unique_weights_counts, y_unique_weights_counts, s_count
         )
         num_samples = max(all_num_samples) if oversample else min(all_num_samples)
     else:

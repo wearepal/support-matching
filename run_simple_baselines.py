@@ -197,7 +197,7 @@ def run_baseline(args: BaselineArgs) -> None:
     else:
         train_sampler = build_weighted_sampler_from_dataset(
             dataset=datasets.train,
-            s_dim=datasets.s_dim,
+            s_count=max(datasets.s_dim, 2),
             test_batch_size=args.test_batch_size,
             batch_size=args.batch_size,
             num_workers=args.num_workers,
