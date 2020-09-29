@@ -67,7 +67,7 @@ class SimpleAggregator(Aggregator):
 
     def forward(self, inputs: Tensor) -> Tensor:
         weights = F.softmax(self.weight_proj(inputs), dim=0)
-        weighted = torch.sum(weights * inputs, dim=0)
+        weighted = torch.sum(weights * inputs, dim=0, keepdim=True)
         return self.final_proj(weighted).view(1, -1)
 
 
