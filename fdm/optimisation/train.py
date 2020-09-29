@@ -646,7 +646,7 @@ def update(
 
     else:
         x = disc_input_no_s
-        y = get_disc_input(ae.generator, encoding_c, invariant_to="s")
+        y = get_disc_input(ae.generator, encoding_c.detach(), invariant_to="s")
         disc_loss = mmd2(
             x=x,
             y=y,
@@ -674,7 +674,6 @@ def update(
     disc_loss *= disc_weight
 
     gen_loss = elbo + disc_loss + pred_y_loss
-
     # Update the generator's parameters
     ae.generator.zero_grad()
     if ARGS.pred_weight > 0:
