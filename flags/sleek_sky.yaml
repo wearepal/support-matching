@@ -21,7 +21,7 @@ drop-discrete: false
 drop-native: true
 early-stopping: 30
 elbo-weight: 100.0
-enc-out-dim: 32
+enc-out-dim: 128
 enc-levels: 4
 encode-batch-size: 1000
 eval-epochs: 40
@@ -70,6 +70,6 @@ use-pretrained-enc: false
 use-wandb: true
 vae: false
 vgg-weight: 0
-warmup-steps: 500
+warmup-steps: 0
 weight-decay: 0
 zs-frac: 0.031
