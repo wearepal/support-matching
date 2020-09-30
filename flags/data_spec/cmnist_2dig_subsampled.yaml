@@ -1,0 +1,26 @@
+a-background: false
+a-binarize: true
+a-black: true
+a-color-correlation: 1.0
+a-colors: 2 4
+a-context-pcnt: 0.66666666
+a-data-pcnt: 1.0
+a-dataset: "cmnist"
+a-filter-labels: 2 4
+a-greyscale: false
+a-input-noise: false
+a-missing-s:
+a-padding: 2
+a-quant-level: "8"
+a-rotate-data: false
+a-scale: 0.0
+a-shift-data: false
+a-subsample-context:
+    0: 0.7
+    1: 0.4
+    2: 0.2
+    3: 1.0
+a-subsample-train:
+    1: 0.3
+    2: 0.0 # remove this group entirely
+a-test-pcnt: 0.2
