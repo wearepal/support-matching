@@ -53,7 +53,8 @@ run_ranking @flags/encoder/mnist.yaml \
     @flags/clustering/vague_spaceship_cluster.yaml @flags/fdm/fallen_sun.yaml
 
 run_ranking_no_predictors @flags/encoder/mnist.yaml \
-    @flags/clustering/vague_spaceship_cluster.yaml @flags/fdm/fallen_sun.yaml
+    @flags/clustering/vague_spaceship_cluster.yaml @flags/fdm/fallen_sun.yaml \
+    --d-pred-y-weight 0 --d-pred-s-weight 0
 
 run_k_means @flags/encoder/mnist.yaml @flags/fdm/fallen_sun.yaml
 
