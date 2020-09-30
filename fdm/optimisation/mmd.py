@@ -1,7 +1,8 @@
-from typing import Any, Literal, Optional, Sequence, Tuple
+from typing import Any, Optional, Sequence, Tuple
 
 import torch
 from torch import Tensor
+from typing_extensions import Literal
 
 __all__ = ["mmd2"]
 
