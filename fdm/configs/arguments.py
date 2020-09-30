@@ -25,6 +25,7 @@ class FdmArgs(BaseArgs):
     train_on_recon: bool = False  # whether to train the discriminator on recons or encodings
     recon_detach: bool = True  # Whether to apply the stop gradient operator to the reconstruction.
     eval_on_recon: bool = False
+    balanced_context: bool = False  # Whether to balance the context set with groundtruth labels
 
     # Evaluation settings
     eval_epochs: int = 40

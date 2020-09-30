@@ -1,6 +1,6 @@
 dataset: "cmnist"
-balanced-test: true
-biased-train: true
+adult-balanced-test: true
+adult-biased-train: true
 binarize: true
 black: true
 color-correlation: 1.0

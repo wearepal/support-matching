@@ -130,7 +130,7 @@ def load_adult_data(args: BaseArgs) -> Tuple[DataTupleDataset, DataTupleDataset,
 
 def biased_split(args: BaseArgs, data: em.DataTuple) -> DataTupleTriplet:
     """Split the dataset such that the training set is biased."""
-    if args.biased_train:
+    if args.adult_biased_train:
         train_tuple, unbiased = get_invisible_demographics(  # get_biased_subset(
             data=data,
             # mixing_factor=args.mixing_factor,
@@ -147,7 +147,7 @@ def biased_split(args: BaseArgs, data: em.DataTuple) -> DataTupleTriplet:
     context_pcnt = args.context_pcnt / (args.test_pcnt + args.context_pcnt)
     context_splitter: em.DataSplitter
 
-    if args.balanced_test and args.biased_train:
+    if args.adult_balanced_test and args.adult_biased_train:
         context_splitter = em.BalancedTestSplit(
             train_percentage=context_pcnt,
             start_seed=args.data_split_seed,

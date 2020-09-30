@@ -11,7 +11,7 @@ a_subsample_context:
 # --- flags that are used in clusetering and fdm
 a_background: False
 a_batch_size: 128
-a_biased_train: True
+a_adult_biased_train: True
 a_binarize: True
 a_black: True
 a_celeba_sens_attr: Male

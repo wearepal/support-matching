@@ -33,7 +33,6 @@ class BaseArgs(Tap):
     dataset: Literal["adult", "cmnist", "celeba", "genfaces"] = "cmnist"
 
     data_pcnt: float = 1.0  # data pcnt should be a real value > 0, and up to 1
-    biased_train: bool = True  # if True, make the training set biased, dependent on mixing factor
     mixing_factor: float = 0.0  # How much of context should be mixed into training?
     context_pcnt: float = 0.4
     test_pcnt: float = 0.2
@@ -47,8 +46,8 @@ class BaseArgs(Tap):
     drop_native: bool = True
     adult_split: AdultSplits = "Sex"
     drop_discrete: bool = False
-    balanced_context: bool = False
-    balanced_test: bool = True
+    adult_biased_train: bool = True  # if True, make the training set biased, based on mixing factor
+    adult_balanced_test: bool = True
     balance_all_quadrants: bool = True
     oversample: bool = False  # Whether to oversample when doing weighted sampling.
 

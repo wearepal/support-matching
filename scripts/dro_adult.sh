@@ -13,9 +13,8 @@ for seed in "${seeds[@]}"; do
         --method dro \
         --eta $eta \
         --padding 2 \
-        --balanced-context False \
-        --balanced-test True \
-        --biased-train True \
+        --adult-balanced-test True \
+        --adult-biased-train True \
         --gpu -1 \
         --seed $seed \
         --data-split-seed $seed $@
