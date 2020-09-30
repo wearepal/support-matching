@@ -78,7 +78,6 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
 
     use_gpu = torch.cuda.is_available() and args.gpu >= 0
     random_seed(args.seed, use_gpu)
-    datasets: DatasetTriplet = load_dataset(args)
     if cluster_label_file is not None:
         args.cluster_label_file = str(cluster_label_file)
     # ==== initialize globals ====
@@ -104,6 +103,8 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     LOGGER.info("{} GPUs available. Using device '{}'", torch.cuda.device_count(), ARGS._device)
 
     # ==== construct dataset ====
+    datasets: DatasetTriplet = load_dataset(ARGS)
+
     LOGGER.info(
         "Size of context-set: {}, training-set: {}, test-set: {}",
         len(datasets.context),
@@ -111,7 +112,6 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         len(datasets.test),
     )
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
-    dataloader_args: Dict[str, Any]
     s_count = max(datasets.s_dim, 2)
 
     cluster_results = None
@@ -519,7 +519,7 @@ def train_step(
                 context_data_itr=context_data_itr, train_data_itr=train_data_itr
             )
             if components.type_ == "ae":
-                update_disc(x_c, x_t, components, itr < ARGS.warmup_steps)
+                _, disc_logging = update_disc(x_c, x_t, components, itr < ARGS.warmup_steps)
             else:
                 update_disc_on_inn(ARGS, x_c, x_t, components, itr < ARGS.warmup_steps)
 
@@ -533,6 +533,7 @@ def train_step(
             args=ARGS, x_c=x_c, x_t=x_t, models=components, disc_weight=disc_weight
         )
 
+    logging_dict.update(disc_logging)
     wandb_log(ARGS, logging_dict, step=itr)
 
     # Log images
@@ -559,7 +560,9 @@ class AeComponents(NamedTuple):
     type_: Literal["ae"] = "ae"
 
 
-def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False) -> Tensor:
+def update_disc(
+    x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False
+) -> Tuple[Tensor, Dict[str, float]]:
     """Train the discriminator while keeping the generator constant.
 
     Args:
@@ -592,6 +595,8 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False
         disc_input_c = x_c
 
     disc_loss = x_c.new_zeros(())
+    disc_acc = 0.0
+    logging_dict = {}
     for invariance in invariances:
         disc_input_t = get_disc_input(ae.generator, encoding_t, invariant_to=invariance)
         disc_input_t = disc_input_t.detach()
@@ -600,10 +605,12 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False
             disc_input_c = disc_input_c.detach()
 
         for discriminator in ae.disc_ensemble:
-            disc_loss_true = discriminator.routine(disc_input_c, ones)[0]
-            disc_loss_false = discriminator.routine(disc_input_t, zeros)[0]
+            disc_loss_true, acc_c = discriminator.routine(disc_input_c, ones)
+            disc_loss_false, acc_t = discriminator.routine(disc_input_t, zeros)
             disc_loss += disc_loss_true + disc_loss_false
+            disc_acc += 0.5 * (acc_c + acc_t)
         disc_loss /= len(ae.disc_ensemble)
+        logging_dict["Accuracy Discriminator (zy)"] = disc_acc / len(ae.disc_ensemble)
     if not warmup:
         for discriminator in ae.disc_ensemble:
             discriminator.zero_grad()
@@ -611,7 +618,7 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False
         for discriminator in ae.disc_ensemble:
             discriminator.step()
 
-    return disc_loss
+    return disc_loss, logging_dict
 
 
 def update(
