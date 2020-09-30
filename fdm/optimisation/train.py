@@ -468,10 +468,10 @@ def build_weighted_sampler_from_dataset(
 ) -> WeightedRandomSampler:
     #  Extract the s and y labels in a dataset-agnostic way (by iterating)
     data_loader = DataLoader(
-        dataset=dataset, drop_last=False, batch_size=test_batch_size, num_workers=num_workers
+            dataset=dataset, drop_last=False, batch_size=test_batch_size, num_workers=1, 
     )
     s_all, y_all = [], []
-    for _, s, y in data_loader:
+    for _, s, y in iter(dataset):
         s_all.append(s)
         y_all.append(y)
     s_all = torch.cat(s_all, dim=0)
