@@ -69,7 +69,9 @@ class BaseArgs(Tap):
     subsample_context: Dict[int, float] = {}
     subsample_train: Dict[int, float] = {}
     input_noise: bool = True  # add uniform noise to the input
-    filter_labels: List[int] = []
+    # the filter_map_labels flag works like this: you specify which labels you want to keep
+    # and also to which value you want to map them.
+    filter_map_labels: Dict[int, int] = {}
     colors: List[int] = []
 
     # CelebA settings
@@ -92,6 +94,15 @@ class BaseArgs(Tap):
 
     def add_arguments(self) -> None:
         super().add_arguments()
+        self.add_argument(
+            "--filter-map-labels",
+            action=StoreDictKeyPair,
+            nargs="*",
+            default={},
+            type=str,
+            key_type=int,
+            value_type=int,
+        )
         self.add_argument(
             "--subsample-context",
             action=StoreDictKeyPair,
