@@ -31,6 +31,27 @@ function run_ranking() {
     done
 }
 
+function run_ranking_no_predictors() {
+    if [ -z "$seeds" ] || [ -z "$flag_file" ] || [ -z "$save_dir" ]; then
+        echo "one of 'seeds', 'flag_file', or 'save_dir' is not set"
+        exit 1
+    fi
+    echo "Starting run_ranking_no_predictors"
+    for seed in $seeds; do
+        echo "seed=$seed"
+        cmd="python run_both.py @$flag_file \
+        --seed $seed --data-split-seed $seed --save-dir $save_dir \
+        --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results ranking_no_predictors.csv \
+        --d-pred-y-weight 0 --d-pred-s-weight 0 \
+        "$shared_flags" "$@" "
+        echo $cmd
+        echo ""
+        # execute command:
+        $cmd
+        sleep 5
+    done
+}
+
 function run_k_means() {
     echo "Starting run_k_means"
     for seed in $seeds; do
@@ -53,7 +74,27 @@ function run_no_cluster() {
         echo "seed=$seed"
         cmd="python run_dis.py @$flag_file \
         --seed $seed --data-split-seed $seed --save-dir $save_dir \
-        --d-results no_cluster.csv \
+        --d-results no_cluster.csv --d-balanced-context False \
+        "$shared_flags" "$@" "
+        echo $cmd
+        echo ""
+        # execute command:
+        $cmd
+        sleep 5
+    done
+}
+
+function run_perfect_cluster() {
+    if [ -z "$seeds" ] || [ -z "$flag_file" ] || [ -z "$save_dir" ]; then
+        echo "one of 'seeds', 'flag_file', or 'save_dir' is not set"
+        exit 1
+    fi
+    echo "Starting run_perfect_cluster"
+    for seed in $seeds; do
+        echo "seed=$seed"
+        cmd="python run_dis.py @$flag_file \
+        --seed $seed --data-split-seed $seed --save-dir $save_dir \
+        --d-results perfect_cluster.csv --d-balanced-context True \
         "$shared_flags" "$@" "
         echo $cmd
         echo ""
