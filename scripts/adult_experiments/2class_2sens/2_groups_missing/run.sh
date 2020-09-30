@@ -62,10 +62,10 @@ run_ssl --a-missing-s 0 --c-method kmeans --d-results 2group_kmeans_eval_on_reco
 # ===================== no clustering =====================
 run_no_cluster --a-missing-s 0 --d-results 2group_no_cluster.csv --d-oversample True "$@"
 # ===================== baseline  cnn =====================
-run_baseline --dataset adult --missing-s 0 --method cnn --padding 2 --balanced-context False --balanced-test True --biased-train True  "$@"
+run_baseline --dataset adult --missing-s 0 --method cnn --padding 2 --adult-balanced-test True --adult-biased-train True  "$@"
 # ===================== baseline  fwd =====================
 for eta in "${etas[@]}"; do
-    run_baseline --dataset adult --missing-s 0 --method dro --eta $eta --padding 2 --balanced-context False --balanced-test True --biased-train True "$@"
+    run_baseline --dataset adult --missing-s 0 --method dro --eta $eta --padding 2  --adult-balanced-test True --adult-biased-train True "$@"
 done
 
 

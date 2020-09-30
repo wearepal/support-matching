@@ -8,9 +8,8 @@ for seed in "${seeds[@]}"; do
     --drop-native True \
     --mixing-factor 0.0 \
     --input-noise False \
-    --biased-train True \
-    --balanced-context False \
-    --balanced-test True \
+    --adult-biased-train True \
+    --adult-balanced-test True \
     --data-split-seed $seed \
     --results-csv adult_baseline.csv "$@"
 done

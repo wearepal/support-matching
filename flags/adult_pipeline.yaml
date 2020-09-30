@@ -4,9 +4,8 @@ a_dataset: adult
 a_drop_native: True
 a_mixing_factor: 0.0
 a_input_noise: False
-a_biased_train: True
-a_balanced_context: False
-a_balanced_test: True
+a_adult_biased_train: True
+a_adult_balanced_test: True
 a_balance_all: True
 
 # ===== encoder =====
@@ -41,6 +40,7 @@ c_early_stopping: 10000
 
 # FDM arguments
 d_batch_size: 1000
+d_balanced_context: False
 d_disc_hidden_dims: 32
 d_enc_out_dim: 35
 d_epochs: 1000

@@ -1,9 +1,9 @@
 ae-epochs: 5
 background: false
 balanced-context: true
-balanced-test: true
+adult-balanced-test: true
 batch-size: 256
-biased-train: true
+adult-biased-train: true
 binarize: true
 black: true
 color-correlation: 1.0
