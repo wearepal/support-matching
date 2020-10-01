@@ -8,7 +8,7 @@ import git
 import numpy as np
 import torch
 import wandb
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import adjusted_rand_score, confusion_matrix, normalized_mutual_info_score
 from torch import Tensor
 from torch.utils.data import ConcatDataset, DataLoader
 from torchvision.models import resnet18, resnet50
@@ -487,8 +487,15 @@ def validate(model: Model, val_data: DataLoader) -> Tuple[float, Dict[str, Union
     cluster_ids_np = np.concatenate(cluster_ids, axis=0)
     pred_class_ids = best_ass[cluster_ids_np]  # use the best assignment to get the class IDs
     true_class_ids = torch.cat(class_ids).numpy()
+
     conf_mat = confusion_matrix(true_class_ids, pred_class_ids, normalize="all")
     logging_dict["confusion matrix"] = f"\n{conf_mat}\n"
+
+    nmi = normalized_mutual_info_score(labels_true=true_class_ids, labels_pred=pred_class_ids)
+    logging_dict["NMI"] = nmi
+    ari = adjusted_rand_score(labels_true=true_class_ids, labels_pred=pred_class_ids)
+    logging_dict["ARI"] = ari
+
     return best_acc, logging_dict
 
 

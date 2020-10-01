@@ -2,7 +2,7 @@
 import time
 from logging import Logger
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterator, NamedTuple, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, Iterator, NamedTuple, Optional, Sequence, Tuple, Union
 
 import git
 import numpy as np
