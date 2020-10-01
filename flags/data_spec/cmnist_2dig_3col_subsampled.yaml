@@ -2,7 +2,7 @@ a-background: false
 a-binarize: true
 a-black: true
 a-color-correlation: 1.0
-a-colors: 2 4
+a-colors: 1 4 8
 a-context-pcnt: 0.66666666
 a-data-pcnt: 1.0
 a-dataset: "cmnist"
@@ -16,13 +16,15 @@ a-rotate-data: false
 a-scale: 0.0
 a-shift-data: false
 a-subsample-context:
-    0: 0.7   # (y=0, s=0)
-    1: 0.4   # (y=0, s=1)
-    2: 0.2   # (y=1, s=0)
-    3: 1.0   # (y=1, s=1)
+    0: 0.5   # (y=0, s=0)
+    1: 1.0   # (y=0, s=1)
+    2: 0.3   # (y=0, s=2)
+    3: 0.2   # (y=1, s=0)
+    4: 0.4   # (y=1, s=1)
+    5: 0.2   # (y=1, s=2)
 a-subsample-train:
-    0: 0.0   # (y=0, s=0)
-    1: 0.3  # (y=0, s=1)
-    2: 0.0   # (y=1, s=0)
-    3: 1.0   # (y=1, s=1)
+    0: 1.0
+    1: 0.3
+    2: 0.0 # remove this group entirely
+    3: 1.0
 a-test-pcnt: 0.2

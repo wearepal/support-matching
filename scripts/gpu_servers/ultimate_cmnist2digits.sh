@@ -1,15 +1,17 @@
 #!/bin/bash
 
-# ============= chose setting files ===============
+# ============= choose setting files ===============
 
 # data_flags=flags/data_spec/cmnist_2dig_subsampled.yaml
 # data_flags=flags/data_spec/cmnist_2dig_no_subsample.yaml
-# data_flags=flags/data_spec/cmnist_2dig_subs_miss_s.yaml
-data_flags=flags/data_spec/cmnist_2dig_mildly_subsampled.yaml
+# data_flags=flags/data_spec/cmnist_2dig_mildly_subs_miss_s.yaml
+# data_flags=flags/data_spec/cmnist_2dig_mildly_subsampled.yaml
+data_flags=flags/data_spec/cmnist_2dig_subs_miss_s.yaml
 # save_dir=experiments/cmnist/2digits/2colors/1missing/subsampled
 # save_dir=experiments/cmnist/2digits/2colors/1missing/no_subsample
 # save_dir=experiments/cmnist/2digits/2colors/2missing/subsampled
-save_dir=experiments/cmnist/2digits/2colors/1missing/mildly_subsampled
+# save_dir=experiments/cmnist/2digits/2colors/1missing/mildly_subsampled
+save_dir=experiments/cmnist/2digits/2colors/2missing/strongly_subsampled
 
 encoder_flags=flags/encoder/mnist.yaml
 fdm_flags=flags/fdm/fallen_sun.yaml
@@ -57,30 +59,49 @@ elif [ "$slot" -eq "10" ]; then
     gpu=1
 fi
 
-# =================== set parameters for sweep and import functions ===================
+function run_all() {
+    # =================== set parameters for sweep and import functions ===================
 
-shared_flags="--gpu $gpu"
-flag_file=$data_flags
+    shared_flags="--gpu $gpu"
+    flag_file=$data_flags
 
-echo "seed=$seeds"
-echo $shared_flags
+    echo "seed=$seeds"
+    echo $shared_flags
 
-source scripts/gpu_servers/method_loops.sh
+    source scripts/gpu_servers/method_loops.sh
 
-# ============== run all methods ================
+    # ============== run all methods ================
 
-run_ranking @$encoder_flags @$clust_flags @$fdm_flags
+    run_ranking @$encoder_flags @$clust_flags @$fdm_flags
 
-run_ranking_no_predictors @$encoder_flags @$clust_flags @$fdm_flags \
-    --d-pred-y-weight 0 --d-pred-s-weight 0
+    run_ranking_no_predictors @$encoder_flags @$clust_flags @$fdm_flags \
+        --d-pred-y-weight 0 --d-pred-s-weight 0
 
-run_k_means @$encoder_flags @$fdm_flags
+    run_k_means @$encoder_flags @$fdm_flags
 
-run_no_cluster @$encoder_flags @$fdm_flags
+    run_no_cluster @$encoder_flags @$fdm_flags
 
-run_perfect_cluster @$encoder_flags @$fdm_flags
+    run_perfect_cluster @$encoder_flags @$fdm_flags
 
-run_cnn_baseline
+    run_cnn_baseline
 
-etas=( 0.01 0.1 0.5 1.0 )
-run_dro_baseline
+    etas=( 0.01 0.1 0.5 1.0 )
+    run_dro_baseline
+}
+
+run_all
+
+# re-run it with different settings:
+
+data_flags=flags/data_spec/cmnist_2dig_subsampled.yaml
+save_dir=experiments/cmnist/2digits/2colors/1missing/subsampled_visionary
+fdm_flags=flags/fdm/visionary_dream.yaml
+
+run_all
+
+
+data_flags=flags/data_spec/cmnist_2dig_3col_subsampled.yaml
+save_dir=experiments/cmnist/2digits/3colors/1missing/subsampled
+fdm_flags=flags/fdm/fallen_sun.yaml
+
+run_all
