@@ -56,7 +56,7 @@ class BaselineArgs(BaseArgs):
     seed: int = 0
 
     # Optimization settings
-    epochs: int = 40
+    epochs: int = 60
     test_batch_size: int = 1000
     batch_size: int = 64
     lr: float = 1e-3
