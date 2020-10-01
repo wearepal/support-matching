@@ -3,9 +3,13 @@
 # ============= chose setting files ===============
 
 # data_flags=flags/data_spec/cmnist_2dig_subsampled.yaml
-data_flags=flags/data_spec/cmnist_2dig_no_subsample.yaml
+# data_flags=flags/data_spec/cmnist_2dig_no_subsample.yaml
+# data_flags=flags/data_spec/cmnist_2dig_subs_miss_s.yaml
+data_flags=flags/data_spec/cmnist_2dig_mildly_subsampled.yaml
 # save_dir=experiments/cmnist/2digits/2colors/1missing/subsampled
-save_dir=experiments/cmnist/2digits/2colors/1missing/no_subsample
+# save_dir=experiments/cmnist/2digits/2colors/1missing/no_subsample
+# save_dir=experiments/cmnist/2digits/2colors/2missing/subsampled
+save_dir=experiments/cmnist/2digits/2colors/1missing/mildly_subsampled
 
 encoder_flags=flags/encoder/mnist.yaml
 fdm_flags=flags/fdm/fallen_sun.yaml
