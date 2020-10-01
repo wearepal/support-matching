@@ -7,8 +7,10 @@ if [ -z "$slot" ]; then
     exit 1
 fi
 
-flag_file=flags/data_spec/cmnist_2dig_subsampled.yaml
-save_dir="experiments/cmnist/2digits/2colors/1missing/ultimate"
+# flag_file=flags/data_spec/cmnist_2dig_subsampled.yaml
+flag_file=flags/data_spec/cmnist_2dig_no_subsample.yaml
+# save_dir=experiments/cmnist/2digits/2colors/1missing/subsampled
+save_dir=experiments/cmnist/2digits/2colors/1missing/no_subsample
 
 if [ "$slot" -eq "1" ]; then
     seeds=$(seq 1 1)

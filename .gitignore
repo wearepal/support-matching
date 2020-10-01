@@ -113,14 +113,7 @@ dmypy.json
 .vscode/
 
 # project-specific
-!experiments/finn
-experiments/finn/*
-experiments/cnf/*
-experiments/ln2l/*
-experiments/cmnist/*
-!experiments/finn/*.csv
-!experiments/cnf/*.csv
-!experiments/ln2l/*.csv
-!experiments/cmnist/*.csv
+/logging/
 /data/
 /wandb/
+/nohup.out
