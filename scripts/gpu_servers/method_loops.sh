@@ -22,7 +22,7 @@ function run_ranking() {
         cmd="python run_both.py @$flag_file \
         --seed $seed --data-split-seed $seed --save-dir $save_dir \
         --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results ranking.csv \
-        "$shared_flags" "$@" "
+        $shared_flags "$@""
         echo $cmd
         echo ""
         # execute command:
@@ -43,7 +43,7 @@ function run_ranking_no_predictors() {
         --seed $seed --data-split-seed $seed --save-dir $save_dir \
         --c-method pl_enc_no_norm --c-pseudo-labeler ranking --d-results ranking_no_predictors.csv \
         --d-pred-y-weight 0 --d-pred-s-weight 0 \
-        "$shared_flags" "$@" "
+        $shared_flags "$@""
         echo $cmd
         echo ""
         # execute command:
@@ -59,7 +59,7 @@ function run_k_means() {
         python run_both.py @$flag_file \
         --seed $seed --data-split-seed $seed --save-dir $save_dir \
         --c-method kmeans --d-results kmeans.csv \
-        "$shared_flags" "$@"
+        $shared_flags "$@"
         sleep 5
     done
 }
@@ -75,7 +75,7 @@ function run_no_cluster() {
         cmd="python run_dis.py @$flag_file \
         --seed $seed --data-split-seed $seed --save-dir $save_dir \
         --d-results no_cluster.csv --d-balanced-context False \
-        "$shared_flags" "$@" "
+        $shared_flags "$@""
         echo $cmd
         echo ""
         # execute command:
@@ -95,7 +95,7 @@ function run_perfect_cluster() {
         cmd="python run_dis.py @$flag_file \
         --seed $seed --data-split-seed $seed --save-dir $save_dir \
         --d-results perfect_cluster.csv --d-balanced-context True \
-        "$shared_flags" "$@" "
+        $shared_flags "$@""
         echo $cmd
         echo ""
         # execute command:
@@ -111,7 +111,7 @@ function run_cnn_baseline() {
         python run_simple_baselines.py @$flag_file \
         --seed $seed --data-split-seed $seed --save-dir $save_dir \
         --b-method cnn \
-        "$shared_flags" "$@"
+        $shared_flags "$@"
         sleep 5
     done
 }
@@ -125,7 +125,7 @@ function run_dro_baseline() {
             python run_simple_baselines.py @$flag_file \
             --seed $seed --data-split-seed $seed --save-dir $save_dir \
             --b-method dro --b-eta $eta \
-            "$shared_flags" "$@"
+            $shared_flags "$@"
             sleep 5
         done
     done
