@@ -1,16 +1,25 @@
 #!/bin/bash
 
+# ============= chose setting files ===============
+
+# data_flags=flags/data_spec/cmnist_2dig_subsampled.yaml
+data_flags=flags/data_spec/cmnist_2dig_no_subsample.yaml
+# save_dir=experiments/cmnist/2digits/2colors/1missing/subsampled
+save_dir=experiments/cmnist/2digits/2colors/1missing/no_subsample
+
+encoder_flags=flags/encoder/mnist.yaml
+fdm_flags=flags/fdm/fallen_sun.yaml
+clust_flags=flags/clustering/vague_spaceship_cluster.yaml
+
+
+# =============== set GPU and seeds =================
+
 slot=$1
 
 if [ -z "$slot" ]; then
-    echo "specify the slot"
+    echo "please specify a slot"
     exit 1
 fi
-
-# flag_file=flags/data_spec/cmnist_2dig_subsampled.yaml
-flag_file=flags/data_spec/cmnist_2dig_no_subsample.yaml
-# save_dir=experiments/cmnist/2digits/2colors/1missing/subsampled
-save_dir=experiments/cmnist/2digits/2colors/1missing/no_subsample
 
 if [ "$slot" -eq "1" ]; then
     seeds=$(seq 1 1)
@@ -44,25 +53,28 @@ elif [ "$slot" -eq "10" ]; then
     gpu=1
 fi
 
+# =================== set parameters for sweep and import functions ===================
+
 shared_flags="--gpu $gpu"
+flag_file=$data_flags
 
 echo "seed=$seeds"
 echo $shared_flags
 
 source scripts/gpu_servers/method_loops.sh
 
-run_ranking @flags/encoder/mnist.yaml \
-    @flags/clustering/vague_spaceship_cluster.yaml @flags/fdm/fallen_sun.yaml
+# ============== run all methods ================
 
-run_ranking_no_predictors @flags/encoder/mnist.yaml \
-    @flags/clustering/vague_spaceship_cluster.yaml @flags/fdm/fallen_sun.yaml \
+run_ranking @$encoder_flags @$clust_flags @$fdm_flags
+
+run_ranking_no_predictors @$encoder_flags @$clust_flags @$fdm_flags \
     --d-pred-y-weight 0 --d-pred-s-weight 0
 
-run_k_means @flags/encoder/mnist.yaml @flags/fdm/fallen_sun.yaml
+run_k_means @$encoder_flags @$fdm_flags
 
-run_no_cluster @flags/encoder/mnist.yaml @flags/fdm/fallen_sun.yaml
+run_no_cluster @$encoder_flags @$fdm_flags
 
-run_perfect_cluster @flags/encoder/mnist.yaml @flags/fdm/fallen_sun.yaml
+run_perfect_cluster @$encoder_flags @$fdm_flags
 
 run_cnn_baseline
 
