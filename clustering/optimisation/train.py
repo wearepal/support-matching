@@ -8,7 +8,6 @@ import git
 import numpy as np
 import torch
 import wandb
-from sklearn.metrics import adjusted_rand_score, confusion_matrix, normalized_mutual_info_score
 from torch import Tensor
 from torch.utils.data import ConcatDataset, DataLoader
 from torchvision.models import resnet18, resnet50
@@ -52,6 +51,7 @@ from .build import build_ae
 from .evaluation import classify_dataset
 from .k_means import train as train_k_means
 from .utils import (
+    cluster_metrics,
     convert_and_save_results,
     count_occurances,
     find_assignment,
@@ -332,7 +332,7 @@ def main(
                 cluster_label_path,
                 classify_dataset(ARGS, model, datasets.context),
                 enc_path=enc_path,
-                context_acc=float("nan"),  # TODO: compute this
+                context_metrics={},  # TODO: compute this
             )
             return model, pth_path
 
@@ -355,7 +355,7 @@ def main(
         itr = train(model=model, context_data=context_loader, train_data=train_loader, epoch=epoch)
 
         if epoch % ARGS.val_freq == 0:
-            val_acc, val_log = validate(model, val_loader)
+            val_acc, _, val_log = validate(model, val_loader)
 
             if val_acc > best_acc:
                 best_acc = val_acc
@@ -381,17 +381,17 @@ def main(
     LOGGER.info("Training has finished.")
     # path = save_model(args, save_dir, model=model, epoch=epoch, sha=sha)
     # model, _ = restore_model(args, path, model=model)
-    test_acc, _ = validate(model, val_loader)
-    context_acc, _ = validate(model, context_loader)
-    print("test_acc", test_acc)
-    print("context_acc", context_acc)
+    _, test_metrics, _ = validate(model, val_loader)
+    _, context_metrics, _ = validate(model, context_loader)
+    print("test metrics", test_metrics)
+    print("context metrics", context_metrics)
     pth_path = convert_and_save_results(
         ARGS,
         cluster_label_path=cluster_label_path,
         results=classify_dataset(ARGS, model, datasets.context),
         enc_path=enc_path,
-        context_acc=context_acc,
-        test_acc=test_acc,
+        context_metrics=context_metrics,
+        test_metrics=test_metrics,
     )
     return model, pth_path
 
@@ -456,7 +456,9 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
     return itr
 
 
-def validate(model: Model, val_data: DataLoader) -> Tuple[float, Dict[str, Union[float, str]]]:
+def validate(
+    model: Model, val_data: DataLoader
+) -> Tuple[float, Dict[str, float], Dict[str, Union[float, str]]]:
     model.eval()
     to_cluster = ARGS.cluster
     y_count = ARGS._y_dim if ARGS._y_dim > 1 else 2
@@ -482,21 +484,16 @@ def validate(model: Model, val_data: DataLoader) -> Tuple[float, Dict[str, Union
             cluster_ids.append(preds)
             class_ids.append(class_id)
 
-    # find best assignment for cluster to classes
-    best_acc, best_ass, logging_dict = find_assignment(counts, num_total)
     cluster_ids_np = np.concatenate(cluster_ids, axis=0)
-    pred_class_ids = best_ass[cluster_ids_np]  # use the best assignment to get the class IDs
     true_class_ids = torch.cat(class_ids).numpy()
-
-    conf_mat = confusion_matrix(true_class_ids, pred_class_ids, normalize="all")
-    logging_dict["confusion matrix"] = f"\n{conf_mat}\n"
-
-    nmi = normalized_mutual_info_score(labels_true=true_class_ids, labels_pred=pred_class_ids)
-    logging_dict["NMI"] = nmi
-    ari = adjusted_rand_score(labels_true=true_class_ids, labels_pred=pred_class_ids)
-    logging_dict["ARI"] = ari
-
-    return best_acc, logging_dict
+    return cluster_metrics(
+        cluster_ids=cluster_ids_np,
+        counts=counts,
+        true_class_ids=true_class_ids,
+        num_total=num_total,
+        s_count=s_count,
+        to_cluster=to_cluster,
+    )
 
 
 def to_device(*tensors: Tensor) -> Union[Tensor, Tuple[Tensor, ...]]:

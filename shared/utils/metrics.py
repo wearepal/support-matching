@@ -87,12 +87,15 @@ def compute_metrics(
         if additional_entries is not None:
             manual_entries.update(additional_entries)
 
-        if hasattr(args, "_cluster_test_acc"):
+        cluster_test_metrics = getattr(args, "_cluster_test_metrics", None)
+        if cluster_test_metrics is not None:
             manual_entries.update(
-                {
-                    "cluster_test_acc": str(args._cluster_test_acc),
-                    "cluster_context_acc": str(args._cluster_context_acc),
-                }
+                {f"Clust Test {k}": str(v) for k, v in cluster_test_metrics.items()}
+            )
+        cluster_context_metrics = getattr(args, "_cluster_context_metrics", None)
+        if cluster_context_metrics is not None:
+            manual_entries.update(
+                {f"Clust Context {k}": str(v) for k, v in cluster_context_metrics.items()}
             )
 
         results_path = save_to_csv / f"{args.dataset}_{results_csv}"

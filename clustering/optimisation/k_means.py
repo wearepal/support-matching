@@ -15,7 +15,7 @@ from clustering.models import Encoder
 from shared.utils import ClusterResults, wandb_log
 
 from .evaluation import encode_dataset
-from .utils import count_occurances, find_assignment, get_class_id
+from .utils import cluster_metrics, count_occurances, find_assignment, get_class_id
 
 # from tqdm import tqdm
 
@@ -40,10 +40,18 @@ def train(
         n_iter=args.epochs,
         verbose=True,
     )
+    cluster_ids = preds.cpu().numpy()
     # preds, _ = run_kmeans_torch(encoded, num_clusters, device=args._device, n_iter=args.epochs, verbose=True)
     counts = np.zeros((num_clusters, num_clusters), dtype=np.int64)
-    counts, _ = count_occurances(counts, preds.cpu().numpy(), s, y, s_count, args.cluster)
-    context_acc, _, logging_dict = find_assignment(counts, preds.size(0))
+    counts, class_ids = count_occurances(counts, cluster_ids, s, y, s_count, args.cluster)
+    _, metrics, logging_dict = cluster_metrics(
+        cluster_ids=cluster_ids,
+        counts=counts,
+        true_class_ids=class_ids.numpy(),
+        num_total=preds.size(0),
+        s_count=s_count,
+        to_cluster=args.cluster,
+    )
     prepared = (
         f"{k}: {v:.5g}" if isinstance(v, float) else f"{k}: {v}" for k, v in logging_dict.items()
     )
@@ -54,7 +62,7 @@ def train(
         cluster_ids=preds,
         class_ids=get_class_id(s=s, y=y, s_count=s_count, to_cluster=args.cluster),
         enc_path=enc_path,
-        context_acc=context_acc,
+        context_metrics=metrics,
     )
 
 

@@ -107,8 +107,8 @@ class FdmArgs(BaseArgs):
     pred_s_weight: float = 0
 
     # misc
-    _cluster_test_acc: float = 0.0
-    _cluster_context_acc: float = 0.0
+    _cluster_test_metrics: Dict[str, float] = {}
+    _cluster_context_metrics: Dict[str, float] = {}
 
     def add_arguments(self) -> None:
         super().add_arguments()

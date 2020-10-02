@@ -1,6 +1,6 @@
 """Functions related to saving and loading results."""
 from pathlib import Path
-from typing import Any, Dict, NamedTuple
+from typing import Any, Dict, NamedTuple, Optional
 
 import torch
 
@@ -16,8 +16,8 @@ class ClusterResults(NamedTuple):
     cluster_ids: torch.Tensor
     class_ids: torch.Tensor
     enc_path: Path
-    context_acc: float
-    test_acc: float = float("nan")
+    context_metrics: Optional[Dict[str, float]]
+    test_metrics: Optional[Dict[str, float]] = None
 
 
 def save_results(save_path: Path, cluster_results: ClusterResults) -> Path:
@@ -27,8 +27,8 @@ def save_results(save_path: Path, cluster_results: ClusterResults) -> Path:
         "cluster_ids": cluster_results.cluster_ids,
         "class_ids": cluster_results.class_ids,
         "enc_path": str(cluster_results.enc_path.resolve()),
-        "test_acc": cluster_results.test_acc,
-        "context_acc": cluster_results.context_acc,
+        "context_metrics": cluster_results.context_metrics or {},
+        "test_metrics": cluster_results.test_metrics or {},
     }
     torch.save(save_dict, save_path)
     print(
@@ -61,6 +61,6 @@ def load_results(args: BaseArgs, check: bool = True) -> ClusterResults:
         cluster_ids=data["cluster_ids"],
         class_ids=class_ids,
         enc_path=Path(data.get("enc_path", "")),
-        context_acc=data.get("context_acc", float("nan")),
-        test_acc=data.get("test_acc", float("nan")),
+        context_metrics=data.get("context_metrics", None),
+        test_metrics=data.get("test_metrics", None),
     )

@@ -117,8 +117,8 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     cluster_results = None
     if ARGS.cluster_label_file:
         cluster_results = load_results(ARGS)
-        ARGS._cluster_test_acc = cluster_results.test_acc
-        ARGS._cluster_context_acc = cluster_results.context_acc
+        ARGS._cluster_test_metrics = cluster_results.test_metrics or {}
+        ARGS._cluster_context_metrics = cluster_results.context_metrics or {}
         weights, n_clusters, min_count, max_count = weight_for_balance(
             cluster_results.cluster_ids, min_size=None if ARGS.oversample else ARGS.batch_size
         )
