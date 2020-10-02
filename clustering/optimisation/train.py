@@ -89,7 +89,6 @@ def main(
 
     use_gpu = torch.cuda.is_available() and args.gpu >= 0
     random_seed(args.seed, use_gpu)
-    datasets: DatasetTriplet = load_dataset(args)
     if cluster_label_file is not None:
         args.cluster_label_file = str(cluster_label_file)
     # ==== initialize globals ====
@@ -114,6 +113,7 @@ def main(
     LOGGER.info("{} GPUs available. Using device '{}'", torch.cuda.device_count(), ARGS._device)
 
     # ==== construct dataset ====
+    datasets: DatasetTriplet = load_dataset(args)
     LOGGER.info(
         "Size of context-set: {}, training-set: {}, test-set: {}",
         len(datasets.context),
