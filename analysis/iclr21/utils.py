@@ -2,6 +2,7 @@ import math
 
 import numpy as np
 
+
 class Cell:
     def __init__(self, round_to: int):
         self.round_to = round_to
@@ -16,7 +17,13 @@ class Cell:
 
 
 def generate_table(
-    df, type_renames, metrics, query, with_classifier: bool, metrics_renames: dict = None, round_to: int = 2
+    df,
+    type_renames,
+    metrics,
+    query,
+    with_classifier: bool,
+    metrics_renames: dict = None,
+    round_to: int = 2,
 ):
     col_renames = {"data": "type", "method": "classifier"}
     if metrics_renames is not None:

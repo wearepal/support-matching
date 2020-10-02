@@ -37,14 +37,24 @@ def main(
     print(f"accuracy = {accuracy}")
     conf_mat = confusion_matrix(class_ids, cluster_ids, normalize="all")
     print(conf_mat)
+    test_metrics = {}
+    if y_results.test_metrics is not None:
+        test_metrics.update({f"Y {k}": v for k, v in y_results.test_metrics.items()})
+    if s_results.test_metrics is not None:
+        test_metrics.update({f"S {k}": v for k, v in s_results.test_metrics.items()})
+    context_metrics = {}
+    if y_results.context_metrics is not None:
+        context_metrics.update({f"Y {k}": v for k, v in y_results.context_metrics.items()})
+    if s_results.context_metrics is not None:
+        context_metrics.update({f"S {k}": v for k, v in s_results.context_metrics.items()})
 
     cluster_results = ClusterResults(
         flags=y_results.flags,
         cluster_ids=cluster_ids,
         class_ids=class_ids,
         enc_path=y_results.enc_path,
-        test_acc=0.5 * (y_results.test_acc + s_results.test_acc),
-        context_acc=0.5 * (y_results.context_acc + s_results.context_acc),
+        test_metrics=test_metrics,
+        context_metrics=context_metrics,
     )
     save_results(save_path=merged_labels, cluster_results=cluster_results)
 
