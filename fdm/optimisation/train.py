@@ -1,6 +1,5 @@
 """Main training file"""
 import time
-from logging import Logger
 from pathlib import Path
 from typing import Callable, Dict, Iterator, NamedTuple, Optional, Sequence, Tuple, Union
 
@@ -28,7 +27,6 @@ from shared.utils import (
     accept_prefixes,
     confirm_empty,
     count_parameters,
-    get_logger,
     inf_generator,
     label_to_class_id,
     load_results,
@@ -54,7 +52,6 @@ from .utils import (
 __all__ = ["main"]
 
 ARGS: FdmArgs = None  # type: ignore[assignment]
-LOGGER: Logger = None  # type: ignore[assignment]
 Generator = Union[AutoEncoder, PartitionedAeInn]
 
 
@@ -81,7 +78,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     if cluster_label_file is not None:
         args.cluster_label_file = str(cluster_label_file)
     # ==== initialize globals ====
-    global ARGS, LOGGER
+    global ARGS
     ARGS = args
 
     if ARGS.use_wandb:
@@ -93,23 +90,22 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     save_dir = Path(ARGS.save_dir) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    LOGGER = get_logger(logpath=save_dir / "logs", filepath=Path(__file__).resolve())
-    LOGGER.info(str(ARGS))
-    LOGGER.info("Save directory: {}", save_dir.resolve())
+    print(str(ARGS))
+    print(f"Save directory: {save_dir.resolve()}")
     # ==== check GPU ====
     ARGS._device = torch.device(
         f"cuda:{ARGS.gpu}" if (torch.cuda.is_available() and ARGS.gpu >= 0) else "cpu"
     )
-    LOGGER.info("{} GPUs available. Using device '{}'", torch.cuda.device_count(), ARGS._device)
+    print(f"{torch.cuda.device_count()} GPUs available. Using device '{ARGS._device}'")
 
     # ==== construct dataset ====
     datasets: DatasetTriplet = load_dataset(ARGS)
-
-    LOGGER.info(
-        "Size of context-set: {}, training-set: {}, test-set: {}",
-        len(datasets.context),
-        len(datasets.train),
-        len(datasets.test),
+    print(
+        "Size of context-set: {}, training-set: {}, test-set: {}".format(
+            len(datasets.context),
+            len(datasets.train),
+            len(datasets.test),
+        )
     )
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
     s_count = max(datasets.s_dim, 2)
@@ -287,7 +283,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
                 assert args_encoder["encoder_type"] == "vae" if args.vae else "ae"
                 assert args_encoder["levels"] == args.enc_levels
 
-    LOGGER.info("Encoding shape: {}, {}", enc_shape, encoding_size)
+    print(f"Encoding shape: {enc_shape}, {encoding_size}")
 
     # ================================== Initialise Discriminator =================================
 
@@ -396,14 +392,14 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     start_itr = 1  # start at 1 so that the val_freq works correctly
     # Resume from checkpoint
     if ARGS.resume is not None:
-        LOGGER.info("Restoring generator from checkpoint")
+        print("Restoring generator from checkpoint")
         generator, start_itr = restore_model(ARGS, Path(ARGS.resume), generator)
         if ARGS.evaluate:
             log_metrics(ARGS, generator, datasets, 0, save_to_csv=Path(ARGS.save_dir))
             return generator
 
     # Logging
-    LOGGER.info("Number of trainable parameters: {}", count_parameters(generator))
+    print(f"Number of trainable parameters: {count_parameters(generator)}")
 
     itr = start_itr
     disc: nn.Module
@@ -427,12 +423,13 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
             assert loss_meters is not None
             log_string = " | ".join(f"{name}: {loss.avg:.5g}" for name, loss in loss_meters.items())
             elapsed = time.monotonic() - start_time
-            LOGGER.info(
-                "[TRN] Iteration {:04d} | Elapsed: {} | Iterations/s: {:.4g} | {}",
-                itr,
-                readable_duration(elapsed),
-                ARGS.log_freq / elapsed,
-                log_string,
+            print(
+                "[TRN] Iteration {:04d} | Elapsed: {} | Iterations/s: {:.4g} | {}".format(
+                    itr,
+                    readable_duration(elapsed),
+                    ARGS.log_freq / elapsed,
+                    log_string,
+                )
             )
 
             loss_meters = None
@@ -447,10 +444,10 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         if ARGS.disc_reset_prob > 0:
             for k, discriminator in enumerate(components.disc_ensemble):
                 if np.random.uniform() < ARGS.disc_reset_prob:
-                    LOGGER.info("Reinitializing discriminator {}", k)
+                    print(f"Reinitializing discriminator {k}")
                     discriminator.reset_parameters()
 
-    LOGGER.info("Training has finished.")
+    print("Training has finished.")
     # path = save_model(args, save_dir, model=generator, epoch=epoch, sha=sha)
     # generator, _ = restore_model(args, path, model=generator)
     log_metrics(ARGS, model=generator, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr)

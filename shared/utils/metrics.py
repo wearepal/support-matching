@@ -64,9 +64,9 @@ def compute_metrics(
 
     if use_wandb:
         wandb_log(args, {f"{k} ({model_name})": v for k, v in metrics.items()}, step=step)
-    print(f"Results for {exp_name} ({model_name}):")
-    print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
-    print()  # empty line
+    print(f"Results for {exp_name} ({model_name}):\n---")
+    print("\n".join(f"{key}: {value:.5g}" for key, value in metrics.items()))
+    print("---\n")
 
     if save_to_csv is not None and results_csv:
         assert isinstance(save_to_csv, Path)
