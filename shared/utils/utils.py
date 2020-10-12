@@ -1,7 +1,7 @@
 """Utility functions."""
 import os
 import random
-from typing import Any, Dict, Iterable, Iterator, Optional, Sequence, Tuple, TypeVar
+from typing import Any, Dict, Iterable, Iterator, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
@@ -59,11 +59,15 @@ def class_id_to_label(class_id: Int, s_count: int, label: Literal["s", "y"]) -> 
 
 
 def wandb_log(
-    args: BaseArgs, row: Dict[str, Any], step: int, commit: Optional[bool] = None
+    args: Union[bool, BaseArgs], row: Dict[str, Any], step: int, commit: Optional[bool] = None
 ) -> None:
     """Wrapper around wandb's log function"""
-    if args.use_wandb:
-        wandb.log(row, commit=commit, step=step)
+    if isinstance(args, bool):
+        if not args:  # this has to be nested in order to make sure `args` is not bool in `elif`
+            return
+    elif not args.use_wandb:
+        return
+    wandb.log(row, commit=commit, step=step)
 
 
 class AverageMeter:

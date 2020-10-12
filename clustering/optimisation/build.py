@@ -89,6 +89,7 @@ def build_ae(
             encoder=encoder,
             decoder=decoder,
             recon_loss_fn=recon_loss_fn,
+            kl_weight=args.kl_weight,
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_args,
         )
