@@ -1,6 +1,5 @@
 """Main training file"""
 import time
-from logging import Logger
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -39,7 +38,6 @@ from shared.utils import (
     confirm_empty,
     count_parameters,
     get_data_dim,
-    get_logger,
     prod,
     random_seed,
     readable_duration,
@@ -54,7 +52,6 @@ from .utils import (
     cluster_metrics,
     convert_and_save_results,
     count_occurances,
-    find_assignment,
     get_class_id,
     get_cluster_label_path,
     restore_model,
@@ -64,7 +61,6 @@ from .utils import (
 __all__ = ["main"]
 
 ARGS: ClusterArgs = None  # type: ignore[assignment]
-LOGGER: Logger = None  # type: ignore[assignment]
 
 
 def main(
@@ -92,7 +88,7 @@ def main(
     if cluster_label_file is not None:
         args.cluster_label_file = str(cluster_label_file)
     # ==== initialize globals ====
-    global ARGS, LOGGER
+    global ARGS
     ARGS = args
 
     if use_wandb is not None:
@@ -103,22 +99,22 @@ def main(
     save_dir = Path(ARGS.save_dir) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    LOGGER = get_logger(logpath=save_dir / "logs", filepath=Path(__file__).resolve())
-    LOGGER.info(str(args))
-    LOGGER.info("Save directory: {}", save_dir.resolve())
+    print(str(ARGS))
+    print(f"Save directory: {save_dir.resolve()}")
     # ==== check GPU ====
     ARGS._device = torch.device(
         f"cuda:{ARGS.gpu}" if (torch.cuda.is_available() and ARGS.gpu >= 0) else "cpu"
     )
-    LOGGER.info("{} GPUs available. Using device '{}'", torch.cuda.device_count(), ARGS._device)
+    print(f"{torch.cuda.device_count()} GPUs available. Using device '{ARGS._device}'")
 
     # ==== construct dataset ====
     datasets: DatasetTriplet = load_dataset(args)
-    LOGGER.info(
-        "Size of context-set: {}, training-set: {}, test-set: {}",
-        len(datasets.context),
-        len(datasets.train),
-        len(datasets.test),
+    print(
+        "Size of context-set: {}, training-set: {}, test-set: {}".format(
+            len(datasets.context),
+            len(datasets.train),
+            len(datasets.test),
+        )
     )
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
     context_batch_size = round(ARGS.batch_size * len(datasets.context) / len(datasets.train))
@@ -173,9 +169,7 @@ def main(
         num_clusters = y_count
     else:
         num_clusters = s_count * y_count
-    LOGGER.info(
-        "Number of clusters: {}, accuracy computed with respect to {}", num_clusters, ARGS.cluster
-    )
+    print(f"Number of clusters: {num_clusters}, accuracy computed with respect to {ARGS.cluster}")
     mappings: List[str] = []
     for i in range(num_clusters):
         if ARGS.cluster == "s":
@@ -185,7 +179,7 @@ def main(
         else:
             # class_id = y * s_count + s
             mappings.append(f"{i}: (y = {i // s_count}, s = {i % s_count})")
-    LOGGER.info("class IDs:\n\t" + "\n\t".join(mappings))
+    print("class IDs:\n\t" + "\n\t".join(mappings))
     feature_group_slices = getattr(datasets.context, "feature_group_slices", None)
 
     # ================================= encoder =================================
@@ -204,7 +198,7 @@ def main(
         enc_shape = (512,)
         encoder.to(args._device)
 
-    LOGGER.info("Encoding shape: {}", enc_shape)
+    print(f"Encoding shape: {enc_shape}")
 
     enc_path: Path
     if args.enc_path:
@@ -229,9 +223,9 @@ def main(
         args_encoder = {"encoder_type": args.encoder, "levels": args.enc_levels}
         enc_path = save_dir.resolve() / "encoder"
         torch.save({"encoder": encoder.state_dict(), "args": args_encoder}, enc_path)
-        LOGGER.info("To make use of this encoder:\n--enc-path {}", enc_path)
+        print("To make use of this encoder:\n--enc-path {enc_path}")
         if ARGS.enc_wandb:
-            LOGGER.info("Stopping here because W&B will be messed up...")
+            print("Stopping here because W&B will be messed up...")
             return
 
     cluster_label_path = get_cluster_label_path(ARGS, save_dir)
@@ -296,7 +290,7 @@ def main(
             optimizer_kwargs=labeler_optimizer_kwargs,
         )
         labeler.to(args._device)
-        LOGGER.info("Fitting the labeler to the labeled data.")
+        print("Fitting the labeler to the labeled data.")
         labeler.fit(
             train_loader,
             epochs=ARGS.labeler_epochs,
@@ -324,7 +318,7 @@ def main(
     start_epoch = 1  # start at 1 so that the val_freq works correctly
     # Resume from checkpoint
     if ARGS.resume is not None:
-        LOGGER.info("Restoring generator from checkpoint")
+        print("Restoring generator from checkpoint")
         model, start_epoch = restore_model(ARGS, Path(ARGS.resume), model)
         if ARGS.evaluate:
             pth_path = convert_and_save_results(
@@ -339,7 +333,7 @@ def main(
     # Logging
     # wandb.set_model_graph(str(generator))
     num_parameters = count_parameters(model)
-    LOGGER.info("Number of trainable parameters: {}", num_parameters)
+    print(f"Number of trainable parameters: {num_parameters}")
 
     # best_loss = float("inf")
     best_acc = 0.0
@@ -367,18 +361,20 @@ def main(
             prepare = (
                 f"{k}: {v:.5g}" if isinstance(v, float) else f"{k}: {v}" for k, v in val_log.items()
             )
-            LOGGER.info(
-                "[VAL] Epoch {:04d} | {} | " "No improvement during validation: {:02d}",
-                epoch,
-                " | ".join(prepare),
-                n_vals_without_improvement,
+            print(
+                "[VAL] Epoch {:04d} | {} | "
+                "No improvement during validation: {:02d}".format(
+                    epoch,
+                    " | ".join(prepare),
+                    n_vals_without_improvement,
+                )
             )
             wandb_log(ARGS, val_log, step=itr)
         # if ARGS.super_val and epoch % super_val_freq == 0:
         #     log_metrics(ARGS, model=model.bundle, data=datasets, step=itr)
         #     save_model(args, save_dir, model=model.bundle, epoch=epoch, sha=sha)
 
-    LOGGER.info("Training has finished.")
+    print("Training has finished.")
     # path = save_model(args, save_dir, model=model, epoch=epoch, sha=sha)
     # model, _ = restore_model(args, path, model=model)
     _, test_metrics, _ = validate(model, val_loader)
@@ -444,15 +440,14 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
 
     time_for_epoch = time.time() - start_epoch_time
     assert loss_meters is not None
-    log_string = " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items())
-    LOGGER.info(
-        "[TRN] Epoch {:04d} | Duration: {} | Batches/s: {:.4g} | {} ({:.5g})",
+    to_log = "[TRN] Epoch {:04d} | Duration: {} | Batches/s: {:.4g} | {} ({:.5g})".format(
         epoch,
         readable_duration(time_for_epoch),
         1 / time_meter.avg,
-        log_string,
+        " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items()),
         total_loss_meter.avg,
     )
+    print(to_log)
     return itr
 
 

@@ -1,4 +1,4 @@
-import logging
+"""Utility functions."""
 import os
 import random
 from typing import Any, Dict, Iterable, Iterator, Optional, Sequence, Tuple, TypeVar
@@ -12,8 +12,6 @@ from typing_extensions import Literal, Protocol
 
 from shared.configs import BaseArgs
 
-LOGGER = None
-
 __all__ = [
     "AverageMeter",
     "ModelFn",
@@ -21,7 +19,6 @@ __all__ = [
     "class_id_to_label",
     "count_parameters",
     "get_data_dim",
-    "get_logger",
     "inf_generator",
     "label_to_class_id",
     "prod",
@@ -67,46 +64,6 @@ def wandb_log(
     """Wrapper around wandb's log function"""
     if args.use_wandb:
         wandb.log(row, commit=commit, step=step)
-
-
-class BraceString(str):
-    def __mod__(self, other):
-        return self.format(*other)
-
-    def __str__(self):
-        return self
-
-
-class StyleAdapter(logging.LoggerAdapter):
-    def __init__(self, logger, extra=None):
-        super(StyleAdapter, self).__init__(logger, extra)
-
-    def process(self, msg, kwargs):
-        # if kwargs.pop('style', "%") == "{":  # optional
-        msg = BraceString(msg)
-        return msg, kwargs
-
-
-def get_logger(logpath, filepath, package_files=None, displaying=True, saving=True, debug=False):
-    global LOGGER
-    if LOGGER is not None:
-        return LOGGER
-    package_files = package_files or []
-
-    logger = logging.getLogger()
-    level = logging.DEBUG if debug else logging.INFO
-    logger.setLevel(level)
-    if saving:
-        info_file_handler = logging.FileHandler(logpath, mode="a")
-        info_file_handler.setLevel(level)
-        logger.addHandler(info_file_handler)
-    if displaying:
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(level)
-        logger.addHandler(console_handler)
-    logger.info(filepath)
-    LOGGER = StyleAdapter(logger)
-    return LOGGER
 
 
 class AverageMeter:
