@@ -25,6 +25,7 @@ class AutoEncoder(Encoder):
         encoder: nn.Sequential,
         decoder: nn.Sequential,
         recon_loss_fn: Callable[[Tensor, Tensor], Tensor],
+        kl_weight: float,
         feature_group_slices: Optional[Dict[str, List[slice]]] = None,
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
@@ -34,6 +35,7 @@ class AutoEncoder(Encoder):
         self.decoder: ModelBase = ModelBase(decoder, optimizer_kwargs=optimizer_kwargs)
         self.recon_loss_fn = recon_loss_fn
         self.feature_group_slices = feature_group_slices
+        self.prior_weight = kl_weight
 
     def encode(self, x: Tensor, stochastic: bool = False) -> Tensor:
         del stochastic
@@ -77,12 +79,9 @@ class AutoEncoder(Encoder):
         self.train()
 
         step = 0
-        use_wandb_ = use_wandb
-
-        class _Namespace:
-            use_wandb: bool = use_wandb_
-
-        args = _Namespace()
+        logging_dict = {}
+        # enc_sched = torch.optim.lr_scheduler.StepLR(self.encoder.optimizer, step_size=9, gamma=.3)
+        # dec_sched = torch.optim.lr_scheduler.StepLR(self.decoder.optimizer, step_size=9, gamma=.3)
         with tqdm(total=epochs * len(train_data)) as pbar:
             for _ in range(epochs):
 
@@ -91,23 +90,32 @@ class AutoEncoder(Encoder):
                     x = x.to(device)
 
                     self.zero_grad()
-                    _, loss, _ = self.routine(x)
+                    _, loss, logging_dict = self.routine(x)
 
                     loss.backward()
                     self.step()
 
-                    enc_loss = loss.detach().cpu().numpy()
+                    enc_loss: float = loss.item()
                     pbar.update()
                     pbar.set_postfix(AE_loss=enc_loss)
-                    step += 1
-                    wandb_log(args, {"enc_loss": enc_loss}, step)
+                    if use_wandb:
+                        step += 1
+                        logging_dict.update({"Total Loss": enc_loss})
+                        wandb_log(True, logging_dict, step)
+                # enc_sched.step()
+                # dec_sched.step()
+        print("Final result from encoder training:")
+        print("\n".join(f"Enc {key}: {value:.5g}" for key, value in logging_dict.items()))
 
     def routine(self, x: Tensor) -> Tuple[Tensor, Tensor, Dict[str, float]]:
         encoding = self.encode(x)
         recon_all = self.decode(encoding)
         recon_loss = self.recon_loss_fn(recon_all, x)
         recon_loss /= x.nelement()
-        return encoding, recon_loss, {"Loss reconstruction": recon_loss.item()}
+        prior_loss = self.prior_weight * encoding.norm(dim=1).mean()
+        loss = recon_loss + prior_loss
+        logging_dict = {"Loss reconstruction": recon_loss.item(), "Prior Loss": prior_loss.item()}
+        return encoding, loss, logging_dict
 
     def freeze_initial_layers(self, num_layers: int, optimizer_kwargs: Dict[str, Any]) -> None:
         self.encoder.freeze_initial_layers(num_layers=num_layers, optimizer_kwargs=optimizer_kwargs)
@@ -130,6 +138,7 @@ class VAE(AutoEncoder):
             encoder=encoder,
             decoder=decoder,
             recon_loss_fn=recon_loss_fn,
+            kl_weight=kl_weight,
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_kwargs,
         )
