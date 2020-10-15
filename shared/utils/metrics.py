@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Mapping, Optional, Tuple
+from typing import Dict, Mapping, Optional, Tuple, Union
 
 import ethicml as em
 import wandb
@@ -7,7 +7,7 @@ import wandb
 from ..configs.arguments import BaseArgs
 from .utils import wandb_log
 
-__all__ = ["compute_metrics", "make_tuple_from_data"]
+__all__ = ["compute_metrics", "make_tuple_from_data", "print_metrics"]
 
 
 def make_tuple_from_data(
@@ -64,9 +64,6 @@ def compute_metrics(
 
     if use_wandb:
         wandb_log(args, {f"{k} ({model_name})": v for k, v in metrics.items()}, step=step)
-    print(f"Results for {exp_name} ({model_name}):\n---")
-    print("\n".join(f"{key}: {value:.5g}" for key, value in metrics.items()))
-    print("---\n")
 
     if save_to_csv is not None and results_csv:
         assert isinstance(save_to_csv, Path)
@@ -89,13 +86,13 @@ def compute_metrics(
 
         cluster_test_metrics = getattr(args, "_cluster_test_metrics", None)
         if cluster_test_metrics is not None:
-            manual_entries.update(
-                {f"Clust Test {k}": str(v) for k, v in cluster_test_metrics.items()}
+            metrics.update(
+                {f"Clust Test {k}": v for k, v in cluster_test_metrics.items()}
             )
         cluster_context_metrics = getattr(args, "_cluster_context_metrics", None)
         if cluster_context_metrics is not None:
-            manual_entries.update(
-                {f"Clust Context {k}": str(v) for k, v in cluster_context_metrics.items()}
+            metrics.update(
+                {f"Clust Context {k}": v for k, v in cluster_context_metrics.items()}
             )
 
         results_path = save_to_csv / f"{args.dataset}_{results_csv}"
@@ -113,4 +110,14 @@ def compute_metrics(
             for metric_name, value in metrics.items():
                 wandb.run.summary[f"{model_name}_{metric_name}"] = value
 
+    print(f"Results for {exp_name} ({model_name}):")
+    print_metrics(metrics)
+    print()  # empty line
     return metrics
+
+
+def print_metrics(metrics: Mapping[str, Union[int, float, str]]) -> None:
+    """Print metrics in such a way that they are picked up by guildai."""
+    print("---")
+    print("\n".join(f"{key.replace(' ', '_').lower()}: {value:.5g}" for key, value in metrics.items()))
+    print("---")

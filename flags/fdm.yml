@@ -1,0 +1,41 @@
+- config: d_fallen_sun
+  flags:
+    d-batch-size: 256
+    d-batch-wise-hidden: "256 256"
+    d-batch-wise-loss: "attention"
+    d-disc-hidden-dims: "256 256"
+    d-disc-lr: 0.0003
+    d-disc-reset-prob: 0.0003
+    d-disc-weight: 0.1
+    d-early-stopping: 30
+    d-elbo-weight: 100.0
+    d-encode-batch-size: 1000
+    d-eval-epochs: 60
+    d-eval-lr: 0.001
+    d-eval-on-recon: "False"
+    d-evaluate: "False"
+    d-feat-attr: "False"
+    d-gamma: 1.0
+    d-iters: 5000
+    d-kl-weight: 0.01
+    d-log-freq: 150
+    d-lr: 0.0003
+    d-nll-weight: 0.01
+    d-num-disc-updates: 1
+    d-num-discs: 10
+    d-num-workers: 4
+    d-oversample: "True"
+    d-pred-s-weight: 1.0
+    d-pred-y-weight: 1.0
+    d-recon-detach: "True"
+    d-recon-stability-weight: 0
+    d-validate: "True"
+    d-val-freq: 450
+    d-train-on-recon: "False"
+    d-use-inn: "False"
+    d-use-pretrained-enc: "False"
+    d-vae: "False"
+    d-vgg-weight: 0
+    d-warmup-steps: 0
+    d-weight-decay: 0
+    d-zs-frac: 0.01

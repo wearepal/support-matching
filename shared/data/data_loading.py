@@ -1,5 +1,5 @@
 import platform
-from typing import Dict, NamedTuple, Tuple, Optional
+from typing import Dict, NamedTuple, Optional, Tuple
 
 import ethicml as em
 import ethicml.vision as emvi

@@ -1,3 +1,4 @@
+import shlex
 from argparse import Action
 from typing import Any, Dict, List, get_type_hints
 
@@ -6,7 +7,7 @@ from ethicml.data.tabular_data.adult import AdultSplits
 from tap import Tap
 from typing_extensions import Literal
 
-__all__ = ["BaseArgs", "StoreDictKeyPair"]
+__all__ = ["BaseArgs", "ParseList", "StoreDictKeyPair"]
 
 
 class StoreDictKeyPair(Action):
@@ -21,10 +22,28 @@ class StoreDictKeyPair(Action):
 
     def __call__(self, parser: Any, namespace: Any, values: Any, option_string: Any = None) -> None:
         my_dict = {}
+        if isinstance(values, list) and len(values) == 1:
+            values = shlex.split(values[0])
         for key_value in values:
             key, value = key_value.split("=")
             my_dict[self._key_type(key.strip())] = self._value_type(value.strip())
         setattr(namespace, self.dest, my_dict)
+
+
+class ParseList(Action):
+    """Action for parsing dictionaries on the commandline."""
+
+    def __init__(self, option_strings: Any, value_type: type, *args: Any, **kwargs: Any):
+        self._value_type = value_type
+        super().__init__(option_strings, *args, **kwargs)
+
+    def __call__(self, parser: Any, namespace: Any, values: Any, option_string: Any = None) -> None:
+        my_list = []
+        if isinstance(values, list) and len(values) == 1:
+            values = shlex.split(values[0])
+        for value in values:
+            my_list.append(self._value_type(value.strip()))
+        setattr(namespace, self.dest, my_list)
 
 
 class BaseArgs(Tap):
@@ -68,7 +87,7 @@ class BaseArgs(Tap):
     # 0: y=0/s=0, 1: y=0/s=1, 2: y=1/s=0, 3: y=1/s=1
     subsample_context: Dict[int, float] = {}
     subsample_train: Dict[int, float] = {}
-    input_noise: bool = True  # add uniform noise to the input
+    input_noise: bool = False  # add uniform noise to the input
     filter_labels: List[int] = []
     colors: List[int] = []
 
@@ -92,6 +111,8 @@ class BaseArgs(Tap):
 
     def add_arguments(self) -> None:
         super().add_arguments()
+        self.add_argument("--filter-labels", action=ParseList, nargs="*", type=str, value_type=int)
+        self.add_argument("--colors", action=ParseList, nargs="*", type=str, value_type=int)
         self.add_argument(
             "--subsample-context",
             action=StoreDictKeyPair,
@@ -128,7 +149,7 @@ class BaseArgs(Tap):
             key = key.strip()
             return [f"{key}={value}"]
         if not value:  # no associated value
-            values = []
+            values: List[str] = []
         elif value[0] == '"' and value[-1] == '"':  # if wrapped in quotes, don't split further
             values = [value[1:-1]]
         else:

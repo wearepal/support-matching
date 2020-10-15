@@ -1,0 +1,134 @@
+- include:  # import flag definitions
+  - flags/clustering.yml
+  - flags/data_spec.yml
+  - flags/encoder.yml
+  - flags/fdm.yml
+
+- config: model_base
+  operations:
+    train:
+      description: "Train the model."
+      exec: "python .guild/sourcecode/{{entry-point}} ${flag_args}"
+      flags-dest: args  # pass flags as commandline arguments
+      flags-import: all  # or `false`
+      label: 'save_dir=${save-dir}/ seed=${data-split-seed}'
+      env:
+        STARTED_BY_GUILDAI: "1"  # signal to the code that it's running within guildai
+      env-secrets:  # don't include this in the logging; it's not interesting
+        - STARTED_BY_GUILDAI
+      # `sourcecode` determines which files are copied into the run dir
+      # to test whether your regex's work use the --test-sourcecode flag
+      sourcecode:  # which files to copy
+        - exclude: {dir: analysis}
+        - exclude: {dir: experiments}
+        - exclude: {dir: flags}
+        - exclude: {dir: results}
+        - exclude: {dir: scripts}
+        - exclude: {dir: tests}
+        - exclude: {dir: wandb}
+        - exclude: '.*'
+        # I don't know why this is needed, but it is:
+        - include: 'shared/configs/*'
+        - include: 'shared/data/*'
+        - include: 'shared/layers/*'
+        - include: 'shared/models/*'
+        - include: 'shared/utils/*'
+
+- model: autoencoder
+  description: "Only the autoencoder from the clustering"
+  extends: model_base  # inherit from model_base
+  params:
+    entry-point: run_clust.py
+  operations:
+    train:
+      flags:
+        $include:  # import flag configs
+          - a_cmnist_2dig_mildly_subsampled
+          - c_vague_spaceship_improved
+          - e_mnist
+        # flags specific to the clustering autoencoder
+        c-enc-wandb: "True"
+
+- model: only_clust
+  description: "Clustering model"
+  extends: model_base
+  params:
+    entry-point: run_clust.py
+  operations:
+    train:
+      flags:
+        $include:
+          - a_cmnist_2dig_mildly_subsampled
+          - c_vague_spaceship_improved
+          - e_mnist
+
+- model: ranking
+  description: "Cluster with rank statistics and then disentangle."
+  extends: model_base
+  params:
+    entry-point: run_both.py
+  operations:
+    train:
+      flags:
+        $include:
+          - a_cmnist_2dig_mildly_subsampled
+          - e_mnist
+          - c_vague_spaceship_improved
+          - d_fallen_sun
+        c-method: "pl_enc_no_norm"
+        c-pseudo-labeler: "ranking"
+
+- model: no_cluster
+  description: "Disentangling without clustering"
+  extends: model_base
+  params:
+    entry-point: run_dis.py
+  operations:
+    train:
+      flags:
+        $include:
+          - a_cmnist_2dig_mildly_subsampled
+          - e_mnist
+          - d_fallen_sun
+        d-balanced-context: "False"
+
+- model: perfect_cluster
+  description: "Disentangling groundtruth labels as clusters"
+  extends: model_base
+  params:
+    entry-point: run_dis.py
+  operations:
+    train:
+      flags:
+        $include:
+          - a_cmnist_2dig_mildly_subsampled
+          - e_mnist
+          - d_fallen_sun
+        d-balanced-context: "True"
+
+- model: dro_baseline
+  description: "Distributionally-robust optimization baseline"
+  extends: model_base
+  params:
+    entry-point: run_simple_baselines.py
+  operations:
+    train:
+      flags:
+        $include:
+          - a_cmnist_2dig_mildly_subsampled
+        b-method: dro
+        b-eta:  # guildai will automatically run them all
+          - 0.01
+          - 0.1
+          - 0.5
+          - 1.0
+
+- model: test
+  description: "Model for testing purposes"
+  extends: model_base
+  params:
+    entry-point: test_guildai.py
+  operations:
+    train:
+      flags:
+        hi: "ho"
