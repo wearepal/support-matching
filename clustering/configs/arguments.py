@@ -3,7 +3,7 @@ from typing import List, Optional
 import torch
 from typing_extensions import Literal
 
-from shared.configs import BaseArgs
+from shared.configs import BaseArgs, ParseList
 
 __all__ = ["ClusterArgs"]
 
@@ -85,6 +85,13 @@ class ClusterArgs(BaseArgs):
     labeler_hidden_dims: List[int] = [100, 100]
     labeler_epochs: int = 100
     labeler_wandb: bool = False
+
+    def add_arguments(self) -> None:
+        super().add_arguments()
+        self.add_argument("--cl-hidden-dims", action=ParseList, nargs="*", type=str, value_type=int)
+        self.add_argument(
+            "--labeler-hidden-dims", action=ParseList, nargs="*", type=str, value_type=int
+        )
 
     def convert_arg_line_to_args(self, arg_line: str) -> List[str]:
         """Parse each line like a YAML file."""

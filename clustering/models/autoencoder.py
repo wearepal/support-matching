@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from typing_extensions import Literal
 
-from shared.utils import to_discrete, wandb_log
+from shared.utils import to_discrete, print_metrics, wandb_log
 
 from .base import Encoder, ModelBase
 
@@ -105,7 +105,7 @@ class AutoEncoder(Encoder):
                 # enc_sched.step()
                 # dec_sched.step()
         print("Final result from encoder training:")
-        print("\n".join(f"Enc {key}: {value:.5g}" for key, value in logging_dict.items()))
+        print_metrics({f"Enc {k}": v for k, v in logging_dict.items()})
 
     def routine(self, x: Tensor) -> Tuple[Tensor, Tensor, Dict[str, float]]:
         encoding = self.encode(x)

@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 import torch
 from typing_extensions import Literal
 
-from shared.configs import BaseArgs, StoreDictKeyPair
+from shared.configs import BaseArgs, ParseList, StoreDictKeyPair
 
 __all__ = ["FdmArgs"]
 
@@ -86,8 +86,8 @@ class FdmArgs(BaseArgs):
     # Discriminator settings
     disc_method: Literal["nn", "mmd"] = "nn"
     mmd_kernel: Literal["linear", "rbf", "rq"] = "rq"
-    mmd_scales: List[float] = None
-    mmd_wts: List[float] = None
+    mmd_scales: List[float] = []
+    mmd_wts: List[float] = []
     mmd_add_dot: float = 0.0
 
     disc_hidden_dims: List[int] = [256]
@@ -120,6 +120,14 @@ class FdmArgs(BaseArgs):
             type=str,
             key_type=str,
             value_type=int,
+        )
+        self.add_argument("--mmd-scales", action=ParseList, nargs="*", type=str, value_type=float)
+        self.add_argument("--mmd-wts", action=ParseList, nargs="*", type=str, value_type=float)
+        self.add_argument(
+            "--disc-hidden-dims", action=ParseList, nargs="*", type=str, value_type=int
+        )
+        self.add_argument(
+            "--batch-wise-hidden-dims", action=ParseList, nargs="*", type=str, value_type=int
         )
 
     def process_args(self) -> None:

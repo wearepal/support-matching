@@ -1,4 +1,5 @@
 """Main training file"""
+import os
 import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
@@ -38,6 +39,7 @@ from shared.utils import (
     confirm_empty,
     count_parameters,
     get_data_dim,
+    print_metrics,
     prod,
     random_seed,
     readable_duration,
@@ -75,13 +77,17 @@ def main(
     Returns:
         the trained generator
     """
-    repo = git.Repo(search_parent_directories=True)
-    sha = repo.head.object.hexsha
-
-    # args
+    # ==== parse args ====
     args = ClusterArgs(fromfile_prefix_chars="@", explicit_bool=True, underscores_to_dashes=True)
     args.parse_args(accept_prefixes(("--a-", "--c-", "--e-")), known_only=True)
     confirm_empty(args.extra_args, to_ignore=("--b-", "--d-"))
+
+    # ==== current git commit ====
+    if os.environ.get("STARTED_BY_GUILDAI", None) == "1":
+        sha = ""
+    else:
+        repo = git.Repo(search_parent_directories=True)
+        sha = repo.head.object.hexsha
 
     use_gpu = torch.cuda.is_available() and args.gpu >= 0
     random_seed(args.seed, use_gpu)
@@ -223,7 +229,7 @@ def main(
         args_encoder = {"encoder_type": args.encoder, "levels": args.enc_levels}
         enc_path = save_dir.resolve() / "encoder"
         torch.save({"encoder": encoder.state_dict(), "args": args_encoder}, enc_path)
-        print("To make use of this encoder:\n--enc-path {enc_path}")
+        print(f"To make use of this encoder:\n--enc-path {enc_path}")
         if ARGS.enc_wandb:
             print("Stopping here because W&B will be messed up...")
             return
@@ -379,8 +385,10 @@ def main(
     # model, _ = restore_model(args, path, model=model)
     _, test_metrics, _ = validate(model, val_loader)
     _, context_metrics, _ = validate(model, context_loader)
-    print("test metrics", test_metrics)
-    print("context metrics", context_metrics)
+    print("Test metrics:")
+    print_metrics({f"Test {k}": v for k, v in test_metrics.items()})
+    print("Context metrics:")
+    print_metrics({f"Context {k}": v for k, v in context_metrics.items()})
     pth_path = convert_and_save_results(
         ARGS,
         cluster_label_path=cluster_label_path,
