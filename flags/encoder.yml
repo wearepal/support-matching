@@ -1,0 +1,6 @@
+- config: e_mnist
+  flags:
+    e-enc-out-dim: 128
+    e-enc-levels: 4
+    e-enc-init-chans: 16
+    e-recon-loss: "l2"
