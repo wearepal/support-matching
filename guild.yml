@@ -78,6 +78,21 @@
         c-method: "pl_enc_no_norm"
         c-pseudo-labeler: "ranking"
 
+- model: kmeans
+  description: "Cluster with rank statistics and then disentangle."
+  extends: model_base
+  params:
+    entry-point: run_both.py
+  operations:
+    train:
+      flags:
+        $include:
+          - a_cmnist_2dig_mildly_subsampled
+          - e_mnist
+          - c_vague_spaceship_improved
+          - d_fallen_sun
+        c-method: "kmeans"
+
 - model: no_cluster
   description: "Disentangling without clustering"
   extends: model_base
