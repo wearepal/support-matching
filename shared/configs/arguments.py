@@ -111,6 +111,7 @@ class BaseArgs(Tap):
 
     def add_arguments(self) -> None:
         super().add_arguments()
+        self.add_argument("--missing-s", action=ParseList, nargs="*", type=str, value_type=int)
         self.add_argument("--filter-labels", action=ParseList, nargs="*", type=str, value_type=int)
         self.add_argument("--colors", action=ParseList, nargs="*", type=str, value_type=int)
         self.add_argument(

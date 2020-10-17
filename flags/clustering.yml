@@ -1,7 +1,7 @@
 - config: c_vague_spaceship
   flags:
     c-batch-size: 256
-    c-cl-hidden_dims:
+    c-cl-hidden-dims: 256
     c-enc-epochs: 90
     c-encoder: "ae"
     c-epochs: 100
@@ -14,7 +14,7 @@
 - config: c_vague_spaceship_improved
   flags:
     c-batch-size: 256
-    c-cl-hidden_dims:
+    c-cl-hidden-dims: 256
     c-enc-epochs: 150
     c-enc-lr: 3.e-4
     c-encoder: "ae"

@@ -28,11 +28,13 @@
         - exclude: {dir: wandb}
         - exclude: '.*'
         # I don't know why this is needed, but it is:
+        - include: 'shared/*'
         - include: 'shared/configs/*'
         - include: 'shared/data/*'
         - include: 'shared/layers/*'
         - include: 'shared/models/*'
         - include: 'shared/utils/*'
+        - include: 'kornia/*'
 
 - model: autoencoder
   description: "Only the autoencoder from the clustering"

@@ -11,7 +11,7 @@
     a-filter-labels: "2 4"
     a-greyscale: "False"
     a-input-noise: "False"
-    a-missing-s:
+    a-missing-s: ""
     a-padding: 2
     a-quant-level: "8"
     a-rotate-data: "False"
@@ -34,7 +34,7 @@
     a-filter-labels: 2 4
     a-greyscale: "False"
     a-input-noise: "False"
-    a-missing-s:
+    a-missing-s: ""
     a-padding: 2
     a-quant-level: "8"
     a-rotate-data: "False"
