@@ -86,14 +86,10 @@ def compute_metrics(
 
         cluster_test_metrics = getattr(args, "_cluster_test_metrics", None)
         if cluster_test_metrics is not None:
-            metrics.update(
-                {f"Clust Test {k}": v for k, v in cluster_test_metrics.items()}
-            )
+            metrics.update({f"Clust Test {k}": v for k, v in cluster_test_metrics.items()})
         cluster_context_metrics = getattr(args, "_cluster_context_metrics", None)
         if cluster_context_metrics is not None:
-            metrics.update(
-                {f"Clust Context {k}": v for k, v in cluster_context_metrics.items()}
-            )
+            metrics.update({f"Clust Context {k}": v for k, v in cluster_context_metrics.items()})
 
         results_path = save_to_csv / f"{args.dataset}_{results_csv}"
         value_list = ",".join(list(manual_entries.values()) + [str(v) for v in metrics.values()])
@@ -119,5 +115,7 @@ def compute_metrics(
 def print_metrics(metrics: Mapping[str, Union[int, float, str]]) -> None:
     """Print metrics in such a way that they are picked up by guildai."""
     print("---")
-    print("\n".join(f"{key.replace(' ', '_').lower()}: {value:.5g}" for key, value in metrics.items()))
+    print(
+        "\n".join(f"{key.replace(' ', '_').lower()}: {value:.5g}" for key, value in metrics.items())
+    )
     print("---")

@@ -12,10 +12,10 @@ from torch.utils.data import DataLoader, Dataset
 
 from clustering.configs import ClusterArgs
 from clustering.models import Encoder
-from shared.utils import ClusterResults, wandb_log
+from shared.utils import ClusterResults, print_metrics, wandb_log
 
 from .evaluation import encode_dataset
-from .utils import cluster_metrics, count_occurances, find_assignment, get_class_id
+from .utils import cluster_metrics, count_occurances, get_class_id
 
 # from tqdm import tqdm
 
@@ -44,7 +44,7 @@ def train(
     # preds, _ = run_kmeans_torch(encoded, num_clusters, device=args._device, n_iter=args.epochs, verbose=True)
     counts = np.zeros((num_clusters, num_clusters), dtype=np.int64)
     counts, class_ids = count_occurances(counts, cluster_ids, s, y, s_count, args.cluster)
-    _, metrics, logging_dict = cluster_metrics(
+    _, context_metrics, logging_dict = cluster_metrics(
         cluster_ids=cluster_ids,
         counts=counts,
         true_class_ids=class_ids.numpy(),
@@ -57,12 +57,14 @@ def train(
     )
     print(" | ".join(prepared))
     wandb_log(args, logging_dict, step=0)
+    print("Context metrics:")
+    print_metrics({f"Context {k}": v for k, v in context_metrics.items()})
     return ClusterResults(
         flags=args.as_dict(),
         cluster_ids=preds,
         class_ids=get_class_id(s=s, y=y, s_count=s_count, to_cluster=args.cluster),
         enc_path=enc_path,
-        context_metrics=metrics,
+        context_metrics=context_metrics,
     )
 
 

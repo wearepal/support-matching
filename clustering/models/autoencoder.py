@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from typing_extensions import Literal
 
-from shared.utils import to_discrete, print_metrics, wandb_log
+from shared.utils import print_metrics, to_discrete, wandb_log
 
 from .base import Encoder, ModelBase
 
