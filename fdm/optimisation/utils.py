@@ -9,7 +9,6 @@ from shared.utils import class_id_to_label
 
 __all__ = [
     "get_all_num_samples",
-    "log_images",
     "restore_model",
     "save_model",
     "weight_for_balance",

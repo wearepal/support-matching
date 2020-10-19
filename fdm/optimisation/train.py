@@ -88,7 +88,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_logging: bool = T
 
     if ARGS.logging:
         if initialize_logging:
-            neptune.init("tmk/fdm")
+            neptune.init("pal/fdm")
             neptune.create_experiment(params=args.as_dict())
         else:
             neptune.create_experiment(params=args.as_dict())

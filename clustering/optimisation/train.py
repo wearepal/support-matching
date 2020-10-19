@@ -100,7 +100,7 @@ def main(
     if logging is not None:
         ARGS.logging = logging
     if ARGS.logging:
-        neptune.init("tmk/fcm")
+        neptune.init("pal/fcm")
         neptune.create_experiment(params=args.as_dict(), run_monitoring_thread=False)
 
     save_dir = Path(ARGS.save_dir) / str(time.time())
