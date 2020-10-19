@@ -7,8 +7,7 @@ from tqdm import tqdm
 
 from clustering.configs import ClusterArgs
 from clustering.models import Encoder, Model
-
-from .utils import log_images
+from shared.utils import log_images
 
 __all__ = ["classify_dataset", "encode_dataset"]
 

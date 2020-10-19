@@ -16,6 +16,7 @@ setup(
         'dataclasses;python_version<"3.7"',
         "gitpython",
         "lapjv",
+        "neptune",
         "numpy >= 1.15",
         "pandas >= 0.24",
         "pillow",
@@ -29,7 +30,6 @@ setup(
         "typed-argument-parser == 1.4",
         # "typed-flags",
         "typer",
-        "wandb >= 0.10.2",
     ],
 )
 

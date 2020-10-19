@@ -5,9 +5,9 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
 import git
+import neptune
 import numpy as np
 import torch
-import wandb
 from torch import Tensor
 from torch.utils.data import ConcatDataset, DataLoader
 from torchvision.models import resnet18, resnet50
@@ -39,12 +39,12 @@ from shared.utils import (
     confirm_empty,
     count_parameters,
     get_data_dim,
+    log_metrics,
     print_metrics,
     prod,
     random_seed,
     readable_duration,
     save_results,
-    wandb_log,
 )
 
 from .build import build_ae
@@ -66,13 +66,13 @@ ARGS: ClusterArgs = None  # type: ignore[assignment]
 
 
 def main(
-    cluster_label_file: Optional[Path] = None, use_wandb: Optional[bool] = None
+    cluster_label_file: Optional[Path] = None, logging: Optional[bool] = None
 ) -> Tuple[Model, Path]:
     """Main function
 
     Args:
         cluster_label_file: path to a pth file with cluster IDs
-        use_wandb: this arguments overwrites the flag
+        logging: this arguments overwrites the flag
 
     Returns:
         the trained generator
@@ -97,10 +97,11 @@ def main(
     global ARGS
     ARGS = args
 
-    if use_wandb is not None:
-        ARGS.use_wandb = use_wandb
-    if ARGS.use_wandb:
-        wandb.init(entity="predictive-analytics-lab", project="fcm", config=args.as_dict())
+    if logging is not None:
+        ARGS.logging = logging
+    if ARGS.logging:
+        neptune.init("tmk/fcm")
+        neptune.create_experiment(params=args.as_dict(), run_monitoring_thread=False)
 
     save_dir = Path(ARGS.save_dir) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -220,7 +221,7 @@ def main(
             assert args.enc_levels == args_encoder["levels"]
     else:
         encoder.fit(
-            enc_train_loader, epochs=args.enc_epochs, device=args._device, use_wandb=ARGS.enc_wandb
+            enc_train_loader, epochs=args.enc_epochs, device=args._device, logging=ARGS.enc_logging
         )
         if args.encoder == "rotnet":
             assert isinstance(encoder, SelfSupervised)
@@ -230,7 +231,7 @@ def main(
         enc_path = save_dir.resolve() / "encoder"
         torch.save({"encoder": encoder.state_dict(), "args": args_encoder}, enc_path)
         print(f"To make use of this encoder:\n--enc-path {enc_path}")
-        if ARGS.enc_wandb:
+        if ARGS.enc_logging:
             print("Stopping here because W&B will be messed up...")
             return
 
@@ -301,7 +302,7 @@ def main(
             train_loader,
             epochs=ARGS.labeler_epochs,
             device=ARGS._device,
-            use_wandb=ARGS.labeler_wandb,
+            logging=ARGS.labeler_logging,
         )
         labeler.eval()
         model = MultiHeadModel(
@@ -337,7 +338,6 @@ def main(
             return model, pth_path
 
     # Logging
-    # wandb.set_model_graph(str(generator))
     num_parameters = count_parameters(model)
     print(f"Number of trainable parameters: {num_parameters}")
 
@@ -375,7 +375,7 @@ def main(
                     n_vals_without_improvement,
                 )
             )
-            wandb_log(ARGS, val_log, step=itr)
+            log_metrics(ARGS, val_log, step=itr)
         # if ARGS.super_val and epoch % super_val_freq == 0:
         #     log_metrics(ARGS, model=model.bundle, data=datasets, step=itr)
         #     save_model(args, save_dir, model=model.bundle, epoch=epoch, sha=sha)
@@ -443,7 +443,7 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
         time_for_batch = time.time() - end
         time_meter.update(time_for_batch)
 
-        wandb_log(ARGS, logging_dict, step=itr)
+        log_metrics(ARGS, logging_dict, step=itr)
         end = time.time()
 
     time_for_epoch = time.time() - start_epoch_time

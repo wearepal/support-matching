@@ -14,9 +14,7 @@ from fdm.configs import FdmArgs
 from fdm.models import AutoEncoder, Classifier
 from shared.data import DatasetTriplet, get_data_tuples
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
-from shared.utils import ModelFn, compute_metrics, make_tuple_from_data, prod
-
-from .utils import log_images
+from shared.utils import ModelFn, compute_metrics, log_images, make_tuple_from_data, prod
 
 
 def log_sample_images(args, data, name, step):
@@ -25,7 +23,7 @@ def log_sample_images(args, data, name, step):
     log_images(args, x, f"Samples from {name}", prefix="eval", step=step)
 
 
-def log_metrics(
+def log_results(
     args: FdmArgs, model, data: DatasetTriplet, step: int, save_to_csv: Optional[Path] = None
 ) -> None:
     """Compute and log a variety of metrics."""
@@ -81,7 +79,7 @@ def baseline_metrics(args: FdmArgs, data: DatasetTriplet, save_to_csv: Optional[
                 step=0,
                 save_to_csv=save_to_csv,
                 results_csv=args.results_csv,
-                use_wandb=False,
+                logging=False,
             )
 
 
@@ -164,7 +162,7 @@ def evaluate(
             step=step,
             save_to_csv=save_to_csv,
             results_csv=args.results_csv,
-            use_wandb=args.use_wandb,
+            logging=args.logging,
         )
     else:
         if not isinstance(train_data, em.DataTuple):
@@ -182,7 +180,7 @@ def evaluate(
                 step=step,
                 save_to_csv=save_to_csv,
                 results_csv=args.results_csv,
-                use_wandb=args.use_wandb,
+                logging=args.logging,
             )
 
 

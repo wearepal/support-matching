@@ -49,7 +49,7 @@
           - c_vague_spaceship_improved
           - e_mnist
         # flags specific to the clustering autoencoder
-        c-enc-wandb: "True"
+        c-enc-logging: "True"
 
 - model: only_clust
   description: "Clustering model"

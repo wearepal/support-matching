@@ -5,11 +5,11 @@ from pathlib import Path
 from typing import Callable, Dict, Iterator, NamedTuple, Optional, Sequence, Tuple, Union
 
 import git
+import neptune
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import wandb
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, Subset, WeightedRandomSampler
 from typing_extensions import Literal
@@ -31,19 +31,19 @@ from shared.utils import (
     inf_generator,
     label_to_class_id,
     load_results,
+    log_images,
+    log_metrics,
     prod,
     random_seed,
     readable_duration,
-    wandb_log,
 )
 
 from .build import build_ae, build_inn
-from .evaluation import baseline_metrics, log_metrics
+from .evaluation import baseline_metrics, log_results
 from .inn_training import InnComponents, update_disc_on_inn, update_inn
 from .loss import MixedLoss, PixelCrossEntropy, VGGLoss
 from .utils import (
     get_all_num_samples,
-    log_images,
     restore_model,
     save_model,
     weight_for_balance,
@@ -56,12 +56,12 @@ ARGS: FdmArgs = None  # type: ignore[assignment]
 Generator = Union[AutoEncoder, PartitionedAeInn]
 
 
-def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = True) -> Generator:
+def main(cluster_label_file: Optional[Path] = None, initialize_logging: bool = True) -> Generator:
     """Main function.
 
     Args:
         cluster_label_file: path to a pth file with cluster IDs
-        initialize_wandb: if False, we assume that W&B has already been initialized
+        initialize_logging: if False, we assume that W&B has already been initialized
 
     Returns:
         the trained generator
@@ -86,11 +86,12 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     global ARGS
     ARGS = args
 
-    if ARGS.use_wandb:
-        if initialize_wandb:
-            wandb.init(entity="predictive-analytics-lab", project="fdm", config=args.as_dict())
+    if ARGS.logging:
+        if initialize_logging:
+            neptune.init("tmk/fdm")
+            neptune.create_experiment(params=args.as_dict())
         else:
-            wandb.config.update(args.as_dict())
+            neptune.create_experiment(params=args.as_dict())
 
     save_dir = Path(ARGS.save_dir) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -400,7 +401,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         print("Restoring generator from checkpoint")
         generator, start_itr = restore_model(ARGS, Path(ARGS.resume), generator)
         if ARGS.evaluate:
-            log_metrics(ARGS, generator, datasets, 0, save_to_csv=Path(ARGS.save_dir))
+            log_results(ARGS, generator, datasets, 0, save_to_csv=Path(ARGS.save_dir))
             return generator
 
     # Logging
@@ -443,7 +444,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         if ARGS.validate and itr % ARGS.val_freq == 0:
             if itr == ARGS.val_freq:  # first validation
                 baseline_metrics(ARGS, datasets, save_to_csv=Path(ARGS.save_dir))
-            log_metrics(ARGS, model=generator, data=datasets, step=itr)
+            log_results(ARGS, model=generator, data=datasets, step=itr)
             save_model(ARGS, save_dir, model=generator, itr=itr, sha=sha)
 
         if ARGS.disc_reset_prob > 0:
@@ -455,7 +456,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     print("Training has finished.")
     # path = save_model(args, save_dir, model=generator, epoch=epoch, sha=sha)
     # generator, _ = restore_model(args, path, model=generator)
-    log_metrics(ARGS, model=generator, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr)
+    log_results(ARGS, model=generator, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr)
     return generator
 
 
@@ -536,7 +537,7 @@ def train_step(
         )
 
     logging_dict.update(disc_logging)
-    wandb_log(ARGS, logging_dict, step=itr)
+    log_metrics(ARGS, logging_dict, step=itr)
 
     # Log images
     if itr % ARGS.log_freq == 0:

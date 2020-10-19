@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import trange
 
 from clustering.models.base import ModelBase
-from shared.utils import wandb_log
+from shared.utils import log_metrics
 
 __all__ = ["Classifier", "Regressor"]
 
@@ -135,19 +135,13 @@ class Classifier(ModelBase):
         train_data: Union[Dataset, DataLoader],
         epochs: int,
         device: torch.device,
-        use_wandb: bool,
+        logging: bool,
         test_data: Optional[Union[Dataset, DataLoader]] = None,
         pred_s: bool = False,
         batch_size: int = 256,
         test_batch_size: int = 1000,
         lr_milestones: Optional[Dict] = None,
     ) -> None:
-        use_wandb_ = use_wandb
-
-        class _Namespace:
-            use_wandb: bool = use_wandb_
-
-        args = _Namespace()
         if not isinstance(train_data, DataLoader):
             train_data = DataLoader(
                 train_data, batch_size=batch_size, shuffle=True, pin_memory=True
@@ -179,7 +173,7 @@ class Classifier(ModelBase):
                 loss, acc = self.routine(x, target)
                 loss.backward()
                 self.optimizer.step()
-                wandb_log(args, {"loss": loss.item()}, step=step)
+                log_metrics(logging, {"loss": loss.item()}, step=step)
                 pbar.set_postfix(epoch=epoch + 1, train_loss=loss.item(), train_acc=acc)
 
             if test_data is not None:

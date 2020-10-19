@@ -2,10 +2,10 @@ from pathlib import Path
 from typing import Dict, Mapping, Optional, Tuple, Union
 
 import ethicml as em
-import wandb
+import neptune
 
 from ..configs.arguments import BaseArgs
-from .utils import wandb_log
+from .utils import log_metrics
 
 __all__ = ["compute_metrics", "make_tuple_from_data", "print_metrics"]
 
@@ -35,7 +35,7 @@ def compute_metrics(
     step: int,
     save_to_csv: Optional[Path] = None,
     results_csv: str = "",
-    use_wandb: bool = False,
+    logging: bool = False,
     additional_entries: Optional[Mapping[str, str]] = None,
 ) -> Dict[str, float]:
     """Compute accuracy and fairness metrics and log them.
@@ -62,8 +62,8 @@ def compute_metrics(
         diffs_and_ratios=args._s_dim < 4,  # this just gets too much with higher s dim
     )
 
-    if use_wandb:
-        wandb_log(args, {f"{k} ({model_name})": v for k, v in metrics.items()}, step=step)
+    if logging:
+        log_metrics(args, {f"{k} ({model_name})": v for k, v in metrics.items()}, step=step)
 
     if save_to_csv is not None and results_csv:
         assert isinstance(save_to_csv, Path)
@@ -78,7 +78,7 @@ def compute_metrics(
             "seed": str(getattr(args, "seed", args.data_split_seed)),
             "data": exp_name,
             "method": f'"{model_name}"',
-            "wandb_url": str(wandb.run.get_url()) if use_wandb and args.use_wandb else "(None)",
+            "wandb_url": str(neptune.get_experiment().id) if logging and args.logging else "(None)",
         }
 
         if additional_entries is not None:
@@ -102,9 +102,9 @@ def compute_metrics(
             with results_path.open("a") as f:  # append to existing file
                 f.write(value_list + "\n")
         print(f"Results have been written to {results_path.resolve()}")
-        if use_wandb:
+        if logging:
             for metric_name, value in metrics.items():
-                wandb.run.summary[f"{model_name}_{metric_name}"] = value
+                neptune.log_metric(f"{model_name}_{metric_name}", value)
 
     print(f"Results for {exp_name} ({model_name}):")
     print_metrics(metrics)

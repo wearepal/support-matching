@@ -3,8 +3,6 @@ from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
 import torch
-import torchvision
-import wandb
 from lapjv import lapjv  # pylint: disable=no-name-in-module
 from sklearn.metrics import adjusted_rand_score, confusion_matrix, normalized_mutual_info_score
 from torch import Tensor
@@ -12,13 +10,7 @@ from typing_extensions import Literal
 
 from clustering.configs import ClusterArgs
 from clustering.models import Model
-from shared.utils import (
-    ClusterResults,
-    class_id_to_label,
-    label_to_class_id,
-    save_results,
-    wandb_log,
-)
+from shared.utils import ClusterResults, class_id_to_label, label_to_class_id, save_results
 
 __all__ = [
     "convert_and_save_results",
@@ -26,34 +18,9 @@ __all__ = [
     "find_assignment",
     "get_class_id",
     "get_cluster_label_path",
-    "log_images",
     "restore_model",
     "save_model",
 ]
-
-
-def log_images(
-    args: ClusterArgs, image_batch, name, step, nsamples=64, nrows=8, monochrome=False, prefix=None
-):
-    """Make a grid of the given images, save them in a file and log them with W&B"""
-    prefix = "train_" if prefix is None else f"{prefix}_"
-    images = image_batch[:nsamples]
-
-    if args.recon_loss == "ce":
-        images = images.argmax(dim=1).float() / 255
-    else:
-        if args.dataset in ("celeba", "ssrp", "genfaces"):
-            images = 0.5 * images + 0.5
-
-    if monochrome:
-        images = images.mean(dim=1, keepdim=True)
-    # torchvision.utils.save_image(images, f'./experiments/finn/{prefix}{name}.png', nrow=nrows)
-    shw = torchvision.utils.make_grid(images, nrow=nrows).clamp(0, 1).cpu()
-    wandb_log(
-        args,
-        {prefix + name: [wandb.Image(torchvision.transforms.functional.to_pil_image(shw))]},
-        step=step,
-    )
 
 
 def save_model(

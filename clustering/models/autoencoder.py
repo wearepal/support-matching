@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from typing_extensions import Literal
 
-from shared.utils import print_metrics, to_discrete, wandb_log
+from shared.utils import log_metrics, print_metrics, to_discrete
 
 from .base import Encoder, ModelBase
 
@@ -73,9 +73,7 @@ class AutoEncoder(Encoder):
         self.encoder.step(grads)
         self.decoder.step(grads)
 
-    def fit(
-        self, train_data: DataLoader, epochs: int, device: torch.device, use_wandb: bool
-    ) -> None:
+    def fit(self, train_data: DataLoader, epochs: int, device: torch.device, logging: bool) -> None:
         self.train()
 
         step = 0
@@ -98,10 +96,10 @@ class AutoEncoder(Encoder):
                     enc_loss: float = loss.item()
                     pbar.update()
                     pbar.set_postfix(AE_loss=enc_loss)
-                    if use_wandb:
+                    if logging:
                         step += 1
                         logging_dict.update({"Total Loss": enc_loss})
-                        wandb_log(True, logging_dict, step)
+                        log_metrics(True, logging_dict, step)
                 # enc_sched.step()
                 # dec_sched.step()
         print("Final result from encoder training:")

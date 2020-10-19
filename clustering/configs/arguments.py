@@ -52,7 +52,7 @@ class ClusterArgs(BaseArgs):
     enc_epochs: int = 100
     enc_lr: float = 1e-3
     enc_wd: float = 0
-    enc_wandb: bool = False
+    enc_logging: bool = False
     finetune_encoder: bool = False
     finetune_lr: float = 1e-6
     finetune_wd: float = 0
@@ -84,7 +84,7 @@ class ClusterArgs(BaseArgs):
     labeler_wd: float = 0
     labeler_hidden_dims: List[int] = [100, 100]
     labeler_epochs: int = 100
-    labeler_wandb: bool = False
+    labeler_logging: bool = False
 
     def add_arguments(self) -> None:
         super().add_arguments()

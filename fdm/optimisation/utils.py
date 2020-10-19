@@ -2,12 +2,10 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import torch
-import torchvision
-import wandb
 from torch import Tensor, nn
 
 from fdm.configs import FdmArgs
-from shared.utils import class_id_to_label, wandb_log
+from shared.utils import class_id_to_label
 
 __all__ = [
     "get_all_num_samples",
@@ -17,30 +15,6 @@ __all__ = [
     "weight_for_balance",
     "weights_with_counts",
 ]
-
-
-def log_images(
-    args: FdmArgs, image_batch, name, step, nsamples=64, nrows=8, monochrome=False, prefix=None
-):
-    """Make a grid of the given images, save them in a file and log them with W&B"""
-    prefix = "train_" if prefix is None else f"{prefix}_"
-    images = image_batch[:nsamples]
-
-    if args.recon_loss == "ce":
-        images = images.argmax(dim=1).float() / 255
-    else:
-        if args.dataset in ("celeba", "ssrp", "genfaces"):
-            images = 0.5 * images + 0.5
-
-    if monochrome:
-        images = images.mean(dim=1, keepdim=True)
-    # torchvision.utils.save_image(images, f'./experiments/finn/{prefix}{name}.png', nrow=nrows)
-    shw = torchvision.utils.make_grid(images, nrow=nrows).clamp(0, 1).cpu()
-    wandb_log(
-        args,
-        {prefix + name: [wandb.Image(torchvision.transforms.functional.to_pil_image(shw))]},
-        step=step,
-    )
 
 
 def save_model(

@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from clustering.configs import ClusterArgs
 from clustering.models import Encoder
-from shared.utils import ClusterResults, print_metrics, wandb_log
+from shared.utils import ClusterResults, log_metrics, print_metrics
 
 from .evaluation import encode_dataset
 from .utils import cluster_metrics, count_occurances, get_class_id
@@ -56,7 +56,7 @@ def train(
         f"{k}: {v:.5g}" if isinstance(v, float) else f"{k}: {v}" for k, v in logging_dict.items()
     )
     print(" | ".join(prepared))
-    wandb_log(args, logging_dict, step=0)
+    log_metrics(args, logging_dict, step=0)
     print("Context metrics:")
     print_metrics({f"Context {k}": v for k, v in context_metrics.items()})
     return ClusterResults(

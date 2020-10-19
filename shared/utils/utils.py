@@ -1,11 +1,12 @@
 """Utility functions."""
 import os
 import random
-from typing import Any, Dict, Iterable, Iterator, Optional, Sequence, Tuple, TypeVar, Union
+from typing import Any, Dict, Iterable, Iterator, Sequence, Tuple, TypeVar, Union
 
+import neptune
 import numpy as np
 import torch
-import wandb
+import torchvision
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from typing_extensions import Literal, Protocol
@@ -21,11 +22,12 @@ __all__ = [
     "get_data_dim",
     "inf_generator",
     "label_to_class_id",
+    "log_images",
+    "log_metrics",
     "prod",
     "random_seed",
     "readable_duration",
     "save_checkpoint",
-    "wandb_log",
 ]
 
 T = TypeVar("T")
@@ -58,16 +60,40 @@ def class_id_to_label(class_id: Int, s_count: int, label: Literal["s", "y"]) -> 
         return class_id // s_count
 
 
-def wandb_log(
-    args: Union[bool, BaseArgs], row: Dict[str, Any], step: int, commit: Optional[bool] = None
-) -> None:
-    """Wrapper around wandb's log function"""
+def log_metrics(args: Union[bool, BaseArgs], row: Dict[str, Any], step: int) -> None:
+    """Wrapper around neptune's log_metric function"""
     if isinstance(args, bool):
         if not args:  # this has to be nested in order to make sure `args` is not bool in `elif`
             return
-    elif not args.use_wandb:
+    elif not args.logging:
         return
-    wandb.log(row, commit=commit, step=step)
+    for k, v in row.items():
+        neptune.log_metric(k, x=step, y=v)
+
+
+def log_images(
+    args: BaseArgs, image_batch, name, step, nsamples=64, nrows=8, monochrome=False, prefix=None
+):
+    """Make a grid of the given images, save them in a file and log them with W&B"""
+    prefix = "train_" if prefix is None else f"{prefix}_"
+    images = image_batch[:nsamples]
+
+    if getattr(args, "recon_loss", None) == "ce":
+        images = images.argmax(dim=1).float() / 255
+    else:
+        if args.dataset in ("celeba", "ssrp", "genfaces"):
+            images = 0.5 * images + 0.5
+
+    if monochrome:
+        images = images.mean(dim=1, keepdim=True)
+    # torchvision.utils.save_image(images, f'./experiments/finn/{prefix}{name}.png', nrow=nrows)
+    shw = torchvision.utils.make_grid(images, nrow=nrows).clamp(0, 1).cpu()
+    if args.logging:
+        neptune.log_image(
+            prefix + name,
+            x=step,
+            y=torchvision.transforms.functional.to_pil_image(shw),
+        )
 
 
 class AverageMeter:

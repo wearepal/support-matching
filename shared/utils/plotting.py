@@ -1,12 +1,13 @@
 import matplotlib
 import matplotlib.pyplot as plt
+import neptune
 import numpy as np
 import torch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from shared.configs import BaseArgs
 
-from .utils import wandb_log
+from .utils import log_metrics
 
 __all__ = ["plot_contrastive", "plot_histogram"]
 
@@ -61,11 +62,11 @@ def plot_histogram(
             _ = plots[j][i].hist(vector_np[:, j * cols + i], bins=np.linspace(-15, 15, bins))
     fig.tight_layout()
 
+    neptune.log_image(f"{prefix}_histogram", x=step, y=fig)
     log_dict = {
-        f"{prefix}_histogram": fig,
         f"{prefix}_xi_min": vector_np.min(),
         f"{prefix}_xi_max": vector_np.max(),
         f"{prefix}_xi_nans": float(bool(np.isnan(vector_np).any())),
         f"{prefix}_xi_tensor": vector,
     }
-    wandb_log(args, log_dict, step=step)
+    log_metrics(args, log_dict, step=step)

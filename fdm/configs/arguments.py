@@ -40,7 +40,6 @@ class FdmArgs(BaseArgs):
     validate: bool = True
     val_freq: int = 1_000  # how often to do validation
     log_freq: int = 50
-    use_wandb: bool = True
     results_csv: str = ""  # name of CSV file to save results to
     feat_attr: bool = False
 

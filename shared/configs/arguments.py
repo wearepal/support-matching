@@ -103,7 +103,7 @@ class BaseArgs(Tap):
     cluster_label_file: str = ""
 
     # General settings
-    use_wandb: bool = True
+    logging: bool = True
 
     # Global variables
     _s_dim: int
