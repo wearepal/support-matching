@@ -1,4 +1,5 @@
 """Simply call the main function"""
 from clustering.optimisation import main
 
-main()
+if __name__ == "__main__":
+    main()
