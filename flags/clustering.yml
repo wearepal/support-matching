@@ -35,9 +35,11 @@
     c-finetune-lr: 1e-5
     c-kl-weight: 0.01
     c-labeler-hidden-dims: ""
+    c-log-freq: 50
     c-lower-threshold: 0.3
     c-lr: 1.e-3
     c-sup-bce-weight: 1
     c-sup-ce-weight: 1
     c-upper-threshold: 0.7
+    c-val-freq: 10
     c-weight-decay: 0

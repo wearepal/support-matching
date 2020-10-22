@@ -11,7 +11,7 @@
       exec: "bash .guild/sourcecode/wrapper.sh {{entry-point}} ${flag_args}"
       flags-dest: args  # pass flags as commandline arguments
       flags-import: all  # or `false`
-      label: 'exp_group=${exp-group}/ seed=${data-split-seed}'
+      label: 'exp_group=${exp-group} log_method=${log-method} seed=${data-split-seed}'
       env:
         STARTED_BY_GUILDAI: "1"  # signal to the code that it's running within guildai
       env-secrets:  # don't include this in the logging; it's not interesting
@@ -49,7 +49,7 @@
     run:
       flags:
         $include:  # import flag configs
-          - a_cmnist_2dig_mildly_subsampled
+          - a_cmnist_2dig
           - c_vague_spaceship_improved
           - e_mnist
         # flags specific to the clustering autoencoder
@@ -64,7 +64,7 @@
     run:
       flags:
         $include:
-          - a_cmnist_2dig_mildly_subsampled
+          - a_cmnist_2dig
           - c_vague_spaceship_improved
           - e_mnist
 
@@ -87,7 +87,7 @@
     run:
       flags:
         $include:
-          - a_cmnist_2dig_mildly_subsampled
+          - a_cmnist_2dig
           - e_mnist
           - c_vague_spaceship_improved
           - d_fallen_sun
@@ -122,7 +122,7 @@
     run:
       flags:
         $include:
-          - a_cmnist_2dig_mildly_subsampled
+          - a_cmnist_2dig
           - e_mnist
           - c_vague_spaceship_improved
           - d_fallen_sun
@@ -136,10 +136,11 @@
     run:
       flags:
         $include:
-          - a_cmnist_2dig_mildly_subsampled
+          - a_cmnist_2dig
           - e_mnist
           - d_fallen_sun
         d-balanced-context: "False"
+        log-method: "no-cluster-fdm"
 
 - model: perfect_cluster
   description: "Disentangling groundtruth labels as clusters"
@@ -150,10 +151,11 @@
     run:
       flags:
         $include:
-          - a_cmnist_2dig_mildly_subsampled
+          - a_cmnist_2dig
           - e_mnist
           - d_fallen_sun
         d-balanced-context: "True"
+        log-method: "perfect-cluster"
 
 - model: dro_baseline
   description: "Distributionally-robust optimization baseline"
@@ -164,7 +166,7 @@
     run:
       flags:
         $include:
-          - a_cmnist_2dig_mildly_subsampled
+          - a_cmnist_2dig
         b-method: dro
         b-eta:  # guildai will automatically run them all
           - 0.01

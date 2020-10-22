@@ -1,4 +1,4 @@
-- config: a_cmnist_2dig_mildly_subsampled
+- config: a_cmnist_2dig
   flags:
     a-background: "False"
     a-binarize: "True"
@@ -20,51 +20,22 @@
     a-subsample-context: "0=0.7 1=0.6 2=0.4 3=1.0"
     a-subsample-train: "0=1.0 1=0.4 2=0.0 3=1.0"
     a-test-pcnt: 0.2
-
-- config: a_cmnist_2dig_mildly_subs_miss_s
-    a-background: "False"
-    a-binarize: "True"
-    a-black: "True"
-    a-color-correlation: 1.0
-    a-colors: "2 4"
-    a-context-pcnt: 0.66666666
-    a-data-pcnt: 1.0
-    a-dataset: "cmnist"
-    a-filter-labels: "2 4"
-    a-greyscale: "False"
-    a-input-noise: false
-    a-missing-s: ""
-    a-padding: 2
-    a-quant-level: "8"
-    a-rotate-data: "False"
-    a-scale: 0.0
-    a-shift-data: "False"
-    a-subsample-context: "0=0.7 1=0.6 2=0.4 3=1.0"
-    a-subsample-train: "0=0.0 1=0.85 2=0.0 3=1.0"
-    a-test-pcnt: 0.2
-
-- config: a_cmnist_2dig_subsampled
-  flags:
-    a-background: "False"
-    a-binarize: "True"
-    a-black: "True"
-    a-color-correlation: 1.0
-    a-colors: 2 4
-    a-context-pcnt: 0.66666666
-    a-data-pcnt: 1.0
-    a-dataset: "cmnist"
-    a-filter-labels: 2 4
-    a-greyscale: "False"
-    a-input-noise: "False"
-    a-missing-s: ""
-    a-padding: 2
-    a-quant-level: "8"
-    a-rotate-data: "False"
-    a-scale: 0.0
-    a-shift-data: "False"
-    a-subsample-context: "0=0.7 1=0.4 2=0.2 3=1.0"
-    a-subsample-train: "0=1.0 1=0.3 2=0.0 3=1.0"
-    a-test-pcnt: 0.2
+    _a-dataset-preset:
+      arg-skip: true
+      default: mildly_subsampled
+      choices:
+        - value: mildly_subsampled
+          flags:
+            a-subsample-context: "0=0.7 1=0.6 2=0.4 3=1.0"
+            a-subsample-train: "0=1.0 1=0.4 2=0.0 3=1.0"
+        - value: subsampled
+          flags:
+            a-subsample-context: "0=0.7 1=0.4 2=0.2 3=1.0"
+            a-subsample-train: "0=1.0 1=0.3 2=0.0 3=1.0"
+        - value: mildly_subs_miss_s
+          flags:
+            a-subsample-context: "0=0.7 1=0.6 2=0.4 3=1.0"
+            a-subsample-train: "0=0.0 1=0.85 2=0.0 3=1.0"
 
 - config: a_adult
   flags:
