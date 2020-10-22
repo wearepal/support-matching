@@ -12,3 +12,6 @@ if "STARTED_BY_GUILDAI" in env:
     print(f"type: {type(os.environ['STARTED_BY_GUILDAI'])}")
 else:
     print("\n".join(env))
+
+import click
+print(f"{click.__version__=}")

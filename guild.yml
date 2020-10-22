@@ -8,7 +8,7 @@
   operations:
     train:
       description: "Train the model."
-      exec: "python .guild/sourcecode/{{entry-point}} ${flag_args}"
+      exec: "bash .guild/sourcecode/wrapper.sh {{entry-point}} ${flag_args}"
       flags-dest: args  # pass flags as commandline arguments
       flags-import: all  # or `false`
       label: 'save_dir=${save-dir}/ seed=${data-split-seed}'
@@ -35,6 +35,7 @@
         - include: 'shared/models/*'
         - include: 'shared/utils/*'
         - include: 'kornia/*'
+        - include: 'wrapper.sh'
 
 - model: autoencoder
   description: "Only the autoencoder from the clustering"
