@@ -103,6 +103,8 @@ class BaseArgs(Tap):
     cluster_label_file: str = ""
 
     # General settings
+    exp_group: str = ""  # experiment group; should be unique for a specific setting
+    log_method: str = ""  # arbitrary string that's appended to the experiment group name
     use_wandb: bool = True
 
     # Global variables

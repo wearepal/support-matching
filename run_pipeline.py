@@ -13,10 +13,13 @@ def main() -> None:
     # find out whether wandb was turned on
     parser = argparse.ArgumentParser()
     parser.add_argument("--use-wandb", default=True, type=eval, choices=[True, False])
+    parser.add_argument("--exp-group", default="", type=str)
+    parser.add_argument("--log-method", default="", type=str)
     dis_args = accept_prefixes(("--a-", "--d-", "--e-"))
     temp_args, _ = parser.parse_known_args(dis_args)
     if temp_args.use_wandb:
-        wandb.init(entity="predictive-analytics-lab", project="fdm")
+        group = temp_args.log_method + "/" + temp_args.exp_group if temp_args.exp_group else None
+        wandb.init(entity="predictive-analytics-lab", project="fdm", group=group)
 
     with TemporaryDirectory() as tmpdir:
         clf = Path(tmpdir) / "labels.pth"

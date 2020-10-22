@@ -6,7 +6,7 @@ a_mixing_factor: 0.0
 a_input_noise: False
 a_adult_biased_train: True
 a_adult_balanced_test: True
-a_balance_all: True
+a_balance_all_quadrants: True
 
 # ===== encoder =====
 c_encoder: ae

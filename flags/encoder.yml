@@ -4,3 +4,10 @@
     e-enc-levels: 4
     e-enc-init-chans: 16
     e-recon-loss: "l2"
+
+- config: e_adult
+  flags:
+    c-enc-init-chans: 61
+    c-enc-levels: 0
+    c-enc-out-dim: 35
+    c-recon-loss: "mixed"

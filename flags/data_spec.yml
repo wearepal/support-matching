@@ -43,3 +43,13 @@
     a-subsample-context: "0=0.7 1=0.4 2=0.2 3=1.0"
     a-subsample-train: "0=1.0 1=0.3 2=0.0 3=1.0"
     a-test-pcnt: 0.2
+
+- config: a_adult
+  flags:
+    a-dataset: "adult"
+    a-drop-native: "True"
+    a-mixing-factor: 0.0
+    a-input-noise: "False"
+    a-adult-biased-train: "True"
+    a-adult-balanced-test: "True"
+    a-balance-all-quadrants: "True"

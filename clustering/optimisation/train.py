@@ -100,7 +100,10 @@ def main(
     if use_wandb is not None:
         ARGS.use_wandb = use_wandb
     if ARGS.use_wandb:
-        wandb.init(entity="predictive-analytics-lab", project="fcm", config=args.as_dict())
+        group = ARGS.log_method + "/" + ARGS.exp_group if ARGS.exp_group else None
+        wandb.init(
+            entity="predictive-analytics-lab", project="fcm", config=args.as_dict(), group=group
+        )
 
     save_dir = Path(ARGS.save_dir) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -108,9 +111,7 @@ def main(
     print(str(ARGS))
     print(f"Save directory: {save_dir.resolve()}")
     # ==== check GPU ====
-    ARGS._device = torch.device(
-        f"cuda:{ARGS.gpu}" if (torch.cuda.is_available() and ARGS.gpu >= 0) else "cpu"
-    )
+    ARGS._device = torch.device(f"cuda:{ARGS.gpu}" if use_gpu else "cpu")
     print(f"{torch.cuda.device_count()} GPUs available. Using device '{ARGS._device}'")
 
     # ==== construct dataset ====

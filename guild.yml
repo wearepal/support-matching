@@ -6,12 +6,12 @@
 
 - config: model_base
   operations:
-    train:
-      description: "Train the model."
+    run:
+      description: "Run the model."
       exec: "bash .guild/sourcecode/wrapper.sh {{entry-point}} ${flag_args}"
       flags-dest: args  # pass flags as commandline arguments
       flags-import: all  # or `false`
-      label: 'save_dir=${save-dir}/ seed=${data-split-seed}'
+      label: 'exp_group=${exp-group}/ seed=${data-split-seed}'
       env:
         STARTED_BY_GUILDAI: "1"  # signal to the code that it's running within guildai
       env-secrets:  # don't include this in the logging; it's not interesting
@@ -19,13 +19,15 @@
       # `sourcecode` determines which files are copied into the run dir
       # to test whether your regex's work use the --test-sourcecode flag
       sourcecode:  # which files to copy
-        - exclude: {dir: analysis}
-        - exclude: {dir: experiments}
-        - exclude: {dir: flags}
-        - exclude: {dir: results}
-        - exclude: {dir: scripts}
-        - exclude: {dir: tests}
-        - exclude: {dir: wandb}
+        - exclude:
+            dir:
+              - analysis
+              - experiments
+              - flags
+              - results
+              - scripts
+              - tests
+              - wandb
         - exclude: '.*'
         # I don't know why this is needed, but it is:
         - include: 'shared/*'
@@ -43,7 +45,7 @@
   params:
     entry-point: run_clust.py
   operations:
-    train:
+    run:
       flags:
         $include:  # import flag configs
           - a_cmnist_2dig_mildly_subsampled
@@ -58,43 +60,71 @@
   params:
     entry-point: run_clust.py
   operations:
-    train:
+    run:
       flags:
         $include:
           - a_cmnist_2dig_mildly_subsampled
           - c_vague_spaceship_improved
           - e_mnist
 
-- model: ranking
+- model: ranking_base
   description: "Cluster with rank statistics and then disentangle."
   extends: model_base
   params:
     entry-point: run_both.py
   operations:
-    train:
+    run:
       flags:
-        $include:
-          - a_cmnist_2dig_mildly_subsampled
-          - e_mnist
-          - c_vague_spaceship_improved
-          - d_fallen_sun
+        log-method: "ranking-fdm"
         c-method: "pl_enc_no_norm"
         c-pseudo-labeler: "ranking"
 
-- model: kmeans
+- model: ranking_cmnist
   description: "Cluster with rank statistics and then disentangle."
-  extends: model_base
-  params:
-    entry-point: run_both.py
+  extends: ranking_base
   operations:
-    train:
+    run:
       flags:
         $include:
           - a_cmnist_2dig_mildly_subsampled
           - e_mnist
           - c_vague_spaceship_improved
           - d_fallen_sun
+
+- model: ranking_adult
+  description: "Cluster with rank statistics and then disentangle."
+  extends: ranking_base
+  operations:
+    run:
+      flags:
+        $include:
+          - a_adult
+          - e_adult
+          - c_adult
+          - d_adult
+
+- model: kmeans_base
+  description: "Cluster with rank statistics and then disentangle."
+  extends: model_base
+  params:
+    entry-point: run_both.py
+  operations:
+    run:
+      flags:
+        log-method: "kmeans-fdm"
         c-method: "kmeans"
+
+- model: kmeans_cmnist
+  description: "Cluster with rank statistics and then disentangle."
+  extends: kmeans_base
+  operations:
+    run:
+      flags:
+        $include:
+          - a_cmnist_2dig_mildly_subsampled
+          - e_mnist
+          - c_vague_spaceship_improved
+          - d_fallen_sun
 
 - model: no_cluster
   description: "Disentangling without clustering"
@@ -102,7 +132,7 @@
   params:
     entry-point: run_dis.py
   operations:
-    train:
+    run:
       flags:
         $include:
           - a_cmnist_2dig_mildly_subsampled
@@ -116,7 +146,7 @@
   params:
     entry-point: run_dis.py
   operations:
-    train:
+    run:
       flags:
         $include:
           - a_cmnist_2dig_mildly_subsampled
@@ -130,7 +160,7 @@
   params:
     entry-point: run_simple_baselines.py
   operations:
-    train:
+    run:
       flags:
         $include:
           - a_cmnist_2dig_mildly_subsampled
@@ -147,6 +177,6 @@
   params:
     entry-point: test_guildai.py
   operations:
-    train:
+    run:
       flags:
         hi: "ho"

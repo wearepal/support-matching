@@ -88,7 +88,10 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
 
     if ARGS.use_wandb:
         if initialize_wandb:
-            wandb.init(entity="predictive-analytics-lab", project="fdm", config=args.as_dict())
+            group = ARGS.log_method + "/" + ARGS.exp_group if ARGS.exp_group else None
+            wandb.init(
+                entity="predictive-analytics-lab", project="fdm", config=args.as_dict(), group=group
+            )
         else:
             wandb.config.update(args.as_dict())
 
@@ -98,9 +101,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     print(str(ARGS))
     print(f"Save directory: {save_dir.resolve()}")
     # ==== check GPU ====
-    ARGS._device = torch.device(
-        f"cuda:{ARGS.gpu}" if (torch.cuda.is_available() and ARGS.gpu >= 0) else "cpu"
-    )
+    ARGS._device = torch.device(f"cuda:{ARGS.gpu}" if use_gpu else "cpu")
     print(f"{torch.cuda.device_count()} GPUs available. Using device '{ARGS._device}'")
 
     # ==== construct dataset ====

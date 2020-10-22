@@ -39,3 +39,24 @@
     d-warmup-steps: 0
     d-weight-decay: 0
     d-zs-frac: 0.01
+
+- config: d_adult
+  flags:
+    d-batch-size: 1000
+    d-balanced-context: "False"
+    d-disc-hidden-dims: 32
+    d-iters: 1000
+    d-eval-on-recon: "False"
+    d-levels: 0
+    d-num-disc-updates: 3
+    d-pred-y-weight: 0.0
+    d-validate: "True"
+    d-val-freq: 10
+    # if the following is turned off, warmup-steps should also be off
+    d-train-on-recon: "False"
+    d-vae: "False"
+    d-val-freq: 10
+    # should be 100 if train-on-recon=True
+    d-warmup: 0
+    d-weight-decay: 0
+    d-zs-frac: 0.05714
