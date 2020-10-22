@@ -7,7 +7,7 @@
 
 - config: e_adult
   flags:
-    c-enc-init-chans: 61
-    c-enc-levels: 0
-    c-enc-out-dim: 35
-    c-recon-loss: "mixed"
+    e-enc-init-chans: 61
+    e-enc-levels: 0
+    e-enc-out-dim: 35
+    e-recon-loss: "mixed"

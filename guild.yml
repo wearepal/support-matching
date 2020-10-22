@@ -36,6 +36,7 @@
         - include: 'shared/layers/*'
         - include: 'shared/models/*'
         - include: 'shared/utils/*'
+        - include: 'fdm/optimisation/*'
         - include: 'kornia/*'
         - include: 'wrapper.sh'
 
@@ -99,9 +100,9 @@
       flags:
         $include:
           - a_adult
-          - e_adult
           - c_adult
           - d_adult
+          - e_adult
 
 - model: kmeans_base
   description: "Cluster with rank statistics and then disentangle."

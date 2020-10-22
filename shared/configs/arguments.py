@@ -68,7 +68,6 @@ class BaseArgs(Tap):
     adult_biased_train: bool = True  # if True, make the training set biased, based on mixing factor
     adult_balanced_test: bool = True
     balance_all_quadrants: bool = True
-    oversample: bool = False  # Whether to oversample when doing weighted sampling.
 
     # Colored MNIST settings
     scale: float = 0.0

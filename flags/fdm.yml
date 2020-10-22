@@ -47,7 +47,6 @@
     d-disc-hidden-dims: 32
     d-iters: 1000
     d-eval-on-recon: "False"
-    d-levels: 0
     d-num-disc-updates: 3
     d-pred-y-weight: 0.0
     d-validate: "True"

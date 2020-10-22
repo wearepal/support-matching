@@ -107,7 +107,7 @@ def compute_metrics(
                 wandb.run.summary[f"{model_name}_{metric_name}"] = value
 
     print(f"Results for {exp_name} ({model_name}):")
-    print_metrics(metrics)
+    print_metrics({f"{k} ({model_name})": v for k, v in metrics.items()})
     print()  # empty line
     return metrics
 

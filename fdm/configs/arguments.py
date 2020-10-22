@@ -26,6 +26,7 @@ class FdmArgs(BaseArgs):
     recon_detach: bool = True  # Whether to apply the stop gradient operator to the reconstruction.
     eval_on_recon: bool = False
     balanced_context: bool = False  # Whether to balance the context set with groundtruth labels
+    oversample: bool = False  # Whether to oversample when doing weighted sampling.
 
     # Evaluation settings
     eval_epochs: int = 40

@@ -104,7 +104,7 @@ def weight_for_balance(
 
 def weights_with_counts(cluster_ids: Tensor) -> Tuple[Tensor, Dict[int, Tuple[float, int]]]:
     weights, counts, unique = _get_weights(cluster_ids)
-    w_and_c = {int(i): (float(weights[i]), int(c)) for i, c in zip(unique, counts)}
+    w_and_c = {int(i): (float(weights[i.long()]), int(c)) for i, c in zip(unique, counts)}
     return weights[cluster_ids.long()], w_and_c
 
 
