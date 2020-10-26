@@ -14,4 +14,5 @@ else:
     print("\n".join(env))
 
 import click
+
 print(f"{click.__version__=}")

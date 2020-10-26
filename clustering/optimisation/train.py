@@ -100,7 +100,7 @@ def main(
     if use_wandb is not None:
         ARGS.use_wandb = use_wandb
     if ARGS.use_wandb:
-        group = ARGS.log_method + "/" + ARGS.exp_group if ARGS.exp_group else None
+        group = ARGS.log_method + "." + ARGS.exp_group if ARGS.exp_group else None
         wandb.init(
             entity="predictive-analytics-lab", project="fcm", config=args.as_dict(), group=group
         )

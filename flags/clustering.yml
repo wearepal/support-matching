@@ -2,10 +2,11 @@
   flags:
     c-batch-size: 256
     c-cl-hidden-dims: 256
-    c-enc-epochs: 90
+    c-enc-epochs: 100
+    c-enc-lr: 1.e-3
     c-encoder: "ae"
     c-epochs: 100
-    c-kl-weight: 1
+    c-kl-weight: 0
     c-log-freq: 50
     c-vae-std-tform: "exp"
     c-val-freq: 10
@@ -32,7 +33,7 @@
     c-encoder: "ae"
     c-epochs: 300
     c-finetune-encoder: "False"
-    c-finetune-lr: 1e-5
+    c-finetune-lr: 1.e-5
     c-kl-weight: 0.01
     c-labeler-hidden-dims: ""
     c-log-freq: 50

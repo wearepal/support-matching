@@ -124,7 +124,7 @@
         $include:
           - a_cmnist_2dig
           - e_mnist
-          - c_vague_spaceship_improved
+          - c_vague_spaceship
           - d_fallen_sun
 
 - model: no_cluster
