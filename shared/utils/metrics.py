@@ -36,7 +36,7 @@ def compute_metrics(
     save_to_csv: Optional[Path] = None,
     results_csv: str = "",
     use_wandb: bool = False,
-    additional_entries: Optional[Mapping[str, str]] = None,
+    additional_entries: Optional[Mapping[str, float]] = None,
 ) -> Dict[str, float]:
     """Compute accuracy and fairness metrics and log them.
 
@@ -61,16 +61,13 @@ def compute_metrics(
         per_sens_metrics=[em.Accuracy(), em.ProbPos(), em.TPR(), em.TNR()],
         diffs_and_ratios=args._s_dim < 4,  # this just gets too much with higher s dim
     )
+    # replace the slash; it's causing problems
+    metrics = {k.replace("/", "÷"): v for k, v in metrics.items()}
 
     if use_wandb:
-        wandb_log(
-            args, {f"{model_name}/{k.replace('/', '÷')}": v for k, v in metrics.items()}, step=step
-        )
+        wandb_log(args, {f"{k} ({model_name})": v for k, v in metrics.items()}, step=step)
 
-    if save_to_csv is not None and results_csv:
-        assert isinstance(save_to_csv, Path)
-        save_to_csv.mkdir(exist_ok=True, parents=True)
-
+    if save_to_csv is not None:
         # full_name = f"{args.dataset}_{exp_name}"
         # exp_name += "_s" if pred_s else "_y"
         # if hasattr(args, "eval_on_recon"):
@@ -83,27 +80,31 @@ def compute_metrics(
             "wandb_url": str(wandb.run.get_url()) if use_wandb and args.use_wandb else "(None)",
         }
 
-        if additional_entries is not None:
-            manual_entries.update(additional_entries)
-
         cluster_test_metrics = getattr(args, "_cluster_test_metrics", None)
         if cluster_test_metrics is not None:
-            metrics.update({f"Clust Test {k}": v for k, v in cluster_test_metrics.items()})
+            metrics.update({f"Clust/Test {k}": v for k, v in cluster_test_metrics.items()})
         cluster_context_metrics = getattr(args, "_cluster_context_metrics", None)
         if cluster_context_metrics is not None:
-            metrics.update({f"Clust Context {k}": v for k, v in cluster_context_metrics.items()})
+            metrics.update({f"Clust/Context {k}": v for k, v in cluster_context_metrics.items()})
 
-        results_path = save_to_csv / f"{args.dataset}_{results_csv}"
-        value_list = ",".join(list(manual_entries.values()) + [str(v) for v in metrics.values()])
-        if not results_path.is_file():
-            with results_path.open("w") as f:
-                # ========= header =========
-                f.write(",".join(list(manual_entries) + [str(k) for k in metrics]) + "\n")
-                f.write(value_list + "\n")
-        else:
-            with results_path.open("a") as f:  # append to existing file
-                f.write(value_list + "\n")
-        print(f"Results have been written to {results_path.resolve()}")
+        if additional_entries is not None:
+            metrics.update(additional_entries)
+
+        if results_csv:
+            assert isinstance(save_to_csv, Path)
+            save_to_csv.mkdir(exist_ok=True, parents=True)
+
+            results_path = save_to_csv / f"{args.dataset}_{model_name}_{results_csv}"
+            values = ",".join(list(manual_entries.values()) + [str(v) for v in metrics.values()])
+            if not results_path.is_file():
+                with results_path.open("w") as f:
+                    # ========= header =========
+                    f.write(",".join(list(manual_entries) + [str(k) for k in metrics]) + "\n")
+                    f.write(values + "\n")
+            else:
+                with results_path.open("a") as f:  # append to existing file
+                    f.write(values + "\n")
+            print(f"Results have been written to {results_path.resolve()}")
         if use_wandb:
             for metric_name, value in metrics.items():
                 wandb.run.summary[f"{model_name}_{metric_name}"] = value

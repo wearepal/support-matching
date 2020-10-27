@@ -299,7 +299,7 @@ def run_baseline(args: BaselineArgs) -> None:
         save_to_csv=Path(args.save_dir) if args.save_dir else None,
         results_csv=full_name,
         use_wandb=False,
-        additional_entries={"eta": str(args.eta)} if args.method == "dro" else None,
+        additional_entries={"eta": args.eta} if args.method == "dro" else None,
     )
 
 
