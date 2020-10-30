@@ -37,3 +37,7 @@ def generate_table(
         .agg(Cell(round_to=round_to))
         .query(query)
     )
+
+
+def to_latex(df):
+    print(df.reset_index(level=0, drop=True, inplace=False).to_latex(escape=False))
