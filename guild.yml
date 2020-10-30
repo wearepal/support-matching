@@ -81,7 +81,6 @@
         c-pseudo-labeler: "ranking"
 
 - model: ranking_cmnist
-  description: "Cluster with rank statistics and then disentangle."
   extends: ranking_base
   operations:
     run:
@@ -93,7 +92,6 @@
           - d_fallen_sun
 
 - model: ranking_adult
-  description: "Cluster with rank statistics and then disentangle."
   extends: ranking_base
   operations:
     run:
@@ -105,7 +103,7 @@
           - e_adult
 
 - model: kmeans_base
-  description: "Cluster with rank statistics and then disentangle."
+  description: "Cluster with kmeans and then disentangle."
   extends: model_base
   params:
     entry-point: run_both.py
@@ -116,7 +114,6 @@
         c-method: "kmeans"
 
 - model: kmeans_cmnist
-  description: "Cluster with rank statistics and then disentangle."
   extends: kmeans_base
   operations:
     run:
@@ -127,7 +124,18 @@
           - c_vague_spaceship
           - d_fallen_sun
 
-- model: no_cluster
+- model: kmeans_adult
+  extends: kmeans_base
+  operations:
+    run:
+      flags:
+        $include:
+          - a_adult
+          - c_adult
+          - d_adult
+          - e_adult
+
+- model: no_cluster_base
   description: "Disentangling without clustering"
   extends: model_base
   params:
@@ -135,18 +143,11 @@
   operations:
     run:
       flags:
-        $include:
-          - a_cmnist_2dig
-          - e_mnist
-          - d_fallen_sun
         d-balanced-context: "False"
         log-method: "no-cluster-fdm"
 
-- model: perfect_cluster
-  description: "Disentangling groundtruth labels as clusters"
-  extends: model_base
-  params:
-    entry-point: run_dis.py
+- model: no_cluster_cmnist
+  extends: no_cluster_base
   operations:
     run:
       flags:
@@ -154,11 +155,83 @@
           - a_cmnist_2dig
           - e_mnist
           - d_fallen_sun
+
+- model: no_cluster_adult
+  extends: no_cluster_base
+  operations:
+    run:
+      flags:
+        $include:
+          - a_adult
+          - e_adult
+          - d_adult
+
+- model: perfect_cluster_base
+  description: "Disentangling groundtruth labels as clusters"
+  extends: model_base
+  params:
+    entry-point: run_dis.py
+  operations:
+    run:
+      flags:
         d-balanced-context: "True"
         log-method: "perfect-cluster"
 
-- model: dro_baseline
+- model: perfect_cluster_cmnist
+  extends: perfect_cluster_base
+  operations:
+    run:
+      flags:
+        $include:
+          - a_cmnist_2dig
+          - e_mnist
+          - d_fallen_sun
+
+- model: perfect_cluster_adult
+  description: "Disentangling groundtruth labels as clusters"
+  extends: perfect_cluster_base
+  operations:
+    run:
+      flags:
+        $include:
+          - a_adult
+          - e_adult
+          - d_adult
+
+- model: dro_base
   description: "Distributionally-robust optimization baseline"
+  extends: model_base
+  params:
+    entry-point: run_simple_baselines.py
+  operations:
+    run:
+      flags:
+        b-method: dro
+        b-eta:  # guildai will automatically run them all
+          - 0.01
+          - 0.1
+          - 0.5
+          - 1.0
+        log-method: "dro-baseline"
+
+- model: dro_cmnist
+  extends: dro_base
+  operations:
+    run:
+      flags:
+        $include:
+          - a_cmnist_2dig
+
+- model: dro_adult
+  extends: dro_base
+  operations:
+    run:
+      flags:
+        $include:
+          - a_cmnist_2dig
+
+- model: cnn_cmnist
+  description: "Baseline CNN"
   extends: model_base
   params:
     entry-point: run_simple_baselines.py
@@ -167,12 +240,20 @@
       flags:
         $include:
           - a_cmnist_2dig
-        b-method: dro
-        b-eta:  # guildai will automatically run them all
-          - 0.01
-          - 0.1
-          - 0.5
-          - 1.0
+        b-method: cnn
+        b-epochs: 60
+        log-method: "cnn-baseline"
+
+- model: lr_adult
+  description: "Baseline logistic regression"
+  extends: model_base
+  params:
+    entry-point: run_lr.py
+  operations:
+    run:
+      flags:
+        $include:
+          - a_adult
 
 - model: test
   description: "Model for testing purposes"
