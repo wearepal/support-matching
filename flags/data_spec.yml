@@ -46,3 +46,13 @@
     a-adult-biased-train: "True"
     a-adult-balanced-test: "True"
     a-balance-all-quadrants: "True"
+    _a-dataset-preset:
+      arg-skip: true
+      default: partial_outcome
+      choices:
+        - value: partial_outcome
+          flags:
+            a-missing-s: ""
+        - value: missing_demo
+          flags:
+            a-missing-s: "0"
