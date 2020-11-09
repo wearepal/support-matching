@@ -4,7 +4,6 @@ from typing import List, NamedTuple, Tuple
 import ethicml as em
 import numpy as np
 import pandas as pd
-from ethicml.preprocessing.domain_adaptation import make_valid_variable_name
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
 
@@ -54,8 +53,6 @@ def get_invisible_demographics(
     assert 0 <= unbiased_pcnt <= 1, f"unbiased_pcnt: {unbiased_pcnt}"
     s_name = data.s.columns[0]
     y_name = data.y.columns[0]
-    s_name = make_valid_variable_name(s_name)
-    y_name = make_valid_variable_name(y_name)
     s = np.unique(data.s.to_numpy())
     y = np.unique(data.y.to_numpy())
 
