@@ -88,9 +88,13 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
 
     if ARGS.use_wandb:
         if initialize_wandb:
+            project_suffix = f"-{ARGS.dataset}" if ARGS.dataset != "cmnist" else ""
             group = ARGS.log_method + "." + ARGS.exp_group if ARGS.exp_group else None
             wandb.init(
-                entity="predictive-analytics-lab", project="fdm", config=args.as_dict(), group=group
+                entity="predictive-analytics-lab",
+                project="fdm" + project_suffix,
+                config=args.as_dict(),
+                group=group,
             )
         else:
             wandb.config.update(args.as_dict())

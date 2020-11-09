@@ -47,13 +47,16 @@
     d-disc-hidden-dims: 32
     d-eval-on-recon: "False"
     d-iters: 1000
-    d-log-freq: 150
+    d-log-freq: 100
+    d-lr: 1.e-3
     d-num-disc-updates: 3
+    d-num-discs: 1
+    d-pred-s-weight: 0.0
     d-pred-y-weight: 0.0
     # if the following is turned off, warmup-steps should also be off
     d-train-on-recon: "False"
     d-vae: "False"
-    d-val-freq: 450
+    d-val-freq: 500
     d-validate: "True"
     # should be 100 if train-on-recon=True
     d-warmup: 0
