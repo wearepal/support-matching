@@ -65,12 +65,12 @@ def get_invisible_demographics(
     # one group is missing
     if missing_s:
         if len(missing_s) == 1 and missing_s[0] == 0:
-            query = f"({s_name} == {s[1]} & {y_name} == {y[0]}) | ({s_name} == {s[1]} & {y_name} == {y[1]})"
+            query = f"(`{s_name}` == {s[1]} & `{y_name}` == {y[0]}) | (`{s_name}` == {s[1]} & `{y_name}` == {y[1]})"
             print("removing s=0")
         else:
             raise ValueError(f"Unsupported missing group {missing_s}")
     else:
-        query = f"({s_name} == {s[0]} & {y_name} == {y[0]}) | ({s_name} == {s[1]} & {y_name} == {y[0]}) | ({s_name} == {s[1]} & {y_name} == {y[1]})"
+        query = f"(`{s_name}` == {s[0]} & `{y_name}` == {y[0]}) | (`{s_name}` == {s[1]} & `{y_name}` == {y[0]}) | (`{s_name}` == {s[1]} & `{y_name}` == {y[1]})"
         print("ensuring that only one group is missing")
     one_s_only = em.query_dt(for_biased_subset, query)
 
