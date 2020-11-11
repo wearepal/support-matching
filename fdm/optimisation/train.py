@@ -330,7 +330,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         else:
             disc_fn = Residual64x64Net(batch_norm=False)
 
-    elif args.aggregator != "set_transformer":
+    else:
         disc_fn = FcNet(hidden_dims=ARGS.disc_hidden_dims)
         # FcNet first flattens the input
         disc_input_shape = (
@@ -360,11 +360,6 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
                 disc_fn, aggregator, input_dim=args.aggregator_input_dim
             )
 
-    else:
-        disc_fn = partial(
-            SetTransformer,
-            **args.aggregator_kwargs,
-        )
     components: Union[AeComponents, InnComponents]
     disc: Classifier
     if not ARGS.use_inn:

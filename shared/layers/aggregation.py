@@ -102,21 +102,21 @@ class GatedAttention(Aggregator):
     def __init__(
         self,
         in_dim: int,
-        latent_dim: int = 128,
+        embed_dim: int = 128,
         final_proj: Optional[ModelFn] = None,
         output_dim: int = 1,
     ) -> None:
         super().__init__()
-        self.V = nn.Parameter(torch.empty(latent_dim, in_dim))
-        self.U = nn.Parameter(torch.empty(latent_dim, in_dim))
-        self.w = nn.Parameter(torch.empty(1, latent_dim))
+        self.V = nn.Parameter(torch.empty(embed_dim, in_dim))
+        self.U = nn.Parameter(torch.empty(embed_dim, in_dim))
+        self.w = nn.Parameter(torch.empty(1, embed_dim))
         nn.init.xavier_normal_(self.V)
         nn.init.xavier_normal_(self.U)
         nn.init.xavier_normal_(self.w)
         if final_proj is not None:
-            self.final_proj = final_proj(latent_dim, output_dim)
+            self.final_proj = final_proj(in_dim, output_dim)
         else:
-            self.final_proj = nn.Linear(latent_dim, output_dim)
+            self.final_proj = nn.Linear(in_dim, output_dim)
         self.output_dim = output_dim
 
     def forward(self, inputs: Tensor) -> Tensor:
