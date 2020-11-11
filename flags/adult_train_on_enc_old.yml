@@ -5,7 +5,7 @@
 #   d-kl-weight: 0
 #   d-train-on-recon: "False"
 #   d-warmup: 0
-#   d-batch-wise-loss: none
+#   d-aggregator: none
 #   d-eval-on-recon: "True"
 
 # - a-missing-s: ""
@@ -26,7 +26,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 2
   data-split-seed: 2
@@ -37,7 +37,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 3
   data-split-seed: 3
@@ -48,7 +48,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 4
   data-split-seed: 4
@@ -59,7 +59,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 5
   data-split-seed: 5
@@ -70,7 +70,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 6
   data-split-seed: 6
@@ -81,7 +81,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 7
   data-split-seed: 7
@@ -92,7 +92,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 8
   data-split-seed: 8
@@ -103,7 +103,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 9
   data-split-seed: 9
@@ -114,7 +114,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 10
   data-split-seed: 10
@@ -125,7 +125,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 11
   data-split-seed: 11
@@ -136,7 +136,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 12
   data-split-seed: 12
@@ -147,7 +147,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 13
   data-split-seed: 13
@@ -158,7 +158,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 14
   data-split-seed: 14
@@ -169,7 +169,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 15
   data-split-seed: 15
@@ -180,7 +180,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 16
   data-split-seed: 16
@@ -191,7 +191,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 17
   data-split-seed: 17
@@ -202,7 +202,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 18
   data-split-seed: 18
@@ -213,7 +213,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 19
   data-split-seed: 19
@@ -224,7 +224,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 20
   data-split-seed: 20
@@ -235,7 +235,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 21
   data-split-seed: 21
@@ -246,7 +246,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 22
   data-split-seed: 22
@@ -257,7 +257,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 23
   data-split-seed: 23
@@ -268,7 +268,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 24
   data-split-seed: 24
@@ -279,7 +279,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 25
   data-split-seed: 25
@@ -290,7 +290,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 26
   data-split-seed: 26
@@ -301,7 +301,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 27
   data-split-seed: 27
@@ -312,7 +312,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 28
   data-split-seed: 28
@@ -323,7 +323,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 29
   data-split-seed: 29
@@ -334,7 +334,7 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"
 - seed: 30
   data-split-seed: 30
@@ -345,5 +345,5 @@
   d-kl-weight: 0
   d-train-on-recon: "False"
   d-warmup: 0
-  d-batch-wise-loss: none
+  d-aggregator: none
   d-eval-on-recon: "True"

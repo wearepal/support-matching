@@ -153,9 +153,9 @@ class FdmArgs(BaseArgs):
             self.aggregator_kwargs.setdefault("num_outputs", 32)
             self.aggregator_kwargs.setdefault("hidden_dim", 128)
             self.aggregator_kwargs.setdefault("num_inds", 32)
-            self.aggregator_kwargs.setdefault("num_heads", 4)
+            self.aggregator_kwargs.setdefault("num_heads", 1)
         elif self.aggregator == "gated":
-            self.aggregator_kwargs.setdefault("latent_dim", 32)
+            self.aggregator_kwargs.setdefault("latent_dim", self.aggregator_input_dim)
 
     def convert_arg_line_to_args(self, arg_line: str) -> List[str]:
         """Parse each line like a YAML file."""

@@ -3,84 +3,65 @@ import torch.nn as nn
 from torch.tensor import Tensor
 
 
-__all__ = ["SetTransformer", "MAB", "SAB", "ISAB", "PMA"]
+__all__ = [
+    "SetTransformer",
+    "MultiheadAttentionBlock",
+    "SetAttentionBlock",
+    "InducedSetAttentionBlock",
+    "PoolingMultiheadAttention",
+]
 
 
-class MAB(nn.Module):
-    def __init__(self, embed_dim: int, kdim: int, vdim: int, num_heads: int) -> None:
+class MultiheadAttentionBlock(nn.Module):
+    def __init__(self, embed_dim: int, num_heads: int = 4) -> None:
         super().__init__()
-        self.ln0 = nn.LayerNorm(vdim)
-        self.ln1 = nn.LayerNorm(vdim)
-        self.fc = nn.Sequential(nn.Linear(vdim, vdim), nn.ReLU(inplace=True))
-        self.mh = nn.MultiheadAttention(
-            embed_dim=embed_dim, kdim=kdim, vdim=vdim, num_heads=num_heads
-        )
+        self.norm1 = nn.LayerNorm(embed_dim)
+        self.norm2 = nn.LayerNorm(embed_dim)
+        self.fc = nn.Sequential(nn.Linear(embed_dim, embed_dim), nn.ReLU(inplace=True))
+        self.mh = nn.MultiheadAttention(embed_dim=embed_dim, num_heads=num_heads)
 
     def forward(self, Q: Tensor, K: Tensor) -> Tensor:
-        H = self.ln0(K + self.mh(key=K, query=Q, value=K))
-        return self.ln1(H + self.fc(H))
+        Q_tiled = Q.view(-1, 1, Q.size(1))
+        K_tiled = K.view(-1, 1, K.size(1))
+        import pdb
+
+        pdb.set_trace()
+        H = self.norm1(K_tiled + self.mh(key=K_tiled, query=Q_tiled, value=K_tiled))
+        out = self.norm2(H + self.fc(H))
+        return out.view(-1, out.size(-1))
 
 
-# class MAB(nn.Module):
-#     def __init__(self, embed_dim: int, kdim: int, vdim: int, num_heads: int):
-#         super().__init__()
-#         self.vdim = vdim
-#         self.num_heads = num_heads
-#         self.fc_q = nn.Linear(embed_dim, vdim)
-#         self.fc_k = nn.Linear(kdim, vdim)
-#         self.fc_v = nn.Linear(kdim, vdim)
-#         self.ln0 = nn.LayerNorm(vdim)
-#         self.ln1 = nn.LayerNorm(vdim)
-#         self.fc_o = nn.Linear(vdim, vdim)
-
-#     def forward(self, Q, K):
-#         Q = self.fc_q(Q)
-#         K, V = self.fc_k(K), self.fc_v(K)
-
-#         dim_split = self.vdim // self.num_heads
-#         Q_ = torch.cat(Q.split(dim_split, 2), 0)
-#         K_ = torch.cat(K.split(dim_split, 2), 0)
-#         V_ = torch.cat(V.split(dim_split, 2), 0)
-
-#         A = torch.softmax(Q_.bmm(K_.transpose(1, 2)) / math.sqrt(self.vdim), 2)
-#         O = torch.cat((Q_ + A.bmm(V_)).split(Q.size(0), 0), 2)
-#         O = self.ln0(O)
-#         O = O + self.fc_o(O).relu()
-#         O = self.ln1(O)
-#         return O
-
-
-class SAB(nn.Module):
+class SetAttentionBlock(nn.Module):
     def __init__(self, dim_in: int, dim_out: int, num_heads: int) -> None:
         super().__init__()
-        self.mab = MAB(embed_dim=dim_in, kdim=dim_in, vdim=dim_out, num_heads=num_heads)
+        self.mab = MultiheadAttentionBlock(embed_dim=dim_in)
 
     def forward(self, X: Tensor) -> Tensor:
         return self.mab(X, X)
 
 
-class ISAB(nn.Module):
+class InducedSetAttentionBlock(nn.Module):
     def __init__(self, dim_in: int, dim_out: int, num_heads: int, num_inds: int):
         super().__init__()
         self.inducing_points = nn.Parameter(torch.empty(1, num_inds, dim_out))
         nn.init.xavier_uniform_(self.inducing_points)
-        self.mab0 = MAB(embed_dim=dim_out, kdim=dim_in, vdim=dim_out, num_heads=num_heads)
-        self.mab1 = MAB(embed_dim=dim_in, kdim=dim_out, vdim=dim_out, num_heads=num_heads)
+        self.mab1 = MultiheadAttentionBlock(embed_dim=dim_out, num_heads=num_heads)
+        self.mab2 = MultiheadAttentionBlock(embed_dim=dim_in, num_heads=num_heads)
 
     def forward(self, X):
-        H = self.mab0(self.inducing_points.repeat(X.size(0), 1, 1), X)
-        return self.mab1(X, H)
+        H = self.mab1(self.inducing_points.repeat(X.size(0), 1, 1), X)
+        return self.mab2(X, H)
 
 
-class PMA(nn.Module):
+class PoolingMultiheadAttention(nn.Module):
     def __init__(self, dim: int, num_heads: int, num_seeds: int):
         super().__init__()
-        self.S = nn.Parameter(torch.empty(1, num_seeds, dim))
-        nn.init.xavier_uniform_(self.S)
-        self.mab = MAB(embed_dim=dim, kdim=dim, vdim=dim, num_heads=num_heads)
+        self.seed_vectors = nn.Parameter(torch.empty(1, num_seeds, dim))
+        nn.init.xavier_uniform_(self.seed_vectors)
+        self.mab = MultiheadAttentionBlock(embed_dim=dim, num_heads=num_heads)
 
     def forward(self, X):
-        return self.mab(self.S.repeat(X.size(0), 1, 1), X)
+        return self.mab(self.seed_vectors.repeat(X.size(0), 1, 1), X)
 
 
 class SetTransformer(nn.Module):
@@ -95,13 +76,13 @@ class SetTransformer(nn.Module):
     ):
         super().__init__()
         self.enc = nn.Sequential(
-            ISAB(in_dim, hidden_dim, num_heads, num_inds),
-            ISAB(hidden_dim, hidden_dim, num_heads, num_inds),
+            InducedSetAttentionBlock(in_dim, hidden_dim, num_heads, num_inds),
+            InducedSetAttentionBlock(hidden_dim, hidden_dim, num_heads, num_inds),
         )
         self.dec = nn.Sequential(
-            PMA(hidden_dim, num_heads, num_outputs),
-            SAB(hidden_dim, hidden_dim, num_heads),
-            SAB(hidden_dim, hidden_dim, num_heads),
+            PoolingMultiheadAttention(hidden_dim, num_heads, num_outputs),
+            SetAttentionBlock(hidden_dim, hidden_dim, num_heads),
+            SetAttentionBlock(hidden_dim, hidden_dim, num_heads),
             nn.Linear(hidden_dim, target_dim),
         )
 

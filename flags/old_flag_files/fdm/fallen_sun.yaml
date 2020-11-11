@@ -1,6 +1,6 @@
 d-batch-size: 256
 d-batch-wise-hidden: 256 256
-d-batch-wise-loss: "attention"
+d-aggregator: "attention"
 d-disc-hidden-dims: 256 256
 d-disc-lr: 0.0003
 d-disc-reset-prob: 0.0003
