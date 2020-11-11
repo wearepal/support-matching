@@ -222,7 +222,7 @@ class FdmArgs:
 
     # Encoder settings
     use_pretrained_enc: bool = True
-    enc_snorm: bool = False
+    snorm: bool = False
     zs_frac: float = 0.1
 
     vgg_weight: float = 0
@@ -261,9 +261,10 @@ class FdmArgs:
     mmd_add_dot: float = 0.0
 
     disc_hidden_dims: List[int] = field(default_factory=lambda: [256])
-    batch_wise_loss: BWLoss = BWLoss.none
-    batch_wise_latent: int = 32
+    aggregator: BWLoss = BWLoss.gated
+    aggregator_input_dim: int = 32
     batch_wise_hidden_dims: List[int] = field(default_factory=list)
+    aggregator_kwargs: Dict[str, int] = field(default_factory=dict)
 
     # Training settings
     lr: float = 1e-3

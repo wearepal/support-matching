@@ -3,7 +3,7 @@ batch_size: 256
 batch_wise_hidden_dims:
   - 256
   - 256
-batch_wise_loss: attention
+aggregator: attention
 disc_hidden_dims:
   - 256
   - 256

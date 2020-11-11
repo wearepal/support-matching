@@ -1,26 +1,49 @@
 """Main training file"""
-import time
+from collections import defaultdict
+from functools import partial
 from pathlib import Path
-from typing import Callable, Dict, Iterator, NamedTuple, Optional, Sequence, Tuple, Union
+import time
+from typing import (
+    Callable,
+    Dict,
+    Iterator,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 import git
 import numpy as np
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import wandb
 from hydra.utils import to_absolute_path
 from omegaconf import OmegaConf
+import torch
 from torch import Tensor
+import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, Subset, WeightedRandomSampler
 from typing_extensions import Literal
 
-from fdm.models import AutoEncoder, Classifier, EncodingSize, PartitionedAeInn, build_discriminator
+from fdm.models import (
+    AutoEncoder,
+    Classifier,
+    EncodingSize,
+    PartitionedAeInn,
+    build_discriminator,
+)
 from fdm.models.configs import Residual64x64Net, Strided28x28Net
+from fdm.models.set_transformer import SetTransformer
 from fdm.optimisation.mmd import mmd2
 from shared.configs import DM, DS, RL, BWLoss, Config, DatasetConfig, EncoderConfig, FdmArgs, Misc
 from shared.data import DatasetTriplet, load_dataset
-from shared.layers import Aggregator, AttentionAggregator, SimpleAggregator, SimpleAggregatorT
+from shared.layers import (
+    Aggregator,
+    AttentionAggregator,
+    SimpleAggregator,
+    SimpleAggregatorT,
+)
+from shared.layers.aggregation import GatedAttention
 from shared.models.configs import conv_autoencoder, fc_autoencoder
 from shared.models.configs.classifiers import FcNet, ModelAggregatorWrapper
 from shared.utils import (
@@ -36,6 +59,7 @@ from shared.utils import (
     readable_duration,
     wandb_log,
 )
+import wandb
 
 from .build import build_ae, build_inn
 from .evaluation import baseline_metrics, log_metrics
@@ -222,15 +246,6 @@ def main(
             variational=ARGS.vae,
         )
 
-    if ARGS.enc_snorm:
-
-        def _snorm(_module: nn.Module) -> nn.Module:
-            if hasattr(_module, "weight"):
-                return torch.nn.utils.spectral_norm(_module)
-            return _module
-
-        encoder.apply(_snorm)
-
     recon_loss_fn_: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
     if ENC.recon_loss == RL.l1:
         recon_loss_fn_ = nn.L1Loss(reduction="sum")
@@ -314,6 +329,7 @@ def main(
             disc_fn = Strided28x28Net(batch_norm=False)
         else:
             disc_fn = Residual64x64Net(batch_norm=False)
+
     else:
         disc_fn = FcNet(hidden_dims=ARGS.disc_hidden_dims)
         # FcNet first flattens the input
@@ -323,17 +339,28 @@ def main(
             else disc_input_shape
         )
 
-    if ARGS.batch_wise_loss != BWLoss.none:
+    if ARGS.aggregator != BWLoss.none:
         final_proj = FcNet(ARGS.batch_wise_hidden_dims) if ARGS.batch_wise_hidden_dims else None
         aggregator: Aggregator
-        if ARGS.batch_wise_loss == BWLoss.attention:
-            aggregator = AttentionAggregator(ARGS.batch_wise_latent, final_proj=final_proj)
-        elif ARGS.batch_wise_loss == BWLoss.simple:
-            aggregator = SimpleAggregator(latent_dim=ARGS.batch_wise_latent, final_proj=final_proj)
-        elif ARGS.batch_wise_loss == BWLoss.transposed:
+        if ARGS.aggregator == BWLoss.attention:
+            aggregator = AttentionAggregator(
+                ARGS.aggregator_input_dim, final_proj=final_proj, **ARGS.aggregator_kwargs
+            )
+        elif ARGS.aggregator == BWLoss.simple:
+            aggregator = SimpleAggregator(
+                latent_dim=ARGS.aggregator_input_dim, final_proj=final_proj
+            )
+        elif ARGS.aggregator == BWLoss.transposed:
             aggregator = SimpleAggregatorT(batch_dim=ARGS.batch_size, final_proj=final_proj)
-
-        disc_fn = ModelAggregatorWrapper(disc_fn, aggregator, embed_dim=ARGS.batch_wise_latent)
+        else:
+            aggregator_kwargs = {"embed_dim": 128}
+            aggregator_kwargs.update(ARGS.aggregator_kwargs)
+            aggregator = GatedAttention(
+                in_dim=ARGS.aggregator_input_dim,
+                final_proj=final_proj,
+                **aggregator_kwargs,
+            )
+        disc_fn = ModelAggregatorWrapper(disc_fn, aggregator, input_dim=ARGS.aggregator_input_dim)
 
     components: Union[AeComponents, InnComponents]
     disc: Classifier
@@ -424,13 +451,23 @@ def main(
             )
             return generator
 
+    if ARGS.snorm:
+
+        def _snorm(_module: nn.Module) -> nn.Module:
+            if hasattr(_module, "weight"):
+                return torch.nn.utils.spectral_norm(_module)
+            return _module
+
+        disc_ensemble.apply(_snorm)
+
     # Logging
     print(f"Number of trainable parameters: {count_parameters(generator)}")
 
     itr = start_itr
     disc: nn.Module
-    loss_meters: Optional[Dict[str, AverageMeter]] = None
     start_time = time.monotonic()
+
+    loss_meters = defaultdict(AverageMeter)
 
     for itr in range(start_itr, ARGS.iters + 1):
 
@@ -440,13 +477,10 @@ def main(
             train_data_itr=train_data_itr,
             itr=itr,
         )
-        if loss_meters is None:
-            loss_meters = {name: AverageMeter() for name in logging_dict}
         for name, value in logging_dict.items():
             loss_meters[name].update(value)
 
         if itr % ARGS.log_freq == 0:
-            assert loss_meters is not None
             log_string = " | ".join(f"{name}: {loss.avg:.5g}" for name, loss in loss_meters.items())
             elapsed = time.monotonic() - start_time
             print(
@@ -458,7 +492,7 @@ def main(
                 )
             )
 
-            loss_meters = None
+            loss_meters.clear()
             start_time = time.monotonic()
 
         if ARGS.validate and itr % ARGS.val_freq == 0:
@@ -542,27 +576,24 @@ def train_step(
     itr: int,
 ) -> Dict[str, float]:
 
-    disc_weight = 0.0 if itr < ARGS.warmup_steps else ARGS.disc_weight
-    if ARGS.disc_method == DM.nn:
+    warmup = itr < ARGS.warmup_steps
+    disc_logging = {}
+    if (not warmup) and (ARGS.disc_method == DM.nn):
         # Train the discriminator on its own for a number of iterations
         for _ in range(ARGS.num_disc_updates):
             x_c, x_t, s_t, y_t = get_batch(
                 context_data_itr=context_data_itr, train_data_itr=train_data_itr
             )
             if components.type_ == "ae":
-                _, disc_logging = update_disc(x_c, x_t, components, itr < ARGS.warmup_steps)
+                _, disc_logging = update_disc(x_c, x_t, ae=components)
             else:
-                update_disc_on_inn(ARGS, x_c, x_t, components, itr < ARGS.warmup_steps)
+                update_disc_on_inn(ARGS, x_c, x_t, models=components)
 
     x_c, x_t, s_t, y_t = get_batch(context_data_itr=context_data_itr, train_data_itr=train_data_itr)
     if components.type_ == "ae":
-        _, logging_dict = update(
-            x_c=x_c, x_t=x_t, s_t=s_t, y_t=y_t, ae=components, warmup=itr < ARGS.warmup_steps
-        )
+        _, logging_dict = update(x_c=x_c, x_t=x_t, s_t=s_t, y_t=y_t, ae=components, warmup=warmup)
     else:
-        _, logging_dict = update_inn(
-            args=ARGS, x_c=x_c, x_t=x_t, models=components, disc_weight=disc_weight
-        )
+        _, logging_dict = update_inn(args=ARGS, x_c=x_c, x_t=x_t, models=components)
 
     logging_dict.update(disc_logging)
     wandb_log(MISC, logging_dict, step=itr)
@@ -591,9 +622,7 @@ class AeComponents(NamedTuple):
     type_: Literal["ae"] = "ae"
 
 
-def update_disc(
-    x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False
-) -> Tuple[Tensor, Dict[str, float]]:
+def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents) -> Tuple[Tensor, Dict[str, float]]:
     """Train the discriminator while keeping the generator constant.
 
     Args:
@@ -605,22 +634,21 @@ def update_disc(
     ae.predictor_s.eval()
     ae.disc_ensemble.train()
 
-    if ARGS.batch_wise_loss == BWLoss.none:
+    if ARGS.aggregator == BWLoss.none:
         ones = x_c.new_ones((x_c.size(0),))
         zeros = x_t.new_zeros((x_t.size(0),))
     else:
-        ones = x_c.new_ones((1,))
-        zeros = x_t.new_zeros((1,))
-    invariances = ["s"]
+        ones = x_c.new_ones(ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
+        zeros = x_c.new_zeros(ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
 
-    if not ARGS.vae:
-        encoding_t = ae.generator.encode(x_t)
-        if not ARGS.train_on_recon:
-            encoding_c = ae.generator.encode(x_c)
     if ARGS.vae:
         encoding_t = ae.generator.encode(x_t, stochastic=True)
         if not ARGS.train_on_recon:
             encoding_c = ae.generator.encode(x_c, stochastic=True)
+    else:
+        encoding_t = ae.generator.encode(x_t)
+        if not ARGS.train_on_recon:
+            encoding_c = ae.generator.encode(x_c)
 
     if ARGS.train_on_recon:
         disc_input_c = x_c
@@ -628,26 +656,24 @@ def update_disc(
     disc_loss = x_c.new_zeros(())
     disc_acc = 0.0
     logging_dict = {}
-    for invariance in invariances:
-        disc_input_t = get_disc_input(ae.generator, encoding_t, invariant_to=invariance)
-        disc_input_t = disc_input_t.detach()
-        if not ARGS.train_on_recon:
-            disc_input_c = get_disc_input(ae.generator, encoding_c, invariant_to=invariance)
-            disc_input_c = disc_input_c.detach()
+    disc_input_t = get_disc_input(ae.generator, encoding_t)
+    disc_input_t = disc_input_t.detach()
+    if not ARGS.train_on_recon:
+        disc_input_c = get_disc_input(ae.generator, encoding_c)
+        disc_input_c = disc_input_c.detach()
 
-        for discriminator in ae.disc_ensemble:
-            disc_loss_true, acc_c = discriminator.routine(disc_input_c, ones)
-            disc_loss_false, acc_t = discriminator.routine(disc_input_t, zeros)
-            disc_loss += disc_loss_true + disc_loss_false
-            disc_acc += 0.5 * (acc_c + acc_t)
-        disc_loss /= len(ae.disc_ensemble)
-        logging_dict["Accuracy Discriminator (zy)"] = disc_acc / len(ae.disc_ensemble)
-    if not warmup:
-        for discriminator in ae.disc_ensemble:
-            discriminator.zero_grad()
-        disc_loss.backward()
-        for discriminator in ae.disc_ensemble:
-            discriminator.step()
+    for discriminator in ae.disc_ensemble:
+        disc_loss_true, acc_c = discriminator.routine(disc_input_c, ones)
+        disc_loss_false, acc_t = discriminator.routine(disc_input_t, zeros)
+        disc_loss += disc_loss_true + disc_loss_false
+        disc_acc += 0.5 * (acc_c + acc_t)
+    disc_loss /= len(ae.disc_ensemble)
+    logging_dict["Accuracy Discriminator (zy)"] = disc_acc / len(ae.disc_ensemble)
+    for discriminator in ae.disc_ensemble:
+        discriminator.zero_grad()
+    disc_loss.backward()
+    for discriminator in ae.disc_ensemble:
+        discriminator.step()
 
     return disc_loss, logging_dict
 
@@ -660,11 +686,11 @@ def update(
     Args:
         x_t: x from the training set
     """
-    disc_weight = 0.0 if warmup else ARGS.disc_weight
     # Compute losses for the generator.
     ae.predictor_y.train()
     ae.predictor_s.train()
     ae.generator.train()
+    ae.disc_ensemble.eval()
     logging_dict = {}
 
     # ================================ recon loss for training set ================================
@@ -683,31 +709,38 @@ def update(
     # ==================================== adversarial losses =====================================
     disc_input_no_s = get_disc_input(ae.generator, encoding, invariant_to="s")
 
-    if ARGS.disc_method == DM.nn:
-        if ARGS.batch_wise_loss == BWLoss.none:
-            zeros = x_t.new_zeros((x_t.size(0),))
+    elbo *= ARGS.elbo_weight
+    logging_dict["ELBO"] = elbo
+
+    total_loss = elbo
+
+    if not warmup:
+        if ARGS.disc_method == DM.nn:
+            if ARGS.aggregator == BWLoss.none:
+                zeros = x_t.new_zeros((x_t.size(0),))
+            else:
+                zeros = x_c.new_zeros(ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
+
+            disc_loss = x_t.new_zeros(())
+            for discriminator in ae.disc_ensemble:
+                disc_loss -= discriminator.routine(disc_input_no_s, zeros)[0]
+            disc_loss /= len(ae.disc_ensemble)
+
         else:
-            zeros = x_t.new_zeros((1,))
+            x = disc_input_no_s
+            y = get_disc_input(ae.generator, encoding_c.detach(), invariant_to="s")
+            disc_loss = mmd2(
+                x=x,
+                y=y,
+                kernel=ARGS.mmd_kernel,
+                scales=ARGS.mmd_scales,
+                wts=ARGS.mmd_wts,
+                add_dot=ARGS.mmd_add_dot,
+            )
+        disc_loss *= ARGS.disc_weight
+        total_loss += disc_loss
+        logging_dict["Loss Discriminator"] = disc_loss
 
-        disc_loss = x_t.new_zeros(())
-        for discriminator in ae.disc_ensemble:
-            discriminator.eval()
-            disc_loss -= discriminator.routine(disc_input_no_s, zeros)[0]
-        disc_loss /= len(ae.disc_ensemble)
-
-    else:
-        x = disc_input_no_s
-        y = get_disc_input(ae.generator, encoding_c.detach(), invariant_to="s")
-        disc_loss = mmd2(
-            x=x,
-            y=y,
-            kernel=ARGS.mmd_kernel,
-            scales=ARGS.mmd_scales,
-            wts=ARGS.mmd_wts,
-            add_dot=ARGS.mmd_add_dot,
-        )
-    pred_y_loss = x_t.new_zeros(())
-    pred_s_loss = x_t.new_zeros(())
     # this is a pretty cheap masking operation, so it's okay if it's not used
     enc_no_s, enc_no_y = ae.generator.mask(encoding, random=False)
     if ARGS.pred_y_weight > 0:
@@ -716,37 +749,31 @@ def update(
         pred_y_loss *= ARGS.pred_y_weight
         logging_dict["Loss Predictor y"] = pred_y_loss.item()
         logging_dict["Accuracy Predictor y"] = pred_y_acc
+        total_loss += pred_y_loss
     if ARGS.pred_s_weight > 0:
         pred_s_loss, pred_s_acc = ae.predictor_s.routine(enc_no_y, s_t)
         pred_s_loss *= ARGS.pred_s_weight
         logging_dict["Loss Predictor s"] = pred_s_loss.item()
         logging_dict["Accuracy Predictor s"] = pred_s_acc
+        total_loss += pred_s_loss
 
-    elbo *= ARGS.elbo_weight
-    disc_loss *= disc_weight
+    logging_dict["Loss Total"] = total_loss
 
-    gen_loss = elbo + disc_loss + pred_y_loss + pred_s_loss
-    # Update the generator's parameters
     ae.generator.zero_grad()
     if ARGS.pred_y_weight > 0:
         ae.predictor_y.zero_grad()
     if ARGS.pred_s_weight > 0:
         ae.predictor_s.zero_grad()
-    gen_loss.backward()
+
+    total_loss.backward()
+
+    # Update the generator's parameters
     ae.generator.step()
     if ARGS.pred_y_weight > 0:
         ae.predictor_y.step()
     if ARGS.pred_s_weight > 0:
         ae.predictor_s.step()
-
-    final_logging = {
-        "ELBO": elbo.item(),
-        "Loss Adversarial": disc_loss.item(),
-        "Loss Generator": gen_loss.item(),
-    }
-    logging_dict.update(final_logging)
-
-    return gen_loss, logging_dict
+    return total_loss, logging_dict
 
 
 def get_disc_input(

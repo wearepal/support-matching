@@ -112,11 +112,11 @@ class Mp64x64Net:
 
 
 class ModelAggregatorWrapper:
-    def __init__(self, model_fn: ModelFn, aggregator: Aggregator, embed_dim: int):
+    def __init__(self, model_fn: ModelFn, aggregator: Aggregator, input_dim: int):
         self.model_fn = model_fn
         self.aggregator = aggregator
-        self.embed_dim = embed_dim
+        self.input_dim = input_dim
 
     def __call__(self, input_dim: int, target_dim: int) -> nn.Module:
         assert target_dim == self.aggregator.output_dim
-        return nn.Sequential(self.model_fn(input_dim, self.embed_dim), self.aggregator)
+        return nn.Sequential(self.model_fn(input_dim, self.input_dim), nn.SELU(), self.aggregator)

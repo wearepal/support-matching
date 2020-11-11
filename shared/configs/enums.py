@@ -30,7 +30,7 @@ InnRM = Enum("InnRM", "squeeze haar")  # INN reshape method
 InnSc = Enum("InnSc", "none exp sigmoid0_5 add2_sigmoid")  # INN scaling method
 DM = Enum("DM", "nn mmd")  # discriminator method
 MMDKer = Enum("MMDKer", "linear rbf rq")  # MMD kernel
-BWLoss = Enum("BWLoss", "none attention simple transposed")  # batch-wise loss
+BWLoss = Enum("BWLoss", "none attention simple transposed gated")  # batch-wise loss
 
 
 class QL(Enum):

@@ -5,3 +5,4 @@ from .classifier import *
 from .factory import *
 from .inn import *
 from .resnet import *
+from .set_transformer import *
