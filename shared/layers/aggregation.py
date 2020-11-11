@@ -102,7 +102,7 @@ class GatedAttention(Aggregator):
     def __init__(
         self,
         in_dim: int,
-        latent_dim: int,
+        latent_dim: int = 128,
         final_proj: Optional[ModelFn] = None,
         output_dim: int = 1,
     ) -> None:
