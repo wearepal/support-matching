@@ -4,11 +4,18 @@ from typing import Callable, Optional
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
+import torch.nn as nn
 from typing_extensions import Literal
 
 from shared.utils import ModelFn
 
-__all__ = ["Aggregator", "AttentionAggregator", "SimpleAggregator", "SimpleAggregatorT"]
+__all__ = [
+    "Aggregator",
+    "AttentionAggregator",
+    "SimpleAggregator",
+    "SimpleAggregatorT",
+    "GatedAttention",
+]
 
 
 class Aggregator(nn.Module):
@@ -89,3 +96,31 @@ class SimpleAggregatorT(Aggregator):
         weights = F.softmax(self.weight_proj(inputs.t()).view(-1), dim=-1)
         weighted = torch.sum(weights * inputs, dim=-1)
         return self.final_proj(weighted.view(1, -1))
+
+
+class GatedAttention(Aggregator):
+    def __init__(
+        self,
+        in_dim: int,
+        latent_dim: int,
+        final_proj: Optional[ModelFn] = None,
+        output_dim: int = 1,
+    ) -> None:
+        super().__init__()
+        self.V = nn.Parameter(torch.empty(latent_dim, in_dim))
+        self.U = nn.Parameter(torch.empty(latent_dim, in_dim))
+        self.w = nn.Parameter(torch.empty(1, latent_dim))
+        nn.init.xavier_normal_(self.V)
+        nn.init.xavier_normal_(self.U)
+        nn.init.xavier_normal_(self.w)
+        if final_proj is not None:
+            self.final_proj = final_proj(latent_dim, output_dim)
+        else:
+            self.final_proj = nn.Linear(latent_dim, output_dim)
+        self.output_dim = output_dim
+
+    def forward(self, inputs: Tensor) -> Tensor:
+        logits = torch.tanh(inputs @ self.V.t()) * torch.sigmoid(inputs @ self.U.t()) @ self.w.t()
+        weights = logits.softmax(dim=0)
+        weighted = torch.sum(weights * inputs, dim=0, keepdim=True)
+        return self.final_proj(weighted)

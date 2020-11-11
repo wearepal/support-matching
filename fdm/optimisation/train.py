@@ -1,25 +1,47 @@
 """Main training file"""
+from functools import partial
 import os
-import time
 from pathlib import Path
-from typing import Callable, Dict, Iterator, NamedTuple, Optional, Sequence, Tuple, Union
+import time
+from typing import (
+    Callable,
+    Dict,
+    Iterator,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 import git
 import numpy as np
 import torch
+from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
-import wandb
-from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, Subset, WeightedRandomSampler
 from typing_extensions import Literal
 
 from fdm.configs import FdmArgs
-from fdm.models import AutoEncoder, Classifier, EncodingSize, PartitionedAeInn, build_discriminator
+from fdm.models import (
+    AutoEncoder,
+    Classifier,
+    EncodingSize,
+    PartitionedAeInn,
+    build_discriminator,
+)
 from fdm.models.configs import Residual64x64Net, Strided28x28Net
+from fdm.models.set_transformer import SetTransformer
 from fdm.optimisation.mmd import mmd2
 from shared.data import DatasetTriplet, load_dataset
-from shared.layers import Aggregator, AttentionAggregator, SimpleAggregator, SimpleAggregatorT
+from shared.layers import (
+    Aggregator,
+    AttentionAggregator,
+    SimpleAggregator,
+    SimpleAggregatorT,
+)
+from shared.layers.aggregation import GatedAttention
 from shared.models.configs import conv_autoencoder, fc_autoencoder
 from shared.models.configs.classifiers import FcNet, ModelAggregatorWrapper
 from shared.utils import (
@@ -36,6 +58,7 @@ from shared.utils import (
     readable_duration,
     wandb_log,
 )
+import wandb
 
 from .build import build_ae, build_inn
 from .evaluation import baseline_metrics, log_metrics
@@ -306,7 +329,8 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
             disc_fn = Strided28x28Net(batch_norm=False)
         else:
             disc_fn = Residual64x64Net(batch_norm=False)
-    else:
+
+    elif args.aggregator != "set_transformer":
         disc_fn = FcNet(hidden_dims=ARGS.disc_hidden_dims)
         # FcNet first flattens the input
         disc_input_shape = (
@@ -315,18 +339,32 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
             else disc_input_shape
         )
 
-    if ARGS.batch_wise_loss != "none":
-        final_proj = FcNet(ARGS.batch_wise_hidden_dims) if ARGS.batch_wise_hidden_dims else None
-        aggregator: Aggregator
-        if args.batch_wise_loss == "attention":
-            aggregator = AttentionAggregator(args.batch_wise_latent, final_proj=final_proj)
-        elif args.batch_wise_loss == "simple":
-            aggregator = SimpleAggregator(latent_dim=args.batch_wise_latent, final_proj=final_proj)
-        elif args.batch_wise_loss == "transposed":
-            aggregator = SimpleAggregatorT(batch_dim=args.batch_size, final_proj=final_proj)
+        if ARGS.aggregator != "none":
+            final_proj = FcNet(ARGS.batch_wise_hidden_dims) if ARGS.batch_wise_hidden_dims else None
+            aggregator: Aggregator
+            if args.aggregator == "attention":
+                aggregator = AttentionAggregator(args.aggregator_input_dim, final_proj=final_proj)
+            elif args.aggregator == "simple":
+                aggregator = SimpleAggregator(
+                    latent_dim=args.aggregator_input_dim, final_proj=final_proj
+                )
+            elif args.aggregator == "transposed":
+                aggregator = SimpleAggregatorT(batch_dim=args.batch_size, final_proj=final_proj)
+            else:
+                aggregator = GatedAttention(
+                    in_dim=args.aggregator_input_dim,
+                    final_proj=final_proj,
+                    **args.aggregator_kwargs,
+                )
+            disc_fn = ModelAggregatorWrapper(
+                disc_fn, aggregator, input_dim=args.aggregator_input_dim
+            )
 
-        disc_fn = ModelAggregatorWrapper(disc_fn, aggregator, embed_dim=args.batch_wise_latent)
-
+    else:
+        disc_fn = partial(
+            SetTransformer,
+            **args.aggregator_kwargs,
+        )
     components: Union[AeComponents, InnComponents]
     disc: Classifier
     if not ARGS.use_inn:
@@ -581,7 +619,7 @@ def update_disc(
     ae.predictor_s.eval()
     ae.disc_ensemble.train()
 
-    if ARGS.batch_wise_loss == "none":
+    if ARGS.aggregator == "none":
         ones = x_c.new_ones((x_c.size(0),))
         zeros = x_t.new_zeros((x_t.size(0),))
     else:
@@ -660,7 +698,7 @@ def update(
     disc_input_no_s = get_disc_input(ae.generator, encoding, invariant_to="s")
 
     if ARGS.disc_method == "nn":
-        if ARGS.batch_wise_loss == "none":
+        if ARGS.aggregator == "none":
             zeros = x_t.new_zeros((x_t.size(0),))
         else:
             zeros = x_t.new_zeros((1,))

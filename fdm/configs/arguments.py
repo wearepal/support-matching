@@ -92,9 +92,12 @@ class FdmArgs(BaseArgs):
     mmd_add_dot: float = 0.0
 
     disc_hidden_dims: List[int] = [256]
-    batch_wise_loss: Literal["none", "attention", "simple", "transposed"] = "none"
-    batch_wise_latent: int = 32
+    aggregator: Literal[
+        "none", "attention", "simple", "transposed", "set_transformer", "gated"
+    ] = "none"
+    aggregator_input_dim: int = 32
     batch_wise_hidden_dims: List[int] = []
+    aggregator_kwargs: Dict[str, int] = {}
 
     # Training settings
     lr: float = 1e-3
@@ -117,6 +120,15 @@ class FdmArgs(BaseArgs):
             "--inn-factor-splits",
             action=StoreDictKeyPair,
             nargs="*",
+            type=str,
+            default={},
+            key_type=str,
+            value_type=int,
+        )
+        self.add_argument(
+            "--aggregator-kwargs",
+            action=StoreDictKeyPair,
+            nargs="*",
             default={},
             type=str,
             key_type=str,
@@ -137,6 +149,13 @@ class FdmArgs(BaseArgs):
             self.recon_loss = "mixed" if self.dataset == "adult" else "l1"
         if self.val_freq < 0:
             raise ValueError("frequency cannot be negative")
+        if self.aggregator == "set_transformer":
+            self.aggregator_kwargs.setdefault("num_outputs", 32)
+            self.aggregator_kwargs.setdefault("hidden_dim", 128)
+            self.aggregator_kwargs.setdefault("num_inds", 32)
+            self.aggregator_kwargs.setdefault("num_heads", 4)
+        elif self.aggregator == "gated":
+            self.aggregator_kwargs.setdefault("latent_dim", 32)
 
     def convert_arg_line_to_args(self, arg_line: str) -> List[str]:
         """Parse each line like a YAML file."""

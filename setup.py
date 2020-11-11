@@ -17,6 +17,7 @@ setup(
         "gitpython",
         "lapjv",
         "numpy >= 1.15",
+        "faiss-cpu",
         "pandas >= 0.24",
         "pillow",
         # "pykeops",
@@ -32,8 +33,3 @@ setup(
         "wandb >= 0.10.2",
     ],
 )
-
-try:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "faiss-gpu"])
-except:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "faiss-cpu"])
