@@ -339,26 +339,24 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
             else disc_input_shape
         )
 
-        if ARGS.aggregator != "none":
-            final_proj = FcNet(ARGS.batch_wise_hidden_dims) if ARGS.batch_wise_hidden_dims else None
-            aggregator: Aggregator
-            if args.aggregator == "attention":
-                aggregator = AttentionAggregator(args.aggregator_input_dim, final_proj=final_proj)
-            elif args.aggregator == "simple":
-                aggregator = SimpleAggregator(
-                    latent_dim=args.aggregator_input_dim, final_proj=final_proj
-                )
-            elif args.aggregator == "transposed":
-                aggregator = SimpleAggregatorT(batch_dim=args.batch_size, final_proj=final_proj)
-            else:
-                aggregator = GatedAttention(
-                    in_dim=args.aggregator_input_dim,
-                    final_proj=final_proj,
-                    **args.aggregator_kwargs,
-                )
-            disc_fn = ModelAggregatorWrapper(
-                disc_fn, aggregator, input_dim=args.aggregator_input_dim
+    if ARGS.aggregator != "none":
+        final_proj = FcNet(ARGS.batch_wise_hidden_dims) if ARGS.batch_wise_hidden_dims else None
+        aggregator: Aggregator
+        if args.aggregator == "attention":
+            aggregator = AttentionAggregator(args.aggregator_input_dim, final_proj=final_proj)
+        elif args.aggregator == "simple":
+            aggregator = SimpleAggregator(
+                latent_dim=args.aggregator_input_dim, final_proj=final_proj
             )
+        elif args.aggregator == "transposed":
+            aggregator = SimpleAggregatorT(batch_dim=args.batch_size, final_proj=final_proj)
+        else:
+            aggregator = GatedAttention(
+                in_dim=args.aggregator_input_dim,
+                final_proj=final_proj,
+                **args.aggregator_kwargs,
+            )
+        disc_fn = ModelAggregatorWrapper(disc_fn, aggregator, input_dim=args.aggregator_input_dim)
 
     components: Union[AeComponents, InnComponents]
     disc: Classifier
@@ -622,14 +620,14 @@ def update_disc(
         zeros = x_t.new_zeros((1,))
     invariances = ["s"]
 
-    if not ARGS.vae:
-        encoding_t = ae.generator.encode(x_t)
-        if not ARGS.train_on_recon:
-            encoding_c = ae.generator.encode(x_c)
     if ARGS.vae:
         encoding_t = ae.generator.encode(x_t, stochastic=True)
         if not ARGS.train_on_recon:
             encoding_c = ae.generator.encode(x_c, stochastic=True)
+    else:
+        encoding_t = ae.generator.encode(x_t)
+        if not ARGS.train_on_recon:
+            encoding_c = ae.generator.encode(x_c)
 
     if ARGS.train_on_recon:
         disc_input_c = x_c
