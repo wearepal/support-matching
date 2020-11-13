@@ -237,15 +237,6 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
             variational=ARGS.vae,
         )
 
-    if ARGS.enc_snorm:
-
-        def _snorm(_module: nn.Module) -> nn.Module:
-            if hasattr(_module, "weight"):
-                return torch.nn.utils.spectral_norm(_module)
-            return _module
-
-        encoder.apply(_snorm)
-
     recon_loss_fn_: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
     if ARGS.recon_loss == "l1":
         recon_loss_fn_ = nn.L1Loss(reduction="sum")
@@ -438,6 +429,15 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         if ARGS.evaluate:
             log_metrics(ARGS, generator, datasets, 0, save_to_csv=Path(ARGS.save_dir))
             return generator
+
+    if ARGS.snorm:
+
+        def _snorm(_module: nn.Module) -> nn.Module:
+            if hasattr(_module, "weight"):
+                return torch.nn.utils.spectral_norm(_module)
+            return _module
+
+        disc_ensemble.apply(_snorm)
 
     # Logging
     print(f"Number of trainable parameters: {count_parameters(generator)}")

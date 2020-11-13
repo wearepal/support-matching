@@ -1,9 +1,9 @@
 from typing import Dict, List, Optional
 
-import torch
 from typing_extensions import Literal
 
 from shared.configs import BaseArgs, ParseList, StoreDictKeyPair
+import torch
 
 __all__ = ["FdmArgs"]
 
@@ -52,7 +52,7 @@ class FdmArgs(BaseArgs):
     enc_levels: int = 4
     enc_out_dim: int = 64
     enc_init_chans: int = 32
-    enc_snorm: bool = False
+    snorm: bool = False
     zs_frac: float = 0.1
 
     recon_loss: Optional[Literal["l1", "l2", "bce", "huber", "ce", "mixed"]] = None
