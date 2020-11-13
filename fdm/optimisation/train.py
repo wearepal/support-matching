@@ -14,13 +14,7 @@ from typing import (
     Union,
 )
 
-import git
 import numpy as np
-import torch
-from torch import Tensor
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset, Subset, WeightedRandomSampler
 from typing_extensions import Literal
 
 from fdm.configs import FdmArgs
@@ -34,6 +28,7 @@ from fdm.models import (
 from fdm.models.configs import Residual64x64Net, Strided28x28Net
 from fdm.models.set_transformer import SetTransformer
 from fdm.optimisation.mmd import mmd2
+import git
 from shared.data import DatasetTriplet, load_dataset
 from shared.layers import (
     Aggregator,
@@ -58,6 +53,11 @@ from shared.utils import (
     readable_duration,
     wandb_log,
 )
+import torch
+from torch import Tensor
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import DataLoader, Dataset, Subset, WeightedRandomSampler
 import wandb
 
 from .build import build_ae, build_inn
@@ -550,6 +550,7 @@ def train_step(
 ) -> Dict[str, float]:
 
     disc_weight = 0.0 if itr < ARGS.warmup_steps else ARGS.disc_weight
+    disc_logging = {}
     if ARGS.disc_method == "nn":
         # Train the discriminator on its own for a number of iterations
         for _ in range(ARGS.num_disc_updates):
@@ -672,6 +673,7 @@ def update(
     ae.predictor_y.train()
     ae.predictor_s.train()
     ae.generator.train()
+    ae.disc_ensemble.eval()
     logging_dict = {}
 
     # ================================ recon loss for training set ================================
@@ -698,7 +700,6 @@ def update(
 
         disc_loss = x_t.new_zeros(())
         for discriminator in ae.disc_ensemble:
-            discriminator.eval()
             disc_loss -= discriminator.routine(disc_input_no_s, zeros)[0]
         disc_loss /= len(ae.disc_ensemble)
 
