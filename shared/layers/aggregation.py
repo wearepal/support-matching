@@ -20,6 +20,11 @@ __all__ = [
 
 class Aggregator(nn.Module):
     output_dim: int
+    batch_size: int
+
+    def __init__(self, batch_size: int = 1) -> None:
+        super().__init__()
+        self.batch_size = batch_size
 
 
 class AttentionAggregator(Aggregator):
@@ -31,7 +36,7 @@ class AttentionAggregator(Aggregator):
         final_proj: Optional[ModelFn] = None,
         output_dim: int = 1,
     ):
-        super().__init__()
+        super().__init__(batch_size=1)
         self.latent_dim = latent_dim
         self.attn = nn.MultiheadAttention(
             embed_dim=latent_dim, num_heads=1, dropout=dropout, bias=True
@@ -64,7 +69,7 @@ class SimpleAggregator(Aggregator):
     def __init__(
         self, *, latent_dim: int, final_proj: Optional[ModelFn] = None, output_dim: int = 1
     ):
-        super().__init__()
+        super().__init__(batch_size=1)
         self.weight_proj = nn.Linear(latent_dim, 1)
         if final_proj is not None:
             self.final_proj = final_proj(latent_dim, output_dim)
@@ -84,7 +89,7 @@ class SimpleAggregatorT(Aggregator):
     def __init__(
         self, *, batch_dim: int, final_proj: Optional[ModelFn] = None, output_dim: int = 1
     ):
-        super().__init__()
+        super().__init__(batch_size=1)
         self.weight_proj = nn.Linear(batch_dim, 1)
         if final_proj is not None:
             self.final_proj = final_proj(batch_dim, output_dim)
@@ -105,8 +110,9 @@ class GatedAttention(Aggregator):
         embed_dim: int = 128,
         final_proj: Optional[ModelFn] = None,
         output_dim: int = 1,
+        batch_size: int = 1,
     ) -> None:
-        super().__init__()
+        super().__init__(batch_size=batch_size)
         self.V = nn.Parameter(torch.empty(embed_dim, in_dim))
         self.U = nn.Parameter(torch.empty(embed_dim, in_dim))
         self.w = nn.Parameter(torch.empty(1, embed_dim))
@@ -121,6 +127,8 @@ class GatedAttention(Aggregator):
 
     def forward(self, inputs: Tensor) -> Tensor:
         logits = torch.tanh(inputs @ self.V.t()) * torch.sigmoid(inputs @ self.U.t()) @ self.w.t()
-        weights = logits.softmax(dim=0)
-        weighted = torch.sum(weights * inputs, dim=0, keepdim=True)
+        logits_batched = logits.view(self.batch_size, -1)
+        weights = logits_batched.softmax(dim=1).unsqueeze(-1)
+        inputs_batched = inputs.view(self.batch_size, -1, *inputs.shape[1:])
+        weighted = torch.sum(weights * inputs_batched, dim=1, keepdim=False)
         return self.final_proj(weighted)

@@ -14,7 +14,13 @@ from typing import (
     Union,
 )
 
+import git
 import numpy as np
+import torch
+from torch import Tensor
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import DataLoader, Dataset, Subset, WeightedRandomSampler
 from typing_extensions import Literal
 
 from fdm.configs import FdmArgs
@@ -28,7 +34,6 @@ from fdm.models import (
 from fdm.models.configs import Residual64x64Net, Strided28x28Net
 from fdm.models.set_transformer import SetTransformer
 from fdm.optimisation.mmd import mmd2
-import git
 from shared.data import DatasetTriplet, load_dataset
 from shared.layers import (
     Aggregator,
@@ -53,11 +58,6 @@ from shared.utils import (
     readable_duration,
     wandb_log,
 )
-import torch
-from torch import Tensor
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset, Subset, WeightedRandomSampler
 import wandb
 
 from .build import build_ae, build_inn
@@ -617,9 +617,8 @@ def update_disc(
         ones = x_c.new_ones((x_c.size(0),))
         zeros = x_t.new_zeros((x_t.size(0),))
     else:
-        ones = x_c.new_ones((1,))
-        zeros = x_t.new_zeros((1,))
-    invariances = ["s"]
+        ones = x_c.new_ones(ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
+        zeros = x_c.new_zeros(ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
 
     if ARGS.vae:
         encoding_t = ae.generator.encode(x_t, stochastic=True)
@@ -636,20 +635,19 @@ def update_disc(
     disc_loss = x_c.new_zeros(())
     disc_acc = 0.0
     logging_dict = {}
-    for invariance in invariances:
-        disc_input_t = get_disc_input(ae.generator, encoding_t, invariant_to=invariance)
-        disc_input_t = disc_input_t.detach()
-        if not ARGS.train_on_recon:
-            disc_input_c = get_disc_input(ae.generator, encoding_c, invariant_to=invariance)
-            disc_input_c = disc_input_c.detach()
+    disc_input_t = get_disc_input(ae.generator, encoding_t)
+    disc_input_t = disc_input_t.detach()
+    if not ARGS.train_on_recon:
+        disc_input_c = get_disc_input(ae.generator, encoding_c)
+        disc_input_c = disc_input_c.detach()
 
-        for discriminator in ae.disc_ensemble:
-            disc_loss_true, acc_c = discriminator.routine(disc_input_c, ones)
-            disc_loss_false, acc_t = discriminator.routine(disc_input_t, zeros)
-            disc_loss += disc_loss_true + disc_loss_false
-            disc_acc += 0.5 * (acc_c + acc_t)
-        disc_loss /= len(ae.disc_ensemble)
-        logging_dict["Accuracy Discriminator (zy)"] = disc_acc / len(ae.disc_ensemble)
+    for discriminator in ae.disc_ensemble:
+        disc_loss_true, acc_c = discriminator.routine(disc_input_c, ones)
+        disc_loss_false, acc_t = discriminator.routine(disc_input_t, zeros)
+        disc_loss += disc_loss_true + disc_loss_false
+        disc_acc += 0.5 * (acc_c + acc_t)
+    disc_loss /= len(ae.disc_ensemble)
+    logging_dict["Accuracy Discriminator (zy)"] = disc_acc / len(ae.disc_ensemble)
     if not warmup:
         for discriminator in ae.disc_ensemble:
             discriminator.zero_grad()
@@ -696,7 +694,7 @@ def update(
         if ARGS.aggregator == "none":
             zeros = x_t.new_zeros((x_t.size(0),))
         else:
-            zeros = x_t.new_zeros((1,))
+            zeros = x_c.new_zeros(ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
 
         disc_loss = x_t.new_zeros(())
         for discriminator in ae.disc_ensemble:
