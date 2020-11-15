@@ -1,17 +1,17 @@
 from pathlib import Path
 from typing import Optional, Sequence, Tuple
 
-import ethicml as em
 import numpy as np
-import pandas as pd
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import tqdm
 from typing_extensions import Literal
 
+import ethicml as em
 from fdm.configs import FdmArgs
 from fdm.models import AutoEncoder, Classifier
+import pandas as pd
 from shared.data import DatasetTriplet, get_data_tuples
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import ModelFn, compute_metrics, make_tuple_from_data, prod
@@ -199,7 +199,7 @@ def encode_dataset(
     all_y = []
 
     data_loader = DataLoader(
-        data, batch_size=args.encode_batch_size, pin_memory=True, shuffle=False, num_workers=4
+        data, batch_size=args.encode_batch_size, pin_memory=True, shuffle=False, num_workers=0
     )
 
     with torch.set_grad_enabled(False):
