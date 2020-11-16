@@ -8,11 +8,11 @@ import git
 import numpy as np
 import torch
 import wandb
+from omegaconf import OmegaConf
 from torch import Tensor
 from torch.utils.data import ConcatDataset, DataLoader
 from torchvision.models import resnet18, resnet50
 
-from clustering.configs import ClusterArgs
 from clustering.models import (
     Classifier,
     CosineSimThreshold,
@@ -28,6 +28,7 @@ from clustering.models import (
     SelfSupervised,
     build_classifier,
 )
+from shared.configs import Config, DatasetConfig, ClusterArgs, Misc, EncoderConfig, Enc, DS, Meth, PL, CL
 from shared.data.data_loading import DatasetTriplet, load_dataset
 from shared.data.dataset_wrappers import RotationPrediction
 from shared.data.misc import adaptive_collate
@@ -35,10 +36,9 @@ from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import (
     AverageMeter,
     ModelFn,
-    accept_prefixes,
-    confirm_empty,
     count_parameters,
     get_data_dim,
+    flatten,
     print_metrics,
     prod,
     random_seed,
@@ -63,10 +63,14 @@ from .utils import (
 __all__ = ["main"]
 
 ARGS: ClusterArgs = None  # type: ignore[assignment]
+CFG: Config = None  # type: ignore[assignment]
+DATA: DatasetConfig = None  # type: ignore[assignment]
+ENC: EncoderConfig = None  # type: ignore[assignment]
+MISC: Misc = None  # type: ignore[assignment]
 
 
 def main(
-    cluster_label_file: Optional[Path] = None, use_wandb: Optional[bool] = None
+    cfg: Config, cluster_label_file: Optional[Path] = None, use_wandb: Optional[bool] = None
 ) -> Tuple[Model, Path]:
     """Main function
 
@@ -77,10 +81,14 @@ def main(
     Returns:
         the trained generator
     """
-    # ==== parse args ====
-    args = ClusterArgs(fromfile_prefix_chars="@", explicit_bool=True, underscores_to_dashes=True)
-    args.parse_args(accept_prefixes(("--a-", "--c-", "--e-")), known_only=True)
-    confirm_empty(args.extra_args, to_ignore=("--b-", "--d-"))
+    # ==== initialize globals ====
+    global ARGS, CFG, DATA, ENC, MISC
+    ARGS = cfg.clust
+    CFG = cfg
+    DATA = cfg.data
+    ENC = cfg.enc
+    MISC = cfg.misc
+    cfg.fdm = None  # null the fdm args so that we don't get confused
 
     # ==== current git commit ====
     if os.environ.get("STARTED_BY_GUILDAI", None) == "1":
@@ -89,33 +97,33 @@ def main(
         repo = git.Repo(search_parent_directories=True)
         sha = repo.head.object.hexsha
 
-    use_gpu = torch.cuda.is_available() and args.gpu >= 0
-    random_seed(args.seed, use_gpu)
+    use_gpu = torch.cuda.is_available() and MISC.gpu >= 0
+    random_seed(MISC.seed, use_gpu)
     if cluster_label_file is not None:
-        args.cluster_label_file = str(cluster_label_file)
-    # ==== initialize globals ====
-    global ARGS
-    ARGS = args
+        MISC.cluster_label_file = str(cluster_label_file)
 
     if use_wandb is not None:
-        ARGS.use_wandb = use_wandb
-    if ARGS.use_wandb:
-        group = ARGS.log_method + "." + ARGS.exp_group if ARGS.exp_group else None
+        MISC.use_wandb = use_wandb
+    if MISC.use_wandb:
+        group = MISC.log_method + "." + MISC.exp_group if MISC.exp_group else None
         wandb.init(
-            entity="predictive-analytics-lab", project="fcm", config=args.as_dict(), group=group
+            entity="predictive-analytics-lab",
+            project="fcm",
+            config=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
+            group=group,
         )
 
-    save_dir = Path(ARGS.save_dir) / str(time.time())
+    save_dir = Path(MISC.save_dir) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    print(str(ARGS))
+    print(str(OmegaConf.to_yaml(cfg)))
     print(f"Save directory: {save_dir.resolve()}")
     # ==== check GPU ====
-    ARGS._device = torch.device(f"cuda:{ARGS.gpu}" if use_gpu else "cpu")
-    print(f"{torch.cuda.device_count()} GPUs available. Using device '{ARGS._device}'")
+    MISC._device = torch.device(f"cuda:{MISC.gpu}" if use_gpu else "cpu")
+    print(f"{torch.cuda.device_count()} GPUs available. Using device '{MISC._device}'")
 
     # ==== construct dataset ====
-    datasets: DatasetTriplet = load_dataset(args)
+    datasets: DatasetTriplet = load_dataset(DATA, MISC)
     print(
         "Size of context-set: {}, training-set: {}, test-set: {}".format(
             len(datasets.context),
@@ -129,16 +137,16 @@ def main(
         datasets.context,
         shuffle=True,
         batch_size=context_batch_size,
-        num_workers=ARGS.num_workers,
+        num_workers=MISC.num_workers,
         pin_memory=True,
     )
     enc_train_data = ConcatDataset([datasets.context, datasets.train])
-    if args.encoder == "rotnet":
+    if ARGS.encoder == Enc.rotnet:
         enc_train_loader = DataLoader(
             RotationPrediction(enc_train_data, apply_all=True),
             shuffle=True,
             batch_size=ARGS.batch_size,
-            num_workers=ARGS.num_workers,
+            num_workers=MISC.num_workers,
             pin_memory=True,
             collate_fn=adaptive_collate,
         )
@@ -147,7 +155,7 @@ def main(
             enc_train_data,
             shuffle=True,
             batch_size=ARGS.batch_size,
-            num_workers=ARGS.num_workers,
+            num_workers=MISC.num_workers,
             pin_memory=True,
         )
 
@@ -155,14 +163,14 @@ def main(
         datasets.train,
         shuffle=True,
         batch_size=ARGS.batch_size,
-        num_workers=ARGS.num_workers,
+        num_workers=MISC.num_workers,
         pin_memory=True,
     )
     val_loader = DataLoader(
         datasets.test,
         shuffle=False,
         batch_size=ARGS.test_batch_size,
-        num_workers=ARGS.num_workers,
+        num_workers=MISC.num_workers,
         pin_memory=True,
     )
 
@@ -193,41 +201,41 @@ def main(
     encoder: Encoder
     enc_shape: Tuple[int, ...]
     if ARGS.encoder in ("ae", "vae"):
-        encoder, enc_shape = build_ae(ARGS, input_shape, feature_group_slices)
+        encoder, enc_shape = build_ae(CFG, input_shape, feature_group_slices)
     else:
         if len(input_shape) < 2:
             raise ValueError("RotNet can only be applied to image data.")
-        enc_optimizer_kwargs = {"lr": args.enc_lr, "weight_decay": args.enc_wd}
+        enc_optimizer_kwargs = {"lr": ARGS.enc_lr, "weight_decay": ARGS.enc_wd}
         enc_kwargs = {"pretrained": False, "num_classes": 4, "zero_init_residual": True}
-        net = resnet18(**enc_kwargs) if args.dataset == "cmnist" else resnet50(**enc_kwargs)
+        net = resnet18(**enc_kwargs) if DATA.dataset == DS.cmnist else resnet50(**enc_kwargs)
 
         encoder = SelfSupervised(model=net, num_classes=4, optimizer_kwargs=enc_optimizer_kwargs)
         enc_shape = (512,)
-        encoder.to(args._device)
+        encoder.to(MISC._device)
 
     print(f"Encoding shape: {enc_shape}")
 
     enc_path: Path
-    if args.enc_path:
-        enc_path = Path(args.enc_path)
-        if args.encoder == "rotnet":
+    if ARGS.enc_path:
+        enc_path = Path(ARGS.enc_path)
+        if ARGS.encoder == Enc.rotnet:
             assert isinstance(encoder, SelfSupervised)
             encoder = encoder.get_encoder()
-        save_dict = torch.load(args.enc_path, map_location=lambda storage, loc: storage)
+        save_dict = torch.load(ARGS.enc_path, map_location=lambda storage, loc: storage)
         encoder.load_state_dict(save_dict["encoder"])
         if "args" in save_dict:
             args_encoder = save_dict["args"]
-            assert args.encoder == args_encoder["encoder_type"]
-            assert args.enc_levels == args_encoder["levels"]
+            assert ARGS.encoder.name == args_encoder["encoder_type"]
+            assert ENC.levels == args_encoder["levels"]
     else:
         encoder.fit(
-            enc_train_loader, epochs=args.enc_epochs, device=args._device, use_wandb=ARGS.enc_wandb
+            enc_train_loader, epochs=ARGS.enc_epochs, device=MISC._device, use_wandb=ARGS.enc_wandb
         )
-        if args.encoder == "rotnet":
+        if ARGS.encoder == Enc.rotnet:
             assert isinstance(encoder, SelfSupervised)
             encoder = encoder.get_encoder()
         # the args names follow the convention of the standalone VAE commandline args
-        args_encoder = {"encoder_type": args.encoder, "levels": args.enc_levels}
+        args_encoder = {"encoder_type": ARGS.encoder.name, "levels": ENC.levels}
         enc_path = save_dir.resolve() / "encoder"
         torch.save({"encoder": encoder.state_dict(), "args": args_encoder}, enc_path)
         print(f"To make use of this encoder:\n--enc-path {enc_path}")
@@ -235,8 +243,8 @@ def main(
             print("Stopping here because W&B will be messed up...")
             return
 
-    cluster_label_path = get_cluster_label_path(ARGS, save_dir)
-    if ARGS.method == "kmeans":
+    cluster_label_path = get_cluster_label_path(MISC, save_dir)
+    if ARGS.method == Meth.kmeans:
         kmeans_results = train_k_means(
             ARGS, encoder, datasets.context, num_clusters, s_count, enc_path
         )
@@ -249,20 +257,20 @@ def main(
 
     # ================================= labeler =================================
     pseudo_labeler: PseudoLabeler
-    if ARGS.pseudo_labeler == "ranking":
+    if ARGS.pseudo_labeler == PL.ranking:
         pseudo_labeler = RankingStatistics(k_num=ARGS.k_num)
-    elif ARGS.pseudo_labeler == "cosine":
+    elif ARGS.pseudo_labeler == PL.cosine:
         pseudo_labeler = CosineSimThreshold(
             upper_threshold=ARGS.upper_threshold, lower_threshold=ARGS.lower_threshold
         )
 
     # ================================= method =================================
     method: Method
-    if ARGS.method == "pl_enc":
+    if ARGS.method == Meth.pl_enc:
         method = PseudoLabelEnc()
-    elif ARGS.method == "pl_output":
+    elif ARGS.method == Meth.pl_output:
         method = PseudoLabelOutput()
-    elif ARGS.method == "pl_enc_no_norm":
+    elif ARGS.method == Meth.pl_enc_no_norm:
         method = PseudoLabelEncNoNorm()
 
     # ================================= classifier =================================
@@ -277,14 +285,14 @@ def main(
         optimizer_kwargs=clf_optimizer_kwargs,
         num_heads=y_count if ARGS.use_multi_head else 1,
     )
-    classifier.to(args._device)
+    classifier.to(MISC._device)
 
     model: Union[Model, MultiHeadModel]
     if ARGS.use_multi_head:
         labeler_fn: ModelFn
-        if args.dataset == "cmnist":
+        if DATA.dataset == DS.cmnist:
             labeler_fn = Mp32x23Net(batch_norm=True)
-        elif args.dataset == "celeba":
+        elif DATA.dataset == DS.celeba:
             labeler_fn = Mp64x64Net(batch_norm=True)
         else:
             labeler_fn = FcNet(hidden_dims=ARGS.labeler_hidden_dims)
@@ -296,12 +304,12 @@ def main(
             model_fn=labeler_fn,
             optimizer_kwargs=labeler_optimizer_kwargs,
         )
-        labeler.to(args._device)
+        labeler.to(MISC._device)
         print("Fitting the labeler to the labeled data.")
         labeler.fit(
             train_loader,
             epochs=ARGS.labeler_epochs,
-            device=ARGS._device,
+            device=MISC._device,
             use_wandb=ARGS.labeler_wandb,
         )
         labeler.eval()
@@ -324,12 +332,12 @@ def main(
 
     start_epoch = 1  # start at 1 so that the val_freq works correctly
     # Resume from checkpoint
-    if ARGS.resume is not None:
+    if MISC.resume is not None:
         print("Restoring generator from checkpoint")
-        model, start_epoch = restore_model(ARGS, Path(ARGS.resume), model)
-        if ARGS.evaluate:
+        model, start_epoch = restore_model(CFG, Path(MISC.resume), model)
+        if MISC.evaluate:
             pth_path = convert_and_save_results(
-                ARGS,
+                CFG,
                 cluster_label_path,
                 classify_dataset(ARGS, model, datasets.context),
                 enc_path=enc_path,
@@ -360,7 +368,7 @@ def main(
 
             if val_acc > best_acc:
                 best_acc = val_acc
-                save_model(args, save_dir, model, epoch=epoch, sha=sha, best=True)
+                save_model(CFG, save_dir, model, epoch=epoch, sha=sha, best=True)
                 n_vals_without_improvement = 0
             else:
                 n_vals_without_improvement += 1
@@ -376,7 +384,7 @@ def main(
                     n_vals_without_improvement,
                 )
             )
-            wandb_log(ARGS, val_log, step=itr)
+            wandb_log(MISC, val_log, step=itr)
         # if ARGS.super_val and epoch % super_val_freq == 0:
         #     log_metrics(ARGS, model=model.bundle, data=datasets, step=itr)
         #     save_model(args, save_dir, model=model.bundle, epoch=epoch, sha=sha)
@@ -391,7 +399,7 @@ def main(
     print("Context metrics:")
     print_metrics({f"Context {k}": v for k, v in context_metrics.items()})
     pth_path = convert_and_save_results(
-        ARGS,
+        CFG,
         cluster_label_path=cluster_label_path,
         results=classify_dataset(ARGS, model, datasets.context),
         enc_path=enc_path,
@@ -412,7 +420,7 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
     itr = start_itr = (epoch - 1) * epoch_len
     data_iterator = zip(context_data, train_data)
     model.train()
-    s_count = ARGS._s_dim if ARGS._s_dim > 1 else 2
+    s_count = MISC._s_dim if MISC._s_dim > 1 else 2
 
     for itr, ((x_c, _, _), (x_t, s_t, y_t)) in enumerate(data_iterator, start=start_itr):
 
@@ -444,7 +452,7 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
         time_for_batch = time.time() - end
         time_meter.update(time_for_batch)
 
-        wandb_log(ARGS, logging_dict, step=itr)
+        wandb_log(MISC, logging_dict, step=itr)
         end = time.time()
 
     time_for_epoch = time.time() - start_epoch_time
@@ -465,11 +473,11 @@ def validate(
 ) -> Tuple[float, Dict[str, float], Dict[str, Union[float, str]]]:
     model.eval()
     to_cluster = ARGS.cluster
-    y_count = ARGS._y_dim if ARGS._y_dim > 1 else 2
-    s_count = ARGS._s_dim if ARGS._s_dim > 1 else 2
-    if to_cluster == "s":
+    y_count = MISC._y_dim if MISC._y_dim > 1 else 2
+    s_count = MISC._s_dim if MISC._s_dim > 1 else 2
+    if to_cluster == CL.s:
         num_clusters = s_count
-    elif to_cluster == "y":
+    elif to_cluster == CL.y:
         num_clusters = y_count
     else:
         num_clusters = s_count * y_count
@@ -502,7 +510,7 @@ def validate(
 
 def to_device(*tensors: Tensor) -> Union[Tensor, Tuple[Tensor, ...]]:
     """Place tensors on the correct device and set type to float32"""
-    moved = [tensor.to(ARGS._device, non_blocking=True) for tensor in tensors]
+    moved = [tensor.to(MISC._device, non_blocking=True) for tensor in tensors]
     return moved[0] if len(moved) == 1 else tuple(moved)
 
 

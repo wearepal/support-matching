@@ -2,9 +2,10 @@ from pathlib import Path
 from typing import Dict, Mapping, Optional, Tuple, Union
 
 import ethicml as em
+from omegaconf import MISSING
 import wandb
 
-from ..configs.arguments import BaseArgs
+from ..configs.arguments import Misc
 from .utils import wandb_log
 
 __all__ = ["compute_metrics", "make_tuple_from_data", "print_metrics"]
@@ -27,9 +28,10 @@ def make_tuple_from_data(
 
 
 def compute_metrics(
-    args: BaseArgs,
+    args: Misc,
     predictions: em.Prediction,
     actual: em.DataTuple,
+    data_name: str,
     exp_name: str,
     model_name: str,
     step: int,
@@ -81,11 +83,11 @@ def compute_metrics(
         }
 
         external = {}
-        cluster_test_metrics = getattr(args, "_cluster_test_metrics", None)
-        if cluster_test_metrics is not None:
+        cluster_test_metrics = args._cluster_test_metrics
+        if cluster_test_metrics != MISSING:
             external.update({f"Clust/Test {k}": v for k, v in cluster_test_metrics.items()})
-        cluster_context_metrics = getattr(args, "_cluster_context_metrics", None)
-        if cluster_context_metrics is not None:
+        cluster_context_metrics = args._cluster_context_metrics
+        if cluster_context_metrics != MISSING:
             external.update({f"Clust/Context {k}": v for k, v in cluster_context_metrics.items()})
 
         if additional_entries is not None:
@@ -96,7 +98,7 @@ def compute_metrics(
             save_to_csv.mkdir(exist_ok=True, parents=True)
             results = {**metrics, **external}
 
-            results_path = save_to_csv / f"{args.dataset}_{model_name}_{results_csv}"
+            results_path = save_to_csv / f"{data_name}_{model_name}_{results_csv}"
             values = ",".join(list(manual_entries.values()) + [str(v) for v in results.values()])
             if not results_path.is_file():
                 with results_path.open("w") as f:

@@ -1,0 +1,8 @@
+# @package _group_
+defaults:
+  - data/adult_base
+  - _self_
+
+adult_biased_train: true
+missing_s:
+  - 0

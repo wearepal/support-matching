@@ -1,0 +1,5 @@
+# @package _group_
+enc_init_chans: 61
+enc_levels: 0
+enc_out_dim: 35
+recon_loss: mixed

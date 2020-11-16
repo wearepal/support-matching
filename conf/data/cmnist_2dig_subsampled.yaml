@@ -1,0 +1,15 @@
+# @package _group_
+defaults:
+  - data/cmnist_2dig_base
+  - _self_
+
+subsample_context:
+  0: 0.7
+  1: 0.4
+  2: 0.2
+  3: 1.0
+subsample_train:
+  0: 1.0
+  1: 0.3
+  2: 0.0
+  3: 1.0

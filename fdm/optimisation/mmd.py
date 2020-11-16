@@ -2,7 +2,8 @@ from typing import Any, Optional, Sequence, Tuple
 
 import torch
 from torch import Tensor
-from typing_extensions import Literal
+
+from shared.configs import MMDKer
 
 __all__ = ["mmd2"]
 
@@ -138,7 +139,7 @@ def _mmd2(
 def mmd2(
     x: Tensor,
     y: Tensor,
-    kernel: Literal["linear", "rbf", "rq"] = "rq",
+    kernel: MMDKer = MMDKer.rq,
     biased: bool = False,
     **kwargs: Any,
 ) -> Tensor:

@@ -1,8 +1,8 @@
 from typing import List, Optional, Tuple
 
 from fdm import layers
-from fdm.configs import FdmArgs
 from fdm.models import Classifier
+from shared.configs import FdmArgs
 from shared.utils import ModelFn
 
 __all__ = ["build_discriminator", "build_fc_inn", "build_conv_inn"]

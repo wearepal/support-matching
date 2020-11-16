@@ -1,0 +1,5 @@
+# @package _group_
+enc_out_dim: 128
+enc_levels: 4
+enc_init_chans: 16
+recon_loss: l2

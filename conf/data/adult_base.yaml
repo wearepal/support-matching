@@ -1,0 +1,7 @@
+# @package _group_
+dataset: adult
+drop_native: true
+mixing_factor: 0.0
+input_noise: false
+adult_balanced_test: true
+balance_all_quadrants: true

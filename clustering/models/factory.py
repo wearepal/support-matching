@@ -1,10 +1,10 @@
-from typing import Dict, List, Mapping, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch.nn as nn
 
 from clustering import layers
-from clustering.configs import ClusterArgs
 from clustering.models import Classifier
+from shared.configs import ClusterArgs
 from shared.utils import ModelFn
 
 __all__ = ["build_classifier", "build_fc_inn", "build_conv_inn"]
