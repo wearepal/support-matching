@@ -6,11 +6,11 @@
 #   d-train-on-recon: "False"
 #   d-warmup: 0
 #   d-batch-wise-loss: attention
-#   d-eval-on-recon: "True"
+#   d-eval-on-recon: "False"
 
 # - a-missing-s: ""
 #   d-oversample: "False"
-#   d-eval-on-recon: "True"
+#   d-eval-on-recon: "False"
 # - a-missing-s: ""
 #   d-oversample: "True"
 #   d-eval-on-recon: "False"
@@ -26,7 +26,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 2
   data-split-seed: 2
   d-oversample: "True"
@@ -36,7 +36,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 3
   data-split-seed: 3
   d-oversample: "True"
@@ -46,7 +46,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 4
   data-split-seed: 4
   d-oversample: "True"
@@ -56,7 +56,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 5
   data-split-seed: 5
   d-oversample: "True"
@@ -66,7 +66,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 6
   data-split-seed: 6
   d-oversample: "True"
@@ -76,7 +76,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 7
   data-split-seed: 7
   d-oversample: "True"
@@ -86,7 +86,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 8
   data-split-seed: 8
   d-oversample: "True"
@@ -96,7 +96,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 9
   data-split-seed: 9
   d-oversample: "True"
@@ -106,7 +106,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 10
   data-split-seed: 10
   d-oversample: "True"
@@ -116,7 +116,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 11
   data-split-seed: 11
   d-oversample: "True"
@@ -126,7 +126,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 12
   data-split-seed: 12
   d-oversample: "True"
@@ -136,7 +136,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 13
   data-split-seed: 13
   d-oversample: "True"
@@ -146,7 +146,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 14
   data-split-seed: 14
   d-oversample: "True"
@@ -156,7 +156,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 15
   data-split-seed: 15
   d-oversample: "True"
@@ -166,7 +166,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 16
   data-split-seed: 16
   d-oversample: "True"
@@ -176,7 +176,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 17
   data-split-seed: 17
   d-oversample: "True"
@@ -186,7 +186,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 18
   data-split-seed: 18
   d-oversample: "True"
@@ -196,7 +196,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 19
   data-split-seed: 19
   d-oversample: "True"
@@ -206,7 +206,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 20
   data-split-seed: 20
   d-oversample: "True"
@@ -216,7 +216,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 21
   data-split-seed: 21
   d-oversample: "True"
@@ -226,7 +226,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 22
   data-split-seed: 22
   d-oversample: "True"
@@ -236,7 +236,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 23
   data-split-seed: 23
   d-oversample: "True"
@@ -246,7 +246,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 24
   data-split-seed: 24
   d-oversample: "True"
@@ -256,7 +256,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 25
   data-split-seed: 25
   d-oversample: "True"
@@ -266,7 +266,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 26
   data-split-seed: 26
   d-oversample: "True"
@@ -276,7 +276,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 27
   data-split-seed: 27
   d-oversample: "True"
@@ -286,7 +286,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 28
   data-split-seed: 28
   d-oversample: "True"
@@ -296,7 +296,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 29
   data-split-seed: 29
   d-oversample: "True"
@@ -306,7 +306,7 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
 - seed: 30
   data-split-seed: 30
   d-oversample: "True"
@@ -316,4 +316,4 @@
   d-train-on-recon: "False"
   d-warmup: 0
   d-batch-wise-loss: attention
-  d-eval-on-recon: "True"
+  d-eval-on-recon: "False"
