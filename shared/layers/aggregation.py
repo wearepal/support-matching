@@ -28,6 +28,9 @@ class Aggregator(nn.Module):
 
 
 class AttentionAggregator(Aggregator):
+
+    act: Callable[[Tensor], Tensor]
+
     def __init__(
         self,
         latent_dim: int,
@@ -35,8 +38,9 @@ class AttentionAggregator(Aggregator):
         dropout: float = 0.0,
         final_proj: Optional[ModelFn] = None,
         output_dim: int = 1,
+        batch_size: int = 1,
     ):
-        super().__init__(batch_size=1)
+        super().__init__(batch_size=batch_size)
         self.latent_dim = latent_dim
         self.attn = nn.MultiheadAttention(
             embed_dim=latent_dim, num_heads=1, dropout=dropout, bias=True
@@ -45,7 +49,7 @@ class AttentionAggregator(Aggregator):
             self.final_proj = final_proj(latent_dim, output_dim)
         else:
             self.final_proj = nn.Linear(latent_dim, output_dim)
-        self.act: Callable[[Tensor], Tensor]
+
         if activation == "relu":
             self.act = F.relu
         elif activation == "gelu":
@@ -56,13 +60,14 @@ class AttentionAggregator(Aggregator):
 
     def forward(self, inputs: Tensor) -> Tensor:
         # for the query we just use an average of all inputs
-        query = inputs.mean(dim=0).view(1, 1, self.latent_dim)
+        inputs_batched = inputs.view(-1, self.batch_size, *inputs.shape[1:])
+        query = inputs_batched.mean(dim=0, keepdim=True)
         # the second dimension is supposed to be the "batch size",
         # but we're aggregating over the batch, so we set this just to 1
-        key = inputs.view(-1, 1, self.latent_dim)
+        key = inputs.view(-1, self.batch_size, self.latent_dim)
         value = key
         output = self.act(self.attn(query=query, key=key, value=value, need_weights=False)[0])
-        return self.final_proj(output.view(1, self.latent_dim)).view(1, -1)
+        return self.final_proj(output.view(self.batch_size, self.latent_dim))
 
 
 class SimpleAggregator(Aggregator):

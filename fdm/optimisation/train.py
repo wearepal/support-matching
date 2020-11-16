@@ -334,7 +334,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         final_proj = FcNet(ARGS.batch_wise_hidden_dims) if ARGS.batch_wise_hidden_dims else None
         aggregator: Aggregator
         if args.aggregator == "attention":
-            aggregator = AttentionAggregator(args.aggregator_input_dim, final_proj=final_proj)
+            aggregator = AttentionAggregator(args.aggregator_input_dim, final_proj=final_proj, **args.aggregator_kwargs)
         elif args.aggregator == "simple":
             aggregator = SimpleAggregator(
                 latent_dim=args.aggregator_input_dim, final_proj=final_proj
