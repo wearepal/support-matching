@@ -1,4 +1,16 @@
 defaults:
+  - hydra/launcher: ray_local
   - data: adult/gender
   - bias: adult/no_bias
   - misc: baselines
+
+hydra:
+  launcher:
+    ray_init_cfg:
+      num_cpus: null
+      num_gpus: null
+      address: auto
+      log_to_driver: false
+
+    ray_remote_cfg:
+      num_gpus: 1

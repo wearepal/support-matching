@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
@@ -15,7 +16,6 @@ from omegaconf.omegaconf import MISSING
 from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import trange
-from typing_extensions import Literal
 
 from fdm.models import Classifier
 from fdm.optimisation.train import build_weighted_sampler_from_dataset
@@ -23,6 +23,8 @@ from shared.configs import DS, BaseArgs
 from shared.data import load_dataset
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import ModelFn, compute_metrics, get_data_dim, random_seed
+
+log = logging.getLogger(__name__)
 
 BaselineM = Enum("BaselineM", "cnn dro kamiran")
 
@@ -58,9 +60,8 @@ class BaselineArgs:
     test_batch_size: int = 1000
     batch_size: int = 64
     lr: float = 1e-3
-    weight_decay = 1e-8
+    weight_decay: float = 1e-8
     eta: float = 0.5
-    save_dir: str = "experiments/baseline"
 
     # Misc settings
     method: BaselineM = BaselineM.cnn
@@ -177,7 +178,7 @@ def run_baseline(cfg: Config) -> None:
     random_seed(cfg.misc.seed, use_gpu)
 
     device = torch.device(f"cuda:{cfg.misc.gpu}" if use_gpu else "cpu")
-    print(f"Running on {device}")
+    log.info(f"Running on {device}")
 
     #  Load the datasets and wrap with dataloaders
     datasets = load_dataset(cfg)
@@ -276,7 +277,7 @@ def run_baseline(cfg: Config) -> None:
     labels_pd = pd.DataFrame(labels, columns=["labels"])
     actual = em.DataTuple(x=sens_pd, s=sens_pd, y=labels_pd)
 
-    full_name = f"{args.method.name}_baseline"
+    full_name = "baseline"
     if cfg.data.dataset == DS.cmnist:
         full_name += "_greyscale" if args.greyscale else "_color"
     elif cfg.data.dataset == DS.celeba:
@@ -291,7 +292,7 @@ def run_baseline(cfg: Config) -> None:
         exp_name="baseline",
         model_name=args.method.name,
         step=0,
-        save_to_csv=Path(to_absolute_path(args.save_dir)) if args.save_dir else None,
+        save_to_csv=Path(to_absolute_path(cfg.misc.save_dir)) if cfg.misc.save_dir else None,
         results_csv=full_name,
         use_wandb=False,
         additional_entries={"eta": args.eta} if args.method == BaselineM.dro else None,
