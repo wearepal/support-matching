@@ -551,28 +551,24 @@ def train_step(
     itr: int,
 ) -> Dict[str, float]:
 
-    disc_weight = 0.0 if itr < ARGS.warmup_steps else ARGS.disc_weight
+    warmup = itr < ARGS.warmup_steps
     disc_logging = {}
-    if ARGS.disc_method == "nn":
+    if (not warmup) and (ARGS.disc_method == "nn"):
         # Train the discriminator on its own for a number of iterations
         for _ in range(ARGS.num_disc_updates):
             x_c, x_t, s_t, y_t = get_batch(
                 context_data_itr=context_data_itr, train_data_itr=train_data_itr
             )
             if components.type_ == "ae":
-                _, disc_logging = update_disc(x_c, x_t, components, itr < ARGS.warmup_steps)
+                _, disc_logging = update_disc(x_c, x_t, ae=components)
             else:
-                update_disc_on_inn(ARGS, x_c, x_t, components, itr < ARGS.warmup_steps)
+                update_disc_on_inn(ARGS, x_c, x_t, models=components)
 
     x_c, x_t, s_t, y_t = get_batch(context_data_itr=context_data_itr, train_data_itr=train_data_itr)
     if components.type_ == "ae":
-        _, logging_dict = update(
-            x_c=x_c, x_t=x_t, s_t=s_t, y_t=y_t, ae=components, warmup=itr < ARGS.warmup_steps
-        )
+        _, logging_dict = update(x_c=x_c, x_t=x_t, s_t=s_t, y_t=y_t, ae=components, warmup=warmup)
     else:
-        _, logging_dict = update_inn(
-            args=ARGS, x_c=x_c, x_t=x_t, models=components, disc_weight=disc_weight
-        )
+        _, logging_dict = update_inn(args=ARGS, x_c=x_c, x_t=x_t, models=components)
 
     logging_dict.update(disc_logging)
     wandb_log(ARGS, logging_dict, step=itr)
@@ -601,9 +597,7 @@ class AeComponents(NamedTuple):
     type_: Literal["ae"] = "ae"
 
 
-def update_disc(
-    x_c: Tensor, x_t: Tensor, ae: AeComponents, warmup: bool = False
-) -> Tuple[Tensor, Dict[str, float]]:
+def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents) -> Tuple[Tensor, Dict[str, float]]:
     """Train the discriminator while keeping the generator constant.
 
     Args:
@@ -650,12 +644,11 @@ def update_disc(
         disc_acc += 0.5 * (acc_c + acc_t)
     disc_loss /= len(ae.disc_ensemble)
     logging_dict["Accuracy Discriminator (zy)"] = disc_acc / len(ae.disc_ensemble)
-    if not warmup:
-        for discriminator in ae.disc_ensemble:
-            discriminator.zero_grad()
-        disc_loss.backward()
-        for discriminator in ae.disc_ensemble:
-            discriminator.step()
+    for discriminator in ae.disc_ensemble:
+        discriminator.zero_grad()
+    disc_loss.backward()
+    for discriminator in ae.disc_ensemble:
+        discriminator.step()
 
     return disc_loss, logging_dict
 

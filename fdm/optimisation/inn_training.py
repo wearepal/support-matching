@@ -1,13 +1,13 @@
 """Main training file"""
 from typing import Dict, List, NamedTuple, Optional, Tuple
 
-import torch.nn as nn
-import torch.nn.functional as F
-from torch import Tensor
 from typing_extensions import Literal
 
 from fdm.configs import FdmArgs
 from fdm.models import Classifier, PartitionedAeInn
+from torch import Tensor
+import torch.nn as nn
+import torch.nn.functional as F
 
 __all__ = ["update_inn", "update_disc_on_inn"]
 
@@ -22,7 +22,7 @@ class InnComponents(NamedTuple):
 
 
 def update_disc_on_inn(
-    args: FdmArgs, x_c: Tensor, x_t: Tensor, models: InnComponents, warmup: bool = False
+    args: FdmArgs, x_c: Tensor, x_t: Tensor, models: InnComponents
 ) -> Tuple[Tensor, float]:
     """Train the discriminator while keeping the generator constant.
 
@@ -65,18 +65,17 @@ def update_disc_on_inn(
                 disc_loss_false, disc_acc_false = disc.routine(disc_input_t, zeros)
                 disc_loss += disc_loss_true + disc_loss_false
 
-        if not warmup:
-            for disc in models.disc_ensemble:
-                disc.zero_grad()
-            disc_loss.backward()
-            for disc in models.disc_ensemble:
-                disc.step()
+        for disc in models.disc_ensemble:
+            disc.zero_grad()
+        disc_loss.backward()
+        for disc in models.disc_ensemble:
+            disc.step()
 
     return disc_loss, 0.5 * (disc_acc_true + disc_acc_false)  # statistics from last step
 
 
 def update_inn(
-    args: FdmArgs, x_c: Tensor, x_t: Tensor, models: InnComponents, disc_weight: float
+    args: FdmArgs, x_c: Tensor, x_t: Tensor, models: InnComponents
 ) -> Tuple[Tensor, Dict[str, float]]:
     """Compute all losses.
 
