@@ -716,8 +716,6 @@ def update(
         total_loss += disc_loss
         logging_dict["Loss Discriminator"] = disc_loss
 
-    pred_y_loss = x_t.new_zeros(())
-    pred_s_loss = x_t.new_zeros(())
     # this is a pretty cheap masking operation, so it's okay if it's not used
     enc_no_s, enc_no_y = ae.generator.mask(encoding, random=False)
     if ARGS.pred_y_weight > 0:
