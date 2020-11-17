@@ -661,7 +661,6 @@ def update(
     Args:
         x_t: x from the training set
     """
-    disc_weight = 0.0 if warmup else ARGS.disc_weight
     # Compute losses for the generator.
     ae.predictor_y.train()
     ae.predictor_s.train()
@@ -685,28 +684,38 @@ def update(
     # ==================================== adversarial losses =====================================
     disc_input_no_s = get_disc_input(ae.generator, encoding, invariant_to="s")
 
-    if ARGS.disc_method == "nn":
-        if ARGS.aggregator == "none":
-            zeros = x_t.new_zeros((x_t.size(0),))
+    elbo *= ARGS.elbo_weight
+    logging_dict["ELBO"] = elbo
+
+    total_loss = elbo
+
+    if not warmup:
+        if ARGS.disc_method == "nn":
+            if ARGS.aggregator == "none":
+                zeros = x_t.new_zeros((x_t.size(0),))
+            else:
+                zeros = x_c.new_zeros(ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
+
+            disc_loss = x_t.new_zeros(())
+            for discriminator in ae.disc_ensemble:
+                disc_loss -= discriminator.routine(disc_input_no_s, zeros)[0]
+            disc_loss /= len(ae.disc_ensemble)
+
         else:
-            zeros = x_c.new_zeros(ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
+            x = disc_input_no_s
+            y = get_disc_input(ae.generator, encoding_c.detach(), invariant_to="s")
+            disc_loss = mmd2(
+                x=x,
+                y=y,
+                kernel=ARGS.mmd_kernel,
+                scales=ARGS.mmd_scales,
+                wts=ARGS.mmd_wts,
+                add_dot=ARGS.mmd_add_dot,
+            )
+        disc_loss *= ARGS.disc_weight
+        total_loss += disc_loss
+        logging_dict["Loss Discriminator"] = disc_loss
 
-        disc_loss = x_t.new_zeros(())
-        for discriminator in ae.disc_ensemble:
-            disc_loss -= discriminator.routine(disc_input_no_s, zeros)[0]
-        disc_loss /= len(ae.disc_ensemble)
-
-    else:
-        x = disc_input_no_s
-        y = get_disc_input(ae.generator, encoding_c.detach(), invariant_to="s")
-        disc_loss = mmd2(
-            x=x,
-            y=y,
-            kernel=ARGS.mmd_kernel,
-            scales=ARGS.mmd_scales,
-            wts=ARGS.mmd_wts,
-            add_dot=ARGS.mmd_add_dot,
-        )
     pred_y_loss = x_t.new_zeros(())
     pred_s_loss = x_t.new_zeros(())
     # this is a pretty cheap masking operation, so it's okay if it's not used
@@ -717,37 +726,31 @@ def update(
         pred_y_loss *= ARGS.pred_y_weight
         logging_dict["Loss Predictor y"] = pred_y_loss.item()
         logging_dict["Accuracy Predictor y"] = pred_y_acc
+        total_loss += pred_y_loss
     if ARGS.pred_s_weight > 0:
         pred_s_loss, pred_s_acc = ae.predictor_s.routine(enc_no_y, s_t)
         pred_s_loss *= ARGS.pred_s_weight
         logging_dict["Loss Predictor s"] = pred_s_loss.item()
         logging_dict["Accuracy Predictor s"] = pred_s_acc
+        total_loss += pred_s_loss
 
-    elbo *= ARGS.elbo_weight
-    disc_loss *= disc_weight
+    logging_dict["Loss Total"] = total_loss
 
-    gen_loss = elbo + disc_loss + pred_y_loss + pred_s_loss
-    # Update the generator's parameters
     ae.generator.zero_grad()
     if ARGS.pred_y_weight > 0:
         ae.predictor_y.zero_grad()
     if ARGS.pred_s_weight > 0:
         ae.predictor_s.zero_grad()
-    gen_loss.backward()
+
+    total_loss.backward()
+
+    # Update the generator's parameters
     ae.generator.step()
     if ARGS.pred_y_weight > 0:
         ae.predictor_y.step()
     if ARGS.pred_s_weight > 0:
         ae.predictor_s.step()
-
-    final_logging = {
-        "ELBO": elbo.item(),
-        "Loss Adversarial": disc_loss.item(),
-        "Loss Generator": gen_loss.item(),
-    }
-    logging_dict.update(final_logging)
-
-    return gen_loss, logging_dict
+    return total_loss, logging_dict
 
 
 def get_disc_input(
