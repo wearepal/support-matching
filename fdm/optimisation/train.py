@@ -451,7 +451,6 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
 
     loss_meters = defaultdict(AverageMeter)
 
-    import pdb; pdb.set_trace()
     for itr in range(start_itr, ARGS.iters + 1):
 
         logging_dict = train_step(
