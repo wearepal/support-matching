@@ -95,7 +95,7 @@ def main(
             group = MISC.log_method + "." + MISC.exp_group if MISC.exp_group else None
             wandb.init(
                 entity="predictive-analytics-lab",
-                project="fdm" + project_suffix,
+                project="fdm-hydra" + project_suffix,
                 config=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
                 group=group,
             )

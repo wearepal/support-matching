@@ -4,7 +4,7 @@ from typing import Any, Dict, NamedTuple, Optional
 
 import torch
 
-from shared.configs import Config
+from shared.configs import BaseArgs
 
 __all__ = ["ClusterResults", "save_results", "load_results"]
 
@@ -32,12 +32,13 @@ def save_results(save_path: Path, cluster_results: ClusterResults) -> Path:
     }
     torch.save(save_dict, save_path)
     print(
-        f"To make use of the generated cluster labels:\n--cluster-label-file {save_path.resolve()}"
+        f"To make use of the generated cluster labels:\n"
+        f"misc.cluster_label_file={save_path.resolve()}"
     )
     return save_path
 
 
-def load_results(cfg: Config, check: bool = True) -> ClusterResults:
+def load_results(cfg: BaseArgs, check: bool = True) -> ClusterResults:
     """Load a tensor from a file."""
     data = torch.load(cfg.misc.cluster_label_file, map_location=torch.device("cpu"))
     if check:
