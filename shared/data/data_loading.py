@@ -11,7 +11,7 @@ from torchvision import transforms
 from torchvision.datasets import MNIST
 from typing_extensions import Literal
 
-from shared.configs import DatasetConfig, Misc, QL, DS, AS
+from shared.configs import AS, BaseArgs, DS, QL
 
 from .adult import load_adult_data
 from .dataset_wrappers import TensorDataTupleDataset
@@ -35,10 +35,11 @@ class RawDataTuple(NamedTuple):
     y: Tensor
 
 
-def load_dataset(args: DatasetConfig, misc: Misc) -> DatasetTriplet:
+def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
     context_data: Dataset
     test_data: Dataset
     train_data: Dataset
+    args = cfg.data
     data_root = args.root or find_data_dir()
 
     # =============== get whole dataset ===================
@@ -107,9 +108,9 @@ def load_dataset(args: DatasetConfig, misc: Misc) -> DatasetTriplet:
             if _decorr_op == "random":  # this is for context and test set
                 indexes = torch.rand(s.shape) > _correlation
                 s[indexes] = torch.randint_like(s[indexes], low=0, high=num_colors)
-            elif args.missing_s:  # this is one possibility for training set
+            elif cfg.bias.missing_s:  # this is one possibility for training set
                 s = torch.randint_like(s, low=0, high=num_colors)
-                for to_remove in args.missing_s:
+                for to_remove in cfg.bias.missing_s:
                     s[s == to_remove] = (to_remove + 1) % num_colors
             else:  # this is another possibility for training set
                 indexes = torch.rand(s.shape) > _correlation
@@ -143,13 +144,13 @@ def load_dataset(args: DatasetConfig, misc: Misc) -> DatasetTriplet:
                 print(f"    Smallest cluster (y={smallest[1]}, s={smallest[2]}): {smallest[0]}")
             return RawDataTuple(x=_x, s=_s, y=_y)
 
-        if args.subsample_train:
-            if args.missing_s:
+        if cfg.bias.subsample_train:
+            if cfg.bias.missing_s:
                 raise RuntimeError("Don't use subsample_train and missing_s together!")
             # when we manually subsample the training set, we ignore color correlation
             train_data_t = _colorize_subset(train_data, _correlation=0, _decorr_op="random")
             print("Subsampling training set...")
-            train_data_t = _subsample_by_s_and_y(train_data_t, args.subsample_train)
+            train_data_t = _subsample_by_s_and_y(train_data_t, cfg.bias.subsample_train)
         else:
             train_data_t = _colorize_subset(
                 train_data, _correlation=args.color_correlation, _decorr_op="shift"
@@ -157,9 +158,9 @@ def load_dataset(args: DatasetConfig, misc: Misc) -> DatasetTriplet:
         test_data_t = _colorize_subset(test_data, _correlation=0, _decorr_op="random")
         context_data_t = _colorize_subset(context_data, _correlation=0, _decorr_op="random")
 
-        if args.subsample_context:
+        if cfg.bias.subsample_context:
             print("Subsampling context set...")
-            context_data_t = _subsample_by_s_and_y(context_data_t, args.subsample_context)
+            context_data_t = _subsample_by_s_and_y(context_data_t, cfg.bias.subsample_context)
             # test data remains balanced
             # test_data = _subsample_by_class(*test_data, args.subsample)
 
@@ -167,8 +168,8 @@ def load_dataset(args: DatasetConfig, misc: Misc) -> DatasetTriplet:
         test_data = TensorDataTupleDataset(test_data_t.x, test_data_t.s, test_data_t.y)
         context_data = TensorDataTupleDataset(context_data_t.x, context_data_t.s, context_data_t.y)
 
-        misc._y_dim = 1 if num_classes == 2 else num_classes
-        misc._s_dim = 1 if num_colors == 2 else num_colors
+        cfg.misc._y_dim = 1 if num_classes == 2 else num_classes
+        cfg.misc._s_dim = 1 if num_colors == 2 else num_colors
 
     elif args.dataset == DS.celeba:
 
@@ -208,14 +209,14 @@ def load_dataset(args: DatasetConfig, misc: Misc) -> DatasetTriplet:
             (context_len, train_len, test_len)
         )
 
-        misc._y_dim = 1
-        misc._s_dim = all_data.s_dim
+        cfg.misc._y_dim = 1
+        cfg.misc._s_dim = all_data.s_dim
 
         def _subsample_inds_by_s_and_y(
             _data: emvi.TorchImageDataset, _subset_inds: Tensor, _target_props: Dict[int, float]
         ) -> Tensor:
-            _y_dim = max(2, misc._y_dim)
-            _s_dim = max(2, misc._s_dim)
+            _y_dim = max(2, cfg.misc._y_dim)
+            _s_dim = max(2, cfg.misc._s_dim)
 
             for _class_id, _prop in _target_props.items():
                 assert 0 <= _prop <= 1, "proportions should be between 0 and 1"
@@ -231,12 +232,12 @@ def load_dataset(args: DatasetConfig, misc: Misc) -> DatasetTriplet:
 
             return _subset_inds
 
-        if args.subsample_context:
+        if cfg.bias.subsample_context:
             context_inds = _subsample_inds_by_s_and_y(
-                all_data, context_inds, args.subsample_context
+                all_data, context_inds, cfg.bias.subsample_context
             )
-        if args.subsample_train:
-            train_inds = _subsample_inds_by_s_and_y(all_data, train_inds, args.subsample_train)
+        if cfg.bias.subsample_train:
+            train_inds = _subsample_inds_by_s_and_y(all_data, train_inds, cfg.bias.subsample_train)
 
         context_data = Subset(all_data, context_inds)
         train_data = Subset(all_data, train_inds)
@@ -263,11 +264,11 @@ def load_dataset(args: DatasetConfig, misc: Misc) -> DatasetTriplet:
             sens_attr_name=args.genfaces_sens_attr.name,
             target_attr_name=args.genfaces_target_attr.name,
             biased=False,
-            mixing_factor=args.mixing_factor,
+            mixing_factor=cfg.bias.mixing_factor,
             unbiased_pcnt=unbiased_pcnt,
             download=True,
             transform=transform,
-            seed=misc.data_split_seed,
+            seed=cfg.misc.data_split_seed,
         )
 
         context_len = round(args.context_pcnt / unbiased_pcnt * len(unbiased_data))
@@ -279,23 +280,23 @@ def load_dataset(args: DatasetConfig, misc: Misc) -> DatasetTriplet:
             sens_attr_name=args.genfaces_sens_attr.name,
             target_attr_name=args.genfaces_target_attr.name,
             biased=True,
-            mixing_factor=args.mixing_factor,
+            mixing_factor=cfg.bias.mixing_factor,
             unbiased_pcnt=unbiased_pcnt,
             download=True,
             transform=transform,
-            seed=misc.data_split_seed,
+            seed=cfg.misc.data_split_seed,
         )
 
-        misc._y_dim = 1
-        misc._s_dim = unbiased_data.s_dim
+        cfg.misc._y_dim = 1
+        cfg.misc._s_dim = unbiased_data.s_dim
 
     elif args.dataset == DS.adult:
-        context_data, train_data, test_data = load_adult_data(args)
-        misc._y_dim = 1
+        context_data, train_data, test_data = load_adult_data(cfg)
+        cfg.misc._y_dim = 1
         if args.adult_split == AS.Education:
-            misc._s_dim = 3
+            cfg.misc._s_dim = 3
         elif args.adult_split == AS.Sex:
-            misc._s_dim = 1
+            cfg.misc._s_dim = 1
         else:
             raise ValueError(f"This split is not yet fully supported: {args.adult_split}")
     else:
@@ -310,8 +311,8 @@ def load_dataset(args: DatasetConfig, misc: Misc) -> DatasetTriplet:
         context=context_data,
         test=test_data,
         train=train_data,
-        s_dim=misc._s_dim,
-        y_dim=misc._y_dim,
+        s_dim=cfg.misc._s_dim,
+        y_dim=cfg.misc._y_dim,
     )
 
 

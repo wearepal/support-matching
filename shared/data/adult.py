@@ -7,7 +7,7 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
 
-from shared.configs import Config
+from shared.configs import BaseArgs
 
 from .dataset_wrappers import DataTupleDataset
 
@@ -65,12 +65,19 @@ def get_invisible_demographics(
     # one group is missing
     if missing_s:
         if len(missing_s) == 1 and missing_s[0] == 0:
-            query = f"(`{s_name}` == {s[1]} & `{y_name}` == {y[0]}) | (`{s_name}` == {s[1]} & `{y_name}` == {y[1]})"
+            query = (
+                f"(`{s_name}` == {s[1]} & `{y_name}` == {y[0]})"
+                f" | (`{s_name}` == {s[1]} & `{y_name}` == {y[1]})"
+            )
             print("removing s=0")
         else:
             raise ValueError(f"Unsupported missing group {missing_s}")
     else:
-        query = f"(`{s_name}` == {s[0]} & `{y_name}` == {y[0]}) | (`{s_name}` == {s[1]} & `{y_name}` == {y[0]}) | (`{s_name}` == {s[1]} & `{y_name}` == {y[1]})"
+        query = (
+            f"(`{s_name}` == {s[0]} & `{y_name}` == {y[0]})"
+            f" | (`{s_name}` == {s[1]} & `{y_name}` == {y[0]})"
+            f" | (`{s_name}` == {s[1]} & `{y_name}` == {y[1]})"
+        )
         print("ensuring that only one group is missing")
     one_s_only = em.query_dt(for_biased_subset, query)
 
@@ -79,9 +86,11 @@ def get_invisible_demographics(
     return one_s_only, normal_subset
 
 
-def load_adult_data(cfg: Config) -> Tuple[DataTupleDataset, DataTupleDataset, DataTupleDataset]:
+def load_adult_data(cfg: BaseArgs) -> Tuple[DataTupleDataset, DataTupleDataset, DataTupleDataset]:
     global ADULT_DATASET
-    ADULT_DATASET = em.adult(split=cfg.data.adult_split.name, binarize_nationality=cfg.data.drop_native)
+    ADULT_DATASET = em.adult(
+        split=cfg.data.adult_split.name, binarize_nationality=cfg.data.drop_native
+    )
     data = ADULT_DATASET.load(ordered=True)
     global SENS_ATTRS
     SENS_ATTRS = data.s.columns
@@ -125,15 +134,15 @@ def load_adult_data(cfg: Config) -> Tuple[DataTupleDataset, DataTupleDataset, Da
     return context_dataset, train_dataset, test_dataset
 
 
-def biased_split(cfg: Config, data: em.DataTuple) -> DataTupleTriplet:
+def biased_split(cfg: BaseArgs, data: em.DataTuple) -> DataTupleTriplet:
     """Split the dataset such that the training set is biased."""
-    if cfg.data.adult_biased_train:
+    if cfg.bias.adult_biased_train:
         train_tuple, unbiased = get_invisible_demographics(  # get_biased_subset(
             data=data,
             # mixing_factor=args.mixing_factor,
             unbiased_pcnt=cfg.data.test_pcnt + cfg.data.context_pcnt,
             seed=cfg.misc.data_split_seed,
-            missing_s=cfg.data.missing_s,
+            missing_s=cfg.bias.missing_s,
         )
     else:
         train_tuple, unbiased, _ = em.BalancedTestSplit(
@@ -144,7 +153,7 @@ def biased_split(cfg: Config, data: em.DataTuple) -> DataTupleTriplet:
     context_pcnt = cfg.data.context_pcnt / (cfg.data.test_pcnt + cfg.data.context_pcnt)
     context_splitter: em.DataSplitter
 
-    if cfg.data.adult_balanced_test and cfg.data.adult_biased_train:
+    if cfg.data.adult_balanced_test and cfg.bias.adult_biased_train:
         context_splitter = em.BalancedTestSplit(
             train_percentage=context_pcnt,
             start_seed=cfg.misc.data_split_seed,

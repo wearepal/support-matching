@@ -1,5 +1,4 @@
 """Main training file"""
-import os
 import time
 from pathlib import Path
 from typing import Callable, Dict, Iterator, NamedTuple, Optional, Sequence, Tuple, Union
@@ -10,6 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import wandb
+from hydra.utils import to_absolute_path
 from omegaconf import OmegaConf
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, Subset, WeightedRandomSampler
@@ -18,7 +18,7 @@ from typing_extensions import Literal
 from fdm.models import AutoEncoder, Classifier, EncodingSize, PartitionedAeInn, build_discriminator
 from fdm.models.configs import Residual64x64Net, Strided28x28Net
 from fdm.optimisation.mmd import mmd2
-from shared.configs import Config, DatasetConfig, FdmArgs, Misc, RL, BWLoss, EncoderConfig, DS
+from shared.configs import Config, DatasetConfig, FdmArgs, Misc, RL, BWLoss, EncoderConfig, DS, DM
 from shared.data import DatasetTriplet, load_dataset
 from shared.layers import Aggregator, AttentionAggregator, SimpleAggregator, SimpleAggregatorT
 from shared.models.configs import conv_autoencoder, fc_autoencoder
@@ -79,14 +79,10 @@ def main(
     DATA = cfg.data
     ENC = cfg.enc
     MISC = cfg.misc
-    cfg.clust = None  # null the cluster args so that we don't get confused
 
     # ==== current git commit ====
-    if os.environ.get("STARTED_BY_GUILDAI", None) == "1":
-        sha = ""
-    else:
-        repo = git.Repo(search_parent_directories=True)
-        sha = repo.head.object.hexsha
+    repo = git.Repo(search_parent_directories=True)
+    sha = repo.head.object.hexsha
 
     use_gpu = torch.cuda.is_available() and MISC.gpu >= 0
     random_seed(MISC.seed, use_gpu)
@@ -108,17 +104,18 @@ def main(
                 flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True))
             )
 
-    save_dir = Path(MISC.save_dir) / str(time.time())
+    save_dir = Path(to_absolute_path(MISC.save_dir)) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    print(str(OmegaConf.to_yaml(cfg)))
+    print(str(OmegaConf.to_yaml(cfg, resolve=True, sort_keys=True)))
     print(f"Save directory: {save_dir.resolve()}")
     # ==== check GPU ====
-    cfg.misc._device = torch.device(f"cuda:{MISC.gpu}" if use_gpu else "cpu")
-    print(f"{torch.cuda.device_count()} GPUs available. Using device '{MISC._device}'")
+    MISC._device = f"cuda:{MISC.gpu}" if use_gpu else "cpu"
+    device = torch.device(MISC._device)
+    print(f"{torch.cuda.device_count()} GPUs available. Using device '{device}'")
 
     # ==== construct dataset ====
-    datasets: DatasetTriplet = load_dataset(DATA, MISC)
+    datasets: DatasetTriplet = load_dataset(CFG)
     print(
         "Size of context-set: {}, training-set: {}, test-set: {}".format(
             len(datasets.context),
@@ -130,10 +127,12 @@ def main(
     s_count = max(datasets.s_dim, 2)
 
     cluster_results = None
+    cluster_test_metrics: Dict[str, float] = {}
+    cluster_context_metrics: Dict[str, float] = {}
     if MISC.cluster_label_file:
         cluster_results = load_results(CFG)
-        MISC._cluster_test_metrics = cluster_results.test_metrics or {}
-        MISC._cluster_context_metrics = cluster_results.context_metrics or {}
+        cluster_test_metrics = cluster_results.test_metrics or {}
+        cluster_context_metrics = cluster_results.context_metrics or {}
         weights, n_clusters, min_count, max_count = weight_for_balance(
             cluster_results.cluster_ids, min_size=None if ARGS.oversample else ARGS.batch_size
         )
@@ -200,7 +199,7 @@ def main(
     feature_group_slices = getattr(datasets.context, "feature_group_slices", None)
 
     if is_image_data:
-        decoding_dim = input_shape[0] * 256 if ENC.recon_loss == "ce" else input_shape[0]
+        decoding_dim = input_shape[0] * 256 if ENC.recon_loss == RL.ce else input_shape[0]
         # if ARGS.recon_loss == "ce":
         decoder_out_act = None
         # else:
@@ -252,7 +251,7 @@ def main(
     recon_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
     if ARGS.vgg_weight != 0:
         vgg_loss = VGGLoss()
-        vgg_loss.to(ARGS._device)
+        vgg_loss.to(device)
 
         def recon_loss_fn(input_: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
             return recon_loss_fn_(input_, target) + ARGS.vgg_weight * vgg_loss(input_, target)
@@ -263,7 +262,7 @@ def main(
     generator: Generator
     if ARGS.use_inn:
         autoencoder = build_ae(
-            ARGS, encoder, decoder, encoding_size=None, feature_group_slices=feature_group_slices
+            CFG, encoder, decoder, encoding_size=None, feature_group_slices=feature_group_slices
         )
         if prod(enc_shape) == enc_shape[0]:
             is_enc_image_data = False
@@ -271,7 +270,7 @@ def main(
         else:
             is_enc_image_data = is_image_data
         generator = build_inn(
-            args=ARGS,
+            cfg=CFG,
             autoencoder=autoencoder,
             ae_loss_fn=recon_loss_fn,
             is_image_data=is_enc_image_data,
@@ -285,7 +284,7 @@ def main(
         zy_dim = enc_shape[0] - zs_dim
         encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim)
         generator = build_ae(
-            args=ARGS,
+            cfg=CFG,
             encoder=encoder,
             decoder=decoder,
             encoding_size=encoding_size,
@@ -324,7 +323,7 @@ def main(
             else disc_input_shape
         )
 
-    if ARGS.batch_wise_loss != "none":
+    if ARGS.batch_wise_loss != BWLoss.none:
         final_proj = FcNet(ARGS.batch_wise_hidden_dims) if ARGS.batch_wise_hidden_dims else None
         aggregator: Aggregator
         if ARGS.batch_wise_loss == BWLoss.attention:
@@ -349,7 +348,7 @@ def main(
             )
             disc_list.append(disc)
         disc_ensemble = nn.ModuleList(disc_list)
-        disc_ensemble.to(MISC._device)
+        disc_ensemble.to(device)
 
         predictor_y = build_discriminator(
             input_shape=(prod(enc_shape),),  # this is always trained on encodings
@@ -357,7 +356,7 @@ def main(
             model_fn=FcNet(hidden_dims=None),  # no hidden layers
             optimizer_kwargs=disc_optimizer_kwargs,
         )
-        predictor_y.to(MISC._device)
+        predictor_y.to(device)
 
         predictor_s = build_discriminator(
             input_shape=(prod(enc_shape),),  # this is always trained on encodings
@@ -365,7 +364,7 @@ def main(
             model_fn=FcNet(hidden_dims=None),  # no hidden layers
             optimizer_kwargs=disc_optimizer_kwargs,
         )
-        predictor_s.to(MISC._device)
+        predictor_s.to(device)
 
         components = AeComponents(
             generator=generator,
@@ -385,7 +384,7 @@ def main(
             )
             disc_list.append(disc)
         disc_ensemble = nn.ModuleList(disc_list)
-        disc_ensemble.to(MISC._device)
+        disc_ensemble.to(device)
 
         # classifier for y
         class_fn: ModelFn
@@ -404,8 +403,8 @@ def main(
                 model_fn=class_fn,
                 optimizer_kwargs=disc_optimizer_kwargs,
             )
-            predictor.to(MISC._device)
-            predictor.fit(Subset(datasets.context, np.arange(100)), 50, MISC._device, test_loader)
+            predictor.to(device)
+            predictor.fit(Subset(datasets.context, np.arange(100)), 50, device, test_loader)
         components = InnComponents(inn=generator, disc_ensemble=disc_ensemble, predictor=predictor)
 
     start_itr = 1  # start at 1 so that the val_freq works correctly
@@ -414,7 +413,15 @@ def main(
         print("Restoring generator from checkpoint")
         generator, start_itr = restore_model(CFG, Path(MISC.resume), generator)
         if MISC.evaluate:
-            log_metrics(CFG, generator, datasets, 0, save_to_csv=Path(MISC.save_dir))
+            log_metrics(
+                CFG,
+                generator,
+                datasets,
+                0,
+                save_to_csv=Path(to_absolute_path(MISC.save_dir)),
+                cluster_test_metrics=cluster_test_metrics,
+                cluster_context_metrics=cluster_context_metrics,
+            )
             return generator
 
     # Logging
@@ -456,7 +463,7 @@ def main(
 
         if ARGS.validate and itr % ARGS.val_freq == 0:
             if itr == ARGS.val_freq:  # first validation
-                baseline_metrics(CFG, datasets, save_to_csv=Path(MISC.save_dir))
+                baseline_metrics(CFG, datasets, save_to_csv=Path(to_absolute_path(MISC.save_dir)))
             log_metrics(CFG, model=generator, data=datasets, step=itr)
             save_model(CFG, save_dir, model=generator, itr=itr, sha=sha)
 
@@ -469,7 +476,15 @@ def main(
     print("Training has finished.")
     # path = save_model(args, save_dir, model=generator, epoch=epoch, sha=sha)
     # generator, _ = restore_model(args, path, model=generator)
-    log_metrics(CFG, model=generator, data=datasets, save_to_csv=Path(MISC.save_dir), step=itr)
+    log_metrics(
+        CFG,
+        model=generator,
+        data=datasets,
+        save_to_csv=Path(to_absolute_path(MISC.save_dir)),
+        step=itr,
+        cluster_test_metrics=cluster_test_metrics,
+        cluster_context_metrics=cluster_context_metrics,
+    )
     return generator
 
 
@@ -528,7 +543,7 @@ def train_step(
 ) -> Dict[str, float]:
 
     disc_weight = 0.0 if itr < ARGS.warmup_steps else ARGS.disc_weight
-    if ARGS.disc_method == "nn":
+    if ARGS.disc_method == DM.nn:
         # Train the discriminator on its own for a number of iterations
         for _ in range(ARGS.num_disc_updates):
             x_c, x_t, s_t, y_t = get_batch(
@@ -590,7 +605,7 @@ def update_disc(
     ae.predictor_s.eval()
     ae.disc_ensemble.train()
 
-    if ARGS.batch_wise_loss == "none":
+    if ARGS.batch_wise_loss == BWLoss.none:
         ones = x_c.new_ones((x_c.size(0),))
         zeros = x_t.new_zeros((x_t.size(0),))
     else:
@@ -668,8 +683,8 @@ def update(
     # ==================================== adversarial losses =====================================
     disc_input_no_s = get_disc_input(ae.generator, encoding, invariant_to="s")
 
-    if ARGS.disc_method == "nn":
-        if ARGS.batch_wise_loss == "none":
+    if ARGS.disc_method == DM.nn:
+        if ARGS.batch_wise_loss == BWLoss.none:
             zeros = x_t.new_zeros((x_t.size(0),))
         else:
             zeros = x_t.new_zeros((1,))
@@ -741,7 +756,7 @@ def get_disc_input(
     if ARGS.train_on_recon:
         zs_m, zy_m = generator.mask(encoding, random=True)
         recon = generator.decode(zs_m if invariant_to == "s" else zy_m, mode="relaxed")
-        if ENC.recon_loss == "ce":
+        if ENC.recon_loss == RL.ce:
             recon = recon.argmax(dim=1).float() / 255
             if DATA.dataset != DS.cmnist:
                 recon = recon * 2 - 1
@@ -753,7 +768,7 @@ def get_disc_input(
 
 def to_device(*tensors: Tensor) -> Union[Tensor, Tuple[Tensor, ...]]:
     """Place tensors on the correct device and set type to float32"""
-    moved = [tensor.to(MISC._device, non_blocking=True) for tensor in tensors]
+    moved = [tensor.to(torch.device(MISC._device), non_blocking=True) for tensor in tensors]
     return moved[0] if len(moved) == 1 else tuple(moved)
 
 

@@ -1,24 +1,21 @@
 from pathlib import Path
 
 import ethicml as em
+import hydra
+from hydra.core.config_store import ConfigStore
+from hydra.utils import to_absolute_path
 
-from shared.configs import BaseArgs
+from shared.configs import BaseArgs, DS
 from shared.data import DatasetTriplet, get_data_tuples, load_dataset
-from shared.utils import accept_prefixes, compute_metrics, confirm_empty, make_tuple_from_data
+from shared.utils import compute_metrics, make_tuple_from_data
 
+cs = ConfigStore.instance()
+cs.store(name="logistic_regression", node=BaseArgs)
 
-class BaselineArgs(BaseArgs):
-    save_dir: Path = Path(".") / "experiments" / "finn"
-    results_csv: str
-
-    def add_arguments(self) -> None:
-        super().add_arguments()
-        self.add_argument("--save-dir", type=Path)
-
-
-def baseline_metrics(args: BaselineArgs) -> None:
-    assert args.dataset == "adult", "This script is only for the adult dataset."
-    data: DatasetTriplet = load_dataset(args)
+@hydra.main(config_path="conf", config_name="logistic_regression")
+def baseline_metrics(cfg: BaseArgs) -> None:
+    assert cfg.data.dataset == DS.adult, "This script is only for the adult dataset."
+    data: DatasetTriplet = load_dataset(cfg)
     train_data = data.train
     test_data = data.test
     if not isinstance(train_data, em.DataTuple):
@@ -37,20 +34,16 @@ def baseline_metrics(args: BaselineArgs) -> None:
         preds = clf.run(train_data, test_data)
 
         compute_metrics(
-            args=args,
+            cfg=cfg,
             predictions=preds,
             actual=test_data,
             exp_name="baseline",
             model_name=clf.name,
             step=0,
-            save_to_csv=args.save_dir,
-            results_csv=args.results_csv,
+            save_to_csv=Path(to_absolute_path(cfg.misc.save_dir)),
+            results_csv=cfg.misc.results_csv,
         )
 
 
 if __name__ == "__main__":
-    args = BaselineArgs(fromfile_prefix_chars="@", explicit_bool=True, underscores_to_dashes=True)
-    args.parse_args(accept_prefixes(("--a-", "--b-")), known_only=True)
-    confirm_empty(args.extra_args, to_ignore=("--c-", "--d-", "--e-"))
-    print(args)
-    baseline_metrics(args=args)
+    baseline_metrics()

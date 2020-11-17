@@ -1,12 +1,17 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
-from typing import List
 
 import ethicml as em
+import hydra
 import numpy as np
 import pandas as pd
 import torch
 from ethicml import implementations
+from hydra.core.config_store import ConfigStore
+from hydra.utils import to_absolute_path
+from omegaconf.omegaconf import MISSING
 from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import trange
@@ -14,19 +19,12 @@ from typing_extensions import Literal
 
 from fdm.models import Classifier
 from fdm.optimisation.train import build_weighted_sampler_from_dataset
-from shared.configs import BaseArgs
+from shared.configs import BaseArgs, DS
 from shared.data import load_dataset
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
-from shared.utils import (
-    ModelFn,
-    accept_prefixes,
-    compute_metrics,
-    confirm_empty,
-    get_data_dim,
-    random_seed,
-)
+from shared.utils import ModelFn, compute_metrics, get_data_dim, random_seed
 
-BASELINE_METHODS = Literal["cnn", "dro", "kamiran"]
+BaselineM = Enum("BaselineM", "cnn dro kamiran")
 
 
 class IntanceWeightedDataset(Dataset):
@@ -50,44 +48,29 @@ class IntanceWeightedDataset(Dataset):
         return data + iw
 
 
-class BaselineArgs(BaseArgs):
+@dataclass
+class BaselineArgs:
     # General data set settings
     greyscale: bool = False
-    seed: int = 0
 
     # Optimization settings
     epochs: int = 60
     test_batch_size: int = 1000
     batch_size: int = 64
     lr: float = 1e-3
-    num_workers: int = 0
     weight_decay = 1e-8
     eta: float = 0.5
-    gpu: int = 0
     save_dir: str = "experiments/baseline"
 
     # Misc settings
-    method: BASELINE_METHODS = "cnn"
+    method: BaselineM = BaselineM.cnn
     pred_s: bool = False
+    oversample: bool = True
 
-    def process_args(self) -> None:
-        if self.method == "kamiran":
-            if self.dataset == "cmnist":
-                raise ValueError(
-                    "Kamiran & Calders reweighting scheme can only be used with binary sensitive and target attributes."
-                )
-            elif self.mixing_factor % 1 == 0:
-                raise ValueError(
-                    "Kamiran & Calders reweighting scheme can only be used when there is at least one sample available for each sensitive/target attribute combination."
-                )
 
-        return super().process_args()
-
-    def convert_arg_line_to_args(self, arg_line: str) -> List[str]:
-        """Parse each line like a YAML file."""
-        if arg_line.startswith(("a_", "b_", "a-", "b-")):
-            arg_line = arg_line[2:]
-        return super().convert_arg_line_to_args(arg_line)
+@dataclass
+class Config(BaseArgs):
+    baselines: BaselineArgs = MISSING
 
 
 def get_instance_weights(dataset: Dataset, batch_size: int) -> TensorDataset:
@@ -176,21 +159,33 @@ class TrainKamiran(Trainer):
         pbar.close()
 
 
-def run_baseline(args: BaselineArgs) -> None:
+def run_baseline(cfg: Config) -> None:
+    args = cfg.baselines
+    if args.method == BaselineM.kamiran:
+        if cfg.data.dataset == DS.cmnist:
+            raise ValueError(
+                "Kamiran & Calders reweighting scheme can only be used with binary sensitive "
+                "and target attributes."
+            )
+        elif cfg.bias.mixing_factor % 1 == 0:
+            raise ValueError(
+                "Kamiran & Calders reweighting scheme can only be used when there is at least one "
+                "sample available for each sensitive/target attribute combination."
+            )
 
-    use_gpu = torch.cuda.is_available() and not args.gpu < 0
-    random_seed(args.seed, use_gpu)
+    use_gpu = torch.cuda.is_available() and not cfg.misc.gpu < 0
+    random_seed(cfg.misc.seed, use_gpu)
 
-    device = torch.device(f"cuda:{args.gpu}" if use_gpu else "cpu")
+    device = torch.device(f"cuda:{cfg.misc.gpu}" if use_gpu else "cpu")
     print(f"Running on {device}")
 
     #  Load the datasets and wrap with dataloaders
-    datasets = load_dataset(args)
+    datasets = load_dataset(cfg)
 
     train_data = datasets.train
     test_data = datasets.test
 
-    if args.method == "kamiran":
+    if args.method == BaselineM.kamiran:
         instance_weights = get_instance_weights(train_data, batch_size=args.test_batch_size)
         train_data = IntanceWeightedDataset(train_data, instance_weights=instance_weights)
         train_sampler = None
@@ -200,7 +195,7 @@ def run_baseline(args: BaselineArgs) -> None:
             s_count=max(datasets.s_dim, 2),
             test_batch_size=args.test_batch_size,
             batch_size=args.batch_size,
-            num_workers=args.num_workers,
+            num_workers=cfg.misc.num_workers,
             oversample=args.oversample,
             balance_hierarchical=False,
         )
@@ -208,8 +203,8 @@ def run_baseline(args: BaselineArgs) -> None:
         train_data,
         batch_size=args.batch_size,
         pin_memory=True,
-        shuffle=args.method == "kamiran",
-        num_workers=args.num_workers,
+        shuffle=args.method == BaselineM.kamiran,
+        num_workers=cfg.misc.num_workers,
         sampler=train_sampler,
     )
     test_loader = DataLoader(
@@ -217,16 +212,16 @@ def run_baseline(args: BaselineArgs) -> None:
         batch_size=args.test_batch_size,
         pin_memory=True,
         shuffle=False,
-        num_workers=args.num_workers,
+        num_workers=cfg.misc.num_workers,
     )
 
     input_shape = get_data_dim(train_loader)
 
     #  Construct the network
     classifier_fn: ModelFn
-    if args.dataset == "cmnist":
+    if cfg.data.dataset == DS.cmnist:
         classifier_fn = Mp32x23Net(batch_norm=True)
-    elif args.dataset == "adult":
+    elif cfg.data.dataset == DS.adult:
 
         def adult_fc_net(input_dim: int, target_dim: int) -> nn.Sequential:
             encoder = FcNet(hidden_dims=[35])(input_dim=input_dim, target_dim=35)
@@ -240,7 +235,7 @@ def run_baseline(args: BaselineArgs) -> None:
     target_dim = datasets.s_dim if args.pred_s else datasets.y_dim
 
     criterion = None
-    if args.method == "dro":
+    if args.method == BaselineM.dro:
         if target_dim == 1:
             criterion = implementations.dro_modules.DROLoss(nn.BCEWithLogitsLoss, eta=args.eta)
         else:
@@ -255,7 +250,7 @@ def run_baseline(args: BaselineArgs) -> None:
     )
     classifier.to(device)
 
-    if args.method == "kamiran":
+    if args.method == BaselineM.kamiran:
         train_fn = TrainKamiran()
     else:
         train_fn = TrainNaive()
@@ -271,44 +266,43 @@ def run_baseline(args: BaselineArgs) -> None:
 
     preds, labels, sens = classifier.predict_dataset(test_data, device=device)
     preds = em.Prediction(pd.Series(preds))
-    if args.dataset == "cmnist":
+    if cfg.data.dataset == DS.cmnist:
         sens_name = "colour"
-    elif args.dataset == "celeba":
-        sens_name = args.celeba_sens_attr
+    elif cfg.data.dataset == DS.celeba:
+        sens_name = cfg.data.celeba_sens_attr.name
     else:
         sens_name = "sens_Label"
     sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=[sens_name])
     labels_pd = pd.DataFrame(labels, columns=["labels"])
     actual = em.DataTuple(x=sens_pd, s=sens_pd, y=labels_pd)
 
-    full_name = f"{args.method}_baseline"
-    if args.dataset == "cmnist":
+    full_name = f"{args.method.name}_baseline"
+    if cfg.data.dataset == DS.cmnist:
         full_name += "_greyscale" if args.greyscale else "_color"
-    elif args.dataset == "celeba":
-        full_name += f"_{str(args.celeba_sens_attr)}"
-        full_name += f"_{args.celeba_target_attr}"
+    elif cfg.data.dataset == DS.celeba:
+        full_name += f"_{str(cfg.data.celeba_sens_attr.name)}"
+        full_name += f"_{cfg.data.celeba_target_attr.name}"
     full_name += f"_{str(args.epochs)}epochs.csv"
 
     compute_metrics(
-        args=args,
+        cfg=cfg,
         predictions=preds,
         actual=actual,
         exp_name="baseline",
-        model_name=args.method,
+        model_name=args.method.name,
         step=0,
-        save_to_csv=Path(args.save_dir) if args.save_dir else None,
+        save_to_csv=Path(to_absolute_path(args.save_dir)) if args.save_dir else None,
         results_csv=full_name,
         use_wandb=False,
-        additional_entries={"eta": args.eta} if args.method == "dro" else None,
+        additional_entries={"eta": args.eta} if args.method == BaselineM.dro else None,
     )
 
+cs = ConfigStore.instance()
+cs.store(name="baseline", node=Config)
 
-def main() -> None:
-    args = BaselineArgs(fromfile_prefix_chars="@", explicit_bool=True, underscores_to_dashes=True)
-    args.parse_args(accept_prefixes(("--a-", "--b-")), known_only=True)
-    confirm_empty(args.extra_args, to_ignore=("--c-", "--d-", "--e-"))
-    print(args)
-    run_baseline(args=args)
+@hydra.main(config_path="conf", config_name="baseline")
+def main(cfg: Config) -> None:
+    run_baseline(cfg=cfg)
 
 
 if __name__ == "__main__":

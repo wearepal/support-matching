@@ -1,8 +1,4 @@
-# @package _group_
-defaults:
-  - data/cmnist_2dig_base
-  - _self_
-
+# @package bias
 subsample_context:
   0: 0.7
   1: 0.4

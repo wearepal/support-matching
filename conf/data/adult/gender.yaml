@@ -1,4 +1,4 @@
-# @package _group_
+# @package data
 dataset: adult
 drop_native: true
 mixing_factor: 0.0

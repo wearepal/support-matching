@@ -43,20 +43,20 @@ def load_results(cfg: Config, check: bool = True) -> ClusterResults:
     if check:
         saved_cfg = data["args"]
         assert (
-            saved_cfg["data.dataset"] == cfg.data.dataset
-        ), f'{saved_cfg["dataset"]} != {cfg.data.dataset}'
+            saved_cfg["data.dataset"] == cfg.data.dataset.name
+        ), f'{saved_cfg["data.dataset"]} != {cfg.data.dataset.name}'
         assert (
-            saved_cfg.data["data.data_pcnt"] == cfg.data.data_pcnt
-        ), f'{saved_cfg.data["data.data_pcnt"]} != {cfg.data.data_pcnt}'
+            saved_cfg["data.data_pcnt"] == cfg.data.data_pcnt
+        ), f'{saved_cfg["data.data_pcnt"]} != {cfg.data.data_pcnt}'
         assert (
-            saved_cfg.data["misc.data_split_seed"] == cfg.misc.data_split_seed
-        ), f'{saved_cfg.data["misc.data_split_seed"]} != {cfg.misc.data_split_seed}'
+            saved_cfg["misc.data_split_seed"] == cfg.misc.data_split_seed
+        ), f'{saved_cfg["misc.data_split_seed"]} != {cfg.misc.data_split_seed}'
         assert (
-            saved_cfg.data["data.context_pcnt"] == cfg.data.context_pcnt
-        ), f'{saved_cfg.data["data.context_pcnt"]} != {cfg.data.context_pcnt}'
+            saved_cfg["data.context_pcnt"] == cfg.data.context_pcnt
+        ), f'{saved_cfg["data.context_pcnt"]} != {cfg.data.context_pcnt}'
         assert (
-            saved_cfg.data["data.test_pcnt"] == cfg.data.test_pcnt
-        ), f'{saved_cfg.data["data.test_pcnt"]} != {cfg.data.test_pcnt}'
+            saved_cfg["data.test_pcnt"] == cfg.data.test_pcnt
+        ), f'{saved_cfg["data.test_pcnt"]} != {cfg.data.test_pcnt}'
     class_ids = data["class_ids"] if "class_ids" in data else torch.zeros_like(data["cluster_ids"])
     return ClusterResults(
         flags=data["args"],

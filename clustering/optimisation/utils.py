@@ -43,7 +43,7 @@ def log_images(
     if cfg.enc.recon_loss == RL.ce:
         images = images.argmax(dim=1).float() / 255
     else:
-        if cfg.data.dataset in (DS.celeba, DS.ssrp, DS.genfaces):
+        if cfg.data.dataset in (DS.celeba, DS.genfaces):
             images = 0.5 * images + 0.5
 
     if monochrome:

@@ -143,9 +143,9 @@ def mmd2(
     biased: bool = False,
     **kwargs: Any,
 ) -> Tensor:
-    if kernel == "linear":
+    if kernel == MMDKer.linear:
         kernel_out = _dot_kernel(x, y)
-    elif kernel == "rbf":
+    elif kernel == MMDKer.rbf:
         kernel_out = _mix_rbf_kernel(x, y, **kwargs)
     else:
         kernel_out = _mix_rq_kernel(x, y, **kwargs)

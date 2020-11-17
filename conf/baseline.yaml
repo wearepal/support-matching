@@ -1,0 +1,5 @@
+defaults:
+  - data: cmnist/2dig
+  - bias: cmnist/no_bias
+  - misc: baselines
+  - baselines: cnn

@@ -1,4 +1,4 @@
-# @package _group_
+# @package data
 background: false
 binarize: true
 black: true
@@ -14,7 +14,6 @@ filter_labels:
   - 4
 greyscale: false
 input_noise: false
-missing_s: ""
 padding: 2
 quant_level: eight
 rotate_data: false

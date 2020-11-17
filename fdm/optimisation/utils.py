@@ -7,7 +7,7 @@ import wandb
 from omegaconf import OmegaConf
 from torch import Tensor, nn
 
-from shared.configs import Config
+from shared.configs import Config, DS, RL
 from shared.utils import class_id_to_label, wandb_log, flatten
 
 __all__ = [
@@ -34,10 +34,10 @@ def log_images(
     prefix = "train_" if prefix is None else f"{prefix}_"
     images = image_batch[:nsamples]
 
-    if cfg.enc.recon_loss == "ce":
+    if cfg.enc.recon_loss == RL.ce:
         images = images.argmax(dim=1).float() / 255
     else:
-        if cfg.data.dataset in ("celeba", "ssrp", "genfaces"):
+        if cfg.data.dataset in (DS.celeba, DS.genfaces):
             images = 0.5 * images + 0.5
 
     if monochrome:

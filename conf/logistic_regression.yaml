@@ -1,0 +1,4 @@
+defaults:
+  - data: adult/gender
+  - bias: adult/no_bias
+  - misc: baselines

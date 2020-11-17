@@ -205,11 +205,11 @@ class MaskedCouplingLayer(Bijector):
 
     def _masked_scale_and_shift(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         shift = self.net_shift(x * self.mask)
-        if self.scaling == "none":
+        if self.scaling == InnSc.none:
             scale = torch.ones_like(shift)
         else:
             raw_scale = self.net_scale(x * self.mask)
-            if self.scaling == "exp":
+            if self.scaling == InnSc.exp:
                 scale = torch.exp(raw_scale)
             elif self.scaling == InnSc.sigmoid0_5:
                 scale = torch.sigmoid(raw_scale) + 0.5

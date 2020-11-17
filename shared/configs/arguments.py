@@ -22,7 +22,16 @@ from .enums import (
     VaeStd,
 )
 
-__all__ = ["ClusterArgs", "Config", "DatasetConfig", "EncoderConfig", "FdmArgs", "Misc"]
+__all__ = [
+    "BaseArgs",
+    "BiasConfig",
+    "ClusterArgs",
+    "Config",
+    "DatasetConfig",
+    "EncoderConfig",
+    "FdmArgs",
+    "Misc",
+]
 
 
 @dataclass
@@ -32,19 +41,14 @@ class DatasetConfig:
     dataset: DS = MISSING
 
     data_pcnt: float = 1.0  # data pcnt should be a real value > 0, and up to 1
-    mixing_factor: float = 0.0  # How much of context should be mixed into training?
     context_pcnt: float = 0.4
     test_pcnt: float = 0.2
     root: str = ""
-
-    # Dataset manipulation
-    missing_s: List[int] = field(default_factory=list)
 
     # Adult data set feature settings
     drop_native: bool = True
     adult_split: AS = AS.Sex
     drop_discrete: bool = False
-    adult_biased_train: bool = True  # if True, make the training set biased, based on mixing factor
     adult_balanced_test: bool = True
     balance_all_quadrants: bool = True
 
@@ -59,12 +63,6 @@ class DatasetConfig:
     color_correlation: float = 1.0
     padding: int = 2  # by how many pixels to pad the cmnist images by
     quant_level: QL = QL.eight  # number of bits that encode color
-    # the subsample flags work like this: you give it a class id and a fraction in the form of a
-    # float. the class id is given by class_id = y * s_count + s, so for binary s and y, the
-    # correspondance is like this:
-    # 0: y=0/s=0, 1: y=0/s=1, 2: y=1/s=0, 3: y=1/s=1
-    subsample_context: Dict[int, float] = field(default_factory=dict)
-    subsample_train: Dict[int, float] = field(default_factory=dict)
     input_noise: bool = False  # add uniform noise to the input
     filter_labels: List[int] = field(default_factory=list)
     colors: List[int] = field(default_factory=list)
@@ -79,6 +77,22 @@ class DatasetConfig:
 
 
 @dataclass
+class BiasConfig:
+    # Dataset manipulation
+    missing_s: List[int] = MISSING
+    mixing_factor: float = MISSING  # How much of context should be mixed into training?
+    adult_biased_train: bool = (
+        MISSING  # if True, make the training set biased, based on mixing factor
+    )
+    # the subsample flags work like this: you give it a class id and a fraction in the form of a
+    # float. the class id is given by class_id = y * s_count + s, so for binary s and y, the
+    # correspondance is like this:
+    # 0: y=0/s=0, 1: y=0/s=1, 2: y=1/s=0, 3: y=1/s=1
+    subsample_context: Dict[str, float] = MISSING
+    subsample_train: Dict[str, float] = MISSING
+
+
+@dataclass
 class Misc:
     # Cluster settings
     cluster_label_file: str = ""
@@ -88,18 +102,17 @@ class Misc:
     log_method: str = ""  # arbitrary string that's appended to the experiment group name
     use_wandb: bool = True
     gpu: int = 0  # which GPU to use (if available)
-    seed: int = 42
-    data_split_seed: int = 888
+    seed: int = MISSING
+    data_split_seed: int = MISSING
     save_dir: str = "experiments/finn"
+    results_csv: str = ""  # name of CSV file to save results to
     resume: Optional[str] = None
     evaluate: bool = False
     num_workers: int = 4
 
     _s_dim: int = MISSING
     _y_dim: int = MISSING
-    _cluster_test_metrics: Dict[str, float] = MISSING
-    _cluster_context_metrics: Dict[str, float] = MISSING
-    _device: Any = MISSING
+    _device: str = MISSING
 
 
 @dataclass
@@ -121,7 +134,6 @@ class ClusterArgs:
     # Training settings
     val_freq: int = 5
     log_freq: int = 50
-    results_csv: str = ""  # name of CSV file to save results to
     feat_attr: bool = False
     cluster: CL = CL.both
     with_supervision: bool = True
@@ -206,7 +218,6 @@ class FdmArgs:
     validate: bool = True
     val_freq: int = 1_000  # how often to do validation
     log_freq: int = 50
-    results_csv: str = ""  # name of CSV file to save results to
     feat_attr: bool = False
 
     # Encoder settings
@@ -267,9 +278,18 @@ class FdmArgs:
 
 
 @dataclass
-class Config:
-    clust: ClusterArgs = MISSING
+class BaseArgs:
+    """Minimum needed config to do data loading."""
+
     data: DatasetConfig = MISSING
+    bias: BiasConfig = MISSING
+    misc: Misc = MISSING
+
+
+@dataclass
+class Config(BaseArgs):
+    """Config used for clustering and disentangling."""
+
+    clust: ClusterArgs = MISSING
     enc: EncoderConfig = MISSING
     fdm: FdmArgs = MISSING
-    misc: Misc = MISSING

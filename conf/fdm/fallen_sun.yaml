@@ -1,6 +1,6 @@
 # @package _group_
 batch_size: 256
-batch_wise_hidden:
+batch_wise_hidden_dims:
   - 256
   - 256
 batch_wise_loss: attention
@@ -16,7 +16,6 @@ encode_batch_size: 1000
 eval_epochs: 60
 eval_lr: 0.001
 eval_on_recon: false
-evaluate: false
 feat_attr: false
 gamma: 1.0
 iters: 5000
@@ -26,7 +25,6 @@ lr: 0.0003
 nll_weight: 0.01
 num_disc_updates: 1
 num_discs: 10
-num_workers: 4
 oversample: true
 pred_s_weight: 1.0
 pred_y_weight: 1.0

@@ -1,0 +1,4 @@
+# @package _group_
+method: dro
+epochs: 60
+eta: 0.1  # usual search range: [0.01, 0.1, 0.3, 1.0]

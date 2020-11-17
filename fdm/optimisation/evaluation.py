@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Sequence, Tuple
+from typing import Dict, Optional, Sequence, Tuple
 
 import ethicml as em
 import numpy as np
@@ -26,7 +26,13 @@ def log_sample_images(cfg: Config, data, name, step):
 
 
 def log_metrics(
-    cfg: Config, model, data: DatasetTriplet, step: int, save_to_csv: Optional[Path] = None
+    cfg: Config,
+    model,
+    data: DatasetTriplet,
+    step: int,
+    save_to_csv: Optional[Path] = None,
+    cluster_test_metrics: Optional[Dict[str, float]] = None,
+    cluster_context_metrics: Optional[Dict[str, float]] = None,
 ) -> None:
     """Compute and log a variety of metrics."""
     model.eval()
@@ -51,6 +57,8 @@ def log_metrics(
         eval_on_recon=cfg.fdm.eval_on_recon,
         pred_s=False,
         save_to_csv=save_to_csv,
+        cluster_test_metrics=cluster_test_metrics,
+        cluster_context_metrics=cluster_context_metrics,
     )
 
 
@@ -73,15 +81,14 @@ def baseline_metrics(cfg: Config, data: DatasetTriplet, save_to_csv: Optional[Pa
         ]:
             preds = clf.run(train_data, test_data)
             compute_metrics(
-                args=cfg.misc,
+                cfg=cfg,
                 predictions=preds,
                 actual=test_data,
-                data_name=cfg.data.dataset.name,
                 exp_name="original_data",
                 model_name=clf.name,
                 step=0,
                 save_to_csv=save_to_csv,
-                results_csv=cfg.fdm.results_csv,
+                results_csv=cfg.misc.results_csv,
                 use_wandb=False,
             )
 
@@ -106,10 +113,14 @@ def fit_classifier(
     clf = clf_fn(input_dim, target_dim=cfg.misc._y_dim)
 
     n_classes = cfg.misc._y_dim if cfg.misc._y_dim > 1 else 2
-    clf: Classifier = Classifier(clf, num_classes=n_classes, optimizer_kwcfg={"lr": cfg.eval_lr})
+    clf: Classifier = Classifier(clf, num_classes=n_classes, optimizer_kwargs={"lr": cfg.fdm.eval_lr})
     clf.to(cfg.misc._device)
     clf.fit(
-        train_data, test_data=test_data, epochs=cfg.fdm.eval_epochs, device=cfg.misc._device, pred_s=pred_s
+        train_data,
+        test_data=test_data,
+        epochs=cfg.fdm.eval_epochs,
+        device=cfg.misc._device,
+        pred_s=pred_s,
     )
 
     return clf
@@ -124,8 +135,17 @@ def evaluate(
     eval_on_recon: bool = True,
     pred_s: bool = False,
     save_to_csv: Optional[Path] = None,
+    cluster_test_metrics: Optional[Dict[str, float]] = None,
+    cluster_context_metrics: Optional[Dict[str, float]] = None,
 ):
     input_shape = next(iter(train_data))[0].shape
+    additional_entries = {}
+    if cluster_test_metrics is not None:
+        additional_entries.update({f"Clust/Test {k}": v for k, v in cluster_test_metrics.items()})
+    if cluster_context_metrics is not None:
+        additional_entries.update(
+            {f"Clust/Context {k}": v for k, v in cluster_context_metrics.items()}
+        )
 
     if cfg.data.dataset in (DS.cmnist, DS.celeba, DS.genfaces):
 
@@ -145,7 +165,9 @@ def evaluate(
             test_data=test_loader,
         )
 
-        preds, labels, sens = clf.predict_dataset(test_loader, device=cfg.misc._device)
+        preds, labels, sens = clf.predict_dataset(
+            test_loader, device=torch.device(cfg.misc._device)
+        )
         preds = em.Prediction(hard=pd.Series(preds))
         if cfg.data.dataset == DS.cmnist:
             sens_name = "colour"
@@ -157,16 +179,16 @@ def evaluate(
         labels_pd = pd.DataFrame(labels, columns=["labels"])
         actual = em.DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels_pd)
         compute_metrics(
-            cfg.misc,
+            cfg,
             preds,
             actual,
-            cfg.data.dataset.name,
             name,
             "pytorch_classifier",
             step=step,
             save_to_csv=save_to_csv,
-            results_csv=cfg.fdm.results_csv,
+            results_csv=cfg.misc.results_csv,
             use_wandb=cfg.misc.use_wandb,
+            additional_entries=additional_entries,
         )
     else:
         if not isinstance(train_data, em.DataTuple):
@@ -179,13 +201,13 @@ def evaluate(
                 cfg,
                 preds,
                 test_data,
-                cfg.data.dataset.name,
                 name,
                 eth_clf.name,
                 step=step,
                 save_to_csv=save_to_csv,
-                results_csv=cfg.fdm.results_csv,
+                results_csv=cfg.misc.results_csv,
                 use_wandb=cfg.misc.use_wandb,
+                additional_entries=additional_entries,
             )
 
 
@@ -223,7 +245,7 @@ def encode_dataset(
                 z_m = zs_m if invariant_to == "s" else zy_m
                 x_m = generator.decode(z_m, mode="hard")
 
-                if cfg.data.dataset in ("celeba", "ssrp", "genfaces"):
+                if cfg.data.dataset in (DS.celeba, DS.genfaces):
                     x_m = 0.5 * x_m + 0.5
                 if x.dim() > 2:
                     x_m = x_m.clamp(min=0, max=1)

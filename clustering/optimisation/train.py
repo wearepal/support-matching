@@ -8,6 +8,7 @@ import git
 import numpy as np
 import torch
 import wandb
+from hydra.utils import to_absolute_path
 from omegaconf import OmegaConf
 from torch import Tensor
 from torch.utils.data import ConcatDataset, DataLoader
@@ -28,7 +29,18 @@ from clustering.models import (
     SelfSupervised,
     build_classifier,
 )
-from shared.configs import Config, DatasetConfig, ClusterArgs, Misc, EncoderConfig, Enc, DS, Meth, PL, CL
+from shared.configs import (
+    Config,
+    DatasetConfig,
+    ClusterArgs,
+    Misc,
+    EncoderConfig,
+    Enc,
+    DS,
+    Meth,
+    PL,
+    CL,
+)
 from shared.data.data_loading import DatasetTriplet, load_dataset
 from shared.data.dataset_wrappers import RotationPrediction
 from shared.data.misc import adaptive_collate
@@ -88,7 +100,6 @@ def main(
     DATA = cfg.data
     ENC = cfg.enc
     MISC = cfg.misc
-    cfg.fdm = None  # null the fdm args so that we don't get confused
 
     # ==== current git commit ====
     if os.environ.get("STARTED_BY_GUILDAI", None) == "1":
@@ -113,17 +124,18 @@ def main(
             group=group,
         )
 
-    save_dir = Path(MISC.save_dir) / str(time.time())
+    save_dir = Path(to_absolute_path(MISC.save_dir)) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    print(str(OmegaConf.to_yaml(cfg)))
+    print(str(OmegaConf.to_yaml(cfg, resolve=True, sort_keys=True)))
     print(f"Save directory: {save_dir.resolve()}")
     # ==== check GPU ====
-    MISC._device = torch.device(f"cuda:{MISC.gpu}" if use_gpu else "cpu")
-    print(f"{torch.cuda.device_count()} GPUs available. Using device '{MISC._device}'")
+    MISC._device = f"cuda:{MISC.gpu}" if use_gpu else "cpu"
+    device = torch.device(MISC._device)
+    print(f"{torch.cuda.device_count()} GPUs available. Using device '{device}'")
 
     # ==== construct dataset ====
-    datasets: DatasetTriplet = load_dataset(DATA, MISC)
+    datasets: DatasetTriplet = load_dataset(CFG)
     print(
         "Size of context-set: {}, training-set: {}, test-set: {}".format(
             len(datasets.context),
@@ -178,18 +190,20 @@ def main(
     input_shape = get_data_dim(context_loader)
     s_count = datasets.s_dim if datasets.s_dim > 1 else 2
     y_count = datasets.y_dim if datasets.y_dim > 1 else 2
-    if ARGS.cluster == "s":
+    if ARGS.cluster == CL.s:
         num_clusters = s_count
-    elif ARGS.cluster == "y":
+    elif ARGS.cluster == CL.y:
         num_clusters = y_count
     else:
         num_clusters = s_count * y_count
-    print(f"Number of clusters: {num_clusters}, accuracy computed with respect to {ARGS.cluster}")
+    print(
+        f"Number of clusters: {num_clusters}, accuracy computed with respect to {ARGS.cluster.name}"
+    )
     mappings: List[str] = []
     for i in range(num_clusters):
-        if ARGS.cluster == "s":
+        if ARGS.cluster == CL.s:
             mappings.append(f"{i}: s = {i}")
-        elif ARGS.cluster == "y":
+        elif ARGS.cluster == CL.y:
             mappings.append(f"{i}: y = {i}")
         else:
             # class_id = y * s_count + s
@@ -200,7 +214,7 @@ def main(
     # ================================= encoder =================================
     encoder: Encoder
     enc_shape: Tuple[int, ...]
-    if ARGS.encoder in ("ae", "vae"):
+    if ARGS.encoder in (Enc.ae, Enc.vae):
         encoder, enc_shape = build_ae(CFG, input_shape, feature_group_slices)
     else:
         if len(input_shape) < 2:
@@ -211,7 +225,7 @@ def main(
 
         encoder = SelfSupervised(model=net, num_classes=4, optimizer_kwargs=enc_optimizer_kwargs)
         enc_shape = (512,)
-        encoder.to(MISC._device)
+        encoder.to(device)
 
     print(f"Encoding shape: {enc_shape}")
 
@@ -229,7 +243,7 @@ def main(
             assert ENC.levels == args_encoder["levels"]
     else:
         encoder.fit(
-            enc_train_loader, epochs=ARGS.enc_epochs, device=MISC._device, use_wandb=ARGS.enc_wandb
+            enc_train_loader, epochs=ARGS.enc_epochs, device=device, use_wandb=ARGS.enc_wandb
         )
         if ARGS.encoder == Enc.rotnet:
             assert isinstance(encoder, SelfSupervised)
@@ -246,7 +260,7 @@ def main(
     cluster_label_path = get_cluster_label_path(MISC, save_dir)
     if ARGS.method == Meth.kmeans:
         kmeans_results = train_k_means(
-            ARGS, encoder, datasets.context, num_clusters, s_count, enc_path
+            CFG, encoder, datasets.context, num_clusters, s_count, enc_path
         )
         pth = save_results(save_path=cluster_label_path, cluster_results=kmeans_results)
         return (), pth
@@ -285,7 +299,7 @@ def main(
         optimizer_kwargs=clf_optimizer_kwargs,
         num_heads=y_count if ARGS.use_multi_head else 1,
     )
-    classifier.to(MISC._device)
+    classifier.to(device)
 
     model: Union[Model, MultiHeadModel]
     if ARGS.use_multi_head:
@@ -304,12 +318,12 @@ def main(
             model_fn=labeler_fn,
             optimizer_kwargs=labeler_optimizer_kwargs,
         )
-        labeler.to(MISC._device)
+        labeler.to(device)
         print("Fitting the labeler to the labeled data.")
         labeler.fit(
             train_loader,
             epochs=ARGS.labeler_epochs,
-            device=MISC._device,
+            device=device,
             use_wandb=ARGS.labeler_wandb,
         )
         labeler.eval()
@@ -339,7 +353,7 @@ def main(
             pth_path = convert_and_save_results(
                 CFG,
                 cluster_label_path,
-                classify_dataset(ARGS, model, datasets.context),
+                classify_dataset(CFG, model, datasets.context),
                 enc_path=enc_path,
                 context_metrics={},  # TODO: compute this
             )
@@ -401,7 +415,7 @@ def main(
     pth_path = convert_and_save_results(
         CFG,
         cluster_label_path=cluster_label_path,
-        results=classify_dataset(ARGS, model, datasets.context),
+        results=classify_dataset(CFG, model, datasets.context),
         enc_path=enc_path,
         context_metrics=context_metrics,
         test_metrics=test_metrics,
@@ -510,9 +524,5 @@ def validate(
 
 def to_device(*tensors: Tensor) -> Union[Tensor, Tuple[Tensor, ...]]:
     """Place tensors on the correct device and set type to float32"""
-    moved = [tensor.to(MISC._device, non_blocking=True) for tensor in tensors]
+    moved = [tensor.to(torch.device(MISC._device), non_blocking=True) for tensor in tensors]
     return moved[0] if len(moved) == 1 else tuple(moved)
-
-
-if __name__ == "__main__":
-    main()
