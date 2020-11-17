@@ -5,20 +5,20 @@ from omegaconf import MISSING
 
 from .enums import (
     AS,
-    BWLoss,
     CA,
     CL,
     DM,
     DS,
-    Enc,
     GA,
-    InnRM,
-    InnSc,
-    MMDKer,
-    Meth,
     PL,
     QL,
     RL,
+    BWLoss,
+    Enc,
+    InnRM,
+    InnSc,
+    Meth,
+    MMDKer,
     VaeStd,
 )
 

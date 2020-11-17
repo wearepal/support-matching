@@ -18,7 +18,7 @@ from typing_extensions import Literal
 from fdm.models import AutoEncoder, Classifier, EncodingSize, PartitionedAeInn, build_discriminator
 from fdm.models.configs import Residual64x64Net, Strided28x28Net
 from fdm.optimisation.mmd import mmd2
-from shared.configs import Config, DatasetConfig, FdmArgs, Misc, RL, BWLoss, EncoderConfig, DS, DM
+from shared.configs import DM, DS, RL, BWLoss, Config, DatasetConfig, EncoderConfig, FdmArgs, Misc
 from shared.data import DatasetTriplet, load_dataset
 from shared.layers import Aggregator, AttentionAggregator, SimpleAggregator, SimpleAggregatorT
 from shared.models.configs import conv_autoencoder, fc_autoencoder
@@ -27,8 +27,8 @@ from shared.utils import (
     AverageMeter,
     ModelFn,
     count_parameters,
-    inf_generator,
     flatten,
+    inf_generator,
     label_to_class_id,
     load_results,
     prod,

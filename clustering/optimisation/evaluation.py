@@ -52,9 +52,7 @@ def encode_dataset(
     return encoded_dataset
 
 
-def classify_dataset(
-    cfg: Config, model: Model, data: Dataset
-) -> Tuple[Tensor, Tensor, Tensor]:
+def classify_dataset(cfg: Config, model: Model, data: Dataset) -> Tuple[Tensor, Tensor, Tensor]:
     """Determine the class of every sample in the given dataset and save them to a file."""
     model.eval()
     cluster_ids: List[Tensor] = []

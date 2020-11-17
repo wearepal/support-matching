@@ -30,16 +30,16 @@ from clustering.models import (
     build_classifier,
 )
 from shared.configs import (
+    CL,
+    DS,
+    PL,
+    ClusterArgs,
     Config,
     DatasetConfig,
-    ClusterArgs,
-    Misc,
-    EncoderConfig,
     Enc,
-    DS,
+    EncoderConfig,
     Meth,
-    PL,
-    CL,
+    Misc,
 )
 from shared.data.data_loading import DatasetTriplet, load_dataset
 from shared.data.dataset_wrappers import RotationPrediction
@@ -49,8 +49,8 @@ from shared.utils import (
     AverageMeter,
     ModelFn,
     count_parameters,
-    get_data_dim,
     flatten,
+    get_data_dim,
     print_metrics,
     prod,
     random_seed,

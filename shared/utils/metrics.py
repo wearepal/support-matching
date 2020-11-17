@@ -5,6 +5,7 @@ import ethicml as em
 import wandb
 
 from shared.configs import BaseArgs
+
 from .utils import wandb_log
 
 __all__ = ["compute_metrics", "make_tuple_from_data", "print_metrics"]

@@ -11,7 +11,7 @@ from torchvision import transforms
 from torchvision.datasets import MNIST
 from typing_extensions import Literal
 
-from shared.configs import AS, BaseArgs, DS, QL
+from shared.configs import AS, DS, QL, BaseArgs
 
 from .adult import load_adult_data
 from .dataset_wrappers import TensorDataTupleDataset

@@ -32,11 +32,13 @@ DM = Enum("DM", "nn mmd")  # discriminator method
 MMDKer = Enum("MMDKer", "linear rbf rq")  # MMD kernel
 BWLoss = Enum("BWLoss", "none attention simple transposed")  # batch-wise loss
 
+
 class QL(Enum):
     """Quantization level."""
+
     three = 3
     five = 5
-    eight = 8  
+    eight = 8
 
 
 class GA(Enum):

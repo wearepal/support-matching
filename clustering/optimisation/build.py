@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from clustering.models import VAE, AutoEncoder
-from shared.configs import Config, Enc, RL
+from shared.configs import RL, Config, Enc
 from shared.models.configs import conv_autoencoder, fc_autoencoder
 
 from .loss import MixedLoss, PixelCrossEntropy, VGGLoss

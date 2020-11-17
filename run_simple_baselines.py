@@ -19,7 +19,7 @@ from typing_extensions import Literal
 
 from fdm.models import Classifier
 from fdm.optimisation.train import build_weighted_sampler_from_dataset
-from shared.configs import BaseArgs, DS
+from shared.configs import DS, BaseArgs
 from shared.data import load_dataset
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import ModelFn, compute_metrics, get_data_dim, random_seed
@@ -297,8 +297,10 @@ def run_baseline(cfg: Config) -> None:
         additional_entries={"eta": args.eta} if args.method == BaselineM.dro else None,
     )
 
+
 cs = ConfigStore.instance()
 cs.store(name="baseline", node=Config)
+
 
 @hydra.main(config_path="conf", config_name="baseline")
 def main(cfg: Config) -> None:

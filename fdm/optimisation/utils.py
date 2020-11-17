@@ -7,8 +7,8 @@ import wandb
 from omegaconf import OmegaConf
 from torch import Tensor, nn
 
-from shared.configs import Config, DS, RL
-from shared.utils import class_id_to_label, wandb_log, flatten
+from shared.configs import DS, RL, Config
+from shared.utils import class_id_to_label, flatten, wandb_log
 
 __all__ = [
     "get_all_num_samples",

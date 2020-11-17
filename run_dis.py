@@ -8,9 +8,11 @@ from shared.configs import Config
 cs = ConfigStore.instance()
 cs.store(name="config", node=Config)
 
+
 @hydra.main(config_path="conf", config_name="config")
 def app(cfg: Config):
     main(cfg=cfg)
+
 
 if __name__ == "__main__":
     app()

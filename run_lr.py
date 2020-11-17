@@ -5,12 +5,13 @@ import hydra
 from hydra.core.config_store import ConfigStore
 from hydra.utils import to_absolute_path
 
-from shared.configs import BaseArgs, DS
+from shared.configs import DS, BaseArgs
 from shared.data import DatasetTriplet, get_data_tuples, load_dataset
 from shared.utils import compute_metrics, make_tuple_from_data
 
 cs = ConfigStore.instance()
 cs.store(name="logistic_regression", node=BaseArgs)
+
 
 @hydra.main(config_path="conf", config_name="logistic_regression")
 def baseline_metrics(cfg: BaseArgs) -> None:

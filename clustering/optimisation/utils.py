@@ -11,7 +11,7 @@ from sklearn.metrics import adjusted_rand_score, confusion_matrix, normalized_mu
 from torch import Tensor
 
 from clustering.models import Model
-from shared.configs import Config, Misc, CL, DS, RL
+from shared.configs import CL, DS, RL, Config, Misc
 from shared.utils import (
     ClusterResults,
     class_id_to_label,

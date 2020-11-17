@@ -11,7 +11,7 @@ from tqdm import tqdm
 from typing_extensions import Literal
 
 from fdm.models import AutoEncoder, Classifier
-from shared.configs import Config, DS
+from shared.configs import DS, Config
 from shared.data import DatasetTriplet, get_data_tuples
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import ModelFn, compute_metrics, make_tuple_from_data, prod
@@ -113,7 +113,9 @@ def fit_classifier(
     clf = clf_fn(input_dim, target_dim=cfg.misc._y_dim)
 
     n_classes = cfg.misc._y_dim if cfg.misc._y_dim > 1 else 2
-    clf: Classifier = Classifier(clf, num_classes=n_classes, optimizer_kwargs={"lr": cfg.fdm.eval_lr})
+    clf: Classifier = Classifier(
+        clf, num_classes=n_classes, optimizer_kwargs={"lr": cfg.fdm.eval_lr}
+    )
     clf.to(cfg.misc._device)
     clf.fit(
         train_data,
