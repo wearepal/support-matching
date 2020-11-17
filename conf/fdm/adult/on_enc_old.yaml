@@ -1,7 +1,7 @@
 # @package fdm
 batch_size: 1000
 batch_wise_loss: none
-disc_hidden_dims: 32
+disc_hidden_dims: [32]
 eval_on_recon: false
 iters: 1000
 kl_weight: 0
@@ -16,6 +16,6 @@ train_on_recon: false
 vae: false
 val_freq: 500
 validate: true
-warmup: 0
+warmup_steps: 0
 weight_decay: 0
 zs_frac: 0.05714

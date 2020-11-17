@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from omegaconf import MISSING
 
@@ -170,7 +170,7 @@ class ClusterArgs:
     use_multi_head: bool = False
 
     # Method
-    method: Meth = MISSING
+    method: Meth = Meth.pl_enc_no_norm
 
     #  Labeler
     labeler_lr: float = 1e-3

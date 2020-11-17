@@ -1,6 +1,6 @@
 # @package _group_
 batch_size: 4000
-cl_hidden_dims: 30
+cl_hidden_dims: [30]
 early_stopping: 10000
 enc_epochs: 100
 enc_lr: 1.e-3
