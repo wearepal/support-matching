@@ -451,6 +451,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
 
     loss_meters = defaultdict(AverageMeter)
 
+    import pdb; pdb.set_trace()
     for itr in range(start_itr, ARGS.iters + 1):
 
         logging_dict = train_step(
@@ -463,7 +464,6 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
             loss_meters[name].update(value)
 
         if itr % ARGS.log_freq == 0:
-            assert loss_meters is not None
             log_string = " | ".join(f"{name}: {loss.avg:.5g}" for name, loss in loss_meters.items())
             elapsed = time.monotonic() - start_time
             print(
