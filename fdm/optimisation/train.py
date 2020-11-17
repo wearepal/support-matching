@@ -1,4 +1,5 @@
 """Main training file"""
+from collections import defaultdict
 from functools import partial
 import os
 from pathlib import Path
@@ -446,8 +447,9 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
 
     itr = start_itr
     disc: nn.Module
-    loss_meters: Optional[Dict[str, AverageMeter]] = None
     start_time = time.monotonic()
+
+    loss_meters = defaultdict(AverageMeter)
 
     for itr in range(start_itr, ARGS.iters + 1):
 
@@ -457,8 +459,6 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
             train_data_itr=train_data_itr,
             itr=itr,
         )
-        if loss_meters is None:
-            loss_meters = {name: AverageMeter() for name in logging_dict}
         for name, value in logging_dict.items():
             loss_meters[name].update(value)
 
