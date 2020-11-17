@@ -474,7 +474,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
                 )
             )
 
-            loss_meters = loss_meters.clear()
+            loss_meters.clear()
             start_time = time.monotonic()
 
         if ARGS.validate and itr % ARGS.val_freq == 0:
