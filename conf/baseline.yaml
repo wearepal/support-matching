@@ -1,5 +1,6 @@
 defaults:
   - hydra/launcher: ray_local
+
   - data: cmnist/2dig
   - bias: cmnist/no_bias
   - misc: baselines
