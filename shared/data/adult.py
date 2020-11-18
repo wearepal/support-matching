@@ -14,7 +14,7 @@ from .dataset_wrappers import DataTupleDataset
 
 __all__ = ["get_data_tuples", "load_adult_data", "pytorch_data_to_dataframe"]
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__name__.split(".")[-1])
 
 ADULT_DATASET: em.Dataset = None  # type: ignore[assignment]
 SENS_ATTRS: List[str] = []

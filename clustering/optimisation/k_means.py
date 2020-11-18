@@ -21,7 +21,7 @@ from .utils import cluster_metrics, count_occurances, get_class_id
 
 # from tqdm import tqdm
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__name__.split(".")[-1])
 
 
 def train(

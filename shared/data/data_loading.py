@@ -21,7 +21,7 @@ from .transforms import NoisyDequantize, Quantize
 
 __all__ = ["DatasetTriplet", "load_dataset"]
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__name__.split(".")[-1])
 
 
 class DatasetTriplet(NamedTuple):

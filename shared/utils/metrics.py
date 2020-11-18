@@ -11,7 +11,7 @@ from .utils import wandb_log
 
 __all__ = ["compute_metrics", "make_tuple_from_data", "print_metrics"]
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__name__.split(".")[-1])
 
 
 def make_tuple_from_data(

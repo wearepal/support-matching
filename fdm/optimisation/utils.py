@@ -20,7 +20,7 @@ __all__ = [
     "weights_with_counts",
 ]
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__name__.split(".")[-1])
 
 
 def log_images(
