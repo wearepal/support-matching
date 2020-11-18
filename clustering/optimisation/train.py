@@ -116,12 +116,18 @@ def main(
     if use_wandb is not None:
         MISC.use_wandb = use_wandb
     if MISC.use_wandb:
-        group = MISC.log_method + "." + MISC.exp_group if MISC.exp_group else None
+        group = ""
+        if MISC.log_method:
+            group += MISC.log_method
+        if MISC.exp_group:
+            group += "." + MISC.exp_group
+        if cfg.bias.log_dataset:
+            group += "." + cfg.bias.log_dataset
         wandb.init(
             entity="predictive-analytics-lab",
             project="fcm-hydra",
             config=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
-            group=group,
+            group=group if group else None,
         )
 
     save_dir = Path(to_absolute_path(MISC.save_dir)) / str(time.time())

@@ -92,12 +92,18 @@ def main(
     if MISC.use_wandb:
         if initialize_wandb:
             project_suffix = f"-{DATA.dataset.name}" if DATA.dataset != DS.cmnist else ""
-            group = MISC.log_method + "." + MISC.exp_group if MISC.exp_group else None
+            group = ""
+            if MISC.log_method:
+                group += MISC.log_method
+            if MISC.exp_group:
+                group += "." + MISC.exp_group
+            if cfg.bias.log_dataset:
+                group += "." + cfg.bias.log_dataset
             wandb.init(
                 entity="predictive-analytics-lab",
                 project="fdm-hydra" + project_suffix,
                 config=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
-                group=group,
+                group=group if group else None,
             )
         else:
             wandb.config.update(

@@ -91,6 +91,8 @@ class BiasConfig:
     subsample_context: Dict[str, float] = MISSING
     subsample_train: Dict[str, float] = MISSING
 
+    log_dataset: str = ""
+
 
 @dataclass
 class Misc:
