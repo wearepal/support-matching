@@ -17,7 +17,7 @@ from shared.data import DatasetTriplet, get_data_tuples
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import ModelFn, compute_metrics, make_tuple_from_data, prod
 
-from .utils import log_images
+from .utils import build_weighted_sampler_from_dataset, log_images
 
 log = logging.getLogger(__name__.split(".")[-1].upper())
 
@@ -153,12 +153,27 @@ def evaluate(
         )
 
     if cfg.data.dataset in (DS.cmnist, DS.celeba, DS.genfaces):
+        train_sampler = build_weighted_sampler_from_dataset(
+            dataset=train_data,
+            s_count=max(cfg.misc._s_dim, 2),
+            test_batch_size=cfg.fdm.test_batch_size or cfg.fdm.batch_size,
+            batch_size=cfg.fdm.batch_size,
+            oversample=cfg.fdm.oversample,
+            balance_hierarchical=False,
+        )
 
         train_loader = DataLoader(
-            train_data, batch_size=cfg.fdm.batch_size, shuffle=True, pin_memory=True
+            train_data,
+            batch_size=cfg.fdm.batch_size,
+            sampler=train_sampler,
+            shuffle=False,  # the sampler shuffles for us
+            pin_memory=True,
         )
         test_loader = DataLoader(
-            test_data, batch_size=cfg.fdm.test_batch_size, shuffle=False, pin_memory=True
+            test_data,
+            batch_size=cfg.fdm.test_batch_size or cfg.fdm.batch_size,
+            shuffle=False,
+            pin_memory=True,
         )
 
         clf: Classifier = fit_classifier(

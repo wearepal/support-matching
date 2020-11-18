@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import trange
 
 from fdm.models import Classifier
-from fdm.optimisation.train import build_weighted_sampler_from_dataset
+from fdm.optimisation.utils import build_weighted_sampler_from_dataset
 from shared.configs import DS, BaseArgs
 from shared.data import adult, load_dataset
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
@@ -196,7 +196,6 @@ def run_baseline(cfg: Config) -> None:
             s_count=max(datasets.s_dim, 2),
             test_batch_size=args.test_batch_size,
             batch_size=args.batch_size,
-            num_workers=cfg.misc.num_workers,
             oversample=args.oversample,
             balance_hierarchical=False,
         )
