@@ -60,9 +60,7 @@ MISC: Misc = None  # type: ignore[assignment]
 Generator = Union[AutoEncoder, PartitionedAeInn]
 
 
-def main(
-    cfg: Config, cluster_label_file: Optional[Path] = None, initialize_wandb: bool = True
-) -> Generator:
+def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Generator:
     """Main function.
 
     Args:
@@ -89,26 +87,23 @@ def main(
     if cluster_label_file is not None:
         MISC.cluster_label_file = str(cluster_label_file)
 
+    run = None
     if MISC.use_wandb:
-        if initialize_wandb:
-            project_suffix = f"-{DATA.dataset.name}" if DATA.dataset != DS.cmnist else ""
-            group = ""
-            if MISC.log_method:
-                group += MISC.log_method
-            if MISC.exp_group:
-                group += "." + MISC.exp_group
-            if cfg.bias.log_dataset:
-                group += "." + cfg.bias.log_dataset
-            wandb.init(
-                entity="predictive-analytics-lab",
-                project="fdm-hydra" + project_suffix,
-                config=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
-                group=group if group else None,
-            )
-        else:
-            wandb.config.update(
-                flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True))
-            )
+        project_suffix = f"-{DATA.dataset.name}" if DATA.dataset != DS.cmnist else ""
+        group = ""
+        if MISC.log_method:
+            group += MISC.log_method
+        if MISC.exp_group:
+            group += "." + MISC.exp_group
+        if cfg.bias.log_dataset:
+            group += "." + cfg.bias.log_dataset
+        run = wandb.init(
+            entity="predictive-analytics-lab",
+            project="fdm-hydra" + project_suffix,
+            config=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
+            group=group if group else None,
+            reinit=True,
+        )
 
     save_dir = Path(to_absolute_path(MISC.save_dir)) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -153,7 +148,7 @@ def main(
             s_count=s_count,
             test_batch_size=ARGS.test_batch_size,
             batch_size=ARGS.batch_size,
-            num_workers=MISC.num_workers,
+            num_workers=0,  # can easily get stuck with more workers
             oversample=ARGS.oversample,
             balance_hierarchical=False,
         )
@@ -175,7 +170,7 @@ def main(
         s_count=s_count,
         test_batch_size=ARGS.test_batch_size,
         batch_size=ARGS.batch_size,
-        num_workers=MISC.num_workers,
+        num_workers=0,  # can easily get stuck with more workers
         oversample=ARGS.oversample,
         balance_hierarchical=True,
     )
@@ -428,6 +423,8 @@ def main(
                 cluster_test_metrics=cluster_test_metrics,
                 cluster_context_metrics=cluster_context_metrics,
             )
+            if run is not None:
+                run.finish()  # this allows multiple experiments in one python process
             return generator
 
     # Logging
@@ -491,6 +488,8 @@ def main(
         cluster_test_metrics=cluster_test_metrics,
         cluster_context_metrics=cluster_context_metrics,
     )
+    if run is not None:
+        run.finish()  # this allows multiple experiments in one python process
     return generator
 
 

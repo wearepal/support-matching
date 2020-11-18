@@ -28,7 +28,7 @@ def encode_dataset(
     all_y = []
 
     data_loader = DataLoader(
-        data, batch_size=cfg.clust.encode_batch_size, pin_memory=True, shuffle=False, num_workers=4
+        data, batch_size=cfg.clust.encode_batch_size, pin_memory=True, shuffle=False, num_workers=0
     )
 
     with torch.set_grad_enabled(False):
@@ -60,7 +60,7 @@ def classify_dataset(cfg: Config, model: Model, data: Dataset) -> Tuple[Tensor, 
     all_y: List[Tensor] = []
 
     data_loader = DataLoader(
-        data, batch_size=cfg.clust.encode_batch_size, pin_memory=True, shuffle=False, num_workers=4
+        data, batch_size=cfg.clust.encode_batch_size, pin_memory=True, shuffle=False, num_workers=0
     )
 
     with torch.set_grad_enabled(False):

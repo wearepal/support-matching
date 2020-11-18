@@ -81,9 +81,7 @@ ENC: EncoderConfig = None  # type: ignore[assignment]
 MISC: Misc = None  # type: ignore[assignment]
 
 
-def main(
-    cfg: Config, cluster_label_file: Optional[Path] = None, use_wandb: Optional[bool] = None
-) -> Tuple[Model, Path]:
+def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model, Path]:
     """Main function
 
     Args:
@@ -113,8 +111,7 @@ def main(
     if cluster_label_file is not None:
         MISC.cluster_label_file = str(cluster_label_file)
 
-    if use_wandb is not None:
-        MISC.use_wandb = use_wandb
+    run = None
     if MISC.use_wandb:
         group = ""
         if MISC.log_method:
@@ -123,11 +120,12 @@ def main(
             group += "." + MISC.exp_group
         if cfg.bias.log_dataset:
             group += "." + cfg.bias.log_dataset
-        wandb.init(
+        run = wandb.init(
             entity="predictive-analytics-lab",
             project="fcm-hydra",
             config=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
             group=group if group else None,
+            reinit=True,
         )
 
     save_dir = Path(to_absolute_path(MISC.save_dir)) / str(time.time())
@@ -261,6 +259,8 @@ def main(
         print(f"To make use of this encoder:\n--enc-path {enc_path}")
         if ARGS.enc_wandb:
             print("Stopping here because W&B will be messed up...")
+            if run is not None:
+                run.finish()  # this allows multiple experiments in one python process
             return
 
     cluster_label_path = get_cluster_label_path(MISC, save_dir)
@@ -269,6 +269,8 @@ def main(
             CFG, encoder, datasets.context, num_clusters, s_count, enc_path
         )
         pth = save_results(save_path=cluster_label_path, cluster_results=kmeans_results)
+        if run is not None:
+            run.finish()  # this allows multiple experiments in one python process
         return (), pth
     if ARGS.finetune_encoder:
         encoder.freeze_initial_layers(
@@ -363,6 +365,8 @@ def main(
                 enc_path=enc_path,
                 context_metrics={},  # TODO: compute this
             )
+            if run is not None:
+                run.finish()  # this allows multiple experiments in one python process
             return model, pth_path
 
     # Logging
@@ -426,6 +430,8 @@ def main(
         context_metrics=context_metrics,
         test_metrics=test_metrics,
     )
+    if run is not None:
+        run.finish()  # this allows multiple experiments in one python process
     return model, pth_path
 
 
