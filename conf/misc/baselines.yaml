@@ -1,0 +1,4 @@
+# @package _group_
+save_dir: "experiments/baselines"
+seed: 42
+data_split_seed: ${misc.seed}

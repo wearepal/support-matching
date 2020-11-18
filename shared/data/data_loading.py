@@ -11,7 +11,7 @@ from torchvision import transforms
 from torchvision.datasets import MNIST
 from typing_extensions import Literal
 
-from shared.configs import BaseArgs
+from shared.configs import AS, DS, QL, BaseArgs
 
 from .adult import load_adult_data
 from .dataset_wrappers import TensorDataTupleDataset
@@ -35,21 +35,22 @@ class RawDataTuple(NamedTuple):
     y: Tensor
 
 
-def load_dataset(args: BaseArgs) -> DatasetTriplet:
+def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
     context_data: Dataset
     test_data: Dataset
     train_data: Dataset
+    args = cfg.data
     data_root = args.root or find_data_dir()
 
     # =============== get whole dataset ===================
-    if args.dataset == "cmnist":
+    if args.dataset == DS.cmnist:
         augs = []
         if args.padding > 0:
             augs.append(nn.ConstantPad2d(padding=args.padding, value=0))
-        if args.quant_level != "8":
-            augs.append(Quantize(int(args.quant_level)))
+        if args.quant_level != QL.eight:
+            augs.append(Quantize(args.quant_level.value))
         if args.input_noise:
-            augs.append(NoisyDequantize(int(args.quant_level)))
+            augs.append(NoisyDequantize(args.quant_level.value))
 
         train_data = MNIST(root=data_root, download=True, train=True)
         test_data = MNIST(root=data_root, download=True, train=False)
@@ -107,9 +108,9 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             if _decorr_op == "random":  # this is for context and test set
                 indexes = torch.rand(s.shape) > _correlation
                 s[indexes] = torch.randint_like(s[indexes], low=0, high=num_colors)
-            elif args.missing_s:  # this is one possibility for training set
+            elif cfg.bias.missing_s:  # this is one possibility for training set
                 s = torch.randint_like(s, low=0, high=num_colors)
-                for to_remove in args.missing_s:
+                for to_remove in cfg.bias.missing_s:
                     s[s == to_remove] = (to_remove + 1) % num_colors
             else:  # this is another possibility for training set
                 indexes = torch.rand(s.shape) > _correlation
@@ -143,13 +144,13 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
                 print(f"    Smallest cluster (y={smallest[1]}, s={smallest[2]}): {smallest[0]}")
             return RawDataTuple(x=_x, s=_s, y=_y)
 
-        if args.subsample_train:
-            if args.missing_s:
+        if cfg.bias.subsample_train:
+            if cfg.bias.missing_s:
                 raise RuntimeError("Don't use subsample_train and missing_s together!")
             # when we manually subsample the training set, we ignore color correlation
             train_data_t = _colorize_subset(train_data, _correlation=0, _decorr_op="random")
             print("Subsampling training set...")
-            train_data_t = _subsample_by_s_and_y(train_data_t, args.subsample_train)
+            train_data_t = _subsample_by_s_and_y(train_data_t, cfg.bias.subsample_train)
         else:
             train_data_t = _colorize_subset(
                 train_data, _correlation=args.color_correlation, _decorr_op="shift"
@@ -157,9 +158,9 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         test_data_t = _colorize_subset(test_data, _correlation=0, _decorr_op="random")
         context_data_t = _colorize_subset(context_data, _correlation=0, _decorr_op="random")
 
-        if args.subsample_context:
+        if cfg.bias.subsample_context:
             print("Subsampling context set...")
-            context_data_t = _subsample_by_s_and_y(context_data_t, args.subsample_context)
+            context_data_t = _subsample_by_s_and_y(context_data_t, cfg.bias.subsample_context)
             # test data remains balanced
             # test_data = _subsample_by_class(*test_data, args.subsample)
 
@@ -167,10 +168,10 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         test_data = TensorDataTupleDataset(test_data_t.x, test_data_t.s, test_data_t.y)
         context_data = TensorDataTupleDataset(context_data_t.x, context_data_t.s, context_data_t.y)
 
-        args._y_dim = 1 if num_classes == 2 else num_classes
-        args._s_dim = 1 if num_colors == 2 else num_colors
+        cfg.misc._y_dim = 1 if num_classes == 2 else num_classes
+        cfg.misc._s_dim = 1 if num_colors == 2 else num_colors
 
-    elif args.dataset == "celeba":
+    elif args.dataset == DS.celeba:
 
         image_size = 64
         transform = [
@@ -178,10 +179,10 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             transforms.CenterCrop(image_size),
             transforms.ToTensor(),
         ]
-        if args.quant_level != "8":
-            transform.append(Quantize(int(args.quant_level)))
+        if args.quant_level != QL.eight:
+            transform.append(Quantize(args.quant_level.value))
         if args.input_noise:
-            transform.append(NoisyDequantize(int(args.quant_level)))
+            transform.append(NoisyDequantize(args.quant_level.value))
 
         transform.append(transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)))
         transform = transforms.Compose(transform)
@@ -189,8 +190,8 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         # unbiased_pcnt = args.test_pcnt + args.context_pcnt
         dataset, base_dir = em.celeba(
             download_dir=data_root,
-            label=args.celeba_target_attr,
-            sens_attr=args.celeba_sens_attr,
+            label=args.celeba_target_attr.name,
+            sens_attr=args.celeba_sens_attr.name,
             download=True,
             check_integrity=True,
         )
@@ -208,14 +209,14 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             (context_len, train_len, test_len)
         )
 
-        args._y_dim = 1
-        args._s_dim = all_data.s_dim
+        cfg.misc._y_dim = 1
+        cfg.misc._s_dim = all_data.s_dim
 
         def _subsample_inds_by_s_and_y(
             _data: emvi.TorchImageDataset, _subset_inds: Tensor, _target_props: Dict[int, float]
         ) -> Tensor:
-            _y_dim = max(2, args._y_dim)
-            _s_dim = max(2, args._s_dim)
+            _y_dim = max(2, cfg.misc._y_dim)
+            _s_dim = max(2, cfg.misc._s_dim)
 
             for _class_id, _prop in _target_props.items():
                 assert 0 <= _prop <= 1, "proportions should be between 0 and 1"
@@ -231,18 +232,18 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
 
             return _subset_inds
 
-        if args.subsample_context:
+        if cfg.bias.subsample_context:
             context_inds = _subsample_inds_by_s_and_y(
-                all_data, context_inds, args.subsample_context
+                all_data, context_inds, cfg.bias.subsample_context
             )
-        if args.subsample_train:
-            train_inds = _subsample_inds_by_s_and_y(all_data, train_inds, args.subsample_train)
+        if cfg.bias.subsample_train:
+            train_inds = _subsample_inds_by_s_and_y(all_data, train_inds, cfg.bias.subsample_train)
 
         context_data = Subset(all_data, context_inds)
         train_data = Subset(all_data, train_inds)
         test_data = Subset(all_data, test_inds)
 
-    elif args.dataset == "genfaces":
+    elif args.dataset == DS.genfaces:
 
         image_size = 64
         transform = [
@@ -250,24 +251,24 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
             transforms.CenterCrop(image_size),
             transforms.ToTensor(),
         ]
-        if args.quant_level != "8":
-            transform.append(Quantize(int(args.quant_level)))
+        if args.quant_level != QL.eight:
+            transform.append(Quantize(args.quant_level.value))
         if args.input_noise:
-            transform.append(NoisyDequantize(int(args.quant_level)))
+            transform.append(NoisyDequantize(args.quant_level.value))
         transform.append(transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)))
         transform = transforms.Compose(transform)
 
         unbiased_pcnt = args.test_pcnt + args.context_pcnt
         unbiased_data = emvi.create_genfaces_dataset(
             root=data_root,
-            sens_attr_name=args.genfaces_sens_attr,
-            target_attr_name=args.genfaces_target_attr,
+            sens_attr_name=args.genfaces_sens_attr.name,
+            target_attr_name=args.genfaces_target_attr.name,
             biased=False,
-            mixing_factor=args.mixing_factor,
+            mixing_factor=cfg.bias.mixing_factor,
             unbiased_pcnt=unbiased_pcnt,
             download=True,
             transform=transform,
-            seed=args.data_split_seed,
+            seed=cfg.misc.data_split_seed,
         )
 
         context_len = round(args.context_pcnt / unbiased_pcnt * len(unbiased_data))
@@ -276,26 +277,26 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
 
         train_data = emvi.create_genfaces_dataset(
             root=data_root,
-            sens_attr_name=args.genfaces_sens_attr,
-            target_attr_name=args.genfaces_target_attr,
+            sens_attr_name=args.genfaces_sens_attr.name,
+            target_attr_name=args.genfaces_target_attr.name,
             biased=True,
-            mixing_factor=args.mixing_factor,
+            mixing_factor=cfg.bias.mixing_factor,
             unbiased_pcnt=unbiased_pcnt,
             download=True,
             transform=transform,
-            seed=args.data_split_seed,
+            seed=cfg.misc.data_split_seed,
         )
 
-        args._y_dim = 1
-        args._s_dim = unbiased_data.s_dim
+        cfg.misc._y_dim = 1
+        cfg.misc._s_dim = unbiased_data.s_dim
 
-    elif args.dataset == "adult":
-        context_data, train_data, test_data = load_adult_data(args)
-        args._y_dim = 1
-        if args.adult_split == "Education":
-            args._s_dim = 3
-        elif args.adult_split == "Sex":
-            args._s_dim = 1
+    elif args.dataset == DS.adult:
+        context_data, train_data, test_data = load_adult_data(cfg)
+        cfg.misc._y_dim = 1
+        if args.adult_split == AS.Education:
+            cfg.misc._s_dim = 3
+        elif args.adult_split == AS.Sex:
+            cfg.misc._s_dim = 1
         else:
             raise ValueError(f"This split is not yet fully supported: {args.adult_split}")
     else:
@@ -310,8 +311,8 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         context=context_data,
         test=test_data,
         train=train_data,
-        s_dim=args._s_dim,
-        y_dim=args._y_dim,
+        s_dim=cfg.misc._s_dim,
+        y_dim=cfg.misc._y_dim,
     )
 
 

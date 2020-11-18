@@ -5,22 +5,22 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import tqdm
 
-from clustering.configs import ClusterArgs
 from clustering.models import Encoder, Model
+from shared.configs import Config
 
 from .utils import log_images
 
 __all__ = ["classify_dataset", "encode_dataset"]
 
 
-def log_sample_images(args: ClusterArgs, data: Dataset, name: str, step: int) -> None:
+def log_sample_images(cfg: Config, data: Dataset, name: str, step: int) -> None:
     data_loader = DataLoader(data, shuffle=False, batch_size=64)
     x, _, _ = next(iter(data_loader))
-    log_images(args, x, f"Samples from {name}", prefix="eval", step=step)
+    log_images(cfg, x, f"Samples from {name}", prefix="eval", step=step)
 
 
 def encode_dataset(
-    args: ClusterArgs, data: Dataset, generator: Encoder
+    cfg: Config, data: Dataset, generator: Encoder
 ) -> "Dataset[Tuple[Tensor, Tensor, Tensor]]":
     print("Encoding dataset...", flush=True)  # flush to avoid conflict with tqdm
     all_enc = []
@@ -28,13 +28,13 @@ def encode_dataset(
     all_y = []
 
     data_loader = DataLoader(
-        data, batch_size=args.encode_batch_size, pin_memory=True, shuffle=False, num_workers=4
+        data, batch_size=cfg.clust.encode_batch_size, pin_memory=True, shuffle=False, num_workers=4
     )
 
     with torch.set_grad_enabled(False):
         for x, s, y in tqdm(data_loader):
 
-            x = x.to(args._device, non_blocking=True)
+            x = x.to(cfg.misc._device, non_blocking=True)
             all_s.append(s)
             all_y.append(y)
 
@@ -52,9 +52,7 @@ def encode_dataset(
     return encoded_dataset
 
 
-def classify_dataset(
-    args: ClusterArgs, model: Model, data: Dataset
-) -> Tuple[Tensor, Tensor, Tensor]:
+def classify_dataset(cfg: Config, model: Model, data: Dataset) -> Tuple[Tensor, Tensor, Tensor]:
     """Determine the class of every sample in the given dataset and save them to a file."""
     model.eval()
     cluster_ids: List[Tensor] = []
@@ -62,12 +60,12 @@ def classify_dataset(
     all_y: List[Tensor] = []
 
     data_loader = DataLoader(
-        data, batch_size=args.encode_batch_size, pin_memory=True, shuffle=False, num_workers=4
+        data, batch_size=cfg.clust.encode_batch_size, pin_memory=True, shuffle=False, num_workers=4
     )
 
     with torch.set_grad_enabled(False):
         for (x, s, y) in data_loader:
-            x = x.to(args._device, non_blocking=True)
+            x = x.to(cfg.misc._device, non_blocking=True)
             all_s.append(s)
             all_y.append(y)
             logits = model(x)

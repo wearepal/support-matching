@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from shared.configs import BaseArgs
+from shared.configs import Misc
 
 from .utils import wandb_log
 
@@ -42,7 +42,7 @@ def plot_contrastive(original, recon, columns, filename):
 
 
 def plot_histogram(
-    args: BaseArgs,
+    misc: Misc,
     vector: torch.Tensor,
     step: int,
     prefix: str = "train",
@@ -68,4 +68,4 @@ def plot_histogram(
         f"{prefix}_xi_nans": float(bool(np.isnan(vector_np).any())),
         f"{prefix}_xi_tensor": vector,
     }
-    wandb_log(args, log_dict, step=step)
+    wandb_log(misc, log_dict, step=step)

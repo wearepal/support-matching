@@ -1,0 +1,18 @@
+defaults:
+  - hydra/launcher: ray_local
+
+  - data: cmnist/2dig
+  - bias: cmnist/no_bias
+  - misc: baselines
+  - baselines: cnn
+
+hydra:
+  launcher:
+    ray_init_cfg:
+      num_cpus: null
+      num_gpus: null
+      address: auto
+      log_to_driver: false
+
+    ray_remote_cfg:
+      num_gpus: 1  # how many GPUs this task needs

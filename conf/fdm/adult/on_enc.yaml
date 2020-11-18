@@ -1,0 +1,21 @@
+# @package fdm
+batch_size: 1000
+batch_wise_loss: attention
+disc_hidden_dims: [32]
+eval_on_recon: false
+iters: 1000
+kl_weight: 0
+log_freq: 100
+lr: 1.e-3
+num_disc_updates: 3
+num_discs: 1
+oversample: true
+pred_s_weight: 1.0
+pred_y_weight: 1.0
+train_on_recon: false
+vae: false
+val_freq: 500
+validate: true
+warmup_steps: 0
+weight_decay: 0
+zs_frac: 0.05714

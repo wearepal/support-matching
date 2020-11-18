@@ -1,0 +1,42 @@
+# @package fdm
+batch_size: 256
+batch_wise_hidden_dims:
+  - 256
+  - 256
+batch_wise_loss: attention
+disc_hidden_dims:
+  - 256
+  - 256
+disc_lr: 0.0003
+disc_reset_prob: 0.0003
+disc_weight: 0.1
+early_stopping: 30
+elbo_weight: 100.0
+encode_batch_size: 1000
+eval_epochs: 60
+eval_lr: 0.001
+eval_on_recon: false
+feat_attr: false
+gamma: 1.0
+iters: 5000
+kl_weight: 0.01
+log_freq: 150
+lr: 0.0003
+nll_weight: 0.01
+num_disc_updates: 1
+num_discs: 10
+oversample: true
+pred_s_weight: 1.0
+pred_y_weight: 1.0
+recon_detach: true
+recon_stability_weight: 0
+validate: true
+val_freq: 450
+train_on_recon: false
+use_inn: false
+use_pretrained_enc: false
+vae: false
+vgg_weight: 0
+warmup_steps: 0
+weight_decay: 0
+zs_frac: 0.01

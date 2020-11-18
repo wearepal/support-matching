@@ -1,4 +1,5 @@
 """Utility functions."""
+import collections
 import os
 import random
 from typing import Any, Dict, Iterable, Iterator, Optional, Sequence, Tuple, TypeVar, Union
@@ -10,7 +11,7 @@ from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from typing_extensions import Literal, Protocol
 
-from shared.configs import BaseArgs
+from shared.configs import Misc
 
 __all__ = [
     "AverageMeter",
@@ -18,6 +19,7 @@ __all__ = [
     "RunningAverageMeter",
     "class_id_to_label",
     "count_parameters",
+    "flatten",
     "get_data_dim",
     "inf_generator",
     "label_to_class_id",
@@ -59,7 +61,7 @@ def class_id_to_label(class_id: Int, s_count: int, label: Literal["s", "y"]) -> 
 
 
 def wandb_log(
-    args: Union[bool, BaseArgs], row: Dict[str, Any], step: int, commit: Optional[bool] = None
+    args: Union[bool, Misc], row: Dict[str, Any], step: int, commit: Optional[bool] = None
 ) -> None:
     """Wrapper around wandb's log function"""
     if isinstance(args, bool):
@@ -189,3 +191,15 @@ def readable_duration(seconds: float, pad: str = "") -> str:
         parts.append(f"{seconds}s")
 
     return pad.join(parts)
+
+
+def flatten(d: dict, parent_key: str = "", sep: str = ".") -> dict:
+    """Flatten a nested dictionary by separating the keys with `sep`."""
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, collections.MutableMapping):
+            items.extend(flatten(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)

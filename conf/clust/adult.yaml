@@ -1,0 +1,21 @@
+# @package _group_
+batch_size: 4000
+cl_hidden_dims: [30]
+early_stopping: 10000
+enc_epochs: 100
+enc_lr: 1.e-3
+encoder: ae
+epochs: 300
+finetune_encoder: false
+finetune_lr: 1.e-5
+kl_weight: 0.01
+labeler_hidden_dims: []
+log_freq: 50
+lower_threshold: 0.3
+lr: 1.e-3
+pseudo_labeler: ranking
+sup_bce_weight: 1
+sup_ce_weight: 1
+upper_threshold: 0.7
+val_freq: 10
+weight_decay: 0

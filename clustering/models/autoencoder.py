@@ -8,8 +8,8 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from typing_extensions import Literal
 
+from shared.configs import VaeStd
 from shared.utils import print_metrics, to_discrete, wandb_log
 
 from .base import Encoder, ModelBase
@@ -130,7 +130,7 @@ class VAE(AutoEncoder):
         decoder: nn.Sequential,
         recon_loss_fn: Callable[[Tensor, Tensor], Tensor],
         kl_weight: float,
-        vae_std_tform: Literal["softplus", "exp"],
+        vae_std_tform: VaeStd,
         feature_group_slices: Optional[Dict[str, List[slice]]] = None,
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
     ):
@@ -159,7 +159,7 @@ class VAE(AutoEncoder):
     def encode_with_posterior(self, x: Tensor) -> Tuple[Tensor, td.Distribution]:
         loc, scale = self.encoder(x).chunk(2, dim=1)
 
-        if self.vae_std_tform == "softplus":
+        if self.vae_std_tform == VaeStd.softplus:
             scale = F.softplus(scale)
         else:
             scale = torch.exp(0.5 * scale).clamp(min=0.005, max=3.0)

@@ -1,0 +1,20 @@
+# @package fdm
+batch_size: 1000
+disc_hidden_dims: [32]
+eval_on_recon: false
+iters: 1000
+log_freq: 100
+lr: 1.e-3
+num_disc_updates: 3
+num_discs: 1
+pred_s_weight: 0.0
+pred_y_weight: 0.0
+# if the following is turned off, warmup_steps should also be off
+train_on_recon: false
+vae: false
+val_freq: 500
+validate: true
+# should be 100 if train_on_recon=True
+warmup_steps: 0
+weight_decay: 0
+zs_frac: 0.05714

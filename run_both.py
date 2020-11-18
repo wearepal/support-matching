@@ -11,7 +11,7 @@ def main() -> None:
     raw_args = sys.argv[1:]
     with TemporaryDirectory() as tmpdir:
         clf = str(Path(tmpdir) / "labels.pth")
-        clf_flag = ["--cluster-label-file", clf]
+        clf_flag = [f"misc.cluster_label_file={clf}"]
         try:
             run([sys.executable, "run_clust.py"] + raw_args + clf_flag, check=True)
             run([sys.executable, "run_dis.py"] + raw_args + clf_flag, check=True)

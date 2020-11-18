@@ -19,7 +19,7 @@ def main() -> None:
     temp_args, _ = parser.parse_known_args(dis_args)
     if temp_args.use_wandb:
         group = temp_args.log_method + "." + temp_args.exp_group if temp_args.exp_group else None
-        wandb.init(entity="predictive-analytics-lab", project="fdm", group=group)
+        wandb.init(entity="predictive-analytics-lab", project="fdm-hydra", group=group)
 
     with TemporaryDirectory() as tmpdir:
         clf = Path(tmpdir) / "labels.pth"
