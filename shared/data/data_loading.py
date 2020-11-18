@@ -1,3 +1,4 @@
+import logging
 import platform
 from typing import Dict, NamedTuple, Optional, Tuple
 
@@ -19,6 +20,8 @@ from .misc import shrink_dataset
 from .transforms import NoisyDequantize, Quantize
 
 __all__ = ["DatasetTriplet", "load_dataset"]
+
+log = logging.getLogger(__name__)
 
 
 class DatasetTriplet(NamedTuple):
@@ -142,7 +145,7 @@ def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
                 if _num_to_keep != 0 and _num_to_keep < smallest[0]:
                     smallest = (_num_to_keep, target_y, target_s)
             if smallest[1] is not None:
-                print(f"    Smallest cluster (y={smallest[1]}, s={smallest[2]}): {smallest[0]}")
+                log.info(f"    Smallest cluster (y={smallest[1]}, s={smallest[2]}): {smallest[0]}")
             return RawDataTuple(x=_x, s=_s, y=_y)
 
         if cfg.bias.subsample_train:
@@ -150,7 +153,7 @@ def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
                 raise RuntimeError("Don't use subsample_train and missing_s together!")
             # when we manually subsample the training set, we ignore color correlation
             train_data_t = _colorize_subset(train_data, _correlation=0, _decorr_op="random")
-            print("Subsampling training set...")
+            log.info("Subsampling training set...")
             train_data_t = _subsample_by_s_and_y(train_data_t, cfg.bias.subsample_train)
         else:
             train_data_t = _colorize_subset(
@@ -160,7 +163,7 @@ def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
         context_data_t = _colorize_subset(context_data, _correlation=0, _decorr_op="random")
 
         if cfg.bias.subsample_context:
-            print("Subsampling context set...")
+            log.info("Subsampling context set...")
             context_data_t = _subsample_by_s_and_y(context_data_t, cfg.bias.subsample_context)
             # test data remains balanced
             # test_data = _subsample_by_class(*test_data, args.subsample)

@@ -1,4 +1,5 @@
 """Functions related to saving and loading results."""
+import logging
 from pathlib import Path
 from typing import Any, Dict, NamedTuple, Optional
 
@@ -7,6 +8,8 @@ import torch
 from shared.configs import BaseArgs
 
 __all__ = ["ClusterResults", "save_results", "load_results"]
+
+log = logging.getLogger(__name__)
 
 
 class ClusterResults(NamedTuple):
@@ -31,7 +34,7 @@ def save_results(save_path: Path, cluster_results: ClusterResults) -> Path:
         "test_metrics": cluster_results.test_metrics or {},
     }
     torch.save(save_dict, save_path)
-    print(
+    log.info(
         f"To make use of the generated cluster labels:\n"
         f"misc.cluster_label_file={save_path.resolve()}"
     )

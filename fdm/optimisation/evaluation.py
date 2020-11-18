@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Dict, Optional, Sequence, Tuple
 
@@ -18,6 +19,8 @@ from shared.utils import ModelFn, compute_metrics, make_tuple_from_data, prod
 
 from .utils import log_images
 
+log = logging.getLogger(__name__)
+
 
 def log_sample_images(cfg: Config, data, name, step):
     data_loader = DataLoader(data, shuffle=False, batch_size=64)
@@ -37,7 +40,7 @@ def log_metrics(
     """Compute and log a variety of metrics."""
     model.eval()
 
-    print("Encoding training set...")
+    log.info("Encoding training set...")
     train_inv_s = encode_dataset(
         cfg, data.train, model, recons=cfg.fdm.eval_on_recon, invariant_to="s"
     )
@@ -47,7 +50,7 @@ def log_metrics(
     else:
         test_repr = encode_dataset(cfg, data.test, model, recons=False, invariant_to="s")
 
-    print("\nComputing metrics...")
+    log.info("\nComputing metrics...")
     evaluate(
         cfg,
         step,
@@ -64,7 +67,7 @@ def log_metrics(
 
 def baseline_metrics(cfg: Config, data: DatasetTriplet, save_to_csv: Optional[Path]) -> None:
     if cfg.data.dataset not in (DS.cmnist, DS.celeba, DS.genfaces):
-        print("Baselines...")
+        log.info("Baselines...")
         train_data = data.train
         test_data = data.test
         if not isinstance(train_data, em.DataTuple):
@@ -220,13 +223,13 @@ def encode_dataset(
     recons: bool,
     invariant_to: Literal["s", "y"] = "s",
 ) -> "TensorDataset":
-    print("Encoding dataset...", flush=True)  # flush to avoid conflict with tqdm
+    log.info("Encoding dataset...")
     all_x_m = []
     all_s = []
     all_y = []
 
     data_loader = DataLoader(
-        data, batch_size=cfg.fdm.encode_batch_size, pin_memory=True, shuffle=False, num_workers=4
+        data, batch_size=cfg.fdm.encode_batch_size, pin_memory=True, shuffle=False, num_workers=0
     )
 
     with torch.set_grad_enabled(False):
@@ -263,6 +266,6 @@ def encode_dataset(
     all_y = torch.cat(all_y, dim=0)
 
     encoded_dataset = TensorDataset(all_x_m, all_s, all_y)
-    print("Done.")
+    log.info("Done.")
 
     return encoded_dataset

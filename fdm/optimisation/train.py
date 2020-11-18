@@ -1,4 +1,5 @@
 """Main training file"""
+import logging
 import time
 from pathlib import Path
 from typing import Callable, Dict, Iterator, NamedTuple, Optional, Sequence, Tuple, Union
@@ -52,6 +53,8 @@ from .utils import (
 
 __all__ = ["main"]
 
+log = logging.getLogger(__name__)
+
 ARGS: FdmArgs = None  # type: ignore[assignment]
 CFG: Config = None  # type: ignore[assignment]
 DATA: DatasetConfig = None  # type: ignore[assignment]
@@ -60,9 +63,7 @@ MISC: Misc = None  # type: ignore[assignment]
 Generator = Union[AutoEncoder, PartitionedAeInn]
 
 
-def main(
-    cfg: Config, cluster_label_file: Optional[Path] = None, initialize_wandb: bool = True
-) -> Generator:
+def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Generator:
     """Main function.
 
     Args:
@@ -89,40 +90,37 @@ def main(
     if cluster_label_file is not None:
         MISC.cluster_label_file = str(cluster_label_file)
 
+    run = None
     if MISC.use_wandb:
-        if initialize_wandb:
-            project_suffix = f"-{DATA.dataset.name}" if DATA.dataset != DS.cmnist else ""
-            group = ""
-            if MISC.log_method:
-                group += MISC.log_method
-            if MISC.exp_group:
-                group += "." + MISC.exp_group
-            if cfg.bias.log_dataset:
-                group += "." + cfg.bias.log_dataset
-            wandb.init(
-                entity="predictive-analytics-lab",
-                project="fdm-hydra" + project_suffix,
-                config=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
-                group=group if group else None,
-            )
-        else:
-            wandb.config.update(
-                flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True))
-            )
+        project_suffix = f"-{DATA.dataset.name}" if DATA.dataset != DS.cmnist else ""
+        group = ""
+        if MISC.log_method:
+            group += MISC.log_method
+        if MISC.exp_group:
+            group += "." + MISC.exp_group
+        if cfg.bias.log_dataset:
+            group += "." + cfg.bias.log_dataset
+        run = wandb.init(
+            entity="predictive-analytics-lab",
+            project="fdm-hydra" + project_suffix,
+            config=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
+            group=group if group else None,
+            reinit=True,
+        )
 
     save_dir = Path(to_absolute_path(MISC.save_dir)) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    print(str(OmegaConf.to_yaml(cfg, resolve=True, sort_keys=True)))
-    print(f"Save directory: {save_dir.resolve()}")
+    log.info(str(OmegaConf.to_yaml(cfg, resolve=True, sort_keys=True)))
+    log.info(f"Save directory: {save_dir.resolve()}")
     # ==== check GPU ====
     MISC._device = f"cuda:{MISC.gpu}" if use_gpu else "cpu"
     device = torch.device(MISC._device)
-    print(f"{torch.cuda.device_count()} GPUs available. Using device '{device}'")
+    log.info(f"{torch.cuda.device_count()} GPUs available. Using device '{device}'")
 
     # ==== construct dataset ====
     datasets: DatasetTriplet = load_dataset(CFG)
-    print(
+    log.info(
         "Size of context-set: {}, training-set: {}, test-set: {}".format(
             len(datasets.context),
             len(datasets.train),
@@ -153,7 +151,7 @@ def main(
             s_count=s_count,
             test_batch_size=ARGS.test_batch_size,
             batch_size=ARGS.batch_size,
-            num_workers=MISC.num_workers,
+            num_workers=0,  # can easily get stuck with more workers
             oversample=ARGS.oversample,
             balance_hierarchical=False,
         )
@@ -175,7 +173,7 @@ def main(
         s_count=s_count,
         test_batch_size=ARGS.test_batch_size,
         batch_size=ARGS.batch_size,
-        num_workers=MISC.num_workers,
+        num_workers=0,  # can easily get stuck with more workers
         oversample=ARGS.oversample,
         balance_hierarchical=True,
     )
@@ -272,7 +270,7 @@ def main(
         )
         if prod(enc_shape) == enc_shape[0]:
             is_enc_image_data = False
-            print("Encoding will not be treated as image data.")
+            log.info("Encoding will not be treated as image data.")
         else:
             is_enc_image_data = is_image_data
         generator = build_inn(
@@ -307,7 +305,7 @@ def main(
                 assert args_encoder["encoder_type"] == "vae" if ARGS.vae else "ae"
                 assert args_encoder["levels"] == ENC.levels
 
-    print(f"Encoding shape: {enc_shape}, {encoding_size}")
+    log.info(f"Encoding shape: {enc_shape}, {encoding_size}")
 
     # ================================== Initialise Discriminator =================================
 
@@ -416,7 +414,7 @@ def main(
     start_itr = 1  # start at 1 so that the val_freq works correctly
     # Resume from checkpoint
     if MISC.resume is not None:
-        print("Restoring generator from checkpoint")
+        log.info("Restoring generator from checkpoint")
         generator, start_itr = restore_model(CFG, Path(MISC.resume), generator)
         if MISC.evaluate:
             log_metrics(
@@ -428,10 +426,12 @@ def main(
                 cluster_test_metrics=cluster_test_metrics,
                 cluster_context_metrics=cluster_context_metrics,
             )
+            if run is not None:
+                run.finish()  # this allows multiple experiments in one python process
             return generator
 
     # Logging
-    print(f"Number of trainable parameters: {count_parameters(generator)}")
+    log.info(f"Number of trainable parameters: {count_parameters(generator)}")
 
     itr = start_itr
     disc: nn.Module
@@ -455,7 +455,7 @@ def main(
             assert loss_meters is not None
             log_string = " | ".join(f"{name}: {loss.avg:.5g}" for name, loss in loss_meters.items())
             elapsed = time.monotonic() - start_time
-            print(
+            log.info(
                 "[TRN] Iteration {:04d} | Elapsed: {} | Iterations/s: {:.4g} | {}".format(
                     itr,
                     readable_duration(elapsed),
@@ -476,10 +476,10 @@ def main(
         if ARGS.disc_reset_prob > 0:
             for k, discriminator in enumerate(components.disc_ensemble):
                 if np.random.uniform() < ARGS.disc_reset_prob:
-                    print(f"Reinitializing discriminator {k}")
+                    log.info(f"Reinitializing discriminator {k}")
                     discriminator.reset_parameters()
 
-    print("Training has finished.")
+    log.info("Training has finished.")
     # path = save_model(args, save_dir, model=generator, epoch=epoch, sha=sha)
     # generator, _ = restore_model(args, path, model=generator)
     log_metrics(
@@ -491,6 +491,8 @@ def main(
         cluster_test_metrics=cluster_test_metrics,
         cluster_context_metrics=cluster_context_metrics,
     )
+    if run is not None:
+        run.finish()  # this allows multiple experiments in one python process
     return generator
 
 

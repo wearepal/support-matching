@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Dict, Mapping, Optional, Tuple, Union
 
@@ -9,6 +10,8 @@ from shared.configs import BaseArgs
 from .utils import wandb_log
 
 __all__ = ["compute_metrics", "make_tuple_from_data", "print_metrics"]
+
+log = logging.getLogger(__name__)
 
 
 def make_tuple_from_data(
@@ -98,7 +101,7 @@ def compute_metrics(
             else:
                 with results_path.open("a") as f:  # append to existing file
                     f.write(values + "\n")
-            print(f"Results have been written to {results_path.resolve()}")
+            log.info(f"Results have been written to {results_path.resolve()}")
         if use_wandb:
             for metric_name, value in metrics.items():
                 wandb.run.summary[f"{model_name}_{metric_name}"] = value
@@ -106,16 +109,16 @@ def compute_metrics(
             for metric_name, value in external.items():
                 wandb.run.summary[metric_name] = value
 
-    print(f"Results for {exp_name} ({model_name}):")
+    log.info(f"Results for {exp_name} ({model_name}):")
     print_metrics({f"{k} ({model_name})": v for k, v in metrics.items()})
-    print()  # empty line
+    log.info("")  # empty line
     return metrics
 
 
 def print_metrics(metrics: Mapping[str, Union[int, float, str]]) -> None:
     """Print metrics in such a way that they are picked up by guildai."""
-    print("---")
-    print(
+    log.info("---")
+    log.info(
         "\n".join(f"{key.replace(' ', '_').lower()}: {value:.5g}" for key, value in metrics.items())
     )
-    print("---")
+    log.info("---")

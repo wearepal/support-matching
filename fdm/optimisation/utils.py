@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -18,6 +19,8 @@ __all__ = [
     "weight_for_balance",
     "weights_with_counts",
 ]
+
+log = logging.getLogger(__name__)
 
 
 def log_images(
@@ -99,8 +102,8 @@ def weight_for_balance(
         for cluster, count in zip(unique, counts):
             count_int = int(count)
             if count_int < min_size:
-                print(f"Dropping cluster {cluster} with only {count_int} elements.")
-                print("Consider setting --oversample to True (or improve clustering).")
+                log.info(f"Dropping cluster {cluster} with only {count_int} elements.")
+                log.info("Consider setting --oversample to True (or improve clustering).")
                 weights[cluster] = 0  # skip this cluster
                 n_used_clusters -= 1
             elif count_int < smallest_used_cluster:
