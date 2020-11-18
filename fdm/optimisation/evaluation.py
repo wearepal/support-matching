@@ -17,7 +17,7 @@ from shared.data import DatasetTriplet, get_data_tuples, adult
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import ModelFn, compute_metrics, make_tuple_from_data, prod
 
-from .utils import log_images
+from .utils import log_images, build_weighted_sampler_from_dataset
 
 log = logging.getLogger(__name__.split(".")[-1].upper())
 
@@ -112,10 +112,12 @@ def fit_classifier(
     elif cfg.data.dataset in (DS.celeba, DS.genfaces) and train_on_recon:
         clf_fn = Mp64x64Net(batch_norm=True)
     elif cfg.data.dataset == DS.adult and train_on_recon:
+
         def adult_fc_net(input_dim: int, target_dim: int) -> nn.Sequential:
             encoder = FcNet(hidden_dims=[35])(input_dim=input_dim, target_dim=35)
             classifier = nn.Linear(35, target_dim)
             return nn.Sequential(encoder, classifier)
+
         optimizer_kwargs = {"lr": 1e-3, "weight_decay": 1e-8}
 
         clf_fn = adult_fc_net
@@ -159,11 +161,27 @@ def evaluate(
             {f"Clust/Context {k}": v for k, v in cluster_context_metrics.items()}
         )
 
+    train_sampler = build_weighted_sampler_from_dataset(
+        dataset=train_data,
+        s_count=max(cfg.misc._s_dim, 2),
+        test_batch_size=cfg.fdm.test_batch_size or cfg.fdm.batch_size,
+        batch_size=cfg.fdm.batch_size,
+        oversample=cfg.fdm.oversample,
+        balance_hierarchical=False,
+    )
+
     train_loader = DataLoader(
-        train_data, batch_size=cfg.fdm.batch_size, shuffle=True, pin_memory=True
+        train_data,
+        batch_size=cfg.fdm.batch_size,
+        sampler=train_sampler,
+        shuffle=False,  # the sampler shuffles for us
+        pin_memory=True,
     )
     test_loader = DataLoader(
-        test_data, batch_size=cfg.fdm.test_batch_size, shuffle=False, pin_memory=True
+        test_data,
+        batch_size=cfg.fdm.test_batch_size or cfg.fdm.batch_size,
+        shuffle=False,
+        pin_memory=True,
     )
 
     clf: Classifier = fit_classifier(
@@ -175,9 +193,7 @@ def evaluate(
         test_data=test_loader,
     )
 
-    preds, labels, sens = clf.predict_dataset(
-        test_loader, device=torch.device(cfg.misc._device)
-    )
+    preds, labels, sens = clf.predict_dataset(test_loader, device=torch.device(cfg.misc._device))
     del train_loader  # try to prevent lock ups of the workers
     del test_loader
     preds = em.Prediction(hard=pd.Series(preds))

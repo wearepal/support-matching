@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import trange
 
 from fdm.models import Classifier
-from fdm.optimisation.train import build_weighted_sampler_from_dataset
+from fdm.optimisation.utils import build_weighted_sampler_from_dataset
 from shared.configs import DS, BaseArgs
 from shared.data import adult, load_dataset
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
