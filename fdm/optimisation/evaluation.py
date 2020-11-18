@@ -6,14 +6,14 @@ import ethicml as em
 import numpy as np
 import pandas as pd
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import tqdm
 from typing_extensions import Literal
 
 from fdm.models import AutoEncoder, Classifier
 from shared.configs import DS, Config
-from shared.data import DatasetTriplet, get_data_tuples
+from shared.data import DatasetTriplet, get_data_tuples, adult
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import ModelFn, compute_metrics, make_tuple_from_data, prod
 
@@ -105,21 +105,28 @@ def fit_classifier(
     test_data: Optional[DataLoader] = None,
 ) -> Classifier:
     input_dim = input_shape[0]
+    optimizer_kwargs = {"lr": cfg.fdm.eval_lr}
     clf_fn: ModelFn
     if cfg.data.dataset == DS.cmnist and train_on_recon:
         clf_fn = Mp32x23Net(batch_norm=True)
     elif cfg.data.dataset in (DS.celeba, DS.genfaces) and train_on_recon:
         clf_fn = Mp64x64Net(batch_norm=True)
+    elif cfg.data.dataset == DS.adult and train_on_recon:
+        def adult_fc_net(input_dim: int, target_dim: int) -> nn.Sequential:
+            encoder = FcNet(hidden_dims=[35])(input_dim=input_dim, target_dim=35)
+            classifier = nn.Linear(35, target_dim)
+            return nn.Sequential(encoder, classifier)
+        optimizer_kwargs = {"lr": 1e-3, "weight_decay": 1e-8}
+
+        clf_fn = adult_fc_net
     else:
         clf_fn = FcNet(hidden_dims=None)
         input_dim = prod(input_shape)
-    clf = clf_fn(input_dim, target_dim=cfg.misc._y_dim)
+    net = clf_fn(input_dim, target_dim=cfg.misc._y_dim)
 
     n_classes = cfg.misc._y_dim if cfg.misc._y_dim > 1 else 2
-    clf: Classifier = Classifier(
-        clf, num_classes=n_classes, optimizer_kwargs={"lr": cfg.fdm.eval_lr}
-    )
-    clf.to(cfg.misc._device)
+    clf: Classifier = Classifier(net, num_classes=n_classes, optimizer_kwargs=optimizer_kwargs)
+    clf.to(torch.device(cfg.misc._device))
     clf.fit(
         train_data,
         test_data=test_data,
@@ -152,50 +159,53 @@ def evaluate(
             {f"Clust/Context {k}": v for k, v in cluster_context_metrics.items()}
         )
 
-    if cfg.data.dataset in (DS.cmnist, DS.celeba, DS.genfaces):
+    train_loader = DataLoader(
+        train_data, batch_size=cfg.fdm.batch_size, shuffle=True, pin_memory=True
+    )
+    test_loader = DataLoader(
+        test_data, batch_size=cfg.fdm.test_batch_size, shuffle=False, pin_memory=True
+    )
 
-        train_loader = DataLoader(
-            train_data, batch_size=cfg.fdm.batch_size, shuffle=True, pin_memory=True
-        )
-        test_loader = DataLoader(
-            test_data, batch_size=cfg.fdm.test_batch_size, shuffle=False, pin_memory=True
-        )
+    clf: Classifier = fit_classifier(
+        cfg,
+        input_shape,
+        train_data=train_loader,
+        train_on_recon=eval_on_recon,
+        pred_s=pred_s,
+        test_data=test_loader,
+    )
 
-        clf: Classifier = fit_classifier(
-            cfg,
-            input_shape,
-            train_data=train_loader,
-            train_on_recon=eval_on_recon,
-            pred_s=pred_s,
-            test_data=test_loader,
-        )
-
-        preds, labels, sens = clf.predict_dataset(
-            test_loader, device=torch.device(cfg.misc._device)
-        )
-        preds = em.Prediction(hard=pd.Series(preds))
-        if cfg.data.dataset == DS.cmnist:
-            sens_name = "colour"
-        elif cfg.data.dataset == DS.celeba:
-            sens_name = cfg.data.celeba_sens_attr
-        else:
-            sens_name = "sens_Label"
-        sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=[sens_name])
-        labels_pd = pd.DataFrame(labels, columns=["labels"])
-        actual = em.DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels_pd)
-        compute_metrics(
-            cfg,
-            preds,
-            actual,
-            name,
-            "pytorch_classifier",
-            step=step,
-            save_to_csv=save_to_csv,
-            results_csv=cfg.misc.results_csv,
-            use_wandb=cfg.misc.use_wandb,
-            additional_entries=additional_entries,
-        )
+    preds, labels, sens = clf.predict_dataset(
+        test_loader, device=torch.device(cfg.misc._device)
+    )
+    del train_loader  # try to prevent lock ups of the workers
+    del test_loader
+    preds = em.Prediction(hard=pd.Series(preds))
+    if cfg.data.dataset == DS.cmnist:
+        sens_name = "colour"
+    elif cfg.data.dataset == DS.celeba:
+        sens_name = cfg.data.celeba_sens_attr
+    elif cfg.data.dataset == DS.adult:
+        sens_name = str(adult.SENS_ATTRS[0])
     else:
+        sens_name = "sens_Label"
+    sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=[sens_name])
+    labels_pd = pd.DataFrame(labels, columns=["labels"])
+    actual = em.DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels_pd)
+    compute_metrics(
+        cfg,
+        preds,
+        actual,
+        name,
+        "pytorch_classifier",
+        step=step,
+        save_to_csv=save_to_csv,
+        results_csv=cfg.misc.results_csv,
+        use_wandb=cfg.misc.use_wandb,
+        additional_entries=additional_entries,
+    )
+
+    if cfg.data.dataset == DS.adult:
         if not isinstance(train_data, em.DataTuple):
             train_data, test_data = get_data_tuples(train_data, test_data)
 
