@@ -1,4 +1,5 @@
 """Main training file"""
+import logging
 import os
 import time
 from pathlib import Path
@@ -74,6 +75,8 @@ from .utils import (
 
 __all__ = ["main"]
 
+log = logging.getLogger(__name__)
+
 ARGS: ClusterArgs = None  # type: ignore[assignment]
 CFG: Config = None  # type: ignore[assignment]
 DATA: DatasetConfig = None  # type: ignore[assignment]
@@ -131,16 +134,16 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
     save_dir = Path(to_absolute_path(MISC.save_dir)) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    print(str(OmegaConf.to_yaml(cfg, resolve=True, sort_keys=True)))
-    print(f"Save directory: {save_dir.resolve()}")
+    log.info(str(OmegaConf.to_yaml(cfg, resolve=True, sort_keys=True)))
+    log.info(f"Save directory: {save_dir.resolve()}")
     # ==== check GPU ====
     MISC._device = f"cuda:{MISC.gpu}" if use_gpu else "cpu"
     device = torch.device(MISC._device)
-    print(f"{torch.cuda.device_count()} GPUs available. Using device '{device}'")
+    log.info(f"{torch.cuda.device_count()} GPUs available. Using device '{device}'")
 
     # ==== construct dataset ====
     datasets: DatasetTriplet = load_dataset(CFG)
-    print(
+    log.info(
         "Size of context-set: {}, training-set: {}, test-set: {}".format(
             len(datasets.context),
             len(datasets.train),
@@ -200,7 +203,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
         num_clusters = y_count
     else:
         num_clusters = s_count * y_count
-    print(
+    log.info(
         f"Number of clusters: {num_clusters}, accuracy computed with respect to {ARGS.cluster.name}"
     )
     mappings: List[str] = []
@@ -212,7 +215,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
         else:
             # class_id = y * s_count + s
             mappings.append(f"{i}: (y = {i // s_count}, s = {i % s_count})")
-    print("class IDs:\n\t" + "\n\t".join(mappings))
+    log.info("class IDs:\n\t" + "\n\t".join(mappings))
     feature_group_slices = getattr(datasets.context, "feature_group_slices", None)
 
     # ================================= encoder =================================
@@ -231,7 +234,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
         enc_shape = (512,)
         encoder.to(device)
 
-    print(f"Encoding shape: {enc_shape}")
+    log.info(f"Encoding shape: {enc_shape}")
 
     enc_path: Path
     if ARGS.enc_path:
@@ -256,9 +259,9 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
         args_encoder = {"encoder_type": ARGS.encoder.name, "levels": ENC.levels}
         enc_path = save_dir.resolve() / "encoder"
         torch.save({"encoder": encoder.state_dict(), "args": args_encoder}, enc_path)
-        print(f"To make use of this encoder:\n--enc-path {enc_path}")
+        log.info(f"To make use of this encoder:\n--enc-path {enc_path}")
         if ARGS.enc_wandb:
-            print("Stopping here because W&B will be messed up...")
+            log.info("Stopping here because W&B will be messed up...")
             if run is not None:
                 run.finish()  # this allows multiple experiments in one python process
             return
@@ -327,7 +330,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
             optimizer_kwargs=labeler_optimizer_kwargs,
         )
         labeler.to(device)
-        print("Fitting the labeler to the labeled data.")
+        log.info("Fitting the labeler to the labeled data.")
         labeler.fit(
             train_loader,
             epochs=ARGS.labeler_epochs,
@@ -355,7 +358,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
     start_epoch = 1  # start at 1 so that the val_freq works correctly
     # Resume from checkpoint
     if MISC.resume is not None:
-        print("Restoring generator from checkpoint")
+        log.info("Restoring generator from checkpoint")
         model, start_epoch = restore_model(CFG, Path(MISC.resume), model)
         if MISC.evaluate:
             pth_path = convert_and_save_results(
@@ -372,7 +375,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
     # Logging
     # wandb.set_model_graph(str(generator))
     num_parameters = count_parameters(model)
-    print(f"Number of trainable parameters: {num_parameters}")
+    log.info(f"Number of trainable parameters: {num_parameters}")
 
     # best_loss = float("inf")
     best_acc = 0.0
@@ -400,7 +403,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
             prepare = (
                 f"{k}: {v:.5g}" if isinstance(v, float) else f"{k}: {v}" for k, v in val_log.items()
             )
-            print(
+            log.info(
                 "[VAL] Epoch {:04d} | {} | "
                 "No improvement during validation: {:02d}".format(
                     epoch,
@@ -413,14 +416,14 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
         #     log_metrics(ARGS, model=model.bundle, data=datasets, step=itr)
         #     save_model(args, save_dir, model=model.bundle, epoch=epoch, sha=sha)
 
-    print("Training has finished.")
+    log.info("Training has finished.")
     # path = save_model(args, save_dir, model=model, epoch=epoch, sha=sha)
     # model, _ = restore_model(args, path, model=model)
     _, test_metrics, _ = validate(model, val_loader)
     _, context_metrics, _ = validate(model, context_loader)
-    print("Test metrics:")
+    log.info("Test metrics:")
     print_metrics({f"Test {k}": v for k, v in test_metrics.items()})
-    print("Context metrics:")
+    log.info("Context metrics:")
     print_metrics({f"Context {k}": v for k, v in context_metrics.items()})
     pth_path = convert_and_save_results(
         CFG,
@@ -490,7 +493,7 @@ def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch:
         " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items()),
         total_loss_meter.avg,
     )
-    print(to_log)
+    log.info(to_log)
     return itr
 
 

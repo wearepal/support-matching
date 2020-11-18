@@ -1,3 +1,4 @@
+import logging
 from typing import List, Tuple
 
 import torch
@@ -12,6 +13,8 @@ from .utils import log_images
 
 __all__ = ["classify_dataset", "encode_dataset"]
 
+log = logging.getLogger(__name__)
+
 
 def log_sample_images(cfg: Config, data: Dataset, name: str, step: int) -> None:
     data_loader = DataLoader(data, shuffle=False, batch_size=64)
@@ -22,7 +25,7 @@ def log_sample_images(cfg: Config, data: Dataset, name: str, step: int) -> None:
 def encode_dataset(
     cfg: Config, data: Dataset, generator: Encoder
 ) -> "Dataset[Tuple[Tensor, Tensor, Tensor]]":
-    print("Encoding dataset...", flush=True)  # flush to avoid conflict with tqdm
+    log.info("Encoding dataset...")
     all_enc = []
     all_s = []
     all_y = []
@@ -47,7 +50,7 @@ def encode_dataset(
     all_y = torch.cat(all_y, dim=0)
 
     encoded_dataset = TensorDataset(all_enc, all_s, all_y)
-    print("Done.")
+    log.info("Done.")
 
     return encoded_dataset
 

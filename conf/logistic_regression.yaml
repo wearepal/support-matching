@@ -1,5 +1,6 @@
 defaults:
   - hydra/launcher: ray_local
+  - hydra/launcher/ray_init_cfg/custom
 
   - data: adult/gender
   - bias: adult/no_bias
@@ -7,11 +8,5 @@ defaults:
 
 hydra:
   launcher:
-    ray_init_cfg:
-      num_cpus: null
-      num_gpus: null
-      address: auto
-      log_to_driver: false
-
     ray_remote_cfg:
-      num_gpus: 1
+      num_gpus: 0.5  # how many GPUs this task needs

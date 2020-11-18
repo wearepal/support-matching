@@ -1,4 +1,5 @@
 """Autoencoders"""
+import logging
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import torch
@@ -15,6 +16,8 @@ from shared.utils import print_metrics, to_discrete, wandb_log
 from .base import Encoder, ModelBase
 
 __all__ = ["AutoEncoder", "VAE"]
+
+log = logging.getLogger(__name__)
 
 
 class AutoEncoder(Encoder):
@@ -104,7 +107,7 @@ class AutoEncoder(Encoder):
                         wandb_log(True, logging_dict, step)
                 # enc_sched.step()
                 # dec_sched.step()
-        print("Final result from encoder training:")
+        log.info("Final result from encoder training:")
         print_metrics({f"Enc {k}": v for k, v in logging_dict.items()})
 
     def routine(self, x: Tensor) -> Tuple[Tensor, Tensor, Dict[str, float]]:

@@ -1,0 +1,5 @@
+# @package _group_
+num_cpus: null
+num_gpus: null
+address: auto
+log_to_driver: false

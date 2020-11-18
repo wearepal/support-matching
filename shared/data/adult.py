@@ -1,4 +1,5 @@
 """Definition of the Adult dataset"""
+import logging
 from typing import List, NamedTuple, Tuple
 
 import ethicml as em
@@ -12,6 +13,8 @@ from shared.configs import BaseArgs
 from .dataset_wrappers import DataTupleDataset
 
 __all__ = ["get_data_tuples", "load_adult_data", "pytorch_data_to_dataframe"]
+
+log = logging.getLogger(__name__)
 
 ADULT_DATASET: em.Dataset = None  # type: ignore[assignment]
 SENS_ATTRS: List[str] = []
@@ -69,7 +72,7 @@ def get_invisible_demographics(
                 f"(`{s_name}` == {s[1]} & `{y_name}` == {y[0]})"
                 f" | (`{s_name}` == {s[1]} & `{y_name}` == {y[1]})"
             )
-            print("removing s=0")
+            log.info("removing s=0")
         else:
             raise ValueError(f"Unsupported missing group {missing_s}")
     else:
@@ -78,7 +81,7 @@ def get_invisible_demographics(
             f" | (`{s_name}` == {s[1]} & `{y_name}` == {y[0]})"
             f" | (`{s_name}` == {s[1]} & `{y_name}` == {y[1]})"
         )
-        print("ensuring that only one group is missing")
+        log.info("ensuring that only one group is missing")
     one_s_only = em.query_dt(for_biased_subset, query)
 
     one_s_only = one_s_only.replace(name=f"{data.name})")
