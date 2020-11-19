@@ -8,7 +8,8 @@ import wandb
 from omegaconf import OmegaConf
 from torch import Tensor, nn
 
-from shared.configs import DS, RL, Config
+from shared.configs import DS, RL, Config, DatasetConfig
+from shared.data import adult
 from shared.utils import class_id_to_label, flatten, wandb_log
 
 __all__ = [
@@ -52,6 +53,17 @@ def log_images(
         {prefix + name: [wandb.Image(torchvision.transforms.functional.to_pil_image(shw))]},
         step=step,
     )
+
+
+def get_sens_name(data: DatasetConfig) -> str:
+    if data.dataset == DS.cmnist:
+        return "colour"
+    elif data.dataset == DS.celeba:
+        return data.celeba_sens_attr.name
+    elif data.dataset == DS.adult:
+        return str(adult.SENS_ATTRS[0])
+    else:
+        return "sens_Label"
 
 
 def save_model(

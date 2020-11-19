@@ -4,8 +4,10 @@ import time
 from pathlib import Path
 from typing import Callable, Dict, Iterator, NamedTuple, Optional, Sequence, Tuple, Union
 
+import ethicml as em
 import git
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -27,6 +29,7 @@ from shared.models.configs.classifiers import FcNet, ModelAggregatorWrapper
 from shared.utils import (
     AverageMeter,
     ModelFn,
+    compute_metrics,
     count_parameters,
     flatten,
     inf_generator,
@@ -44,6 +47,7 @@ from .inn_training import InnComponents, update_disc_on_inn, update_inn
 from .loss import MixedLoss, PixelCrossEntropy, VGGLoss
 from .utils import (
     get_all_num_samples,
+    get_sens_name,
     log_images,
     restore_model,
     save_model,
@@ -471,6 +475,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Generator:
             if itr == ARGS.val_freq:  # first validation
                 baseline_metrics(CFG, datasets, save_to_csv=Path(to_absolute_path(MISC.save_dir)))
             log_metrics(CFG, model=generator, data=datasets, step=itr)
+            validate(components, test_loader, itr=itr)
             save_model(CFG, save_dir, model=generator, itr=itr, sha=sha)
 
         if ARGS.disc_reset_prob > 0:
@@ -795,3 +800,45 @@ def log_recons(
     log_images(CFG, recon.rand_s, "reconstruction_rand_s", step=itr, prefix=prefix)
     log_images(CFG, recon.zero_s, "reconstruction_zero_s", step=itr, prefix=prefix)
     log_images(CFG, recon.just_s, "reconstruction_just_s", step=itr, prefix=prefix)
+
+
+def validate(
+    ae: AeComponents, test_loader: DataLoader, itr: int, save_to_csv: Optional[Path] = None
+) -> None:
+    if not ARGS.pred_y_weight:
+        return
+    ae.generator.eval()
+    ae.predictor_y.eval()
+    ae.predictor_s.eval()
+
+    preds, all_y, all_s = [], [], []
+    with torch.set_grad_enabled(False):
+        for (x_v, s_v, y_v) in test_loader:
+            x_v = to_device(x_v)
+            enc = ae.generator.encode(x_v, stochastic=False)
+            enc_no_s, _ = ae.generator.mask(enc, random=False)
+            batch_preds = ae.predictor_y.predict(enc_no_s)
+            preds.append(batch_preds)
+            all_y.append(y_v)
+            all_s.append(s_v)
+
+    pred = torch.cat(preds, dim=0).cpu().detach().view(-1).numpy()
+    y = torch.cat(all_y, dim=0).cpu().detach().view(-1).numpy()
+    s = torch.cat(all_s, dim=0).cpu().detach().view(-1).numpy()
+
+    preds = em.Prediction(hard=pd.Series(pred))
+    sens_name = get_sens_name(DATA)
+    sens_pd = pd.DataFrame(s.astype(np.float32), columns=[sens_name])
+    labels_pd = pd.DataFrame(y, columns=["labels"])
+    actual = em.DataTuple(x=sens_pd, s=sens_pd, y=labels_pd)
+    compute_metrics(
+        CFG,
+        preds,
+        actual,
+        "x_zero_s",
+        "pytorch_predictor",
+        step=itr,
+        save_to_csv=save_to_csv,
+        results_csv=MISC.results_csv,
+        use_wandb=MISC.use_wandb,
+    )
