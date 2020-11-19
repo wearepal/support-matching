@@ -17,7 +17,7 @@ from .base import Encoder, ModelBase
 
 __all__ = ["AutoEncoder", "VAE"]
 
-log = logging.getLogger(__name__.split(".")[-1])
+log = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 class AutoEncoder(Encoder):

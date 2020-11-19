@@ -14,7 +14,7 @@ from fdm.models.base import ModelBase
 
 __all__ = ["Classifier", "Regressor"]
 
-log = logging.getLogger(__name__.split(".")[-1])
+log = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 class Classifier(ModelBase):

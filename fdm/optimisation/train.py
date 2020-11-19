@@ -53,7 +53,7 @@ from .utils import (
 
 __all__ = ["main"]
 
-log = logging.getLogger(__name__.split(".")[-1])
+log = logging.getLogger(__name__.split(".")[-1].upper())
 
 ARGS: FdmArgs = None  # type: ignore[assignment]
 CFG: Config = None  # type: ignore[assignment]

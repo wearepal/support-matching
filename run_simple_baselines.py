@@ -24,7 +24,7 @@ from shared.data import adult, load_dataset
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import ModelFn, compute_metrics, get_data_dim, random_seed
 
-log = logging.getLogger(__name__.split(".")[-1])
+log = logging.getLogger("BASELINE")
 
 BaselineM = Enum("BaselineM", "cnn dro kamiran")
 

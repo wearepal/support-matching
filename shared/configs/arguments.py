@@ -126,7 +126,6 @@ class ClusterArgs:
     epochs: int = 250
     batch_size: int = 256
     test_batch_size: Optional[int] = None
-    eval_on_recon: bool = True
 
     # Evaluation settings
     eval_epochs: int = 40

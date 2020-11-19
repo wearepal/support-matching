@@ -13,7 +13,7 @@ from .utils import log_images
 
 __all__ = ["classify_dataset", "encode_dataset"]
 
-log = logging.getLogger(__name__.split(".")[-1])
+log = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 def log_sample_images(cfg: Config, data: Dataset, name: str, step: int) -> None:

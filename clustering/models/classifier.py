@@ -14,7 +14,7 @@ from shared.utils import wandb_log
 
 __all__ = ["Classifier", "Regressor"]
 
-log = logging.getLogger(__name__.split(".")[-1])
+log = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 class Classifier(ModelBase):

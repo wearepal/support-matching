@@ -9,7 +9,7 @@ from shared.configs import BaseArgs
 
 __all__ = ["ClusterResults", "save_results", "load_results"]
 
-log = logging.getLogger(__name__.split(".")[-1])
+log = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 class ClusterResults(NamedTuple):

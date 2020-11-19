@@ -19,7 +19,7 @@ from shared.utils import ModelFn, compute_metrics, make_tuple_from_data, prod
 
 from .utils import log_images
 
-log = logging.getLogger(__name__.split(".")[-1])
+log = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 def log_sample_images(cfg: Config, data, name, step):
