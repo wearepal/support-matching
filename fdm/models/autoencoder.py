@@ -12,7 +12,7 @@ from typing_extensions import Literal
 from shared.configs import VaeStd
 from shared.utils import sample_concrete, to_discrete
 
-from .base import EncodingSize, ModelBase, Reconstructions, SplitEncoding
+from .base import EncodingSize, ModelBase, ModelBaseCosine, Reconstructions, SplitEncoding
 
 __all__ = ["AutoEncoder", "VAE"]
 
@@ -28,8 +28,8 @@ class AutoEncoder(nn.Module):
     ):
         super(AutoEncoder, self).__init__()
 
-        self.encoder: ModelBase = ModelBase(encoder, optimizer_kwargs=optimizer_kwargs)
-        self.decoder: ModelBase = ModelBase(decoder, optimizer_kwargs=optimizer_kwargs)
+        self.encoder: ModelBase = ModelBaseCosine(encoder, optimizer_kwargs=optimizer_kwargs)
+        self.decoder: ModelBase = ModelBaseCosine(decoder, optimizer_kwargs=optimizer_kwargs)
         self.encoding_size = encoding_size
         self.feature_group_slices = feature_group_slices
 

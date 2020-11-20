@@ -1,10 +1,13 @@
+import logging
 from typing import NamedTuple
 
 import torch.nn as nn
 from torch import Tensor
-from torch.optim import Adam
+from torch.optim import Adam, lr_scheduler
 
-__all__ = ["ModelBase", "EncodingSize", "SplitEncoding", "Reconstructions"]
+__all__ = ["ModelBase", "ModelBaseCosine", "EncodingSize", "SplitEncoding", "Reconstructions"]
+
+log = logging.getLogger("MODELS")
 
 
 class EncodingSize(NamedTuple):
@@ -53,3 +56,20 @@ class ModelBase(nn.Module):
 
     def forward(self, inputs):
         return self.model(inputs)
+
+
+class ModelBaseCosine(ModelBase):
+    def __init__(self, model, optimizer_kwargs=None, annealing_steps: int = 3_000):
+        super().__init__(model, optimizer_kwargs)
+        self.annealing_steps = annealing_steps
+        self.scheduler = lr_scheduler.CosineAnnealingLR(self.optimizer, self.annealing_steps)
+        self.counter = 0
+
+    def step(self, grads=None):
+        super().step(grads)
+        if self.counter % self.annealing_steps == 0:
+            log.info("Reset scheduler.")
+            self.scheduler = lr_scheduler.CosineAnnealingLR(self.optimizer, self.annealing_steps)
+        else:
+            self.scheduler.step()
+        self.counter += 1
