@@ -702,7 +702,7 @@ def update(
     if ARGS.pred_s_weight > 0:
         ae.predictor_s.zero_grad()
     gen_loss.backward()
-    ae.generator.step()
+    lr = ae.generator.step()
     if ARGS.pred_y_weight > 0:
         ae.predictor_y.step()
     if ARGS.pred_s_weight > 0:
@@ -712,6 +712,7 @@ def update(
         "ELBO": elbo.item(),
         "Loss Adversarial": disc_loss.item(),
         "Loss Generator": gen_loss.item(),
+        "Learning rate": lr,
     }
     logging_dict.update(final_logging)
 

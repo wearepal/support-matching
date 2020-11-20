@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from typing_extensions import Literal
 
-from shared.configs import VaeStd
+from shared.configs import VaeStd, FdmArgs
 from shared.utils import sample_concrete, to_discrete
 
 from .base import EncodingSize, ModelBase, ModelBaseCosine, Reconstructions, SplitEncoding
@@ -20,6 +20,7 @@ __all__ = ["AutoEncoder", "VAE"]
 class AutoEncoder(nn.Module):
     def __init__(
         self,
+        args: FdmArgs,
         encoder: nn.Module,
         decoder: nn.Module,
         encoding_size: Optional[EncodingSize],
@@ -28,8 +29,18 @@ class AutoEncoder(nn.Module):
     ):
         super(AutoEncoder, self).__init__()
 
-        self.encoder: ModelBase = ModelBaseCosine(encoder, optimizer_kwargs=optimizer_kwargs)
-        self.decoder: ModelBase = ModelBaseCosine(decoder, optimizer_kwargs=optimizer_kwargs)
+        self.encoder: ModelBase = ModelBaseCosine(
+            encoder,
+            optimizer_kwargs=optimizer_kwargs,
+            annealing_steps=args.annealing_steps,
+            freeze=args.scheduler_freeze,
+        )
+        self.decoder: ModelBase = ModelBaseCosine(
+            decoder,
+            optimizer_kwargs=optimizer_kwargs,
+            annealing_steps=args.annealing_steps,
+            freeze=args.scheduler_freeze,
+        )
         self.encoding_size = encoding_size
         self.feature_group_slices = feature_group_slices
 
@@ -86,9 +97,10 @@ class AutoEncoder(nn.Module):
         self.encoder.zero_grad()
         self.decoder.zero_grad()
 
-    def step(self):
+    def step(self) -> float:
         self.encoder.step()
-        self.decoder.step()
+        lr = self.decoder.step()
+        return lr
 
     def split_encoding(self, z: Tensor) -> SplitEncoding:
         assert self.encoding_size is not None

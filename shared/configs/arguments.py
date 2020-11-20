@@ -277,6 +277,9 @@ class FdmArgs:
     pred_y_weight: float = 1
     pred_s_weight: float = 0
 
+    annealing_steps: int = 3000
+    scheduler_freeze: int = 3622
+
 
 @dataclass
 class BaseArgs:

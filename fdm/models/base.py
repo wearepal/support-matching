@@ -59,17 +59,22 @@ class ModelBase(nn.Module):
 
 
 class ModelBaseCosine(ModelBase):
-    def __init__(self, model, optimizer_kwargs=None, annealing_steps: int = 3_000):
+    def __init__(
+        self, model, optimizer_kwargs=None, annealing_steps: int = 3_000, freeze: int = 3622
+    ):
         super().__init__(model, optimizer_kwargs)
         self.annealing_steps = annealing_steps
+        self.freeze = freeze
         self.scheduler = lr_scheduler.CosineAnnealingLR(self.optimizer, self.annealing_steps)
+        # self.scheduler = lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer, 1000, 2)
         self.counter = 0
 
-    def step(self, grads=None):
+    def step(self, grads=None) -> float:
         super().step(grads)
-        if self.counter % self.annealing_steps == 0:
-            log.info("Reset scheduler.")
-            self.scheduler = lr_scheduler.CosineAnnealingLR(self.optimizer, self.annealing_steps)
+        if self.counter == self.freeze:
+            log.info("Freeze learning rate.")
+            self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=1_000_000)
         else:
             self.scheduler.step()
         self.counter += 1
+        return float(self.scheduler.get_last_lr()[0])
