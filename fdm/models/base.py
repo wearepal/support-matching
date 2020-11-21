@@ -59,7 +59,7 @@ class ModelBaseCosine(ModelBase):
     def __init__(self, model, milestones: List[int], optimizer_kwargs=None):
         super().__init__(model, optimizer_kwargs)
         self.scheduler = lr_scheduler.MultiStepLR(
-            self.optimizer, milestones=milestones, gamma=3.16227766017
+            self.optimizer, milestones=milestones, gamma=0.316227766017
         )
 
     def step(self, grads=None) -> float:
