@@ -277,6 +277,8 @@ class FdmArgs:
     pred_y_weight: float = 1
     pred_s_weight: float = 0
 
+    scheduler_steps: List[int] = field(default_factory=list)
+
 
 @dataclass
 class BaseArgs:

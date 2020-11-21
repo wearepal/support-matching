@@ -1,10 +1,10 @@
-from typing import NamedTuple
+from typing import List, NamedTuple
 
 import torch.nn as nn
 from torch import Tensor
-from torch.optim import Adam
+from torch.optim import Adam, lr_scheduler
 
-__all__ = ["ModelBase", "EncodingSize", "SplitEncoding", "Reconstructions"]
+__all__ = ["ModelBase", "ModelBaseCosine", "EncodingSize", "SplitEncoding", "Reconstructions"]
 
 
 class EncodingSize(NamedTuple):
@@ -53,3 +53,16 @@ class ModelBase(nn.Module):
 
     def forward(self, inputs):
         return self.model(inputs)
+
+
+class ModelBaseCosine(ModelBase):
+    def __init__(self, model, milestones: List[int], optimizer_kwargs=None):
+        super().__init__(model, optimizer_kwargs)
+        self.scheduler = lr_scheduler.MultiStepLR(
+            self.optimizer, milestones=milestones, gamma=3.16227766017
+        )
+
+    def step(self, grads=None) -> float:
+        super().step(grads)
+        self.scheduler.step()
+        return float(self.scheduler.get_last_lr()[0])

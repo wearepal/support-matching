@@ -77,6 +77,7 @@ def build_ae(
         )
     else:
         generator = AutoEncoder(
+            args=cfg.fdm,
             encoder=encoder,
             decoder=decoder,
             encoding_size=encoding_size,
