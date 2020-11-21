@@ -278,6 +278,7 @@ class FdmArgs:
     pred_s_weight: float = 0
 
     scheduler_steps: List[int] = field(default_factory=list)
+    grad_clip_val: float = 1e6
 
 
 @dataclass

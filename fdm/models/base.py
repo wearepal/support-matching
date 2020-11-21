@@ -56,13 +56,19 @@ class ModelBase(nn.Module):
 
 
 class ModelBaseCosine(ModelBase):
-    def __init__(self, model, milestones: List[int], optimizer_kwargs=None):
+    def __init__(self, model, milestones: List[int], grad_clip_val: float, optimizer_kwargs=None):
         super().__init__(model, optimizer_kwargs)
+        self.grad_clip_val = grad_clip_val
+        self.milestones = milestones
         self.scheduler = lr_scheduler.MultiStepLR(
             self.optimizer, milestones=milestones, gamma=0.316227766017
         )
+        self.counter = 0
 
     def step(self, grads=None) -> float:
+        if self.counter < self.milestones[0]:
+            nn.utils.clip_grad_value_(self.model.parameters(), clip_value=self.grad_clip_val)
         super().step(grads)
         self.scheduler.step()
+        self.counter += 1
         return float(self.scheduler.get_last_lr()[0])

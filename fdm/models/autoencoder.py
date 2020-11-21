@@ -33,11 +33,13 @@ class AutoEncoder(nn.Module):
             encoder,
             optimizer_kwargs=optimizer_kwargs,
             milestones=args.scheduler_steps,
+            grad_clip_val=args.grad_clip_val,
         )
         self.decoder: ModelBase = ModelBaseCosine(
             decoder,
             optimizer_kwargs=optimizer_kwargs,
             milestones=args.scheduler_steps,
+            grad_clip_val=args.grad_clip_val,
         )
         self.encoding_size = encoding_size
         self.feature_group_slices = feature_group_slices
