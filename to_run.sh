@@ -11,4 +11,5 @@ python run_dis.py -m \
     fdm.disc_reset_prob=0 \
     fdm.num_disc_updates=2 \
     fdm.num_discs=5 \
-    misc.exp_group=same_as_for2.zs2.no_reset.5d.2up
+    misc.exp_group=same_as_for2.zs2.no_reset.5d.2up \
+    "$@"
