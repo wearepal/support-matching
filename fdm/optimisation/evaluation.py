@@ -64,6 +64,19 @@ def log_metrics(
         cluster_context_metrics=cluster_context_metrics,
     )
 
+    if cfg.fdm.eval_on_recon:
+        test_repr = encode_dataset(cfg, data.test, model, recons=True, invariant_to="s")
+        evaluate(
+            cfg,
+            step,
+            train_inv_s,
+            test_repr,
+            name="recon_zero_s",
+            model_name="encoded_testset",
+            eval_on_recon=True,
+            pred_s=False,
+        )
+
 
 def baseline_metrics(cfg: Config, data: DatasetTriplet, save_to_csv: Optional[Path]) -> None:
     if cfg.data.dataset not in (DS.cmnist, DS.celeba, DS.genfaces):
@@ -137,6 +150,7 @@ def evaluate(
     train_data: "Dataset[Tuple[Tensor, Tensor, Tensor]]",
     test_data: "Dataset[Tuple[Tensor, Tensor, Tensor]]",
     name: str,
+    model_name: Optional[str] = None,
     eval_on_recon: bool = True,
     pred_s: bool = False,
     save_to_csv: Optional[Path] = None,
@@ -203,7 +217,7 @@ def evaluate(
             preds,
             actual,
             name,
-            "pytorch_classifier",
+            model_name or "pytorch_classifier",
             step=step,
             save_to_csv=save_to_csv,
             results_csv=cfg.misc.results_csv,
