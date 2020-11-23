@@ -41,3 +41,11 @@ def generate_table(
 
 def to_latex(df):
     print(df.reset_index(level=0, drop=True, inplace=False).to_latex(escape=False))
+
+
+def simple_to_latex(table):
+    print(table.to_latex(index=False, escape=False))
+    
+
+def merge_cols(df, correct_col: str, incorrect_col: str):
+    df[correct_col] = df[correct_col].combine_first(df[incorrect_col])
