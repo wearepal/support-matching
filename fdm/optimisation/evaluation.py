@@ -122,21 +122,18 @@ def compute_metrics(
     """Compute accuracy and fairness metrics and log them"""
 
     predictions._info = {}
-    if args._y_dim == 1:
-        metrics = run_metrics(
-            predictions,
-            actual,
-            metrics=[Accuracy(), TPR(), TNR(), RenyiCorrelation()],
-            per_sens_metrics=[ProbPos(), TPR(), TNR()],
-        )
-        if use_wandb:
-            wandb_log(args, metrics, step=step)
-    else:
-        metrics = run_metrics(
-            predictions, actual, metrics=[Accuracy(), RenyiCorrelation()], per_sens_metrics=[]
-        )
-        if use_wandb:
-            wandb_log(args, {f"{data_exp_name} Accuracy": metrics["Accuracy"]}, step=step)
+    metrics = em.run_metrics(
+        predictions,
+        actual,
+        metrics=[Accuracy(), TPR(), TNR(), RenyiCorrelation()],
+        per_sens_metrics=[Accuracy(), ProbPos(), TPR(), TNR()],
+        diffs_and_ratios=args._s_dim < 4,  # this just gets too much with higher s dim
+    )
+    # replace the slash; it's causing problems
+    metrics = {k.replace("/", "÷"): v for k, v in metrics.items()}
+    if use_wandb:
+        wandb_log(args, {f"{k} ({model_name})": v for k, v in metrics.items()}, step=step)
+
     print(f"Results for {data_exp_name} ({model_name}):")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
     print()  # empty line
@@ -278,7 +275,7 @@ def evaluate(
             train_data, test_data = get_data_tuples(train_data, test_data)
 
         train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=pred_s)
-        for eth_clf in [algos.LR(), algos.LRCV()]:  # , algos.LRCV(), algos.SVM(kernel="linear")]:
+        for eth_clf in [em.LR(), em.LRCV()]:  # , algos.LRCV(), algos.SVM(kernel="linear")]:
             preds = eth_clf.run(train_data, test_data)
             compute_metrics(
                 args,
@@ -306,7 +303,7 @@ def encode_dataset(
     all_y = []
 
     data_loader = DataLoader(
-        data, batch_size=args.encode_batch_size, pin_memory=True, shuffle=False, num_workers=4
+        data, batch_size=args.encode_batch_size, pin_memory=True, shuffle=False, num_workers=0
     )
 
     with torch.set_grad_enabled(False):
