@@ -2,7 +2,7 @@ from typing import Literal, List, Dict
 
 from typed_flags import TypedFlags
 
-from ethicml.data import GenfacesAttributes
+from ethicml import GenfacesAttributes
 
 __all__ = ["BaseArgs", "CELEBATTRS"]
 

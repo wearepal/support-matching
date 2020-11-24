@@ -5,15 +5,15 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
-from ethicml.data import adult, load_data, Dataset
-from ethicml.preprocessing import (
+from ethicml import adult, load_data, Dataset
+from ethicml import (
     BalancedTestSplit,
     DataSplitter,
     ProportionalSplit,
 )
-from ethicml.utility import DataTuple
+from ethicml import DataTuple
 from shared.configs import BaseArgs
-from ethicml.preprocessing.domain_adaptation import make_valid_variable_name, query_dt
+from ethicml.preprocessing.domain_adaptation import query_dt
 
 from .dataset_wrappers import DataTupleDataset
 
@@ -56,8 +56,6 @@ def get_invisible_demographics(
     assert 0 <= unbiased_pcnt <= 1, f"unbiased_pcnt: {unbiased_pcnt}"
     s_name = data.s.columns[0]
     y_name = data.y.columns[0]
-    s_name = make_valid_variable_name(s_name)
-    y_name = make_valid_variable_name(y_name)
     s_values = np.unique(data.s.to_numpy())
     y_values = np.unique(data.y.to_numpy())
     s_0, s_1 = s_values
@@ -73,13 +71,18 @@ def get_invisible_demographics(
     if missing_s:
         if len(missing_s) == 1 and missing_s[0] == 0:
             query = (
-                f"({s_name} == {s_1} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_1})"
+                f"(`{s_name}` == {s_1} & `{y_name}` == {y_0})"
+                f" | (`{s_name}` == {s_1} & `{y_name}` == {y_1})"
             )
             print("removing s=0")
         else:
             raise ValueError(f"Unsupported missing group {missing_s}")
     else:
-        query = f"({s_name} == {s_0} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_0}) | ({s_name} == {s_1} & {y_name} == {y_1})"
+        query = (
+            f"(`{s_name}` == {s_0} & `{y_name}` == {y_0})"
+            f" | (`{s_name}` == {s_1} & `{y_name}` == {y_0})"
+            f" | (`{s_name}` == {s_1} & `{y_name}` == {y_1})"
+        )
         print("ensuring that only one group is missing")
     one_s_only = query_dt(for_biased_subset, query)
 
@@ -91,7 +94,7 @@ def get_invisible_demographics(
 def load_adult_data(args: BaseArgs) -> Tuple[DataTupleDataset, DataTupleDataset, DataTupleDataset]:
     global ADULT_DATASET
     ADULT_DATASET = adult(binarize_nationality=args.drop_native)
-    data = load_data(ADULT_DATASET, ordered=True, generate_dummies=True)
+    data = load_data(ADULT_DATASET, ordered=True)
 
     disc_feature_groups = ADULT_DATASET.disc_feature_groups
     assert disc_feature_groups is not None

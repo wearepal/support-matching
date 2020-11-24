@@ -11,10 +11,10 @@ from torch import Tensor
 from tqdm import tqdm
 
 import wandb
-from ethicml.algorithms import inprocess as algos
-from ethicml.evaluators import run_metrics
-from ethicml.metrics import TNR, TPR, Accuracy, ProbPos, RenyiCorrelation
-from ethicml.utility import DataTuple, Prediction
+import ethicml as em
+from ethicml import run_metrics
+from ethicml import TNR, TPR, Accuracy, ProbPos, RenyiCorrelation
+from ethicml import DataTuple, Prediction
 from shared.configs import BaseArgs
 from shared.data import DatasetTriplet, get_data_tuples
 from shared.models.configs.classifiers import mp_32x32_net, fc_net, mp_64x64_net
@@ -88,11 +88,11 @@ def baseline_metrics(args: VaeArgs, data: DatasetTriplet, save_to_csv: Optional[
         train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=False)
 
         for clf in [
-            algos.LR(),
-            algos.Majority(),
-            algos.Kamiran(classifier="LR"),
-            algos.LRCV(),
-            algos.SVM(),
+            em.LR(),
+            em.Majority(),
+            em.Kamiran(classifier="LR"),
+            em.LRCV(),
+            em.SVM(),
         ]:
             preds = clf.run(train_data, test_data)
             compute_metrics(
@@ -253,7 +253,13 @@ def evaluate(
 
         preds, actual, sens = clf.predict_dataset(test_loader, device=args._device)
         preds = Prediction(hard=pd.Series(preds))
-        sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=["sex_Male"])
+        if args.dataset == "cmnist":
+            sens_name = "colour"
+        elif args.dataset == "celeba":
+            sens_name = args.celeba_sens_attr
+        else:
+            sens_name = "sens_Label"
+        sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=[sens_name])
         labels = pd.DataFrame(actual, columns=["labels"])
         actual = DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels)
         compute_metrics(

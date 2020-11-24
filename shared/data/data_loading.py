@@ -8,8 +8,8 @@ from torch.utils.data import Dataset, TensorDataset, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
 
-from ethicml.data import create_celeba_dataset, create_genfaces_dataset
-from ethicml.vision.data import LdColorizer
+from ethicml.vision import create_celeba_dataset, create_genfaces_dataset
+from ethicml.vision import LdColorizer
 from shared.configs import BaseArgs
 
 from .adult import load_adult_data
@@ -125,9 +125,9 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
                 target_y = _class_id // num_classes
                 target_s = _class_id % num_classes
                 _indexes = (_y == int(target_y)) & (_s == int(target_s))
-                _n_matches = len(_indexes.nonzero())
+                _n_matches = len(_indexes.nonzero(as_tuple=False))
                 _to_keep = torch.randperm(_n_matches) < (round(_prop * (_n_matches - 1)))
-                _indexes[_indexes.nonzero()[_to_keep]] = False
+                _indexes[_indexes.nonzero(as_tuple=False)[_to_keep]] = False
                 _x = _x[~_indexes]
                 _s = _s[~_indexes]
                 _y = _y[~_indexes]
@@ -138,6 +138,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
                 raise RuntimeError("Don't use subsample_train and missing_s together!")
             # when we manually subsample the training set, we ignore color correlation
             train_data_t = _colorize_subset(train_data, _correlation=0, _decorr_op="random",)
+            print("Subsampling training set...")
             train_data_t = _subsample_by_s_and_y(train_data_t, args.subsample_train)
         else:
             train_data_t = _colorize_subset(
@@ -147,6 +148,7 @@ def load_dataset(args: BaseArgs) -> DatasetTriplet:
         context_data_t = _colorize_subset(context_data, _correlation=0, _decorr_op="random")
 
         if args.subsample_context:
+            print("Subsampling context set...")
             context_data_t = _subsample_by_s_and_y(context_data_t, args.subsample_context)
             # test data remains balanced
             # test_data = _subsample_by_class(*test_data, args.subsample)
