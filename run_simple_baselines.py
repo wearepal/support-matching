@@ -12,7 +12,7 @@ import torch
 from ethicml import implementations
 from hydra.core.config_store import ConfigStore
 from hydra.utils import to_absolute_path
-from omegaconf.omegaconf import MISSING
+from omegaconf.omegaconf import MISSING, OmegaConf
 from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import trange
@@ -161,6 +161,17 @@ class TrainKamiran(Trainer):
 
 
 def run_baseline(cfg: Config) -> None:
+    for name, settings in [
+        ("bias", cfg.bias),
+        ("baselines", cfg.baselines),
+        ("data", cfg.data),
+        ("misc", cfg.misc),
+    ]:
+        as_list = sorted(
+            f"{k}: {v}"
+            for k, v in OmegaConf.to_container(settings, resolve=True, enum_to_str=True).items()
+        )
+        log.info(f"{name}: {{" + ", ".join(as_list) + "}")
     args = cfg.baselines
     if args.method == BaselineM.kamiran:
         if cfg.data.dataset == DS.cmnist:
