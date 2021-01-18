@@ -89,6 +89,8 @@ class MMDKernel(Enum):
 
 
 class AggregatorType(Enum):
+    """Which aggreagation function to use (if any)."""
+
     none = auto()
     attention = auto()
     simple = auto()
