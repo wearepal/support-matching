@@ -1,71 +1,54 @@
-import shlex
-from argparse import Action
-from typing import Any, Dict, List, get_type_hints
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional
 
-import ethicml as em
-from ethicml.data.tabular_data.adult import AdultSplits
-from tap import Tap
-from typing_extensions import Literal
+from omegaconf import MISSING
 
-__all__ = ["BaseArgs", "ParseList", "StoreDictKeyPair"]
+from .enums import (
+    AS,
+    BWLoss,
+    CA,
+    CL,
+    DM,
+    DS,
+    Enc,
+    GA,
+    InnRM,
+    InnSc,
+    MMDKer,
+    Meth,
+    PL,
+    QL,
+    RL,
+    VaeStd,
+)
 
-
-class StoreDictKeyPair(Action):
-    """Action for parsing dictionaries on the commandline."""
-
-    def __init__(
-        self, option_strings: Any, key_type: type, value_type: type, *args: Any, **kwargs: Any
-    ):
-        self._key_type = key_type
-        self._value_type = value_type
-        super().__init__(option_strings, *args, **kwargs)
-
-    def __call__(self, parser: Any, namespace: Any, values: Any, option_string: Any = None) -> None:
-        my_dict = {}
-        if isinstance(values, list) and len(values) == 1:
-            values = shlex.split(values[0])
-        for key_value in values:
-            key, value = key_value.split("=")
-            my_dict[self._key_type(key.strip())] = self._value_type(value.strip())
-        setattr(namespace, self.dest, my_dict)
-
-
-class ParseList(Action):
-    """Action for parsing dictionaries on the commandline."""
-
-    def __init__(self, option_strings: Any, value_type: type, *args: Any, **kwargs: Any):
-        self._value_type = value_type
-        super().__init__(option_strings, *args, **kwargs)
-
-    def __call__(self, parser: Any, namespace: Any, values: Any, option_string: Any = None) -> None:
-        my_list = []
-        if isinstance(values, list) and len(values) == 1:
-            values = shlex.split(values[0])
-        for value in values:
-            my_list.append(self._value_type(value.strip()))
-        setattr(namespace, self.dest, my_list)
+__all__ = [
+    "BaseArgs",
+    "BiasConfig",
+    "ClusterArgs",
+    "Config",
+    "DatasetConfig",
+    "EncoderConfig",
+    "FdmArgs",
+    "Misc",
+]
 
 
-class BaseArgs(Tap):
+@dataclass
+class DatasetConfig:
     """General data set settings."""
 
-    dataset: Literal["adult", "cmnist", "celeba", "genfaces"] = "cmnist"
+    dataset: DS = MISSING
 
     data_pcnt: float = 1.0  # data pcnt should be a real value > 0, and up to 1
-    mixing_factor: float = 0.0  # How much of context should be mixed into training?
     context_pcnt: float = 0.4
     test_pcnt: float = 0.2
-    data_split_seed: int = 888
     root: str = ""
-
-    # Dataset manipulation
-    missing_s: List[int] = []
 
     # Adult data set feature settings
     drop_native: bool = True
-    adult_split: AdultSplits = "Sex"
+    adult_split: AS = AS.Sex
     drop_discrete: bool = False
-    adult_biased_train: bool = True  # if True, make the training set biased, based on mixing factor
     adult_balanced_test: bool = True
     balance_all_quadrants: bool = True
 
@@ -79,25 +62,40 @@ class BaseArgs(Tap):
     shift_data: bool = False
     color_correlation: float = 1.0
     padding: int = 2  # by how many pixels to pad the cmnist images by
-    quant_level: Literal["3", "5", "8"] = "8"  # number of bits that encode color
+    quant_level: QL = QL.eight  # number of bits that encode color
+    input_noise: bool = False  # add uniform noise to the input
+    filter_labels: List[int] = field(default_factory=list)
+    colors: List[int] = field(default_factory=list)
+
+    # CelebA settings
+    celeba_sens_attr: CA = CA.Male
+    celeba_target_attr: CA = CA.Smiling
+
+    # GenFaces settings
+    genfaces_sens_attr: GA = GA.gender
+    genfaces_target_attr: GA = GA.emotion
+
+
+@dataclass
+class BiasConfig:
+    # Dataset manipulation
+    missing_s: List[int] = MISSING
+    mixing_factor: float = MISSING  # How much of context should be mixed into training?
+    adult_biased_train: bool = (
+        MISSING  # if True, make the training set biased, based on mixing factor
+    )
     # the subsample flags work like this: you give it a class id and a fraction in the form of a
     # float. the class id is given by class_id = y * s_count + s, so for binary s and y, the
     # correspondance is like this:
     # 0: y=0/s=0, 1: y=0/s=1, 2: y=1/s=0, 3: y=1/s=1
-    subsample_context: Dict[int, float] = {}
-    subsample_train: Dict[int, float] = {}
-    input_noise: bool = False  # add uniform noise to the input
-    filter_labels: List[int] = []
-    colors: List[int] = []
+    subsample_context: Dict[str, float] = MISSING
+    subsample_train: Dict[str, float] = MISSING
 
-    # CelebA settings
-    celeba_sens_attr: em.CelebAttrs = "Male"
-    celeba_target_attr: em.CelebAttrs = "Smiling"
+    log_dataset: str = ""
 
-    # GenFaces settings
-    genfaces_sens_attr: em.GenfacesAttributes = "gender"
-    genfaces_target_attr: em.GenfacesAttributes = "emotion"
 
+@dataclass
+class Misc:
     # Cluster settings
     cluster_label_file: str = ""
 
@@ -105,104 +103,195 @@ class BaseArgs(Tap):
     exp_group: str = ""  # experiment group; should be unique for a specific setting
     log_method: str = ""  # arbitrary string that's appended to the experiment group name
     use_wandb: bool = True
+    gpu: int = 0  # which GPU to use (if available)
+    seed: int = MISSING
+    data_split_seed: int = MISSING
+    save_dir: str = "experiments/finn"
+    results_csv: str = ""  # name of CSV file to save results to
+    resume: Optional[str] = None
+    evaluate: bool = False
+    num_workers: int = 4
 
-    # Global variables
-    _s_dim: int
-    _y_dim: int
+    _s_dim: int = MISSING
+    _y_dim: int = MISSING
+    _device: str = MISSING
 
-    def add_arguments(self) -> None:
-        super().add_arguments()
-        self.add_argument("--missing-s", action=ParseList, nargs="*", type=str, value_type=int)
-        self.add_argument("--filter-labels", action=ParseList, nargs="*", type=str, value_type=int)
-        self.add_argument("--colors", action=ParseList, nargs="*", type=str, value_type=int)
-        self.add_argument(
-            "--subsample-context",
-            action=StoreDictKeyPair,
-            nargs="*",
-            default={},
-            type=str,
-            key_type=int,
-            value_type=float,
-        )
-        self.add_argument(
-            "--subsample-train",
-            action=StoreDictKeyPair,
-            nargs="*",
-            default={},
-            type=str,
-            key_type=int,
-            value_type=float,
-        )
 
-    def process_args(self) -> None:
-        super().process_args()
-        if not 0 < self.data_pcnt <= 1:
-            raise ValueError("data_pcnt has to be between 0 and 1")
+@dataclass
+class ClusterArgs:
+    """Flags for clustering."""
 
-    def convert_arg_line_to_args(self, arg_line: str) -> List[str]:
-        """Parse each line like a YAML file."""
-        arg_line = arg_line.split("#", maxsplit=1)[0]  # split off comments
-        if not arg_line.strip():  # empty line
-            return []
-        key, value = arg_line.split(sep=":", maxsplit=1)
-        key = key.rstrip()
-        value = value.strip()
-        if key[0] in (" ", "\t"):
-            key = key.strip()
-            return [f"{key}={value}"]
-        if not value:  # no associated value
-            values: List[str] = []
-        elif value[0] == '"' and value[-1] == '"':  # if wrapped in quotes, don't split further
-            values = [value[1:-1]]
-        else:
-            values = value.split()
-        if len(values) == 1 and values[0] in ("true", "false"):
-            values = [values[0].title()]
-        key = key.replace("_", "-")
-        return [f"--{key}"] + values
+    # Optimization settings
+    early_stopping: int = 30
+    epochs: int = 250
+    batch_size: int = 256
+    test_batch_size: Optional[int] = None
 
-    def as_dict(self) -> Dict[str, Any]:
-        """Returns the member variables corresponding to the class variable arguments.
+    # Evaluation settings
+    eval_epochs: int = 40
+    eval_lr: float = 1e-3
+    encode_batch_size: int = 1000
 
-        :return: A dictionary mapping each argument's name to its value.
-        """
-        if not self._parsed:
-            raise ValueError("You should call `parse_args` before retrieving arguments.")
+    # Training settings
+    val_freq: int = 5
+    log_freq: int = 50
+    feat_attr: bool = False
+    cluster: CL = CL.both
+    with_supervision: bool = True
 
-        return {var: getattr(self, var) for var in self._get_argument_names()}
+    # Encoder settings
+    encoder: Enc = Enc.ae
+    vgg_weight: float = 0
+    vae_std_tform: VaeStd = VaeStd.exp
+    kl_weight: float = 1
+    elbo_weight: float = 1
+    stochastic: bool = False
+    enc_path: str = ""
+    enc_epochs: int = 100
+    enc_lr: float = 1e-3
+    enc_wd: float = 0
+    enc_wandb: bool = False
+    finetune_encoder: bool = False
+    finetune_lr: float = 1e-6
+    finetune_wd: float = 0
+    freeze_layers: int = 0
 
-    def _get_annotations(self) -> Dict[str, Any]:
-        """Returns a dictionary mapping variable names to their type annotations."""
-        all_annotations = self._get_from_self_and_super(
-            extract_func=lambda super_class: dict(get_type_hints(super_class))
-        )
-        return {k: v for k, v in all_annotations.items() if not k.startswith("_")}
+    # PseudoLabeler
+    pseudo_labeler: PL = PL.ranking
+    sup_ce_weight: float = 1.0
+    sup_bce_weight: float = 1.0
+    k_num: int = 5
+    lower_threshold: float = 0.5
+    upper_threshold: float = 0.5
 
-    def _add_arguments(self) -> None:
-        """Add arguments to self in the order they are defined as class variables (so the help string is in order)."""
-        # Add class variables (in order)
-        for variable in self._annotations:
-            if variable in self.argument_buffer:
-                name_or_flags, kwargs = self.argument_buffer[variable]
-                self._add_argument(*name_or_flags, **kwargs)
-            else:
-                flag_name = variable.replace("_", "-") if self._underscores_to_dashes else variable
-                self._add_argument(f"--{flag_name}")
+    # Classifier
+    cl_hidden_dims: List[int] = field(default_factory=lambda: [256])
+    lr: float = 1e-3
+    weight_decay: float = 0
+    use_multi_head: bool = False
 
-        # Add any arguments that were added manually in add_arguments but aren't class variables (in order)
-        for variable, (name_or_flags, kwargs) in self.argument_buffer.items():
-            if variable not in self._annotations:
-                self._add_argument(*name_or_flags, **kwargs)
+    # Method
+    method: Meth = Meth.pl_enc_no_norm
 
-    def __str__(self) -> str:
-        """Returns a string representation of self.
+    #  Labeler
+    labeler_lr: float = 1e-3
+    labeler_wd: float = 0
+    labeler_hidden_dims: List[int] = field(default_factory=lambda: [100, 100])
+    labeler_epochs: int = 100
+    labeler_wandb: bool = False
 
-        Returns:
-            A formatted string representation of the dictionary of all arguments.
-        """
-        args_dict = self.as_dict()
-        formatted = []
-        for k in sorted(args_dict):
-            v = args_dict[k]
-            formatted.append(f'{k}="{v}"' if isinstance(v, str) else f"{k}={v}")
-        return "Namespace(" + ", ".join(formatted) + ")"
+
+@dataclass
+class EncoderConfig:
+    """Flags for the encoder."""
+
+    out_dim: int = 64
+    levels: int = 4
+    init_chans: int = 32
+    recon_loss: RL = RL.l2
+
+
+@dataclass
+class FdmArgs:
+    """Flags for disentangling."""
+
+    # Optimization settings
+    early_stopping: int = 30
+    iters: int = 50_000
+    batch_size: int = 256
+    test_batch_size: Optional[int] = None
+    weight_decay: float = 0
+    warmup_steps: int = 0
+    distinguish_warmup: bool = False
+    gamma: float = 1.0  # Gamma value for Exponential Learning Rate scheduler.
+    train_on_recon: bool = False  # whether to train the discriminator on recons or encodings
+    recon_detach: bool = True  # Whether to apply the stop gradient operator to the reconstruction.
+    eval_on_recon: bool = False
+    balanced_context: bool = False  # Whether to balance the context set with groundtruth labels
+    oversample: bool = False  # Whether to oversample when doing weighted sampling.
+
+    # Evaluation settings
+    eval_epochs: int = 40
+    eval_lr: float = 1e-3
+    encode_batch_size: int = 1000
+
+    # Misc
+    validate: bool = True
+    val_freq: int = 1_000  # how often to do validation
+    log_freq: int = 50
+    feat_attr: bool = False
+
+    # Encoder settings
+    use_pretrained_enc: bool = True
+    snorm: bool = False
+    zs_frac: float = 0.1
+
+    vgg_weight: float = 0
+    vae: bool = False
+    vae_std_tform: VaeStd = VaeStd.exp
+    stochastic: bool = False
+
+    # INN settings
+    use_inn: bool = False
+    inn_levels: int = 1
+    inn_level_depth: int = 1
+    inn_reshape_method: InnRM = InnRM.squeeze
+    inn_coupling_channels: int = 256
+    inn_coupling_depth: int = 1
+    inn_glow: bool = True
+    inn_batch_norm: bool = False
+    inn_bn_lag: float = 0  # fraction of current statistics to incorporate into moving average
+    inn_factor_splits: Dict[str, int] = field(default_factory=dict)
+    inn_idf: bool = False
+    inn_scaling: InnSc = InnSc.sigmoid0_5
+    inn_spectral_norm: bool = False
+    inn_oxbow_net: bool = False
+    inn_lr: float = 3e-4
+    nll_weight: float = 1e-2
+    recon_stability_weight: float = 0
+    path_to_ae: str = ""
+    ae_epochs: int = 5
+    num_discs: int = 1
+    disc_reset_prob: float = 0.0
+
+    # Discriminator settings
+    disc_method: DM = DM.nn
+    mmd_kernel: MMDKer = MMDKer.rq
+    mmd_scales: List[float] = field(default_factory=list)
+    mmd_wts: List[float] = field(default_factory=list)
+    mmd_add_dot: float = 0.0
+
+    disc_hidden_dims: List[int] = field(default_factory=lambda: [256])
+    aggregator: BWLoss = BWLoss.none
+    aggregator_input_dim: int = 32
+    aggregator_hidden_dims: List[int] = field(default_factory=list)
+    aggregator_kwargs: Dict[str, int] = field(default_factory=dict)
+
+    # Training settings
+    lr: float = 1e-3
+    disc_lr: float = 3e-4
+    kl_weight: float = 0
+    elbo_weight: float = 1
+    disc_weight: float = 1
+    num_disc_updates: int = 3
+    distinguish_weight: float = 1
+    pred_y_weight: float = 1
+    pred_s_weight: float = 0
+
+
+@dataclass
+class BaseArgs:
+    """Minimum needed config to do data loading."""
+
+    data: DatasetConfig = MISSING
+    bias: BiasConfig = MISSING
+    misc: Misc = MISSING
+
+
+@dataclass
+class Config(BaseArgs):
+    """Config used for clustering and disentangling."""
+
+    clust: ClusterArgs = MISSING
+    enc: EncoderConfig = MISSING
+    fdm: FdmArgs = MISSING

@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Optional, Tuple, Union
 
 import torch
@@ -12,6 +13,8 @@ from tqdm import trange
 from fdm.models.base import ModelBase
 
 __all__ = ["Classifier", "Regressor"]
+
+log = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 class Classifier(ModelBase):
@@ -193,7 +196,7 @@ class Classifier(ModelBase):
         if lr_milestones is not None:
             scheduler = MultiStepLR(optimizer=self.optimizer, **lr_milestones)
 
-        print("Training classifier...", flush=True)  # flush to avoid conflict with tqdm
+        log.info("Training classifier...")
         pbar = trange(epochs)
         for epoch in pbar:
             self.model.train()

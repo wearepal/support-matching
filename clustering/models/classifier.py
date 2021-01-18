@@ -1,4 +1,5 @@
-from typing import Dict, Optional, Sequence, Tuple, Union
+import logging
+from typing import Dict, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -12,6 +13,8 @@ from clustering.models.base import ModelBase
 from shared.utils import wandb_log
 
 __all__ = ["Classifier", "Regressor"]
+
+log = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 class Classifier(ModelBase):
@@ -142,12 +145,6 @@ class Classifier(ModelBase):
         test_batch_size: int = 1000,
         lr_milestones: Optional[Dict] = None,
     ) -> None:
-        use_wandb_ = use_wandb
-
-        class _Namespace:
-            use_wandb: bool = use_wandb_
-
-        args = _Namespace()
         if not isinstance(train_data, DataLoader):
             train_data = DataLoader(
                 train_data, batch_size=batch_size, shuffle=True, pin_memory=True
@@ -162,7 +159,7 @@ class Classifier(ModelBase):
         if lr_milestones is not None:
             scheduler = MultiStepLR(optimizer=self.optimizer, **lr_milestones)
 
-        print("Training classifier...", flush=True)  # flush to avoid conflict with tqdm
+        log.info("Training classifier...")
         pbar = trange(epochs)
         for epoch in pbar:
             self.model.train()
@@ -179,7 +176,7 @@ class Classifier(ModelBase):
                 loss, acc = self.routine(x, target)
                 loss.backward()
                 self.optimizer.step()
-                wandb_log(args, {"loss": loss.item()}, step=step)
+                wandb_log(use_wandb, {"loss": loss.item()}, step=step)
                 pbar.set_postfix(epoch=epoch + 1, train_loss=loss.item(), train_acc=acc)
 
             if test_data is not None:

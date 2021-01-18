@@ -1,0 +1,6 @@
+# @package data
+dataset: adult
+drop_native: true
+input_noise: false
+adult_balanced_test: true
+balance_all_quadrants: true

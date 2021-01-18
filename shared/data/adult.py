@@ -1,4 +1,5 @@
 """Definition of the Adult dataset"""
+import logging
 from typing import List, NamedTuple, Tuple
 
 import ethicml as em
@@ -12,6 +13,8 @@ from shared.configs import BaseArgs
 from .dataset_wrappers import DataTupleDataset
 
 __all__ = ["get_data_tuples", "load_adult_data", "pytorch_data_to_dataframe"]
+
+log = logging.getLogger(__name__.split(".")[-1].upper())
 
 ADULT_DATASET: em.Dataset = None  # type: ignore[assignment]
 SENS_ATTRS: List[str] = []
@@ -65,13 +68,20 @@ def get_invisible_demographics(
     # one group is missing
     if missing_s:
         if len(missing_s) == 1 and missing_s[0] == 0:
-            query = f"(`{s_name}` == {s[1]} & `{y_name}` == {y[0]}) | (`{s_name}` == {s[1]} & `{y_name}` == {y[1]})"
-            print("removing s=0")
+            query = (
+                f"(`{s_name}` == {s[1]} & `{y_name}` == {y[0]})"
+                f" | (`{s_name}` == {s[1]} & `{y_name}` == {y[1]})"
+            )
+            log.info("removing s=0")
         else:
             raise ValueError(f"Unsupported missing group {missing_s}")
     else:
-        query = f"(`{s_name}` == {s[0]} & `{y_name}` == {y[0]}) | (`{s_name}` == {s[1]} & `{y_name}` == {y[0]}) | (`{s_name}` == {s[1]} & `{y_name}` == {y[1]})"
-        print("ensuring that only one group is missing")
+        query = (
+            f"(`{s_name}` == {s[0]} & `{y_name}` == {y[0]})"
+            f" | (`{s_name}` == {s[1]} & `{y_name}` == {y[0]})"
+            f" | (`{s_name}` == {s[1]} & `{y_name}` == {y[1]})"
+        )
+        log.info("ensuring that only one group is missing")
     one_s_only = em.query_dt(for_biased_subset, query)
 
     one_s_only = one_s_only.replace(name=f"{data.name})")
@@ -79,9 +89,11 @@ def get_invisible_demographics(
     return one_s_only, normal_subset
 
 
-def load_adult_data(args: BaseArgs) -> Tuple[DataTupleDataset, DataTupleDataset, DataTupleDataset]:
+def load_adult_data(cfg: BaseArgs) -> Tuple[DataTupleDataset, DataTupleDataset, DataTupleDataset]:
     global ADULT_DATASET
-    ADULT_DATASET = em.adult(split=args.adult_split, binarize_nationality=args.drop_native)
+    ADULT_DATASET = em.adult(
+        split=cfg.data.adult_split.name, binarize_nationality=cfg.data.drop_native
+    )
     data = ADULT_DATASET.load(ordered=True)
     global SENS_ATTRS
     SENS_ATTRS = data.s.columns
@@ -90,7 +102,7 @@ def load_adult_data(args: BaseArgs) -> Tuple[DataTupleDataset, DataTupleDataset,
     assert disc_feature_groups is not None
     cont_feats = ADULT_DATASET.continuous_features
 
-    tuples: DataTupleTriplet = biased_split(args, data)
+    tuples: DataTupleTriplet = biased_split(cfg, data)
     context, test, train = tuples.context, tuples.test, tuples.train
 
     scaler = StandardScaler()
@@ -102,7 +114,7 @@ def load_adult_data(args: BaseArgs) -> Tuple[DataTupleDataset, DataTupleDataset,
     context_x = context.x
     context_x[cont_feats] = scaler.transform(context.x[cont_feats].to_numpy(np.float32))
 
-    if args.drop_discrete:
+    if cfg.data.drop_discrete:
         context_x = context_x[cont_feats]
         train_x = train_x[cont_feats]
         test_x = test_x[cont_feats]
@@ -125,34 +137,34 @@ def load_adult_data(args: BaseArgs) -> Tuple[DataTupleDataset, DataTupleDataset,
     return context_dataset, train_dataset, test_dataset
 
 
-def biased_split(args: BaseArgs, data: em.DataTuple) -> DataTupleTriplet:
+def biased_split(cfg: BaseArgs, data: em.DataTuple) -> DataTupleTriplet:
     """Split the dataset such that the training set is biased."""
-    if args.adult_biased_train:
+    if cfg.bias.adult_biased_train:
         train_tuple, unbiased = get_invisible_demographics(  # get_biased_subset(
             data=data,
             # mixing_factor=args.mixing_factor,
-            unbiased_pcnt=args.test_pcnt + args.context_pcnt,
-            seed=args.data_split_seed,
-            missing_s=args.missing_s,
+            unbiased_pcnt=cfg.data.test_pcnt + cfg.data.context_pcnt,
+            seed=cfg.misc.data_split_seed,
+            missing_s=cfg.bias.missing_s,
         )
     else:
         train_tuple, unbiased, _ = em.BalancedTestSplit(
-            train_percentage=1 - args.test_pcnt - args.context_pcnt,
-            start_seed=args.data_split_seed,
+            train_percentage=1 - cfg.data.test_pcnt - cfg.data.context_pcnt,
+            start_seed=cfg.misc.data_split_seed,
         )(data)
 
-    context_pcnt = args.context_pcnt / (args.test_pcnt + args.context_pcnt)
+    context_pcnt = cfg.data.context_pcnt / (cfg.data.test_pcnt + cfg.data.context_pcnt)
     context_splitter: em.DataSplitter
 
-    if args.adult_balanced_test and args.adult_biased_train:
+    if cfg.data.adult_balanced_test and cfg.bias.adult_biased_train:
         context_splitter = em.BalancedTestSplit(
             train_percentage=context_pcnt,
-            start_seed=args.data_split_seed,
-            balance_type="P(s,y)=0.25" if args.balance_all_quadrants else "P(s|y)=0.5",
+            start_seed=cfg.misc.data_split_seed,
+            balance_type="P(s,y)=0.25" if cfg.data.balance_all_quadrants else "P(s|y)=0.5",
         )
     else:
         context_splitter = em.ProportionalSplit(
-            train_percentage=context_pcnt, start_seed=args.data_split_seed
+            train_percentage=context_pcnt, start_seed=cfg.misc.data_split_seed
         )
     context_tuple, test_tuple, _ = context_splitter(unbiased)
     return DataTupleTriplet(context=context_tuple, test=test_tuple, train=train_tuple)

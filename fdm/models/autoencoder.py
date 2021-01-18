@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from typing_extensions import Literal
 
+from shared.configs import VaeStd
 from shared.utils import sample_concrete, to_discrete
 
 from .base import EncodingSize, ModelBase, Reconstructions, SplitEncoding
@@ -144,7 +145,7 @@ class VAE(AutoEncoder):
         encoder: nn.Module,
         decoder: nn.Module,
         encoding_size: Optional[EncodingSize],
-        vae_std_tform: Literal["softplus", "exp"],
+        vae_std_tform: VaeStd,
         feature_group_slices: Optional[Dict[str, List[slice]]] = None,
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
     ):
@@ -186,7 +187,7 @@ class VAE(AutoEncoder):
         loc, scale = self.encoder(x).chunk(2, dim=1)
 
         if stochastic or return_posterior:
-            if self.vae_std_tform == "softplus":
+            if self.vae_std_tform == VaeStd.softplus:
                 scale = F.softplus(scale)
             else:
                 scale = torch.exp(0.5 * scale).clamp(min=0.005, max=3.0)

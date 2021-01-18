@@ -1,6 +1,8 @@
+import logging
 from pathlib import Path
-from typing import Optional, Sequence, Tuple
+from typing import Dict, Optional, Sequence, Tuple
 
+import ethicml as em
 import numpy as np
 import torch
 from torch import Tensor
@@ -8,55 +10,65 @@ from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import tqdm
 from typing_extensions import Literal
 
-import ethicml as em
-from fdm.configs import FdmArgs
-from fdm.models import AutoEncoder, Classifier
-import pandas as pd
+from fdm.models import AutoEncoder
+from fdm.models.classifier import Classifier
+from shared.configs.arguments import Config
+from shared.configs.enums import DS
 from shared.data import DatasetTriplet, get_data_tuples
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import ModelFn, compute_metrics, make_tuple_from_data, prod
 
 from .utils import log_images
 
+log = logging.getLogger(__name__.split(".")[-1].upper())
 
-def log_sample_images(args, data, name, step):
+
+def log_sample_images(cfg: Config, data, name, step):
     data_loader = DataLoader(data, shuffle=False, batch_size=64)
     x, _, _ = next(iter(data_loader))
-    log_images(args, x, f"Samples from {name}", prefix="eval", step=step)
+    log_images(cfg, x, f"Samples from {name}", prefix="eval", step=step)
 
 
 def log_metrics(
-    args: FdmArgs, model, data: DatasetTriplet, step: int, save_to_csv: Optional[Path] = None
+    cfg: Config,
+    model,
+    data: DatasetTriplet,
+    step: int,
+    save_to_csv: Optional[Path] = None,
+    cluster_test_metrics: Optional[Dict[str, float]] = None,
+    cluster_context_metrics: Optional[Dict[str, float]] = None,
 ) -> None:
     """Compute and log a variety of metrics."""
     model.eval()
 
-    print("Encoding training set...")
+    log.info("Encoding training set...")
     train_inv_s = encode_dataset(
-        args, data.train, model, recons=args.eval_on_recon, invariant_to="s"
+        cfg, data.train, model, recons=cfg.fdm.eval_on_recon, invariant_to="s"
     )
-    if args.eval_on_recon:
+    if cfg.fdm.eval_on_recon:
         # don't encode test dataset
         test_repr = data.test
     else:
-        test_repr = encode_dataset(args, data.test, model, recons=False, invariant_to="s")
+        test_repr = encode_dataset(cfg, data.test, model, recons=False, invariant_to="s")
 
-    print("\nComputing metrics...")
+    log.info("\nComputing metrics...")
     evaluate(
-        args,
+        cfg,
         step,
         train_inv_s,
         test_repr,
         name="x_zero_s",
-        eval_on_recon=args.eval_on_recon,
+        eval_on_recon=cfg.fdm.eval_on_recon,
         pred_s=False,
         save_to_csv=save_to_csv,
+        cluster_test_metrics=cluster_test_metrics,
+        cluster_context_metrics=cluster_context_metrics,
     )
 
 
-def baseline_metrics(args: FdmArgs, data: DatasetTriplet, save_to_csv: Optional[Path]) -> None:
-    if args.dataset not in ("cmnist", "celeba", "ssrp", "genfaces"):
-        print("Baselines...")
+def baseline_metrics(cfg: Config, data: DatasetTriplet, save_to_csv: Optional[Path]) -> None:
+    if cfg.data.dataset not in (DS.cmnist, DS.celeba):
+        log.info("Baselines...")
         train_data = data.train
         test_data = data.test
         if not isinstance(train_data, em.DataTuple):
@@ -73,20 +85,20 @@ def baseline_metrics(args: FdmArgs, data: DatasetTriplet, save_to_csv: Optional[
         ]:
             preds = clf.run(train_data, test_data)
             compute_metrics(
-                args=args,
+                cfg=cfg,
                 predictions=preds,
                 actual=test_data,
                 exp_name="original_data",
                 model_name=clf.name,
                 step=0,
                 save_to_csv=save_to_csv,
-                results_csv=args.results_csv,
+                results_csv=cfg.misc.results_csv,
                 use_wandb=False,
             )
 
 
 def fit_classifier(
-    args: FdmArgs,
+    cfg: Config,
     input_shape: Sequence[int],
     train_data: DataLoader,
     train_on_recon: bool,
@@ -95,27 +107,33 @@ def fit_classifier(
 ) -> Classifier:
     input_dim = input_shape[0]
     clf_fn: ModelFn
-    if args.dataset == "cmnist" and train_on_recon:
+    if cfg.data.dataset == DS.cmnist and train_on_recon:
         clf_fn = Mp32x23Net(batch_norm=True)
-    elif args.dataset in ("celeba", "ssrp", "genfaces") and train_on_recon:
+    elif cfg.data.dataset in (DS.celeba, DS.genfaces) and train_on_recon:
         clf_fn = Mp64x64Net(batch_norm=True)
     else:
         clf_fn = FcNet(hidden_dims=None)
         input_dim = prod(input_shape)
-    clf = clf_fn(input_dim, target_dim=args._y_dim)
+    clf = clf_fn(input_dim, target_dim=cfg.misc._y_dim)
 
-    n_classes = args._y_dim if args._y_dim > 1 else 2
-    clf: Classifier = Classifier(clf, num_classes=n_classes, optimizer_kwargs={"lr": args.eval_lr})
-    clf.to(args._device)
+    n_classes = cfg.misc._y_dim if cfg.misc._y_dim > 1 else 2
+    clf: Classifier = Classifier(
+        clf, num_classes=n_classes, optimizer_kwargs={"lr": cfg.fdm.eval_lr}
+    )
+    clf.to(cfg.misc._device)
     clf.fit(
-        train_data, test_data=test_data, epochs=args.eval_epochs, device=args._device, pred_s=pred_s
+        train_data,
+        test_data=test_data,
+        epochs=cfg.fdm.eval_epochs,
+        device=cfg.misc._device,
+        pred_s=pred_s,
     )
 
     return clf
 
 
 def evaluate(
-    args: FdmArgs,
+    cfg: Config,
     step: int,
     train_data: "Dataset[Tuple[Tensor, Tensor, Tensor]]",
     test_data: "Dataset[Tuple[Tensor, Tensor, Tensor]]",
@@ -123,20 +141,29 @@ def evaluate(
     eval_on_recon: bool = True,
     pred_s: bool = False,
     save_to_csv: Optional[Path] = None,
+    cluster_test_metrics: Optional[Dict[str, float]] = None,
+    cluster_context_metrics: Optional[Dict[str, float]] = None,
 ):
     input_shape = next(iter(train_data))[0].shape
+    additional_entries = {}
+    if cluster_test_metrics is not None:
+        additional_entries.update({f"Clust/Test {k}": v for k, v in cluster_test_metrics.items()})
+    if cluster_context_metrics is not None:
+        additional_entries.update(
+            {f"Clust/Context {k}": v for k, v in cluster_context_metrics.items()}
+        )
 
-    if args.dataset in ("cmnist", "celeba", "ssrp", "genfaces"):
+    if cfg.data.dataset in (DS.cmnist, DS.celeba):
 
         train_loader = DataLoader(
-            train_data, batch_size=args.batch_size, shuffle=True, pin_memory=True
+            train_data, batch_size=cfg.fdm.batch_size, shuffle=True, pin_memory=True
         )
         test_loader = DataLoader(
-            test_data, batch_size=args.test_batch_size, shuffle=False, pin_memory=True
+            test_data, batch_size=cfg.fdm.test_batch_size, shuffle=False, pin_memory=True
         )
 
         clf: Classifier = fit_classifier(
-            args,
+            cfg,
             input_shape,
             train_data=train_loader,
             train_on_recon=eval_on_recon,
@@ -144,27 +171,30 @@ def evaluate(
             test_data=test_loader,
         )
 
-        preds, labels, sens = clf.predict_dataset(test_loader, device=args._device)
+        preds, labels, sens = clf.predict_dataset(
+            test_loader, device=torch.device(cfg.misc._device)
+        )
         preds = em.Prediction(hard=pd.Series(preds))
-        if args.dataset == "cmnist":
+        if cfg.data.dataset == DS.cmnist:
             sens_name = "colour"
-        elif args.dataset == "celeba":
-            sens_name = args.celeba_sens_attr
+        elif cfg.data.dataset == DS.celeba:
+            sens_name = cfg.data.celeba_sens_attr
         else:
             sens_name = "sens_Label"
         sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=[sens_name])
         labels_pd = pd.DataFrame(labels, columns=["labels"])
         actual = em.DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels_pd)
         compute_metrics(
-            args,
+            cfg,
             preds,
             actual,
             name,
             "pytorch_classifier",
             step=step,
             save_to_csv=save_to_csv,
-            results_csv=args.results_csv,
-            use_wandb=args.use_wandb,
+            results_csv=cfg.misc.results_csv,
+            use_wandb=cfg.misc.use_wandb,
+            additional_entries=additional_entries,
         )
     else:
         if not isinstance(train_data, em.DataTuple):
@@ -174,44 +204,45 @@ def evaluate(
         for eth_clf in [em.LR(), em.LRCV()]:  # , em.LRCV(), em.SVM(kernel="linear")]:
             preds = eth_clf.run(train_data, test_data)
             compute_metrics(
-                args,
+                cfg,
                 preds,
                 test_data,
                 name,
                 eth_clf.name,
                 step=step,
                 save_to_csv=save_to_csv,
-                results_csv=args.results_csv,
-                use_wandb=args.use_wandb,
+                results_csv=cfg.misc.results_csv,
+                use_wandb=cfg.misc.use_wandb,
+                additional_entries=additional_entries,
             )
 
 
 def encode_dataset(
-    args: FdmArgs,
+    cfg: Config,
     data: Dataset,
     generator: AutoEncoder,
     recons: bool,
     invariant_to: Literal["s", "y"] = "s",
 ) -> "TensorDataset":
-    print("Encoding dataset...", flush=True)  # flush to avoid conflict with tqdm
+    log.info("Encoding dataset...")
     all_x_m = []
     all_s = []
     all_y = []
 
     data_loader = DataLoader(
-        data, batch_size=args.encode_batch_size, pin_memory=True, shuffle=False, num_workers=0
+        data, batch_size=cfg.fdm.encode_batch_size, pin_memory=True, shuffle=False, num_workers=0
     )
 
     with torch.set_grad_enabled(False):
         for x, s, y in tqdm(data_loader):
 
-            x = x.to(args._device, non_blocking=True)
+            x = x.to(cfg.misc._device, non_blocking=True)
             all_s.append(s)
             all_y.append(y)
 
             enc = generator.encode(x, stochastic=False)
             if recons:
-                if args.train_on_recon:
+                if cfg.fdm.train_on_recon:
                     zs_m, zy_m = generator.mask(enc, random=True)
                 else:
                     # if we didn't train with the random encodings, it probably doesn't make much
@@ -220,7 +251,7 @@ def encode_dataset(
                 z_m = zs_m if invariant_to == "s" else zy_m
                 x_m = generator.decode(z_m, mode="hard")
 
-                if args.dataset in ("celeba", "ssrp", "genfaces"):
+                if cfg.data.dataset in (DS.celeba, DS.genfaces):
                     x_m = 0.5 * x_m + 0.5
                 if x.dim() > 2:
                     x_m = x_m.clamp(min=0, max=1)
@@ -236,6 +267,6 @@ def encode_dataset(
     all_y = torch.cat(all_y, dim=0)
 
     encoded_dataset = TensorDataset(all_x_m, all_s, all_y)
-    print("Done.")
+    log.info("Done.")
 
     return encoded_dataset

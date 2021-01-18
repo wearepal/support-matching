@@ -1,13 +1,15 @@
+import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import torch
 import torchvision
 import wandb
+from omegaconf import OmegaConf
 from torch import Tensor, nn
 
-from fdm.configs import FdmArgs
-from shared.utils import class_id_to_label, wandb_log
+from shared.configs import DS, RL, Config
+from shared.utils import class_id_to_label, flatten, wandb_log
 
 __all__ = [
     "get_all_num_samples",
@@ -18,18 +20,27 @@ __all__ = [
     "weights_with_counts",
 ]
 
+log = logging.getLogger(__name__.split(".")[-1].upper())
+
 
 def log_images(
-    args: FdmArgs, image_batch, name, step, nsamples=64, nrows=8, monochrome=False, prefix=None
+    cfg: Config,
+    image_batch,
+    name,
+    step,
+    nsamples=64,
+    nrows=8,
+    monochrome=False,
+    prefix=None,
 ):
     """Make a grid of the given images, save them in a file and log them with W&B"""
     prefix = "train_" if prefix is None else f"{prefix}_"
     images = image_batch[:nsamples]
 
-    if args.recon_loss == "ce":
+    if cfg.enc.recon_loss == RL.ce:
         images = images.argmax(dim=1).float() / 255
     else:
-        if args.dataset in ("celeba", "ssrp", "genfaces"):
+        if cfg.data.dataset in (DS.celeba, DS.genfaces):
             images = 0.5 * images + 0.5
 
     if monochrome:
@@ -37,21 +48,21 @@ def log_images(
     # torchvision.utils.save_image(images, f'./experiments/finn/{prefix}{name}.png', nrow=nrows)
     shw = torchvision.utils.make_grid(images, nrow=nrows).clamp(0, 1).cpu()
     wandb_log(
-        args,
+        cfg.misc,
         {prefix + name: [wandb.Image(torchvision.transforms.functional.to_pil_image(shw))]},
         step=step,
     )
 
 
 def save_model(
-    args: FdmArgs, save_dir: Path, model: nn.Module, itr: int, sha: str, best: bool = False
+    cfg: Config, save_dir: Path, model: nn.Module, itr: int, sha: str, best: bool = False
 ) -> Path:
     if best:
         filename = save_dir / "checkpt_best.pth"
     else:
         filename = save_dir / f"checkpt_epoch{itr}.pth"
     save_dict = {
-        "args": args.as_dict(),
+        "args": flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
         "sha": sha,
         "model": model.state_dict(),
         "itr": itr,
@@ -62,10 +73,10 @@ def save_model(
     return filename
 
 
-def restore_model(args: FdmArgs, filename: Path, model: nn.Module):
+def restore_model(cfg: Config, filename: Path, model: nn.Module):
     chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
     args_chkpt = chkpt["args"]
-    assert args.enc_levels == args_chkpt["levels"]
+    assert cfg.enc.levels == args_chkpt["enc.levels"]
 
     model.load_state_dict(chkpt["model"])
     return model, chkpt["itr"]
@@ -91,8 +102,8 @@ def weight_for_balance(
         for cluster, count in zip(unique, counts):
             count_int = int(count)
             if count_int < min_size:
-                print(f"Dropping cluster {cluster} with only {count_int} elements.")
-                print("Consider setting --oversample to True (or improve clustering).")
+                log.info(f"Dropping cluster {cluster} with only {count_int} elements.")
+                log.info("Consider setting --oversample to True (or improve clustering).")
                 weights[cluster] = 0  # skip this cluster
                 n_used_clusters -= 1
             elif count_int < smallest_used_cluster:

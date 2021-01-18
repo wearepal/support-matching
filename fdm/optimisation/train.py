@@ -1,6 +1,7 @@
 """Main training file"""
+from __future__ import annotations
 from collections import defaultdict
-from functools import partial
+import logging
 import os
 from pathlib import Path
 import time
@@ -13,18 +14,19 @@ from typing import (
     Sequence,
     Tuple,
     Union,
+    cast,
 )
 
 import git
 import numpy as np
 import torch
 from torch import Tensor
+from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset, Subset, WeightedRandomSampler
+from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from typing_extensions import Literal
 
-from fdm.configs import FdmArgs
 from fdm.models import (
     AutoEncoder,
     Classifier,
@@ -33,24 +35,38 @@ from fdm.models import (
     build_discriminator,
 )
 from fdm.models.configs import Residual64x64Net, Strided28x28Net
-from fdm.models.set_transformer import SetTransformer
 from fdm.optimisation.mmd import mmd2
+from hydra.utils import to_absolute_path
+from omegaconf import OmegaConf
+from shared.configs import (
+    BWLoss,
+    Config,
+    DS,
+    DatasetConfig,
+    EncoderConfig,
+    FdmArgs,
+    Misc,
+    RL,
+)
 from shared.data import DatasetTriplet, load_dataset
 from shared.layers import (
     Aggregator,
     AttentionAggregator,
+    GatedAttention,
     SimpleAggregator,
     SimpleAggregatorT,
 )
-from shared.layers.aggregation import GatedAttention
-from shared.models.configs import conv_autoencoder, fc_autoencoder
-from shared.models.configs.classifiers import FcNet, ModelAggregatorWrapper
+from shared.models.configs import (
+    FcNet,
+    ModelAggregatorWrapper,
+    conv_autoencoder,
+    fc_autoencoder,
+)
 from shared.utils import (
     AverageMeter,
     ModelFn,
-    accept_prefixes,
-    confirm_empty,
     count_parameters,
+    flatten,
     inf_generator,
     label_to_class_id,
     load_results,
@@ -61,10 +77,10 @@ from shared.utils import (
 )
 import wandb
 
-from .build import build_ae, build_inn
+from .build import build_ae
 from .evaluation import baseline_metrics, log_metrics
 from .inn_training import InnComponents, update_disc_on_inn, update_inn
-from .loss import MixedLoss, PixelCrossEntropy, VGGLoss
+from .loss import MixedLoss, PixelCrossEntropy
 from .utils import (
     get_all_num_samples,
     log_images,
@@ -76,11 +92,28 @@ from .utils import (
 
 __all__ = ["main"]
 
+log = logging.getLogger(__name__.split(".")[-1].upper())
+
 ARGS: FdmArgs = None  # type: ignore[assignment]
+CFG: Config = None  # type: ignore[assignment]
+DATA: DatasetConfig = None  # type: ignore[assignment]
+ENC: EncoderConfig = None  # type: ignore[assignment]
+MISC: Misc = None  # type: ignore[assignment]
 Generator = Union[AutoEncoder, PartitionedAeInn]
 
 
-def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = True) -> Generator:
+class AeComponents(NamedTuple):
+    """Things needed to run the AutoEncoder model."""
+
+    generator: AutoEncoder
+    disc_ensemble: nn.ModuleList
+    recon_loss_fn: Callable
+    predictor_y: Classifier
+    predictor_s: Classifier
+    type_: Literal["ae"] = "ae"
+
+
+def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Generator:
     """Main function.
 
     Args:
@@ -90,51 +123,54 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     Returns:
         the trained generator
     """
-    # ==== parse args ====
-    args = FdmArgs(fromfile_prefix_chars="@", explicit_bool=True, underscores_to_dashes=True)
-    args.parse_args(accept_prefixes(("--a-", "--d-", "--e-")), known_only=True)
-    confirm_empty(args.extra_args, to_ignore=("--b-", "--c-"))
+    # ==== initialize globals ====
+    global ARGS, CFG, DATA, ENC, MISC
+    ARGS = cfg.fdm
+    CFG = cfg
+    DATA = cfg.data
+    ENC = cfg.enc
+    MISC = cfg.misc
 
     # ==== current git commit ====
-    if os.environ.get("STARTED_BY_GUILDAI", None) == "1":
-        sha = ""
-    else:
-        repo = git.Repo(search_parent_directories=True)
-        sha = repo.head.object.hexsha
+    repo = git.Repo(search_parent_directories=True)
+    sha = repo.head.object.hexsha
 
-    use_gpu = torch.cuda.is_available() and args.gpu >= 0
-    random_seed(args.seed, use_gpu)
+    use_gpu = torch.cuda.is_available() and MISC.gpu >= 0
+    random_seed(MISC.seed, use_gpu)
     if cluster_label_file is not None:
-        args.cluster_label_file = str(cluster_label_file)
-    # ==== initialize globals ====
-    global ARGS
-    ARGS = args
+        MISC.cluster_label_file = str(cluster_label_file)
 
-    if ARGS.use_wandb:
-        if initialize_wandb:
-            project_suffix = f"-{ARGS.dataset}" if ARGS.dataset != "cmnist" else ""
-            group = ARGS.log_method + "." + ARGS.exp_group if ARGS.exp_group else None
-            wandb.init(
-                entity="predictive-analytics-lab",
-                project="fdm" + project_suffix,
-                config=args.as_dict(),
-                group=group,
-            )
-        else:
-            wandb.config.update(args.as_dict())
+    run = None
+    if MISC.use_wandb:
+        project_suffix = f"-{DATA.dataset.name}" if DATA.dataset != DS.cmnist else ""
+        group = ""
+        if MISC.log_method:
+            group += MISC.log_method
+        if MISC.exp_group:
+            group += "." + MISC.exp_group
+        if cfg.bias.log_dataset:
+            group += "." + cfg.bias.log_dataset
+        run = wandb.init(
+            entity="predictive-analytics-lab",
+            project="fdm-hydra" + project_suffix,
+            config=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
+            group=group if group else None,
+            reinit=True,
+        )
 
-    save_dir = Path(ARGS.save_dir) / str(time.time())
+    save_dir = Path(to_absolute_path(MISC.save_dir)) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    print(str(ARGS))
-    print(f"Save directory: {save_dir.resolve()}")
+    log.info(str(OmegaConf.to_yaml(cfg, resolve=True, sort_keys=True)))
+    log.info(f"Save directory: {save_dir.resolve()}")
     # ==== check GPU ====
-    ARGS._device = torch.device(f"cuda:{ARGS.gpu}" if use_gpu else "cpu")
-    print(f"{torch.cuda.device_count()} GPUs available. Using device '{ARGS._device}'")
+    MISC._device = f"cuda:{MISC.gpu}" if use_gpu else "cpu"
+    device = torch.device(MISC._device)
+    log.info(f"{torch.cuda.device_count()} GPUs available. Using device '{device}'")
 
     # ==== construct dataset ====
-    datasets: DatasetTriplet = load_dataset(ARGS)
-    print(
+    datasets: DatasetTriplet = load_dataset(CFG)
+    log.info(
         "Size of context-set: {}, training-set: {}, test-set: {}".format(
             len(datasets.context),
             len(datasets.train),
@@ -145,10 +181,12 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     s_count = max(datasets.s_dim, 2)
 
     cluster_results = None
-    if ARGS.cluster_label_file:
-        cluster_results = load_results(ARGS)
-        ARGS._cluster_test_metrics = cluster_results.test_metrics or {}
-        ARGS._cluster_context_metrics = cluster_results.context_metrics or {}
+    cluster_test_metrics: Dict[str, float] = {}
+    cluster_context_metrics: Dict[str, float] = {}
+    if MISC.cluster_label_file:
+        cluster_results = load_results(CFG)
+        cluster_test_metrics = cluster_results.test_metrics or {}
+        cluster_context_metrics = cluster_results.context_metrics or {}
         weights, n_clusters, min_count, max_count = weight_for_balance(
             cluster_results.cluster_ids, min_size=None if ARGS.oversample else ARGS.batch_size
         )
@@ -163,7 +201,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
             s_count=s_count,
             test_batch_size=ARGS.test_batch_size,
             batch_size=ARGS.batch_size,
-            num_workers=ARGS.num_workers,
+            num_workers=0,  # can easily get stuck with more workers
             oversample=ARGS.oversample,
             balance_hierarchical=False,
         )
@@ -174,7 +212,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     context_loader = DataLoader(
         datasets.context,
         batch_size=ARGS.batch_size,
-        num_workers=ARGS.num_workers,
+        num_workers=MISC.num_workers,
         pin_memory=True,
         drop_last=True,
         **dataloader_kwargs,
@@ -185,14 +223,14 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         s_count=s_count,
         test_batch_size=ARGS.test_batch_size,
         batch_size=ARGS.batch_size,
-        num_workers=ARGS.num_workers,
+        num_workers=0,  # can easily get stuck with more workers
         oversample=ARGS.oversample,
         balance_hierarchical=True,
     )
     train_loader = DataLoader(
         dataset=datasets.train,
         batch_size=ARGS.batch_size,
-        num_workers=ARGS.num_workers,
+        num_workers=MISC.num_workers,
         drop_last=True,
         shuffle=False,
         sampler=train_sampler,
@@ -202,7 +240,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         datasets.test,
         shuffle=False,
         batch_size=ARGS.test_batch_size,
-        num_workers=ARGS.num_workers,
+        num_workers=MISC.num_workers,
         pin_memory=True,
         drop_last=False,
     )
@@ -215,109 +253,76 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
     feature_group_slices = getattr(datasets.context, "feature_group_slices", None)
 
     if is_image_data:
-        decoding_dim = input_shape[0] * 256 if args.recon_loss == "ce" else input_shape[0]
+        decoding_dim = input_shape[0] * 256 if ENC.recon_loss == RL.ce else input_shape[0]
         # if ARGS.recon_loss == "ce":
         decoder_out_act = None
         # else:
         #     decoder_out_act = nn.Sigmoid() if ARGS.dataset == "cmnist" else nn.Tanh()
         encoder, decoder, enc_shape = conv_autoencoder(
             input_shape,
-            ARGS.enc_init_chans,
-            encoding_dim=ARGS.enc_out_dim,
+            ENC.init_chans,
+            encoding_dim=ENC.out_dim,
             decoding_dim=decoding_dim,
-            levels=ARGS.enc_levels,
+            levels=ENC.levels,
             decoder_out_act=decoder_out_act,
             variational=ARGS.vae,
         )
     else:
         encoder, decoder, enc_shape = fc_autoencoder(
             input_shape,
-            ARGS.enc_init_chans,
-            encoding_dim=ARGS.enc_out_dim,
-            levels=ARGS.enc_levels,
+            ENC.init_chans,
+            encoding_dim=ENC.out_dim,
+            levels=ENC.levels,
             variational=ARGS.vae,
         )
 
-    recon_loss_fn_: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
-    if ARGS.recon_loss == "l1":
-        recon_loss_fn_ = nn.L1Loss(reduction="sum")
-    elif ARGS.recon_loss == "l2":
-        recon_loss_fn_ = nn.MSELoss(reduction="sum")
-    elif ARGS.recon_loss == "bce":
-        recon_loss_fn_ = nn.BCELoss(reduction="sum")
-    elif ARGS.recon_loss == "huber":
-        recon_loss_fn_ = lambda x, y: 0.1 * F.smooth_l1_loss(x * 10, y * 10, reduction="sum")
-    elif ARGS.recon_loss == "ce":
-        recon_loss_fn_ = PixelCrossEntropy(reduction="sum")
-    elif ARGS.recon_loss == "mixed":
-        assert feature_group_slices is not None, "can only do multi gen_loss with feature groups"
-        recon_loss_fn_ = MixedLoss(feature_group_slices, reduction="sum")
-    else:
-        raise ValueError(f"{ARGS.recon_loss} is an invalid reconstruction gen_loss")
-
     recon_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
-    if ARGS.vgg_weight != 0:
-        vgg_loss = VGGLoss()
-        vgg_loss.to(ARGS._device)
-
-        def recon_loss_fn(input_: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-            return recon_loss_fn_(input_, target) + ARGS.vgg_weight * vgg_loss(input_, target)
-
+    if ENC.recon_loss == RL.l1:
+        recon_loss_fn = nn.L1Loss(reduction="sum")
+    elif ENC.recon_loss == RL.l2:
+        recon_loss_fn = nn.MSELoss(reduction="sum")
+    elif ENC.recon_loss == RL.bce:
+        recon_loss_fn = nn.BCELoss(reduction="sum")
+    elif ENC.recon_loss == RL.huber:
+        recon_loss_fn = lambda x, y: 0.1 * F.smooth_l1_loss(x * 10, y * 10, reduction="sum")
+    elif ENC.recon_loss == RL.ce:
+        recon_loss_fn = PixelCrossEntropy(reduction="sum")
+    elif ENC.recon_loss == RL.mixed:
+        assert feature_group_slices is not None, "can only do multi gen_loss with feature groups"
+        recon_loss_fn = MixedLoss(feature_group_slices, reduction="sum")
     else:
-        recon_loss_fn = recon_loss_fn_
+        raise ValueError(f"{ENC.recon_loss} is an invalid reconstruction gen_loss")
 
     generator: Generator
-    if ARGS.use_inn:
-        autoencoder = build_ae(
-            ARGS, encoder, decoder, encoding_size=None, feature_group_slices=feature_group_slices
-        )
-        if prod(enc_shape) == enc_shape[0]:
-            is_enc_image_data = False
-            print("Encoding will not be treated as image data.")
-        else:
-            is_enc_image_data = is_image_data
-        generator = build_inn(
-            args=ARGS,
-            autoencoder=autoencoder,
-            ae_loss_fn=recon_loss_fn,
-            is_image_data=is_enc_image_data,
-            save_dir=save_dir,
-            ae_enc_shape=enc_shape,
-            context_loader=context_loader,
-        )
-        encoding_size = generator.encoding_size
-    else:
-        zs_dim = round(ARGS.zs_frac * enc_shape[0])
-        zy_dim = enc_shape[0] - zs_dim
-        encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim)
-        generator = build_ae(
-            args=ARGS,
-            encoder=encoder,
-            decoder=decoder,
-            encoding_size=encoding_size,
-            feature_group_slices=feature_group_slices,
-        )
-        # load pretrained encoder if one is provided
-        if args.use_pretrained_enc and cluster_results is not None:
-            save_dict = torch.load(
-                cluster_results.enc_path, map_location=lambda storage, loc: storage
-            )
-            generator.load_state_dict(save_dict["encoder"])
-            if "args" in save_dict:
-                args_encoder = save_dict["args"]
-                assert args_encoder["encoder_type"] == "vae" if args.vae else "ae"
-                assert args_encoder["levels"] == args.enc_levels
+    zs_dim = round(ARGS.zs_frac * enc_shape[0])
+    zy_dim = enc_shape[0] - zs_dim
+    encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim)
+    generator = build_ae(
+        cfg=CFG,
+        encoder=encoder,
+        decoder=decoder,
+        encoding_size=encoding_size,
+        feature_group_slices=feature_group_slices,
+    )
+    # load pretrained encoder if one is provided
+    if ARGS.use_pretrained_enc and cluster_results is not None:
+        save_dict = torch.load(cluster_results.enc_path, map_location=lambda storage, loc: storage)
+        generator.load_state_dict(save_dict["encoder"])
+        if "args" in save_dict:
+            args_encoder = save_dict["args"]
+            assert args_encoder["encoder_type"] == "vae" if ARGS.vae else "ae"
+            assert args_encoder["levels"] == ENC.levels
 
-    print(f"Encoding shape: {enc_shape}, {encoding_size}")
+    log.info(f"Encoding shape: {enc_shape}, {encoding_size}")
 
     # ================================== Initialise Discriminator =================================
 
-    disc_optimizer_kwargs = {"lr": args.disc_lr}
+    disc_optimizer_kwargs = {"lr": ARGS.disc_lr}
     disc_input_shape: Tuple[int, ...] = input_shape if ARGS.train_on_recon else enc_shape
     # FIXME: Architectures need to be GAN specific (e.g. incorporate spectral norm)
     disc_fn: ModelFn
     if is_image_data and ARGS.train_on_recon:
-        if args.dataset == "cmnist":
+        if DATA.dataset == DS.cmnist:
             disc_fn = Strided28x28Net(batch_norm=False)
         else:
             disc_fn = Residual64x64Net(batch_norm=False)
@@ -331,119 +336,92 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
             else disc_input_shape
         )
 
-    if ARGS.aggregator != "none":
-        final_proj = FcNet(ARGS.batch_wise_hidden_dims) if ARGS.batch_wise_hidden_dims else None
+    if ARGS.aggregator != BWLoss.none:
+        final_proj = FcNet(ARGS.aggregator_hidden_dims) if ARGS.aggregator_hidden_dims else None
         aggregator: Aggregator
-        if args.aggregator == "attention":
+        if ARGS.aggregator == BWLoss.attention:
             aggregator = AttentionAggregator(
-                args.aggregator_input_dim, final_proj=final_proj, **args.aggregator_kwargs
+                ARGS.aggregator_input_dim, final_proj=final_proj, **ARGS.aggregator_kwargs
             )
-        elif args.aggregator == "simple":
+        elif ARGS.aggregator == BWLoss.simple:
             aggregator = SimpleAggregator(
-                latent_dim=args.aggregator_input_dim, final_proj=final_proj
+                latent_dim=ARGS.aggregator_input_dim, final_proj=final_proj
             )
-        elif args.aggregator == "transposed":
-            aggregator = SimpleAggregatorT(batch_dim=args.batch_size, final_proj=final_proj)
+        elif ARGS.aggregator == BWLoss.transposed:
+            aggregator = SimpleAggregatorT(batch_dim=ARGS.batch_size, final_proj=final_proj)
         else:
             aggregator = GatedAttention(
-                in_dim=args.aggregator_input_dim,
+                in_dim=ARGS.aggregator_input_dim,
                 final_proj=final_proj,
-                **args.aggregator_kwargs,
+                **ARGS.aggregator_kwargs,
             )
-        disc_fn = ModelAggregatorWrapper(disc_fn, aggregator, input_dim=args.aggregator_input_dim)
+        disc_fn = ModelAggregatorWrapper(disc_fn, aggregator, input_dim=ARGS.aggregator_input_dim)
 
-    components: Union[AeComponents, InnComponents]
-    disc: Classifier
-    if not ARGS.use_inn:
-        disc_list = []
-        for k in range(ARGS.num_discs):
-            disc = build_discriminator(
-                input_shape=disc_input_shape,
-                target_dim=1,  # real vs fake
-                model_fn=disc_fn,
-                optimizer_kwargs=disc_optimizer_kwargs,
-            )
-            disc_list.append(disc)
-        disc_ensemble = nn.ModuleList(disc_list)
-        disc_ensemble.to(args._device)
-
-        predictor_y = build_discriminator(
-            input_shape=(prod(enc_shape),),  # this is always trained on encodings
-            target_dim=datasets.y_dim,
-            model_fn=FcNet(hidden_dims=None),  # no hidden layers
+    disc_ensemble: nn.ModuleList = nn.ModuleList()
+    for k in range(ARGS.num_discs):
+        disc = build_discriminator(
+            input_shape=disc_input_shape,
+            target_dim=1,  # real vs fake
+            model_fn=disc_fn,
             optimizer_kwargs=disc_optimizer_kwargs,
         )
-        predictor_y.to(args._device)
+        disc_ensemble.append(disc)
+    disc_ensemble.to(device)
 
-        predictor_s = build_discriminator(
-            input_shape=(prod(enc_shape),),  # this is always trained on encodings
-            target_dim=datasets.s_dim,
-            model_fn=FcNet(hidden_dims=None),  # no hidden layers
-            optimizer_kwargs=disc_optimizer_kwargs,
-        )
-        predictor_s.to(args._device)
+    predictor_y = build_discriminator(
+        input_shape=(prod(enc_shape),),  # this is always trained on encodings
+        target_dim=datasets.y_dim,
+        model_fn=FcNet(hidden_dims=None),  # no hidden layers
+        optimizer_kwargs=disc_optimizer_kwargs,
+    )
+    predictor_y.to(device)
 
-        components = AeComponents(
-            generator=generator,
-            disc_ensemble=disc_ensemble,
-            recon_loss_fn=recon_loss_fn,
-            predictor_y=predictor_y,
-            predictor_s=predictor_s,
-        )
-    else:
-        disc_list = []
-        for k in range(ARGS.num_discs):
-            disc = build_discriminator(
-                input_shape=disc_input_shape,
-                target_dim=1,  # real vs fake
-                model_fn=disc_fn,
-                optimizer_kwargs=disc_optimizer_kwargs,
-            )
-            disc_list.append(disc)
-        disc_ensemble = nn.ModuleList(disc_list)
-        disc_ensemble.to(args._device)
+    predictor_s = build_discriminator(
+        input_shape=(prod(enc_shape),),  # this is always trained on encodings
+        target_dim=datasets.s_dim,
+        model_fn=FcNet(hidden_dims=None),  # no hidden layers
+        optimizer_kwargs=disc_optimizer_kwargs,
+    )
+    predictor_s.to(device)
 
-        # classifier for y
-        class_fn: ModelFn
-        if is_image_data:
-            if args.dataset == "cmnist":
-                class_fn = Strided28x28Net(batch_norm=False)
-            else:
-                class_fn = Residual64x64Net(batch_norm=False)
-        else:
-            class_fn = FcNet(hidden_dims=ARGS.disc_hidden_dims)
-        predictor = None
-        if ARGS.train_on_recon and ARGS.pred_y_weight > 0:
-            predictor = build_discriminator(
-                input_shape=input_shape,
-                target_dim=args._y_dim,  # real vs fake
-                model_fn=class_fn,
-                optimizer_kwargs=disc_optimizer_kwargs,
-            )
-            predictor.to(args._device)
-            predictor.fit(Subset(datasets.context, np.arange(100)), 50, ARGS._device, test_loader)
-        components = InnComponents(inn=generator, disc_ensemble=disc_ensemble, predictor=predictor)
+    components = AeComponents(
+        generator=generator,
+        disc_ensemble=disc_ensemble,
+        recon_loss_fn=recon_loss_fn,
+        predictor_y=predictor_y,
+        predictor_s=predictor_s,
+    )
 
     start_itr = 1  # start at 1 so that the val_freq works correctly
     # Resume from checkpoint
-    if ARGS.resume is not None:
-        print("Restoring generator from checkpoint")
-        generator, start_itr = restore_model(ARGS, Path(ARGS.resume), generator)
-        if ARGS.evaluate:
-            log_metrics(ARGS, generator, datasets, 0, save_to_csv=Path(ARGS.save_dir))
+    if MISC.resume is not None:
+        log.info("Restoring generator from checkpoint")
+        generator, start_itr = restore_model(CFG, Path(MISC.resume), generator)
+        if MISC.evaluate:
+            log_metrics(
+                CFG,
+                generator,
+                datasets,
+                0,
+                save_to_csv=Path(to_absolute_path(MISC.save_dir)),
+                cluster_test_metrics=cluster_test_metrics,
+                cluster_context_metrics=cluster_context_metrics,
+            )
+            if run is not None:
+                run.finish()  # this allows multiple experiments in one python process
             return generator
 
     if ARGS.snorm:
 
         def _snorm(_module: nn.Module) -> nn.Module:
-            if hasattr(_module, "weight"):
+            if isinstance(_module, nn.Conv2d):
                 return torch.nn.utils.spectral_norm(_module)
             return _module
 
         disc_ensemble.apply(_snorm)
 
     # Logging
-    print(f"Number of trainable parameters: {count_parameters(generator)}")
+    log.info(f"Number of trainable parameters: {count_parameters(generator)}")
 
     itr = start_itr
     disc: nn.Module
@@ -465,7 +443,7 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
         if itr % ARGS.log_freq == 0:
             log_string = " | ".join(f"{name}: {loss.avg:.5g}" for name, loss in loss_meters.items())
             elapsed = time.monotonic() - start_time
-            print(
+            log.info(
                 "[TRN] Iteration {:04d} | Elapsed: {} | Iterations/s: {:.4g} | {}".format(
                     itr,
                     readable_duration(elapsed),
@@ -479,20 +457,31 @@ def main(cluster_label_file: Optional[Path] = None, initialize_wandb: bool = Tru
 
         if ARGS.validate and itr % ARGS.val_freq == 0:
             if itr == ARGS.val_freq:  # first validation
-                baseline_metrics(ARGS, datasets, save_to_csv=Path(ARGS.save_dir))
-            log_metrics(ARGS, model=generator, data=datasets, step=itr)
-            save_model(ARGS, save_dir, model=generator, itr=itr, sha=sha)
+                baseline_metrics(CFG, datasets, save_to_csv=Path(to_absolute_path(MISC.save_dir)))
+            log_metrics(CFG, model=generator, data=datasets, step=itr)
+            save_model(CFG, save_dir, model=generator, itr=itr, sha=sha)
 
         if ARGS.disc_reset_prob > 0:
             for k, discriminator in enumerate(components.disc_ensemble):
+                discriminator = cast(Classifier, discriminator)
                 if np.random.uniform() < ARGS.disc_reset_prob:
-                    print(f"Reinitializing discriminator {k}")
+                    log.info(f"Reinitializing discriminator {k}")
                     discriminator.reset_parameters()
 
-    print("Training has finished.")
+    log.info("Training has finished.")
     # path = save_model(args, save_dir, model=generator, epoch=epoch, sha=sha)
     # generator, _ = restore_model(args, path, model=generator)
-    log_metrics(ARGS, model=generator, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr)
+    log_metrics(
+        CFG,
+        model=generator,
+        data=datasets,
+        save_to_csv=Path(to_absolute_path(MISC.save_dir)),
+        step=itr,
+        cluster_test_metrics=cluster_test_metrics,
+        cluster_context_metrics=cluster_context_metrics,
+    )
+    if run is not None:
+        run.finish()  # this allows multiple experiments in one python process
     return generator
 
 
@@ -507,7 +496,7 @@ def build_weighted_sampler_from_dataset(
 ) -> WeightedRandomSampler:
     #  Extract the s and y labels in a dataset-agnostic way (by iterating)
     data_loader = DataLoader(
-        dataset=dataset, drop_last=False, batch_size=test_batch_size, num_workers=0
+        dataset=dataset, drop_last=False, batch_size=test_batch_size, num_workers=num_workers
     )
     s_all, y_all = [], []
     for _, s, y in data_loader:
@@ -531,7 +520,7 @@ def build_weighted_sampler_from_dataset(
         weights, n_clusters, min_count, max_count = weight_for_balance(class_ids)
         num_samples = n_clusters * max_count if oversample else n_clusters * min_count
     assert num_samples > batch_size, f"not enough training samples ({num_samples}) to fill a batch"
-    return WeightedRandomSampler(weights.squeeze(), num_samples, replacement=oversample)
+    return WeightedRandomSampler(weights.squeeze().tolist(), num_samples, replacement=oversample)
 
 
 def get_batch(
@@ -540,11 +529,11 @@ def get_batch(
 ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
     x_c = to_device(next(context_data_itr)[0])
     x_t, s_t, y_t = to_device(*next(train_data_itr))
-    return x_c, x_t, s_t, y_t
+    return x_c, x_t, s_t, y_t  # type: ignore
 
 
 def train_step(
-    components: Union["AeComponents", InnComponents],
+    components: Union[AeComponents, InnComponents],
     context_data_itr: Iterator[Tuple[Tensor, Tensor, Tensor]],
     train_data_itr: Iterator[Tuple[Tensor, Tensor, Tensor]],
     itr: int,
@@ -570,7 +559,7 @@ def train_step(
         _, logging_dict = update_inn(args=ARGS, x_c=x_c, x_t=x_t, models=components)
 
     logging_dict.update(disc_logging)
-    wandb_log(ARGS, logging_dict, step=itr)
+    wandb_log(MISC, logging_dict, step=itr)
 
     # Log images
     if itr % ARGS.log_freq == 0:
@@ -585,17 +574,6 @@ def train_step(
     return logging_dict
 
 
-class AeComponents(NamedTuple):
-    """Things needed to run the INN model."""
-
-    generator: AutoEncoder
-    disc_ensemble: nn.ModuleList
-    recon_loss_fn: Callable
-    predictor_y: Classifier
-    predictor_s: Classifier
-    type_: Literal["ae"] = "ae"
-
-
 def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents) -> Tuple[Tensor, Dict[str, float]]:
     """Train the discriminator while keeping the generator constant.
 
@@ -608,7 +586,7 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents) -> Tuple[Tensor, Dic
     ae.predictor_s.eval()
     ae.disc_ensemble.train()
 
-    if ARGS.aggregator == "none":
+    if ARGS.aggregator == BWLoss.none:
         ones = x_c.new_ones((x_c.size(0),))
         zeros = x_t.new_zeros((x_t.size(0),))
     else:
@@ -637,6 +615,7 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents) -> Tuple[Tensor, Dic
         disc_input_c = disc_input_c.detach()
 
     for discriminator in ae.disc_ensemble:
+        discriminator = cast(Classifier, discriminator)
         disc_loss_true, acc_c = discriminator.routine(disc_input_c, ones)
         disc_loss_false, acc_t = discriminator.routine(disc_input_t, zeros)
         disc_loss += disc_loss_true + disc_loss_false
@@ -647,6 +626,7 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents) -> Tuple[Tensor, Dic
         discriminator.zero_grad()
     disc_loss.backward()
     for discriminator in ae.disc_ensemble:
+        discriminator = cast(Classifier, discriminator)
         discriminator.step()
 
     return disc_loss, logging_dict
@@ -757,9 +737,9 @@ def get_disc_input(
     if ARGS.train_on_recon:
         zs_m, zy_m = generator.mask(encoding, random=True)
         recon = generator.decode(zs_m if invariant_to == "s" else zy_m, mode="relaxed")
-        if ARGS.recon_loss == "ce":
+        if ENC.recon_loss == RL.ce:
             recon = recon.argmax(dim=1).float() / 255
-            if ARGS.dataset != "cmnist":
+            if DATA.dataset != DS.cmnist:
                 recon = recon * 2 - 1
         return recon
     else:
@@ -769,7 +749,7 @@ def get_disc_input(
 
 def to_device(*tensors: Tensor) -> Union[Tensor, Tuple[Tensor, ...]]:
     """Place tensors on the correct device and set type to float32"""
-    moved = [tensor.to(ARGS._device, non_blocking=True) for tensor in tensors]
+    moved = [tensor.to(torch.device(MISC._device), non_blocking=True) for tensor in tensors]
     return moved[0] if len(moved) == 1 else tuple(moved)
 
 
@@ -783,12 +763,8 @@ def log_recons(
     encoding = generator.encode(x[:64], stochastic=False)
     recon = generator.all_recons(encoding, mode="hard")
 
-    log_images(ARGS, x[:64], "original_x", step=itr, prefix=prefix)
-    log_images(ARGS, recon.all, "reconstruction_all", step=itr, prefix=prefix)
-    log_images(ARGS, recon.rand_s, "reconstruction_rand_s", step=itr, prefix=prefix)
-    log_images(ARGS, recon.zero_s, "reconstruction_zero_s", step=itr, prefix=prefix)
-    log_images(ARGS, recon.just_s, "reconstruction_just_s", step=itr, prefix=prefix)
-
-
-if __name__ == "__main__":
-    main()
+    log_images(CFG, x[:64], "original_x", step=itr, prefix=prefix)
+    log_images(CFG, recon.all, "reconstruction_all", step=itr, prefix=prefix)
+    log_images(CFG, recon.rand_s, "reconstruction_rand_s", step=itr, prefix=prefix)
+    log_images(CFG, recon.zero_s, "reconstruction_zero_s", step=itr, prefix=prefix)
+    log_images(CFG, recon.just_s, "reconstruction_just_s", step=itr, prefix=prefix)

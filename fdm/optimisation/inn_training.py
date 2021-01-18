@@ -1,13 +1,16 @@
 """Main training file"""
-from typing import Dict, List, NamedTuple, Optional, Tuple
+from typing import Dict, NamedTuple, Optional, Tuple
 
 from typing_extensions import Literal
 
-from fdm.configs import FdmArgs
 from fdm.models import Classifier, PartitionedAeInn
+<<<<<<< HEAD
 from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
+=======
+from shared.configs import FdmArgs
+>>>>>>> master
 
 __all__ = ["update_inn", "update_disc_on_inn"]
 

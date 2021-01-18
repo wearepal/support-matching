@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from torch import Tensor
 from typing_extensions import Literal
 
+from shared.configs import InnSc
 from shared.utils import RoundSTE, sum_except_batch
 from shared.utils.typechecks import is_probability
 
@@ -189,7 +190,7 @@ class MaskedCouplingLayer(Bijector):
         hidden_dims: Sequence[int],
         mask_type: Literal["alternate", "channel"] = "alternate",
         swap: bool = False,
-        scaling: Literal["none", "exp", "sigmoid0.5", "add2_sigmoid"] = "exp",
+        scaling: InnSc = InnSc.exp,
     ) -> None:
         super().__init__()
         # self.input_dim = input_dim
@@ -204,15 +205,15 @@ class MaskedCouplingLayer(Bijector):
 
     def _masked_scale_and_shift(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         shift = self.net_shift(x * self.mask)
-        if self.scaling == "none":
+        if self.scaling == InnSc.none:
             scale = torch.ones_like(shift)
         else:
             raw_scale = self.net_scale(x * self.mask)
-            if self.scaling == "exp":
+            if self.scaling == InnSc.exp:
                 scale = torch.exp(raw_scale)
-            elif self.scaling == "sigmoid0.5":
+            elif self.scaling == InnSc.sigmoid0_5:
                 scale = torch.sigmoid(raw_scale) + 0.5
-            elif self.scaling == "add2_sigmoid":
+            elif self.scaling == InnSc.add2_sigmoid:
                 scale = torch.sigmoid(raw_scale + 2.0)
 
         masked_scale = scale * (1 - self.mask) + torch.ones_like(scale) * self.mask

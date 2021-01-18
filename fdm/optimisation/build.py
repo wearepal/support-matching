@@ -4,7 +4,6 @@ from typing import Dict, List, Optional, Tuple
 import torch
 from torch.utils.data import DataLoader
 
-from fdm.configs import FdmArgs
 from fdm.models import (
     VAE,
     AutoEncoder,
@@ -13,12 +12,13 @@ from fdm.models import (
     build_conv_inn,
     build_fc_inn,
 )
+from shared.configs import Config
 
 __all__ = ["build_inn", "build_ae"]
 
 
 def build_inn(
-    args: FdmArgs,
+    cfg: Config,
     autoencoder: AutoEncoder,
     ae_loss_fn,
     is_image_data: bool,
@@ -28,50 +28,50 @@ def build_inn(
 ) -> PartitionedAeInn:
     inn_fn = build_conv_inn if is_image_data else build_fc_inn
     inn = PartitionedAeInn(
-        args=args,
-        optimizer_args={"lr": args.inn_lr, "weight_decay": args.weight_decay},
+        args=cfg.fdm,
+        optimizer_args={"lr": cfg.fdm.inn_lr, "weight_decay": cfg.fdm.weight_decay},
         input_shape=ae_enc_shape,
         autoencoder=autoencoder,
-        model=inn_fn(args, ae_enc_shape),
+        model=inn_fn(cfg.fdm, ae_enc_shape),
     )
-    inn.to(args._device)
+    inn.to(cfg.misc._device)
 
-    if args.path_to_ae:
-        save_dict = torch.load(args.path_to_ae, map_location=lambda storage, loc: storage)
+    if cfg.fdm.path_to_ae:
+        save_dict = torch.load(cfg.fdm.path_to_ae, map_location=lambda storage, loc: storage)
         autoencoder.load_state_dict(save_dict["model"])
         if "args" in save_dict:
             args_ae = save_dict["args"]
-            assert args.enc_init_chans == args_ae["init_channels"]
-            assert args.enc_levels == args_ae["levels"]
+            assert cfg.enc.init_chans == args_ae["init_channels"]
+            assert cfg.enc.levels == args_ae["levels"]
     else:
         inn.fit_ae(
             context_loader,
-            epochs=args.ae_epochs,
-            device=args._device,
+            epochs=cfg.fdm.ae_epochs,
+            device=cfg.misc._device,
             loss_fn=ae_loss_fn,
-            kl_weight=args.kl_weight,
+            kl_weight=cfg.fdm.kl_weight,
         )
         # the args names follow the convention of the standalone VAE commandline args
-        args_ae = {"init_channels": args.enc_init_chans, "levels": args.enc_levels}
+        args_ae = {"init_channels": cfg.enc.init_chans, "levels": cfg.enc.levels}
         torch.save({"model": autoencoder.state_dict(), "args": args_ae}, save_dir / "autoencoder")
     return inn
 
 
 def build_ae(
-    args: FdmArgs,
+    cfg: Config,
     encoder,
     decoder,
     encoding_size: Optional[EncodingSize],
     feature_group_slices: Optional[Dict[str, List[slice]]],
 ) -> AutoEncoder:
-    optimizer_args = {"lr": args.lr, "weight_decay": args.weight_decay}
+    optimizer_args = {"lr": cfg.fdm.lr, "weight_decay": cfg.fdm.weight_decay}
     generator: AutoEncoder
-    if args.vae:
+    if cfg.fdm.vae:
         generator = VAE(
             encoder=encoder,
             decoder=decoder,
             encoding_size=encoding_size,
-            vae_std_tform=args.vae_std_tform,
+            vae_std_tform=cfg.fdm.vae_std_tform,
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_args,
         )
@@ -83,5 +83,5 @@ def build_ae(
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_args,
         )
-    generator.to(args._device)
+    generator.to(cfg.misc._device)
     return generator

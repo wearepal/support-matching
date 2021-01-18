@@ -5,8 +5,8 @@ import torch.distributions as td
 from torch import Tensor
 from torch.utils.data import DataLoader
 
-from clustering.configs import ClusterArgs
 from clustering.layers import Bijector
+from shared.configs import ClusterArgs
 from shared.utils import DLogistic, MixtureDistribution, prod  # to_discrete, logistic_distribution
 
 from .autoencoder import AutoEncoder

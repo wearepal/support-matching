@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 # import time
@@ -7,21 +8,24 @@ from typing import Union
 import faiss
 import numpy as np
 import torch
+from omegaconf import OmegaConf
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
-from clustering.configs import ClusterArgs
 from clustering.models import Encoder
-from shared.utils import ClusterResults, print_metrics, wandb_log
+from shared.configs import Config
+from shared.utils import ClusterResults, flatten, print_metrics, wandb_log
 
 from .evaluation import encode_dataset
 from .utils import cluster_metrics, count_occurances, get_class_id
 
 # from tqdm import tqdm
 
+log = logging.getLogger(__name__.split(".")[-1].upper())
+
 
 def train(
-    args: ClusterArgs,
+    cfg: Config,
     encoder: Encoder,
     context_data: Dataset,
     num_clusters: int,
@@ -29,40 +33,40 @@ def train(
     enc_path: Path,
 ) -> ClusterResults:
     # encode the training set with the encoder
-    encoded = encode_dataset(args, context_data, encoder)
+    encoded = encode_dataset(cfg, context_data, encoder)
     # create data loader with one giant batch
     data_loader = DataLoader(encoded, batch_size=len(encoded), shuffle=False)
     encoded, s, y = next(iter(data_loader))
     preds = run_kmeans_faiss(
         encoded,
         nmb_clusters=num_clusters,
-        cuda=str(args._device) != "cpu",
-        n_iter=args.epochs,
+        cuda=str(cfg.misc._device) != "cpu",
+        n_iter=cfg.clust.epochs,
         verbose=True,
     )
     cluster_ids = preds.cpu().numpy()
     # preds, _ = run_kmeans_torch(encoded, num_clusters, device=args._device, n_iter=args.epochs, verbose=True)
     counts = np.zeros((num_clusters, num_clusters), dtype=np.int64)
-    counts, class_ids = count_occurances(counts, cluster_ids, s, y, s_count, args.cluster)
+    counts, class_ids = count_occurances(counts, cluster_ids, s, y, s_count, cfg.clust.cluster)
     _, context_metrics, logging_dict = cluster_metrics(
         cluster_ids=cluster_ids,
         counts=counts,
         true_class_ids=class_ids.numpy(),
         num_total=preds.size(0),
         s_count=s_count,
-        to_cluster=args.cluster,
+        to_cluster=cfg.clust.cluster,
     )
     prepared = (
         f"{k}: {v:.5g}" if isinstance(v, float) else f"{k}: {v}" for k, v in logging_dict.items()
     )
-    print(" | ".join(prepared))
-    wandb_log(args, logging_dict, step=0)
-    print("Context metrics:")
+    log.info(" | ".join(prepared))
+    wandb_log(cfg.misc, logging_dict, step=0)
+    log.info("Context metrics:")
     print_metrics({f"Context {k}": v for k, v in context_metrics.items()})
     return ClusterResults(
-        flags=args.as_dict(),
+        flags=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
         cluster_ids=preds,
-        class_ids=get_class_id(s=s, y=y, s_count=s_count, to_cluster=args.cluster),
+        class_ids=get_class_id(s=s, y=y, s_count=s_count, to_cluster=cfg.clust.cluster),
         enc_path=enc_path,
         context_metrics=context_metrics,
     )

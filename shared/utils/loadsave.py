@@ -1,4 +1,5 @@
 """Functions related to saving and loading results."""
+import logging
 from pathlib import Path
 from typing import Any, Dict, NamedTuple, Optional
 
@@ -7,6 +8,8 @@ import torch
 from shared.configs import BaseArgs
 
 __all__ = ["ClusterResults", "save_results", "load_results"]
+
+log = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 class ClusterResults(NamedTuple):
@@ -31,30 +34,33 @@ def save_results(save_path: Path, cluster_results: ClusterResults) -> Path:
         "test_metrics": cluster_results.test_metrics or {},
     }
     torch.save(save_dict, save_path)
-    print(
-        f"To make use of the generated cluster labels:\n--cluster-label-file {save_path.resolve()}"
+    log.info(
+        f"To make use of the generated cluster labels:\n"
+        f"misc.cluster_label_file={save_path.resolve()}"
     )
     return save_path
 
 
-def load_results(args: BaseArgs, check: bool = True) -> ClusterResults:
+def load_results(cfg: BaseArgs, check: bool = True) -> ClusterResults:
     """Load a tensor from a file."""
-    data = torch.load(args.cluster_label_file, map_location=torch.device("cpu"))
+    data = torch.load(cfg.misc.cluster_label_file, map_location=torch.device("cpu"))
     if check:
-        saved_args = data["args"]
-        assert saved_args["dataset"] == args.dataset, f'{saved_args["dataset"]} != {args.dataset}'
+        saved_cfg = data["args"]
         assert (
-            saved_args["data_pcnt"] == args.data_pcnt
-        ), f'{saved_args["data_pcnt"]} != {args.data_pcnt}'
+            saved_cfg["data.dataset"] == cfg.data.dataset.name
+        ), f'{saved_cfg["data.dataset"]} != {cfg.data.dataset.name}'
         assert (
-            saved_args["data_split_seed"] == args.data_split_seed
-        ), f'{saved_args["data_split_seed"]} != {args.data_split_seed}'
+            saved_cfg["data.data_pcnt"] == cfg.data.data_pcnt
+        ), f'{saved_cfg["data.data_pcnt"]} != {cfg.data.data_pcnt}'
         assert (
-            saved_args["context_pcnt"] == args.context_pcnt
-        ), f'{saved_args["context_pcnt"]} != {args.context_pcnt}'
+            saved_cfg["misc.data_split_seed"] == cfg.misc.data_split_seed
+        ), f'{saved_cfg["misc.data_split_seed"]} != {cfg.misc.data_split_seed}'
         assert (
-            saved_args["test_pcnt"] == args.test_pcnt
-        ), f'{saved_args["test_pcnt"]} != {args.test_pcnt}'
+            saved_cfg["data.context_pcnt"] == cfg.data.context_pcnt
+        ), f'{saved_cfg["data.context_pcnt"]} != {cfg.data.context_pcnt}'
+        assert (
+            saved_cfg["data.test_pcnt"] == cfg.data.test_pcnt
+        ), f'{saved_cfg["data.test_pcnt"]} != {cfg.data.test_pcnt}'
     class_ids = data["class_ids"] if "class_ids" in data else torch.zeros_like(data["cluster_ids"])
     return ClusterResults(
         flags=data["args"],

@@ -1,8 +1,8 @@
 from typing import List, Optional, Tuple
 
 from fdm import layers
-from fdm.configs import FdmArgs
 from fdm.models import Classifier
+from shared.configs import FdmArgs, InnRM, InnSc
 from shared.utils import ModelFn
 
 __all__ = ["build_discriminator", "build_fc_inn", "build_conv_inn"]
@@ -74,7 +74,7 @@ def _block(args: FdmArgs, input_dim: int) -> layers.Bijector:
         else:
             _chain += [layers.RandomPermutation(input_dim)]
 
-        if args.inn_scaling == "none":
+        if args.inn_scaling == InnSc.none:
             _chain += [
                 layers.AdditiveCouplingLayer(
                     input_dim,
@@ -83,7 +83,7 @@ def _block(args: FdmArgs, input_dim: int) -> layers.Bijector:
                     pcnt_to_transform=0.25,
                 )
             ]
-        elif args.inn_scaling == "sigmoid0.5":
+        elif args.inn_scaling == InnSc.sigmoid0_5:
             _chain += [
                 layers.AffineCouplingLayer(
                     input_dim,
@@ -107,7 +107,7 @@ def _build_multi_scale_chain(
     for i in range(args.inn_levels):
         level: List[layers.Bijector] = []
         squeeze: layers.Bijector
-        if args.inn_reshape_method == "haar":
+        if args.inn_reshape_method == InnRM.haar:
             squeeze = layers.HaarDownsampling(input_dim)
         else:
             squeeze = layers.SqueezeLayer(2)

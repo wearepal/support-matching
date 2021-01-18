@@ -118,3 +118,6 @@ dmypy.json
 /wandb/
 /nohup.out
 160*/
+
+/outputs/
+/multirun/
