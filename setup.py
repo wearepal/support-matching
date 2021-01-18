@@ -1,6 +1,3 @@
-import subprocess
-import sys
-
 from setuptools import find_packages, setup
 
 setup(
@@ -20,12 +17,8 @@ setup(
         "lapjv",
         "matplotlib >= 3.0.2, < 3.3.1",
         "numpy >= 1.15",
-<<<<<<< HEAD
         "faiss-cpu",
-        "pandas >= 0.24",
-=======
         "pandas >= 1.0",
->>>>>>> master
         "pillow",
         "pipenv >= 2018.11.26",
         "scikit-image >= 0.14",
