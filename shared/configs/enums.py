@@ -21,6 +21,7 @@ __all__ = [
 
 
 class DS(Enum):
+    """Which dataset to use."""
 
     adult = auto()
     cmnist = auto()
@@ -44,7 +45,7 @@ class Enc(Enum):
 
 
 class RL(Enum):
-    """ Reconstruction loss."""
+    """Reconstruction loss."""
 
     l1 = auto()
     l2 = auto()
@@ -93,6 +94,8 @@ class MMDKer(Enum):
 
 
 class BWLoss(Enum):
+    """Batch-wise loss."""
+
     none = auto()
     attention = auto()
     simple = auto()
