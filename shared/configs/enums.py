@@ -92,9 +92,8 @@ class AggregatorType(Enum):
     """Which aggreagation function to use (if any)."""
 
     none = auto()
-    attention = auto()
-    simple = auto()
-    transposed = auto()
+    kvq = auto()
+    gated = auto()
 
 
 class QuantizationLevel(Enum):

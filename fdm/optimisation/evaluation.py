@@ -157,7 +157,7 @@ def evaluate(
     if cfg.data.dataset in (FdmDataset.cmnist, FdmDataset.celeba):
 
         train_loader = DataLoader(
-            train_data, batch_size=cfg.fdm.batch_size, shuffle=True, pin_memory=True
+            train_data, batch_size=cfg.fdm.eff_batch_size, shuffle=True, pin_memory=True
         )
         test_loader = DataLoader(
             test_data, batch_size=cfg.fdm.test_batch_size, shuffle=False, pin_memory=True

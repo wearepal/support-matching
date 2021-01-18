@@ -17,7 +17,7 @@ from typing import (
 )
 
 import git
-from hydra.utils import to_absolute_path
+from hydra.utils import instantiate, to_absolute_path
 import numpy as np
 from omegaconf import OmegaConf
 import torch
@@ -42,12 +42,7 @@ from shared.configs import (
     ReconstructionLoss,
 )
 from shared.data import DatasetTriplet, load_dataset
-from shared.layers import (
-    AttentionAggregator,
-    GatedAttention,
-    SimpleAggregator,
-    SimpleAggregatorT,
-)
+from shared.layers import GatedAttentionAggregator, KvqAttentionAggregator
 from shared.layers.aggregation import Aggregator
 from shared.models.configs import (
     FcNet,
@@ -116,12 +111,13 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
     """
     # ==== initialize globals ====
     global ARGS, CFG, DATA, ENC, MISC
-    ARGS = cfg.fdm
+    ARGS = instantiate(cfg.fdm)
     CFG = cfg
     DATA = cfg.data
     ENC = cfg.enc
     MISC = cfg.misc
 
+    assert ARGS.test_batch_size  # test_batch_size defaults to eff_batch_size if unspecified
     # ==== current git commit ====
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha
@@ -168,7 +164,6 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
             len(datasets.test),
         )
     )
-    ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
     s_count = max(datasets.s_dim, 2)
 
     cluster_results = None
@@ -179,7 +174,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
         cluster_test_metrics = cluster_results.test_metrics or {}
         cluster_context_metrics = cluster_results.context_metrics or {}
         weights, n_clusters, min_count, max_count = weight_for_balance(
-            cluster_results.cluster_ids, min_size=None if ARGS.oversample else ARGS.batch_size
+            cluster_results.cluster_ids, min_size=None if ARGS.oversample else ARGS.eff_batch_size
         )
         # if ARGS.oversample, oversample the smaller clusters instead of undersample the larger ones
         num_samples = n_clusters * max_count if ARGS.oversample else n_clusters * min_count
@@ -191,7 +186,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
             dataset=datasets.context,
             s_count=s_count,
             test_batch_size=ARGS.test_batch_size,
-            batch_size=ARGS.batch_size,
+            batch_size=ARGS.eff_batch_size,
             num_workers=0,  # can easily get stuck with more workers
             oversample=ARGS.oversample,
             balance_hierarchical=False,
@@ -213,27 +208,19 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
         dataset=datasets.train,
         s_count=s_count,
         test_batch_size=ARGS.test_batch_size,
-        batch_size=ARGS.batch_size,
+        batch_size=ARGS.eff_batch_size,
         num_workers=0,  # can easily get stuck with more workers
         oversample=ARGS.oversample,
         balance_hierarchical=True,
     )
     train_loader = DataLoader(
         dataset=datasets.train,
-        batch_size=ARGS.batch_size,
+        batch_size=ARGS.eff_batch_size,
         num_workers=MISC.num_workers,
         drop_last=True,
         shuffle=False,
         sampler=train_sampler,
         pin_memory=True,
-    )
-    test_loader = DataLoader(
-        datasets.test,
-        shuffle=False,
-        batch_size=ARGS.test_batch_size,
-        num_workers=MISC.num_workers,
-        pin_memory=True,
-        drop_last=False,
     )
     context_data_itr = inf_generator(context_loader)
     train_data_itr = inf_generator(train_loader)
@@ -332,19 +319,17 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
     if ARGS.aggregator_type != AggregatorType.none:
         final_proj = FcNet(ARGS.aggregator_hidden_dims) if ARGS.aggregator_hidden_dims else None
         aggregator: Aggregator
-        if ARGS.aggregator_type == AggregatorType.attention:
-            aggregator = AttentionAggregator(
-                ARGS.aggregator_input_dim, final_proj=final_proj, **ARGS.aggregator_kwargs
+        if ARGS.aggregator_type == AggregatorType.kvq:
+            aggregator = KvqAttentionAggregator(
+                ARGS.aggregator_input_dim,
+                final_proj=final_proj,
+                bag_size=ARGS.bag_size,
+                **ARGS.aggregator_kwargs,
             )
-        elif ARGS.aggregator_type == AggregatorType.simple:
-            aggregator = SimpleAggregator(
-                latent_dim=ARGS.aggregator_input_dim, final_proj=final_proj
-            )
-        elif ARGS.aggregator_type == AggregatorType.transposed:
-            aggregator = SimpleAggregatorT(batch_dim=ARGS.batch_size, final_proj=final_proj)
         else:
-            aggregator = GatedAttention(
+            aggregator = GatedAttentionAggregator(
                 in_dim=ARGS.aggregator_input_dim,
+                bag_size=ARGS.bag_size,
                 final_proj=final_proj,
                 **ARGS.aggregator_kwargs,
             )

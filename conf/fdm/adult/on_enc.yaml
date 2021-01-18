@@ -1,6 +1,6 @@
 # @package fdm
 batch_size: 1000
-aggregator_type: attention
+aggregator_type: kvq
 disc_hidden_dims: [32]
 eval_on_recon: false
 iters: 1000

@@ -117,8 +117,8 @@ class ClusterArgs:
     # Optimization settings
     early_stopping: int = 30
     epochs: int = 250
-    batch_size: int = 256
-    test_batch_size: Optional[int] = None
+    batch_size: Optional[int] = None
+    test_batch_size: int = 256
 
     # Evaluation settings
     eval_epochs: int = 40
@@ -188,11 +188,16 @@ class EncoderConfig:
 class FdmArgs:
     """Flags for disentangling."""
 
+    _target_: str = "shared.configs.FdmArgs"
     # Optimization settings
     early_stopping: int = 30
     iters: int = 50_000
-    batch_size: int = 256
-    test_batch_size: Optional[int] = None
+    batch_size: int = 64
+    bag_size: int = 16
+    eff_batch_size: int = (
+        0  # the total number of samples to be drawn each iteration: bag_size * batch_size
+    )
+    test_batch_size: Optional[int] = 256
     weight_decay: float = 0
     warmup_steps: int = 0
     distinguish_warmup: bool = False
@@ -250,6 +255,13 @@ class FdmArgs:
     distinguish_weight: float = 1
     pred_y_weight: float = 1
     pred_s_weight: float = 0
+
+    def __post_init__(self) -> None:
+        self.eff_batch_size = self.batch_size
+        if self.aggregator_type != AggregatorType.none:
+            self.eff_batch_size *= self.bag_size
+        if self.test_batch_size is None:
+            self.test_batch_size = self.eff_batch_size
 
 
 @dataclass
