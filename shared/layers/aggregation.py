@@ -4,7 +4,6 @@ from typing import Callable, Optional
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
-import torch.nn as nn
 from typing_extensions import Literal
 
 from shared.utils import ModelFn

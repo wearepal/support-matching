@@ -4,6 +4,7 @@ from typing import Dict, NamedTuple, Optional, Tuple, Union
 
 import ethicml as em
 import ethicml.vision as emvi
+from hydra.utils import to_absolute_path
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -12,8 +13,7 @@ from torchvision import transforms
 from torchvision.datasets import MNIST
 from typing_extensions import Literal
 
-from hydra.utils import to_absolute_path
-from shared.configs import AS, BaseArgs, DS, QL
+from shared.configs import AdultDatasetSplit, BaseArgs, FdmDataset, QuantizationLevel
 
 from .adult import load_adult_data
 from .dataset_wrappers import TensorDataTupleDataset
@@ -47,11 +47,11 @@ def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
     data_root = args.root or find_data_dir()
 
     # =============== get whole dataset ===================
-    if args.dataset == DS.cmnist:
+    if args.dataset == FdmDataset.cmnist:
         augs = []
         if args.padding > 0:
             augs.append(nn.ConstantPad2d(padding=args.padding, value=0))
-        if args.quant_level != QL.eight:
+        if args.quant_level != QuantizationLevel.eight:
             augs.append(Quantize(args.quant_level.value))
         if args.input_noise:
             augs.append(NoisyDequantize(args.quant_level.value))
@@ -177,7 +177,7 @@ def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
         cfg.misc._y_dim = 1 if num_classes == 2 else num_classes
         cfg.misc._s_dim = 1 if num_colors == 2 else num_colors
 
-    elif args.dataset == DS.celeba:
+    elif args.dataset == FdmDataset.celeba:
 
         image_size = 64
         transform = [
@@ -185,7 +185,7 @@ def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
             transforms.CenterCrop(image_size),
             transforms.ToTensor(),
         ]
-        if args.quant_level != QL.eight:
+        if args.quant_level != QuantizationLevel.eight:
             transform.append(Quantize(args.quant_level.value))
         if args.input_noise:
             transform.append(NoisyDequantize(args.quant_level.value))
@@ -250,12 +250,12 @@ def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
         train_data = Subset(all_data, train_inds)
         test_data = Subset(all_data, test_inds)
 
-    elif args.dataset == DS.adult:
+    elif args.dataset == FdmDataset.adult:
         context_data, train_data, test_data = load_adult_data(cfg)
         cfg.misc._y_dim = 1
-        if args.adult_split == AS.Education:
+        if args.adult_split == AdultDatasetSplit.Education:
             cfg.misc._s_dim = 3
-        elif args.adult_split == AS.Sex:
+        elif args.adult_split == AdultDatasetSplit.Sex:
             cfg.misc._s_dim = 1
         else:
             raise ValueError(f"This split is not yet fully supported: {args.adult_split}")

@@ -3,7 +3,7 @@ from typing import Any, Optional, Sequence, Tuple
 import torch
 from torch import Tensor
 
-from shared.configs import MMDKer
+from shared.configs import MMDKernel
 
 __all__ = ["mmd2"]
 
@@ -139,13 +139,13 @@ def _mmd2(
 def mmd2(
     x: Tensor,
     y: Tensor,
-    kernel: MMDKer = MMDKer.rq,
+    kernel: MMDKernel = MMDKernel.rq,
     biased: bool = False,
     **kwargs: Any,
 ) -> Tensor:
-    if kernel == MMDKer.linear:
+    if kernel == MMDKernel.linear:
         kernel_out = _dot_kernel(x, y)
-    elif kernel == MMDKer.rbf:
+    elif kernel == MMDKernel.rbf:
         kernel_out = _mix_rbf_kernel(x, y, **kwargs)
     else:
         kernel_out = _mix_rq_kernel(x, y, **kwargs)

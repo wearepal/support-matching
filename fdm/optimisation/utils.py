@@ -2,14 +2,14 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-import torch
-import torchvision
-import wandb
 from omegaconf import OmegaConf
+import torch
 from torch import Tensor, nn
+import torchvision
 
-from shared.configs import DS, RL, Config
+from shared.configs import Config, FdmDataset, ReconstructionLoss
 from shared.utils import class_id_to_label, flatten, wandb_log
+import wandb
 
 __all__ = [
     "get_all_num_samples",
@@ -37,10 +37,10 @@ def log_images(
     prefix = "train_" if prefix is None else f"{prefix}_"
     images = image_batch[:nsamples]
 
-    if cfg.enc.recon_loss == RL.ce:
+    if cfg.enc.recon_loss == ReconstructionLoss.ce:
         images = images.argmax(dim=1).float() / 255
     else:
-        if cfg.data.dataset in (DS.celeba, DS.genfaces):
+        if cfg.data.dataset == FdmDataset.celeba:
             images = 0.5 * images + 0.5
 
     if monochrome:

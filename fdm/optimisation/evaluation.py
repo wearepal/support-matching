@@ -4,6 +4,7 @@ from typing import Dict, Optional, Sequence, Tuple
 
 import ethicml as em
 import numpy as np
+import pandas as pd
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, TensorDataset
@@ -13,7 +14,7 @@ from typing_extensions import Literal
 from fdm.models import AutoEncoder
 from fdm.models.classifier import Classifier
 from shared.configs.arguments import Config
-from shared.configs.enums import DS
+from shared.configs.enums import FdmDataset
 from shared.data import DatasetTriplet, get_data_tuples
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import ModelFn, compute_metrics, make_tuple_from_data, prod
@@ -67,7 +68,7 @@ def log_metrics(
 
 
 def baseline_metrics(cfg: Config, data: DatasetTriplet, save_to_csv: Optional[Path]) -> None:
-    if cfg.data.dataset not in (DS.cmnist, DS.celeba):
+    if cfg.data.dataset not in (FdmDataset.cmnist, FdmDataset.celeba):
         log.info("Baselines...")
         train_data = data.train
         test_data = data.test
@@ -107,9 +108,9 @@ def fit_classifier(
 ) -> Classifier:
     input_dim = input_shape[0]
     clf_fn: ModelFn
-    if cfg.data.dataset == DS.cmnist and train_on_recon:
+    if cfg.data.dataset == FdmDataset.cmnist and train_on_recon:
         clf_fn = Mp32x23Net(batch_norm=True)
-    elif cfg.data.dataset in (DS.celeba, DS.genfaces) and train_on_recon:
+    elif cfg.data.dataset in (FdmDataset.celeba, FdmDataset.genfaces) and train_on_recon:
         clf_fn = Mp64x64Net(batch_norm=True)
     else:
         clf_fn = FcNet(hidden_dims=None)
@@ -153,7 +154,7 @@ def evaluate(
             {f"Clust/Context {k}": v for k, v in cluster_context_metrics.items()}
         )
 
-    if cfg.data.dataset in (DS.cmnist, DS.celeba):
+    if cfg.data.dataset in (FdmDataset.cmnist, FdmDataset.celeba):
 
         train_loader = DataLoader(
             train_data, batch_size=cfg.fdm.batch_size, shuffle=True, pin_memory=True
@@ -175,9 +176,9 @@ def evaluate(
             test_loader, device=torch.device(cfg.misc._device)
         )
         preds = em.Prediction(hard=pd.Series(preds))
-        if cfg.data.dataset == DS.cmnist:
+        if cfg.data.dataset == FdmDataset.cmnist:
             sens_name = "colour"
-        elif cfg.data.dataset == DS.celeba:
+        elif cfg.data.dataset == FdmDataset.celeba:
             sens_name = cfg.data.celeba_sens_attr
         else:
             sens_name = "sens_Label"
@@ -251,7 +252,7 @@ def encode_dataset(
                 z_m = zs_m if invariant_to == "s" else zy_m
                 x_m = generator.decode(z_m, mode="hard")
 
-                if cfg.data.dataset in (DS.celeba, DS.genfaces):
+                if cfg.data.dataset == FdmDataset.celeba:
                     x_m = 0.5 * x_m + 0.5
                 if x.dim() > 2:
                     x_m = x_m.clamp(min=0, max=1)

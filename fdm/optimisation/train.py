@@ -2,7 +2,6 @@
 from __future__ import annotations
 from collections import defaultdict
 import logging
-import os
 from pathlib import Path
 import time
 from typing import (
@@ -18,7 +17,9 @@ from typing import (
 )
 
 import git
+from hydra.utils import to_absolute_path
 import numpy as np
+from omegaconf import OmegaConf
 import torch
 from torch import Tensor
 from torch import Tensor
@@ -27,35 +28,27 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from typing_extensions import Literal
 
-from fdm.models import (
-    AutoEncoder,
-    Classifier,
-    EncodingSize,
-    PartitionedAeInn,
-    build_discriminator,
-)
+from fdm.models import AutoEncoder, Classifier, EncodingSize, build_discriminator
 from fdm.models.configs import Residual64x64Net, Strided28x28Net
 from fdm.optimisation.mmd import mmd2
-from hydra.utils import to_absolute_path
-from omegaconf import OmegaConf
 from shared.configs import (
-    BWLoss,
+    AggregatorType,
     Config,
-    DS,
     DatasetConfig,
     EncoderConfig,
     FdmArgs,
+    FdmDataset,
     Misc,
-    RL,
+    ReconstructionLoss,
 )
 from shared.data import DatasetTriplet, load_dataset
 from shared.layers import (
-    Aggregator,
     AttentionAggregator,
     GatedAttention,
     SimpleAggregator,
     SimpleAggregatorT,
 )
+from shared.layers.aggregation import Aggregator
 from shared.models.configs import (
     FcNet,
     ModelAggregatorWrapper,
@@ -79,7 +72,6 @@ import wandb
 
 from .build import build_ae
 from .evaluation import baseline_metrics, log_metrics
-from .inn_training import InnComponents, update_disc_on_inn, update_inn
 from .loss import MixedLoss, PixelCrossEntropy
 from .utils import (
     get_all_num_samples,
@@ -99,7 +91,6 @@ CFG: Config = None  # type: ignore[assignment]
 DATA: DatasetConfig = None  # type: ignore[assignment]
 ENC: EncoderConfig = None  # type: ignore[assignment]
 MISC: Misc = None  # type: ignore[assignment]
-Generator = Union[AutoEncoder, PartitionedAeInn]
 
 
 class AeComponents(NamedTuple):
@@ -113,7 +104,7 @@ class AeComponents(NamedTuple):
     type_: Literal["ae"] = "ae"
 
 
-def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Generator:
+def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
     """Main function.
 
     Args:
@@ -142,7 +133,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Generator:
 
     run = None
     if MISC.use_wandb:
-        project_suffix = f"-{DATA.dataset.name}" if DATA.dataset != DS.cmnist else ""
+        project_suffix = f"-{DATA.dataset.name}" if DATA.dataset != FdmDataset.cmnist else ""
         group = ""
         if MISC.log_method:
             group += MISC.log_method
@@ -253,7 +244,9 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Generator:
     feature_group_slices = getattr(datasets.context, "feature_group_slices", None)
 
     if is_image_data:
-        decoding_dim = input_shape[0] * 256 if ENC.recon_loss == RL.ce else input_shape[0]
+        decoding_dim = (
+            input_shape[0] * 256 if ENC.recon_loss == ReconstructionLoss.ce else input_shape[0]
+        )
         # if ARGS.recon_loss == "ce":
         decoder_out_act = None
         # else:
@@ -277,23 +270,23 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Generator:
         )
 
     recon_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
-    if ENC.recon_loss == RL.l1:
+    if ENC.recon_loss == ReconstructionLoss.l1:
         recon_loss_fn = nn.L1Loss(reduction="sum")
-    elif ENC.recon_loss == RL.l2:
+    elif ENC.recon_loss == ReconstructionLoss.l2:
         recon_loss_fn = nn.MSELoss(reduction="sum")
-    elif ENC.recon_loss == RL.bce:
+    elif ENC.recon_loss == ReconstructionLoss.bce:
         recon_loss_fn = nn.BCELoss(reduction="sum")
-    elif ENC.recon_loss == RL.huber:
+    elif ENC.recon_loss == ReconstructionLoss.huber:
         recon_loss_fn = lambda x, y: 0.1 * F.smooth_l1_loss(x * 10, y * 10, reduction="sum")
-    elif ENC.recon_loss == RL.ce:
+    elif ENC.recon_loss == ReconstructionLoss.ce:
         recon_loss_fn = PixelCrossEntropy(reduction="sum")
-    elif ENC.recon_loss == RL.mixed:
+    elif ENC.recon_loss == ReconstructionLoss.mixed:
         assert feature_group_slices is not None, "can only do multi gen_loss with feature groups"
         recon_loss_fn = MixedLoss(feature_group_slices, reduction="sum")
     else:
         raise ValueError(f"{ENC.recon_loss} is an invalid reconstruction gen_loss")
 
-    generator: Generator
+    generator: AutoEncoder
     zs_dim = round(ARGS.zs_frac * enc_shape[0])
     zy_dim = enc_shape[0] - zs_dim
     encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim)
@@ -322,7 +315,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Generator:
     # FIXME: Architectures need to be GAN specific (e.g. incorporate spectral norm)
     disc_fn: ModelFn
     if is_image_data and ARGS.train_on_recon:
-        if DATA.dataset == DS.cmnist:
+        if DATA.dataset == FdmDataset.cmnist:
             disc_fn = Strided28x28Net(batch_norm=False)
         else:
             disc_fn = Residual64x64Net(batch_norm=False)
@@ -336,18 +329,18 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Generator:
             else disc_input_shape
         )
 
-    if ARGS.aggregator != BWLoss.none:
+    if ARGS.aggregator_type != AggregatorType.none:
         final_proj = FcNet(ARGS.aggregator_hidden_dims) if ARGS.aggregator_hidden_dims else None
         aggregator: Aggregator
-        if ARGS.aggregator == BWLoss.attention:
+        if ARGS.aggregator_type == AggregatorType.attention:
             aggregator = AttentionAggregator(
                 ARGS.aggregator_input_dim, final_proj=final_proj, **ARGS.aggregator_kwargs
             )
-        elif ARGS.aggregator == BWLoss.simple:
+        elif ARGS.aggregator_type == AggregatorType.simple:
             aggregator = SimpleAggregator(
                 latent_dim=ARGS.aggregator_input_dim, final_proj=final_proj
             )
-        elif ARGS.aggregator == BWLoss.transposed:
+        elif ARGS.aggregator_type == AggregatorType.transposed:
             aggregator = SimpleAggregatorT(batch_dim=ARGS.batch_size, final_proj=final_proj)
         else:
             aggregator = GatedAttention(
@@ -547,16 +540,10 @@ def train_step(
             x_c, x_t, s_t, y_t = get_batch(
                 context_data_itr=context_data_itr, train_data_itr=train_data_itr
             )
-            if components.type_ == "ae":
-                _, disc_logging = update_disc(x_c, x_t, ae=components)
-            else:
-                update_disc_on_inn(ARGS, x_c, x_t, models=components)
+            _, disc_logging = update_disc(x_c, x_t, ae=components)
 
     x_c, x_t, s_t, y_t = get_batch(context_data_itr=context_data_itr, train_data_itr=train_data_itr)
-    if components.type_ == "ae":
-        _, logging_dict = update(x_c=x_c, x_t=x_t, s_t=s_t, y_t=y_t, ae=components, warmup=warmup)
-    else:
-        _, logging_dict = update_inn(args=ARGS, x_c=x_c, x_t=x_t, models=components)
+    _, logging_dict = update(x_c=x_c, x_t=x_t, s_t=s_t, y_t=y_t, ae=components, warmup=warmup)
 
     logging_dict.update(disc_logging)
     wandb_log(MISC, logging_dict, step=itr)
@@ -564,12 +551,8 @@ def train_step(
     # Log images
     if itr % ARGS.log_freq == 0:
         with torch.no_grad():
-            if components.type_ == "ae":
-                generator = components.generator
-                x_log = x_t
-            else:
-                generator = components.inn
-                x_log = x_c
+            generator = components.generator
+            x_log = x_t
             log_recons(generator=generator, x=x_log, itr=itr)
     return logging_dict
 
@@ -586,7 +569,7 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents) -> Tuple[Tensor, Dic
     ae.predictor_s.eval()
     ae.disc_ensemble.train()
 
-    if ARGS.aggregator == BWLoss.none:
+    if ARGS.aggregator_type == AggregatorType.none:
         ones = x_c.new_ones((x_c.size(0),))
         zeros = x_t.new_zeros((x_t.size(0),))
     else:
@@ -670,7 +653,7 @@ def update(
 
     if not warmup:
         if ARGS.disc_method == "nn":
-            if ARGS.aggregator == "none":
+            if ARGS.aggregator_type == "none":
                 zeros = x_t.new_zeros((x_t.size(0),))
             else:
                 zeros = x_c.new_zeros(ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
@@ -737,9 +720,9 @@ def get_disc_input(
     if ARGS.train_on_recon:
         zs_m, zy_m = generator.mask(encoding, random=True)
         recon = generator.decode(zs_m if invariant_to == "s" else zy_m, mode="relaxed")
-        if ENC.recon_loss == RL.ce:
+        if ENC.recon_loss == ReconstructionLoss.ce:
             recon = recon.argmax(dim=1).float() / 255
-            if DATA.dataset != DS.cmnist:
+            if DATA.dataset != FdmDataset.cmnist:
                 recon = recon * 2 - 1
         return recon
     else:
@@ -754,7 +737,7 @@ def to_device(*tensors: Tensor) -> Union[Tensor, Tuple[Tensor, ...]]:
 
 
 def log_recons(
-    generator: Union[AutoEncoder, PartitionedAeInn],
+    generator: AutoEncoder,
     x: Tensor,
     itr: int,
     prefix: Optional[str] = None,

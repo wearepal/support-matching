@@ -2,7 +2,7 @@ from typing import List, Optional, Sequence, Union
 
 from torch import nn
 
-from shared.layers import Aggregator
+from shared.configs.enums import AggregatorType
 from shared.utils import ModelFn, prod
 
 __all__ = ["Mp32x23Net", "Mp64x64Net", "FcNet", "ModelAggregatorWrapper"]
@@ -112,7 +112,7 @@ class Mp64x64Net:
 
 
 class ModelAggregatorWrapper:
-    def __init__(self, model_fn: ModelFn, aggregator: Aggregator, input_dim: int):
+    def __init__(self, model_fn: ModelFn, aggregator: AggregatorType, input_dim: int):
         self.model_fn = model_fn
         self.aggregator = aggregator
         self.input_dim = input_dim

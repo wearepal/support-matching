@@ -20,7 +20,6 @@ epochs: 200
 gamma: 0.96
 input_noise: false
 lr: 1e-3
-nll_weight: 1
 pred_s_weight: 3e-3
 # pred_s_weight: 2.0
 results_csv: adult_ae_on_recon.csv

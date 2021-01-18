@@ -1,33 +1,29 @@
 from enum import Enum, auto
 
 __all__ = [
-    "AS",
-    "BWLoss",
-    "CA",
-    "CL",
-    "DM",
-    "DS",
-    "Enc",
-    "GA",
-    "InnRM",
-    "InnSc",
-    "MMDKer",
-    "Meth",
-    "PL",
-    "QL",
-    "RL",
+    "AdultDatasetSplit",
+    "AggregatorType",
+    "ClusteringLabel",
+    "ClusteringMethod",
+    "FdmDataset",
+    "EncoderType",
+    "MMDKernel",
+    "PlMethod",
+    "QuantizationLevel",
+    "ReconstructionLoss",
     "VaeStd",
 ]
 
 
-class DS(Enum):
+class FdmDataset(Enum):
+    """Choice of dataset"""
 
     adult = auto()
     cmnist = auto()
     celeba = auto()
 
 
-class CL(Enum):
+class ClusteringLabel(Enum):
     """Which attribute(s) to cluster on."""
 
     s = auto()
@@ -35,7 +31,7 @@ class CL(Enum):
     both = auto()
 
 
-class Enc(Enum):
+class EncoderType(Enum):
     """Encoder type."""
 
     ae = auto()
@@ -43,7 +39,7 @@ class Enc(Enum):
     rotnet = auto()
 
 
-class RL(Enum):
+class ReconstructionLoss(Enum):
     """ Reconstruction loss."""
 
     l1 = auto()
@@ -61,14 +57,14 @@ class VaeStd(Enum):
     exp = auto()
 
 
-class PL(Enum):
+class PlMethod(Enum):
     """Psuedo-labelling method."""
 
     ranking = auto()
     cosine = auto()
 
 
-class Meth(Enum):
+class ClusteringMethod(Enum):
     """Clustering method."""
 
     pl_enc = auto()
@@ -77,14 +73,14 @@ class Meth(Enum):
     kmeans = auto()
 
 
-class DM(Enum):
+class DicriminatorMethod(Enum):
     """Discriminator method."""
 
     nn = auto()
     mmd = auto()
 
 
-class MMDKer(Enum):
+class MMDKernel(Enum):
     """Kernel to use for MMD (requires discriminator method to be set to MMD)."""
 
     linear = auto()
@@ -92,18 +88,14 @@ class MMDKer(Enum):
     rq = auto()
 
 
-class BWLoss(Enum):
+class AggregatorType(Enum):
     none = auto()
     attention = auto()
     simple = auto()
     transposed = auto()
 
 
-InnRM = Enum("InnRM", "squeeze haar")  # INN reshape method
-InnSc = Enum("InnSc", "none exp sigmoid0_5 add2_sigmoid")  # INN scaling method
-
-
-class QL(Enum):
+class QuantizationLevel(Enum):
     """Quantization level."""
 
     three = 3
@@ -111,19 +103,7 @@ class QL(Enum):
     eight = 8
 
 
-class GA(Enum):
-    """Generated faces attributes."""
-
-    gender = auto()
-    age = auto()
-    ethnicity = auto()
-    eye_color = auto()
-    hair_color = auto()
-    hair_length = auto()
-    emotion = auto()
-
-
-class CA(Enum):
+class CelebaAttributes(Enum):
     """CelebA attributes."""
 
     _5_o_Clock_Shadow = auto()
@@ -168,7 +148,7 @@ class CA(Enum):
     Young = auto()
 
 
-class AS(Enum):
+class AdultDatasetSplit(Enum):
     """Adult dataset splits."""
 
     Sex = auto()

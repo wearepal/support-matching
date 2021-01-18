@@ -4,21 +4,18 @@ from typing import Dict, List, Optional
 from omegaconf import MISSING
 
 from .enums import (
-    AS,
-    BWLoss,
-    CA,
-    CL,
-    DM,
-    DS,
-    Enc,
-    GA,
-    InnRM,
-    InnSc,
-    MMDKer,
-    Meth,
-    PL,
-    QL,
-    RL,
+    AdultDatasetSplit,
+    AggregatorType,
+    CelebaAttributes,
+    ClusteringLabel,
+    ClusteringMethod,
+    DicriminatorMethod,
+    EncoderType,
+    FdmDataset,
+    MMDKernel,
+    PlMethod,
+    QuantizationLevel,
+    ReconstructionLoss,
     VaeStd,
 )
 
@@ -38,7 +35,7 @@ __all__ = [
 class DatasetConfig:
     """General data set settings."""
 
-    dataset: DS = MISSING
+    dataset: FdmDataset = MISSING
 
     data_pcnt: float = 1.0  # data pcnt should be a real value > 0, and up to 1
     context_pcnt: float = 0.4
@@ -47,7 +44,7 @@ class DatasetConfig:
 
     # Adult data set feature settings
     drop_native: bool = True
-    adult_split: AS = AS.Sex
+    adult_split: AdultDatasetSplit = AdultDatasetSplit.Sex
     drop_discrete: bool = False
     adult_balanced_test: bool = True
     balance_all_quadrants: bool = True
@@ -62,18 +59,14 @@ class DatasetConfig:
     shift_data: bool = False
     color_correlation: float = 1.0
     padding: int = 2  # by how many pixels to pad the cmnist images by
-    quant_level: QL = QL.eight  # number of bits that encode color
+    quant_level: QuantizationLevel = QuantizationLevel.eight  # number of bits that encode color
     input_noise: bool = False  # add uniform noise to the input
     filter_labels: List[int] = field(default_factory=list)
     colors: List[int] = field(default_factory=list)
 
     # CelebA settings
-    celeba_sens_attr: CA = CA.Male
-    celeba_target_attr: CA = CA.Smiling
-
-    # GenFaces settings
-    genfaces_sens_attr: GA = GA.gender
-    genfaces_target_attr: GA = GA.emotion
+    celeba_sens_attr: CelebaAttributes = CelebaAttributes.Male
+    celeba_target_attr: CelebaAttributes = CelebaAttributes.Smiling
 
 
 @dataclass
@@ -136,11 +129,11 @@ class ClusterArgs:
     val_freq: int = 5
     log_freq: int = 50
     feat_attr: bool = False
-    cluster: CL = CL.both
+    cluster: ClusteringLabel = ClusteringLabel.both
     with_supervision: bool = True
 
     # Encoder settings
-    encoder: Enc = Enc.ae
+    encoder: EncoderType = EncoderType.ae
     vgg_weight: float = 0
     vae_std_tform: VaeStd = VaeStd.exp
     kl_weight: float = 1
@@ -157,7 +150,7 @@ class ClusterArgs:
     freeze_layers: int = 0
 
     # PseudoLabeler
-    pseudo_labeler: PL = PL.ranking
+    pseudo_labeler: PlMethod = PlMethod.ranking
     sup_ce_weight: float = 1.0
     sup_bce_weight: float = 1.0
     k_num: int = 5
@@ -171,7 +164,7 @@ class ClusterArgs:
     use_multi_head: bool = False
 
     # Method
-    method: Meth = Meth.pl_enc_no_norm
+    method: ClusteringMethod = ClusteringMethod.pl_enc_no_norm
 
     #  Labeler
     labeler_lr: float = 1e-3
@@ -188,7 +181,7 @@ class EncoderConfig:
     out_dim: int = 64
     levels: int = 4
     init_chans: int = 32
-    recon_loss: RL = RL.l2
+    recon_loss: ReconstructionLoss = ReconstructionLoss.l2
 
 
 @dataclass
@@ -231,38 +224,18 @@ class FdmArgs:
     vae_std_tform: VaeStd = VaeStd.exp
     stochastic: bool = False
 
-    # INN settings
-    use_inn: bool = False
-    inn_levels: int = 1
-    inn_level_depth: int = 1
-    inn_reshape_method: InnRM = InnRM.squeeze
-    inn_coupling_channels: int = 256
-    inn_coupling_depth: int = 1
-    inn_glow: bool = True
-    inn_batch_norm: bool = False
-    inn_bn_lag: float = 0  # fraction of current statistics to incorporate into moving average
-    inn_factor_splits: Dict[str, int] = field(default_factory=dict)
-    inn_idf: bool = False
-    inn_scaling: InnSc = InnSc.sigmoid0_5
-    inn_spectral_norm: bool = False
-    inn_oxbow_net: bool = False
-    inn_lr: float = 3e-4
-    nll_weight: float = 1e-2
-    recon_stability_weight: float = 0
-    path_to_ae: str = ""
-    ae_epochs: int = 5
     num_discs: int = 1
     disc_reset_prob: float = 0.0
 
     # Discriminator settings
-    disc_method: DM = DM.nn
-    mmd_kernel: MMDKer = MMDKer.rq
+    disc_method: DicriminatorMethod = DicriminatorMethod.nn
+    mmd_kernel: MMDKernel = MMDKernel.rq
     mmd_scales: List[float] = field(default_factory=list)
     mmd_wts: List[float] = field(default_factory=list)
     mmd_add_dot: float = 0.0
 
     disc_hidden_dims: List[int] = field(default_factory=lambda: [256])
-    aggregator: BWLoss = BWLoss.none
+    aggregator_type: AggregatorType = AggregatorType.none
     aggregator_input_dim: int = 32
     aggregator_hidden_dims: List[int] = field(default_factory=list)
     aggregator_kwargs: Dict[str, int] = field(default_factory=dict)
