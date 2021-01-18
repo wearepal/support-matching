@@ -19,18 +19,88 @@ __all__ = [
     "VaeStd",
 ]
 
-DS = Enum("DS", "adult cmnist celeba genfaces")  # dataset
-CL = Enum("CL", "s y both")  # cluster target
-Enc = Enum("Enc", "ae vae rotnet")  # encoder
-RL = Enum("RL", "l1 l2 bce huber ce mixed")  # reconstruction loss
-VaeStd = Enum("VaeStd", "softplus exp")  # function used to compute standard deviation in the VAE
-PL = Enum("PL", "ranking cosine")  # pseudo labeler
-Meth = Enum("Meth", "pl_enc pl_output pl_enc_no_norm kmeans")  # clustering method
+
+class DS(Enum):
+
+    adult = auto()
+    cmnist = auto()
+    celeba = auto()
+
+
+class CL(Enum):
+    """Which attribute(s) to cluster on."""
+
+    s = auto()
+    y = auto()
+    both = auto()
+
+
+class Enc(Enum):
+    """Encoder type."""
+
+    ae = auto()
+    vae = auto()
+    rotnet = auto()
+
+
+class RL(Enum):
+    """ Reconstruction loss."""
+
+    l1 = auto()
+    l2 = auto()
+    bce = auto()
+    huber = auto()
+    ce = auto()
+    mixed = auto()
+
+
+class VaeStd(Enum):
+    """Activation to apply to the VAE's learned std to guarantee non-negativity."""
+
+    softplus = auto()
+    exp = auto()
+
+
+class PL(Enum):
+    """Psuedo-labelling method."""
+
+    ranking = auto()
+    cosine = auto()
+
+
+class Meth(Enum):
+    """Clustering method."""
+
+    pl_enc = auto()
+    pl_enc_no_norm = auto()
+    pl_output = auto()
+    kmeans = auto()
+
+
+class DM(Enum):
+    """Discriminator method."""
+
+    nn = auto()
+    mmd = auto()
+
+
+class MMDKer(Enum):
+    """Kernel to use for MMD (requires discriminator method to be set to MMD)."""
+
+    linear = auto()
+    rbf = auto()
+    rq = auto()
+
+
+class BWLoss(Enum):
+    none = auto()
+    attention = auto()
+    simple = auto()
+    transposed = auto()
+
+
 InnRM = Enum("InnRM", "squeeze haar")  # INN reshape method
 InnSc = Enum("InnSc", "none exp sigmoid0_5 add2_sigmoid")  # INN scaling method
-DM = Enum("DM", "nn mmd")  # discriminator method
-MMDKer = Enum("MMDKer", "linear rbf rq")  # MMD kernel
-BWLoss = Enum("BWLoss", "none attention simple transposed")  # batch-wise loss
 
 
 class QL(Enum):
