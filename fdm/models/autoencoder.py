@@ -99,8 +99,8 @@ class AutoEncoder(nn.Module):
 
     def step(self):
         if self.use_amp:
-            self.scaler.scale(self.encoder.optimizer.step())
-            self.scaler.scale(self.decoder.optimizer.step())
+            self.scaler.step(self.encoder.optimizer)
+            self.scaler.step(self.decoder.optimizer)
             self.scaler.update()
         else:
             self.encoder.step()
