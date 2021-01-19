@@ -73,7 +73,7 @@ def save_model(
     return filename
 
 
-def restore_model(cfg: Config, filename: Path, model: nn.Module):
+def restore_model(cfg: Config, filename: Path, model: nn.Module) -> Tuple[nn.Module, int]:
     chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
     args_chkpt = chkpt["args"]
     assert cfg.enc.levels == args_chkpt["enc.levels"]
