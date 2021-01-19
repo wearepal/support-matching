@@ -89,9 +89,20 @@ class AutoEncoder(nn.Module):
         self.encoder.zero_grad()
         self.decoder.zero_grad()
 
+<<<<<<< HEAD
     def step(self, grad_scaler: Optional[GradScaler] = None):
         self.encoder.step(grad_scaler=grad_scaler)
         self.decoder.step(grad_scaler=grad_scaler)
+=======
+    def step(self):
+        if self.use_amp:
+            self.scaler.step(self.encoder.optimizer)
+            self.scaler.step(self.decoder.optimizer)
+            self.scaler.update()
+        else:
+            self.encoder.step()
+            self.decoder.step()
+>>>>>>> 80afebeacd2f04137b86883130e829ec0428bcaa
 
     def split_encoding(self, z: Tensor) -> SplitEncoding:
         assert self.encoding_size is not None
