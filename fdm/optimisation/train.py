@@ -1,20 +1,11 @@
 """Main training file"""
 from __future__ import annotations
+
 from collections import defaultdict
 import logging
 from pathlib import Path
 import time
-from typing import (
-    Callable,
-    Dict,
-    Iterator,
-    NamedTuple,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import Callable, Dict, Iterator, NamedTuple, Optional, Sequence, Tuple, Union, cast
 
 import git
 from hydra.utils import instantiate, to_absolute_path
@@ -27,6 +18,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from typing_extensions import Literal
+import wandb
 
 from fdm.models import AutoEncoder, Classifier, EncodingSize, build_discriminator
 from fdm.models.configs import Residual64x64Net, Strided28x28Net
@@ -43,12 +35,7 @@ from shared.configs import (
 )
 from shared.data import DatasetTriplet, load_dataset
 from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
-from shared.models.configs import (
-    FcNet,
-    ModelAggregatorWrapper,
-    conv_autoencoder,
-    fc_autoencoder,
-)
+from shared.models.configs import FcNet, ModelAggregatorWrapper, conv_autoencoder, fc_autoencoder
 from shared.utils import (
     AverageMeter,
     ModelFn,
@@ -62,7 +49,6 @@ from shared.utils import (
     readable_duration,
     wandb_log,
 )
-import wandb
 
 from .build import build_ae
 from .evaluation import baseline_metrics, log_metrics
@@ -93,6 +79,8 @@ class AeComponents(NamedTuple):
 
 
 class Experiment:
+    """Experiment singleton class."""
+
     def __init__(
         self,
         args: FdmConfig,
@@ -100,6 +88,7 @@ class Experiment:
         data: DatasetConfig,
         enc: EncoderConfig,
         misc: MiscConfig,
+        ae: AeComponents,
     ) -> None:
         self.args = args
         self.cfg = cfg
@@ -107,48 +96,7 @@ class Experiment:
         self.enc = enc
         self.misc = misc
         self.grad_scaler = GradScaler() if self.misc.use_amp else None
-
-    def build_weighted_sampler_from_dataset(
-        self,
-        dataset: Dataset,
-        s_count: int,
-        oversample: bool,
-        test_batch_size: int,
-        batch_size: int,
-        num_workers: int,
-        balance_hierarchical: bool,
-    ) -> WeightedRandomSampler:
-        #  Extract the s and y labels in a dataset-agnostic way (by iterating)
-        data_loader = DataLoader(
-            dataset=dataset, drop_last=False, batch_size=test_batch_size, num_workers=num_workers
-        )
-        s_all, y_all = [], []
-        for _, s, y in data_loader:
-            s_all.append(s)
-            y_all.append(y)
-        s_all = torch.cat(s_all, dim=0)
-        y_all = torch.cat(y_all, dim=0)
-        # Balance the batches of the training set via weighted sampling
-        class_ids = label_to_class_id(s=s_all, y=y_all, s_count=s_count).view(-1)
-        if balance_hierarchical:
-            # here we make sure that in a batch, y is balanced and within the y subsets, s is balanced
-            y_weights, y_unique_weights_counts = weights_with_counts(y_all.view(-1))
-            quad_weights, quad_unique_weights_counts = weights_with_counts(class_ids)
-            weights = y_weights * quad_weights
-
-            all_num_samples = get_all_num_samples(
-                quad_unique_weights_counts, y_unique_weights_counts, s_count
-            )
-            num_samples = max(all_num_samples) if oversample else min(all_num_samples)
-        else:
-            weights, n_clusters, min_count, max_count = weight_for_balance(class_ids)
-            num_samples = n_clusters * max_count if oversample else n_clusters * min_count
-        assert (
-            num_samples > batch_size
-        ), f"not enough training samples ({num_samples}) to fill a batch"
-        return WeightedRandomSampler(
-            weights.squeeze().tolist(), num_samples, replacement=oversample
-        )
+        self.ae = ae
 
     def get_batch(
         self,
@@ -161,7 +109,6 @@ class Experiment:
 
     def train_step(
         self,
-        components: AeComponents,
         context_data_itr: Iterator[Tuple[Tensor, Tensor, Tensor]],
         train_data_itr: Iterator[Tuple[Tensor, Tensor, Tensor]],
         itr: int,
@@ -175,14 +122,12 @@ class Experiment:
                 x_c, x_t, s_t, y_t = self.get_batch(
                     context_data_itr=context_data_itr, train_data_itr=train_data_itr
                 )
-                _, disc_logging = self.update_disc(x_c, x_t, ae=components)
+                _, disc_logging = self.update_disc(x_c, x_t)
 
         x_c, x_t, s_t, y_t = self.get_batch(
             context_data_itr=context_data_itr, train_data_itr=train_data_itr
         )
-        _, logging_dict = self.update(
-            x_c=x_c, x_t=x_t, s_t=s_t, y_t=y_t, ae=components, warmup=warmup
-        )
+        _, logging_dict = self.update(x_c=x_c, x_t=x_t, s_t=s_t, y_t=y_t, warmup=warmup)
 
         logging_dict.update(disc_logging)
         wandb_log(self.misc, logging_dict, step=itr)
@@ -190,40 +135,38 @@ class Experiment:
         # Log images
         if itr % self.args.log_freq == 0:
             with torch.no_grad():
-                generator = components.generator
+                generator = self.ae.generator
                 x_log = x_t
                 self.log_recons(generator=generator, x=x_log, itr=itr)
         return logging_dict
 
-    def update_disc(
-        self, x_c: Tensor, x_t: Tensor, ae: AeComponents
-    ) -> Tuple[Tensor, Dict[str, float]]:
+    def update_disc(self, x_c: Tensor, x_t: Tensor) -> Tuple[Tensor, Dict[str, float]]:
         """Train the discriminator while keeping the generator constant.
 
         Args:
             x_c: x from the context set
             x_t: x from the training set
         """
-        ae.generator.eval()
-        ae.predictor_y.eval()
-        ae.predictor_s.eval()
-        ae.disc_ensemble.train()
+        self.ae.generator.eval()
+        self.ae.predictor_y.eval()
+        self.ae.predictor_s.eval()
+        self.ae.disc_ensemble.train()
         with torch.cuda.amp.autocast(enabled=self.misc.use_amp):
             if self.args.aggregator_type == AggregatorType.none:
                 ones = x_c.new_ones((x_c.size(0),))
                 zeros = x_t.new_zeros((x_t.size(0),))
             else:
-                ones = x_c.new_ones(ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
-                zeros = x_c.new_zeros(ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
+                ones = x_c.new_ones(self.ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
+                zeros = x_c.new_zeros(self.ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
 
             if self.args.vae:
-                encoding_t = ae.generator.encode(x_t, stochastic=True)
+                encoding_t = self.ae.generator.encode(x_t, stochastic=True)
                 if not self.args.train_on_recon:
-                    encoding_c = ae.generator.encode(x_c, stochastic=True)
+                    encoding_c = self.ae.generator.encode(x_c, stochastic=True)
             else:
-                encoding_t = ae.generator.encode(x_t)
+                encoding_t = self.ae.generator.encode(x_t)
                 if not self.args.train_on_recon:
-                    encoding_c = ae.generator.encode(x_c)
+                    encoding_c = self.ae.generator.encode(x_c)
 
             if self.args.train_on_recon:
                 disc_input_c = x_c
@@ -231,30 +174,30 @@ class Experiment:
             disc_loss = x_c.new_zeros(())
             disc_acc = 0.0
             logging_dict = {}
-            disc_input_t = self.get_disc_input(ae.generator, encoding_t)
+            disc_input_t = self.get_disc_input(encoding_t)
             disc_input_t = disc_input_t.detach()
 
             if not self.args.train_on_recon:
-                disc_input_c = self.get_disc_input(ae.generator, encoding_c)
+                disc_input_c = self.get_disc_input(encoding_c)
                 disc_input_c = disc_input_c.detach()
 
-            for discriminator in ae.disc_ensemble:
+            for discriminator in self.ae.disc_ensemble:
                 discriminator = cast(Classifier, discriminator)
                 disc_loss_true, acc_c = discriminator.routine(disc_input_c, ones)
                 disc_loss_false, acc_t = discriminator.routine(disc_input_t, zeros)
                 disc_loss += disc_loss_true + disc_loss_false
                 disc_acc += 0.5 * (acc_c + acc_t)
-            disc_loss /= len(ae.disc_ensemble)
+            disc_loss /= len(self.ae.disc_ensemble)
 
-        logging_dict["Accuracy Discriminator (zy)"] = disc_acc / len(ae.disc_ensemble)
-        for discriminator in ae.disc_ensemble:
+        logging_dict["Accuracy Discriminator (zy)"] = disc_acc / len(self.ae.disc_ensemble)
+        for discriminator in self.ae.disc_ensemble:
             discriminator.zero_grad()
 
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
             disc_loss = self.grad_scaler.scale(disc_loss)
         disc_loss.backward()
 
-        for discriminator in ae.disc_ensemble:
+        for discriminator in self.ae.disc_ensemble:
             discriminator = cast(Classifier, discriminator)
             discriminator.step(grad_scaler=self.grad_scaler)
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
@@ -263,7 +206,7 @@ class Experiment:
         return disc_loss, logging_dict
 
     def update(
-        self, x_c: Tensor, x_t: Tensor, s_t: Tensor, y_t: Tensor, ae: AeComponents, warmup: bool
+        self, x_c: Tensor, x_t: Tensor, s_t: Tensor, y_t: Tensor, warmup: bool
     ) -> Tuple[Tensor, Dict[str, float]]:
         """Compute all losses.
 
@@ -271,24 +214,24 @@ class Experiment:
             x_t: x from the training set
         """
         # Compute losses for the generator.
-        ae.predictor_y.train()
-        ae.predictor_s.train()
-        ae.generator.train()
-        ae.disc_ensemble.eval()
+        self.ae.predictor_y.train()
+        self.ae.predictor_s.train()
+        self.ae.generator.train()
+        self.ae.disc_ensemble.eval()
         logging_dict = {}
 
         with torch.cuda.amp.autocast(enabled=self.misc.use_amp):
-            # ================================ recon loss for training set =============================
-            encoding, elbo, logging_dict_elbo = ae.generator.routine(
-                x_t, ae.recon_loss_fn, self.args.kl_weight
+            # ============================= recon loss for training set ===========================
+            encoding, elbo, logging_dict_elbo = self.ae.generator.routine(
+                x_t, self.ae.recon_loss_fn, self.args.kl_weight
             )
 
-            # ================================ recon loss for context set ==============================
+            # ============================= recon loss for context set ============================
             # we need a reconstruction loss for x_c because...
-            # ...when we train on encodings, the network will otherwise just falsify encodings for x_c
+            # ...when we train on encodings, the NN will otherwise just falsify encodings for x_c
             # ...when we train on recons, the GAN loss has it too easy to distinguish the two
-            encoding_c, elbo_c, logging_dict_elbo_c = ae.generator.routine(
-                x_c, ae.recon_loss_fn, self.args.kl_weight
+            encoding_c, elbo_c, logging_dict_elbo_c = self.ae.generator.routine(
+                x_c, self.ae.recon_loss_fn, self.args.kl_weight
             )
             logging_dict.update(
                 {k: v + logging_dict_elbo_c[k] for k, v in logging_dict_elbo.items()}
@@ -298,24 +241,24 @@ class Experiment:
             logging_dict["ELBO"] = elbo
             total_loss = elbo
 
-            # ==================================== adversarial losses ==================================
-            disc_input_no_s = self.get_disc_input(ae.generator, encoding, invariant_to="s")
+            # ================================= adversarial losses ================================
+            disc_input_no_s = self.get_disc_input(encoding, invariant_to="s")
 
             if not warmup:
                 if self.args.disc_method == "nn":
                     if self.args.aggregator_type == "none":
                         zeros = x_t.new_zeros((x_t.size(0),))
                     else:
-                        zeros = x_c.new_zeros(ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
+                        zeros = x_c.new_zeros(self.ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
 
                     disc_loss = x_t.new_zeros(())
-                    for discriminator in ae.disc_ensemble:
+                    for discriminator in self.ae.disc_ensemble:
                         disc_loss -= discriminator.routine(disc_input_no_s, zeros)[0]
-                    disc_loss /= len(ae.disc_ensemble)
+                    disc_loss /= len(self.ae.disc_ensemble)
 
                 else:
                     x = disc_input_no_s
-                    y = self.get_disc_input(ae.generator, encoding_c.detach(), invariant_to="s")
+                    y = self.get_disc_input(encoding_c.detach(), invariant_to="s")
                     disc_loss = mmd2(
                         x=x,
                         y=y,
@@ -329,16 +272,16 @@ class Experiment:
                 logging_dict["Loss Discriminator"] = disc_loss
 
             # this is a pretty cheap masking operation, so it's okay if it's not used
-            enc_no_s, enc_no_y = ae.generator.mask(encoding, random=False)
+            enc_no_s, enc_no_y = self.ae.generator.mask(encoding, random=False)
             if self.args.pred_y_weight > 0:
                 # predictor is on encodings; predict y from the part that is invariant to s
-                pred_y_loss, pred_y_acc = ae.predictor_y.routine(enc_no_s, y_t)
+                pred_y_loss, pred_y_acc = self.ae.predictor_y.routine(enc_no_s, y_t)
                 pred_y_loss *= self.args.pred_y_weight
                 logging_dict["Loss Predictor y"] = pred_y_loss.item()
                 logging_dict["Accuracy Predictor y"] = pred_y_acc
                 total_loss += pred_y_loss
             if self.args.pred_s_weight > 0:
-                pred_s_loss, pred_s_acc = ae.predictor_s.routine(enc_no_y, s_t)
+                pred_s_loss, pred_s_acc = self.ae.predictor_s.routine(enc_no_y, s_t)
                 pred_s_loss *= self.args.pred_s_weight
                 logging_dict["Loss Predictor s"] = pred_s_loss.item()
                 logging_dict["Accuracy Predictor s"] = pred_s_acc
@@ -346,41 +289,39 @@ class Experiment:
 
         logging_dict["Loss Total"] = total_loss
 
-        ae.generator.zero_grad()
+        self.ae.generator.zero_grad()
         if self.args.pred_y_weight > 0:
-            ae.predictor_y.zero_grad()
+            self.ae.predictor_y.zero_grad()
         if self.args.pred_s_weight > 0:
-            ae.predictor_s.zero_grad()
+            self.ae.predictor_s.zero_grad()
 
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
             total_loss = self.grad_scaler.scale(total_loss)
         total_loss.backward()
 
         # Update the generator's parameters
-        ae.generator.step(grad_scaler=self.grad_scaler)
+        self.ae.generator.step(grad_scaler=self.grad_scaler)
         if self.args.pred_y_weight > 0:
-            ae.predictor_y.step(grad_scaler=self.grad_scaler)
+            self.ae.predictor_y.step(grad_scaler=self.grad_scaler)
         if self.args.pred_s_weight > 0:
-            ae.predictor_s.step(grad_scaler=self.grad_scaler)
+            self.ae.predictor_s.step(grad_scaler=self.grad_scaler)
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
             self.grad_scaler.update()
 
         return total_loss, logging_dict
 
-    def get_disc_input(
-        self, generator: AutoEncoder, encoding: Tensor, invariant_to: Literal["s", "y"] = "s"
-    ) -> Tensor:
+    def get_disc_input(self, encoding: Tensor, invariant_to: Literal["s", "y"] = "s") -> Tensor:
         """Construct the input that the discriminator expects."""
         if self.args.train_on_recon:
-            zs_m, zy_m = generator.mask(encoding, random=True)
-            recon = generator.decode(zs_m if invariant_to == "s" else zy_m, mode="relaxed")
+            zs_m, zy_m = self.ae.generator.mask(encoding, random=True)
+            recon = self.ae.generator.decode(zs_m if invariant_to == "s" else zy_m, mode="relaxed")
             if self.enc.recon_loss == ReconstructionLoss.ce:
                 recon = recon.argmax(dim=1).float() / 255
                 if self.data.dataset != FdmDataset.cmnist:
                     recon = recon * 2 - 1
             return recon
         else:
-            zs_m, zy_m = generator.mask(encoding)
+            zs_m, zy_m = self.ae.generator.mask(encoding)
             return zs_m if invariant_to == "s" else zy_m
 
     def to_device(self, *tensors: Tensor) -> Union[Tensor, Tuple[Tensor, ...]]:
@@ -388,16 +329,10 @@ class Experiment:
         moved = [tensor.to(torch.device(self.misc.device), non_blocking=True) for tensor in tensors]
         return moved[0] if len(moved) == 1 else tuple(moved)
 
-    def log_recons(
-        self,
-        generator: AutoEncoder,
-        x: Tensor,
-        itr: int,
-        prefix: Optional[str] = None,
-    ) -> None:
-        """Log reconstructed images"""
-        encoding = generator.encode(x[:64], stochastic=False)
-        recon = generator.all_recons(encoding, mode="hard")
+    def log_recons(self, x: Tensor, itr: int, prefix: Optional[str] = None) -> None:
+        """Log reconstructed images."""
+        encoding = self.ae.generator.encode(x[:64], stochastic=False)
+        recon = self.ae.generator.all_recons(encoding, mode="hard")
 
         log_images(self.cfg, x[:64], "original_x", step=itr, prefix=prefix)
         log_images(self.cfg, recon.all, "reconstruction_all", step=itr, prefix=prefix)
@@ -422,7 +357,6 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
     data = cfg.data
     enc = cfg.enc
     misc = cfg.misc
-    exp = Experiment(args, cfg, data, enc, misc)
 
     assert args.test_batch_size  # test_batch_size defaults to eff_batch_size if unspecified
     # ==== current git commit ====
@@ -490,7 +424,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
         )
         dataloader_kwargs = dict(sampler=context_sampler)
     elif args.balanced_context:
-        context_sampler = exp.build_weighted_sampler_from_dataset(
+        context_sampler = build_weighted_sampler_from_dataset(
             dataset=datasets.context,
             s_count=s_count,
             test_batch_size=args.test_batch_size,
@@ -512,7 +446,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
         **dataloader_kwargs,
     )
 
-    train_sampler = exp.build_weighted_sampler_from_dataset(
+    train_sampler = build_weighted_sampler_from_dataset(
         dataset=datasets.train,
         s_count=s_count,
         test_batch_size=args.test_batch_size,
@@ -675,6 +609,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
         predictor_y=predictor_y,
         predictor_s=predictor_s,
     )
+    exp = Experiment(args, cfg, data, enc, misc, components)
 
     start_itr = 1  # start at 1 so that the val_freq works correctly
     # Resume from checkpoint
@@ -718,7 +653,6 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
     for itr in range(start_itr, args.iters + 1):
 
         logging_dict = exp.train_step(
-            components=components,
             context_data_itr=context_data_itr,
             train_data_itr=train_data_itr,
             itr=itr,
@@ -769,3 +703,41 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
         run.finish()  # this allows multiple experiments in one python process
 
     return generator
+
+
+def build_weighted_sampler_from_dataset(
+    dataset: Dataset,
+    s_count: int,
+    oversample: bool,
+    test_batch_size: int,
+    batch_size: int,
+    num_workers: int,
+    balance_hierarchical: bool,
+) -> WeightedRandomSampler:
+    #  Extract the s and y labels in a dataset-agnostic way (by iterating)
+    data_loader = DataLoader(
+        dataset=dataset, drop_last=False, batch_size=test_batch_size, num_workers=num_workers
+    )
+    s_all, y_all = [], []
+    for _, s, y in data_loader:
+        s_all.append(s)
+        y_all.append(y)
+    s_all = torch.cat(s_all, dim=0)
+    y_all = torch.cat(y_all, dim=0)
+    # Balance the batches of the training set via weighted sampling
+    class_ids = label_to_class_id(s=s_all, y=y_all, s_count=s_count).view(-1)
+    if balance_hierarchical:
+        # here we make sure that in a batch, y is balanced and within the y subsets, s is balanced
+        y_weights, y_unique_weights_counts = weights_with_counts(y_all.view(-1))
+        quad_weights, quad_unique_weights_counts = weights_with_counts(class_ids)
+        weights = y_weights * quad_weights
+
+        all_num_samples = get_all_num_samples(
+            quad_unique_weights_counts, y_unique_weights_counts, s_count
+        )
+        num_samples = max(all_num_samples) if oversample else min(all_num_samples)
+    else:
+        weights, n_clusters, min_count, max_count = weight_for_balance(class_ids)
+        num_samples = n_clusters * max_count if oversample else n_clusters * min_count
+    assert num_samples > batch_size, f"not enough training samples ({num_samples}) to fill a batch"
+    return WeightedRandomSampler(weights.squeeze().tolist(), num_samples, replacement=oversample)
