@@ -1,6 +1,6 @@
 # Fair distribution matching
 
-Requires Python 3.6
+Requires Python 3.7.
 
 # Installation
 One of the dependencies is PyTorch. If your system is not compatible with the default torch installation 
