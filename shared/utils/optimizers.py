@@ -1,5 +1,5 @@
-import math
 from collections import defaultdict
+import math
 
 import torch
 from torch.optim.optimizer import Optimizer, required

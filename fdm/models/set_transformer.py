@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from torch.tensor import Tensor
 
-
 __all__ = [
     "SetTransformer",
     "MultiheadAttentionBlock",

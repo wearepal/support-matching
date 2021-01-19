@@ -3,10 +3,10 @@ import logging
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import torch
+from torch import Tensor
 import torch.distributions as td
 import torch.nn as nn
 import torch.nn.functional as F
-from torch import Tensor
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -15,7 +15,7 @@ from shared.utils import print_metrics, to_discrete, wandb_log
 
 from .base import Encoder, ModelBase
 
-__all__ = ["AutoEncoder", "VAE"]
+__all__ = ["AutoEncoder", "Vae"]
 
 log = logging.getLogger(__name__.split(".")[-1].upper())
 
@@ -124,7 +124,7 @@ class AutoEncoder(Encoder):
         self.encoder.freeze_initial_layers(num_layers=num_layers, optimizer_kwargs=optimizer_kwargs)
 
 
-class VAE(AutoEncoder):
+class Vae(AutoEncoder):
     """Variational AutoEncoder."""
 
     def __init__(

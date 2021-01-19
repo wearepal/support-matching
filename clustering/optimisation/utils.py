@@ -4,23 +4,14 @@ from typing import Dict, Optional, Tuple, Union
 from lapjv import lapjv
 import numpy as np
 from omegaconf import OmegaConf
-from sklearn.metrics import (
-    adjusted_rand_score,
-    confusion_matrix,
-    normalized_mutual_info_score,
-)
+from sklearn.metrics import adjusted_rand_score, confusion_matrix, normalized_mutual_info_score
 import torch
 from torch import Tensor
 import torchvision
+import wandb
 
 from clustering.models import Model
-from shared.configs import (
-    ClusteringLabel,
-    Config,
-    FdmDataset,
-    MiscConfig,
-    ReconstructionLoss,
-)
+from shared.configs import ClusteringLabel, Config, FdmDataset, MiscConfig, ReconstructionLoss
 from shared.utils import (
     ClusterResults,
     class_id_to_label,
@@ -29,7 +20,6 @@ from shared.utils import (
     save_results,
     wandb_log,
 )
-import wandb
 
 __all__ = [
     "convert_and_save_results",

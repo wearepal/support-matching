@@ -6,10 +6,10 @@ from omegaconf import OmegaConf
 import torch
 from torch import Tensor, nn
 import torchvision
+import wandb
 
 from shared.configs import Config, FdmDataset, ReconstructionLoss
 from shared.utils import class_id_to_label, flatten, wandb_log
-import wandb
 
 __all__ = [
     "get_all_num_samples",

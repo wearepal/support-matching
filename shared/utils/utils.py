@@ -2,26 +2,16 @@
 import collections
 import os
 import random
-from typing import (
-    Any,
-    Dict,
-    Iterable,
-    Iterator,
-    Optional,
-    Sequence,
-    Tuple,
-    TypeVar,
-    Union,
-)
+from typing import Any, Dict, Iterable, Iterator, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from typing_extensions import Literal, Protocol
+import wandb
 
 from shared.configs import MiscConfig
-import wandb
 
 __all__ = [
     "AverageMeter",

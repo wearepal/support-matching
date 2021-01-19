@@ -2,8 +2,8 @@
 from typing import Iterator, Optional, Tuple
 
 import torch
-import torch.nn as nn
 from torch import Tensor
+import torch.nn as nn
 from typing_extensions import final
 
 from .base import Encoder

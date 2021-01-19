@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 
-from fdm.models import AutoEncoder, EncodingSize, VAE
+from fdm.models import AutoEncoder, EncodingSize, Vae
 from shared.configs import Config
 
 __all__ = ["build_ae"]
@@ -16,7 +16,7 @@ def build_ae(
     optimizer_args = {"lr": cfg.fdm.lr, "weight_decay": cfg.fdm.weight_decay}
     model: AutoEncoder
     if cfg.fdm.vae:
-        model = VAE(
+        model = Vae(
             encoder=encoder,
             decoder=decoder,
             encoding_size=encoding_size,

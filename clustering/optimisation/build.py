@@ -1,10 +1,10 @@
 from typing import Callable, Dict, List, Optional, Tuple
 
 import torch
-import torch.nn.functional as F
 from torch import nn
+import torch.nn.functional as F
 
-from clustering.models import VAE, AutoEncoder
+from clustering.models import AutoEncoder, Vae
 from shared.configs import Config, EncoderType, ReconstructionLoss
 from shared.models.configs import conv_autoencoder, fc_autoencoder
 
@@ -77,7 +77,7 @@ def build_ae(
     optimizer_args = {"lr": cfg.clust.enc_lr, "weight_decay": cfg.clust.enc_wd}
     generator: AutoEncoder
     if variational:
-        generator = VAE(
+        generator = Vae(
             encoder=encoder,
             decoder=decoder,
             recon_loss_fn=recon_loss_fn,

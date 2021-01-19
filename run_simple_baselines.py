@@ -19,7 +19,7 @@ from tqdm import trange
 
 from fdm.models import Classifier
 from fdm.optimisation.train import build_weighted_sampler_from_dataset
-from shared.configs import BaseConfig, DS
+from shared.configs import DS, BaseConfig
 from shared.data import adult, load_dataset
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import ModelFn, compute_metrics, get_data_dim, random_seed
