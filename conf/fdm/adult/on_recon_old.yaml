@@ -1,6 +1,5 @@
-# @package fdm
 batch_size: 1000
-batch_wise_loss: none
+aggregator_type: none
 disc_hidden_dims: [32]
 eval_on_recon: true
 iters: 1000

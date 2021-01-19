@@ -1,7 +1,6 @@
-# @package _group_
 batch_size: 256
 cl_hidden_dims:
-  - 256
+    - 256
 enc_epochs: 100
 enc_lr: 1.e-3
 encoder: ae

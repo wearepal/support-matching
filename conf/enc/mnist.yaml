@@ -1,4 +1,3 @@
-# @package _group_
 out_dim: 128
 levels: 4
 init_chans: 16

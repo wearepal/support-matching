@@ -2,16 +2,26 @@
 import collections
 import os
 import random
-from typing import Any, Dict, Iterable, Iterator, Optional, Sequence, Tuple, TypeVar, Union
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    Iterator,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 import numpy as np
 import torch
-import wandb
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from typing_extensions import Literal, Protocol
 
-from shared.configs import Misc
+from shared.configs import MiscConfig
+import wandb
 
 __all__ = [
     "AverageMeter",
@@ -61,7 +71,7 @@ def class_id_to_label(class_id: Int, s_count: int, label: Literal["s", "y"]) -> 
 
 
 def wandb_log(
-    args: Union[bool, Misc], row: Dict[str, Any], step: int, commit: Optional[bool] = None
+    args: Union[bool, MiscConfig], row: Dict[str, Any], step: int, commit: Optional[bool] = None
 ) -> None:
     """Wrapper around wandb's log function"""
     if isinstance(args, bool):

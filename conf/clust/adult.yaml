@@ -1,4 +1,3 @@
-# @package _group_
 batch_size: 4000
 cl_hidden_dims: [30]
 early_stopping: 10000

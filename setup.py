@@ -1,6 +1,3 @@
-import subprocess
-import sys
-
 from setuptools import find_packages, setup
 
 setup(
@@ -20,6 +17,7 @@ setup(
         "lapjv",
         "matplotlib >= 3.0.2, < 3.3.1",
         "numpy >= 1.15",
+        "faiss-cpu",
         "pandas >= 1.0",
         "pillow",
         "pipenv >= 2018.11.26",
@@ -37,8 +35,3 @@ setup(
         "wandb >= 0.10.2",
     ],
 )
-
-try:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "faiss-gpu"])
-except:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "faiss-cpu"])

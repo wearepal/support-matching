@@ -1,10 +1,11 @@
 from typing import Any, Dict, List, Optional, Tuple, Union, overload
 
 import torch
+from torch import Tensor
+from torch.cuda.amp.grad_scaler import GradScaler
 import torch.distributions as td
 import torch.nn as nn
 import torch.nn.functional as F
-from torch import Tensor
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from typing_extensions import Literal
@@ -23,6 +24,7 @@ class AutoEncoder(nn.Module):
         encoder: nn.Module,
         decoder: nn.Module,
         encoding_size: Optional[EncodingSize],
+        use_amp: bool = True,
         feature_group_slices: Optional[Dict[str, List[slice]]] = None,
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
     ):
@@ -32,6 +34,7 @@ class AutoEncoder(nn.Module):
         self.decoder: ModelBase = ModelBase(decoder, optimizer_kwargs=optimizer_kwargs)
         self.encoding_size = encoding_size
         self.feature_group_slices = feature_group_slices
+        self.use_amp = use_amp
 
     def encode(self, inputs: Tensor, stochastic: bool = False) -> Tensor:
         del stochastic
@@ -86,9 +89,9 @@ class AutoEncoder(nn.Module):
         self.encoder.zero_grad()
         self.decoder.zero_grad()
 
-    def step(self):
-        self.encoder.step()
-        self.decoder.step()
+    def step(self, grad_scaler: Optional[GradScaler] = None):
+        self.encoder.step(grad_scaler=grad_scaler)
+        self.decoder.step(grad_scaler=grad_scaler)
 
     def split_encoding(self, z: Tensor) -> SplitEncoding:
         assert self.encoding_size is not None
@@ -99,13 +102,8 @@ class AutoEncoder(nn.Module):
         """Split the encoding and mask out zs and zy. This is a cheap function."""
         zs, zy = self.split_encoding(z)
         if random:
-            # the question here is whether to have one random number per sample
-            # or whether to also have distinct random numbers for all the dimensions of zs.
-            # if we don't expect s to be complicated, then the former should suffice
-            rand_zs = torch.randn((zs.size(0),) + (zs.dim() - 1) * (1,), device=zs.device)
-            zs_m = torch.cat([rand_zs + torch.zeros_like(zs), zy], dim=1)
-            rand_zy = torch.randn((zy.size(0),) + (zy.dim() - 1) * (1,), device=zy.device)
-            zy_m = torch.cat([zs, rand_zy + torch.zeros_like(zy)], dim=1)
+            zs_m = torch.cat([torch.randn_like(zs), zy], dim=1)
+            zy_m = torch.cat([zs, torch.randn_like(zy)], dim=1)
         else:
             zs_m = torch.cat([torch.zeros_like(zs), zy], dim=1)
             zy_m = torch.cat([zs, torch.zeros_like(zy)], dim=1)
@@ -203,9 +201,6 @@ class VAE(AutoEncoder):
             return sample, posterior
         else:
             return sample
-
-    # def mask(self, z: Tensor, random: bool = False) -> Tuple[Tensor, Tensor]:
-    #     return super().mask(z, random=False)
 
     def routine(
         self, x: Tensor, recon_loss_fn, kl_weight: float

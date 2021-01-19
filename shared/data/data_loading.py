@@ -1,19 +1,19 @@
 import logging
 import platform
-from typing import Dict, NamedTuple, Optional, Tuple
+from typing import Dict, NamedTuple, Optional, Tuple, Union
 
 import ethicml as em
 import ethicml.vision as emvi
-import torch
-import torch.nn as nn
 from hydra.utils import to_absolute_path
+import torch
 from torch import Tensor
-from torch.utils.data import Dataset, Subset, random_split
+import torch.nn as nn
+from torch.utils.data import Dataset, Subset
 from torchvision import transforms
 from torchvision.datasets import MNIST
 from typing_extensions import Literal
 
-from shared.configs import AS, DS, QL, BaseArgs
+from shared.configs import AdultDatasetSplit, BaseConfig, FdmDataset, QuantizationLevel
 
 from .adult import load_adult_data
 from .dataset_wrappers import TensorDataTupleDataset
@@ -39,7 +39,7 @@ class RawDataTuple(NamedTuple):
     y: Tensor
 
 
-def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
+def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
     context_data: Dataset
     test_data: Dataset
     train_data: Dataset
@@ -47,16 +47,17 @@ def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
     data_root = args.root or find_data_dir()
 
     # =============== get whole dataset ===================
-    if args.dataset == DS.cmnist:
+    if args.dataset == FdmDataset.cmnist:
         augs = []
         if args.padding > 0:
             augs.append(nn.ConstantPad2d(padding=args.padding, value=0))
-        if args.quant_level != QL.eight:
+        if args.quant_level != QuantizationLevel.eight:
             augs.append(Quantize(args.quant_level.value))
         if args.input_noise:
             augs.append(NoisyDequantize(args.quant_level.value))
 
         train_data = MNIST(root=data_root, download=True, train=True)
+        test_data: Union[Tuple, Dataset]
         test_data = MNIST(root=data_root, download=True, train=False)
 
         num_classes = 10
@@ -173,10 +174,10 @@ def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
         test_data = TensorDataTupleDataset(test_data_t.x, test_data_t.s, test_data_t.y)
         context_data = TensorDataTupleDataset(context_data_t.x, context_data_t.s, context_data_t.y)
 
-        cfg.misc._y_dim = 1 if num_classes == 2 else num_classes
-        cfg.misc._s_dim = 1 if num_colors == 2 else num_colors
+        y_dim = 1 if num_classes == 2 else num_classes
+        s_dim = 1 if num_colors == 2 else num_colors
 
-    elif args.dataset == DS.celeba:
+    elif args.dataset == FdmDataset.celeba:
 
         image_size = 64
         transform = [
@@ -184,7 +185,7 @@ def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
             transforms.CenterCrop(image_size),
             transforms.ToTensor(),
         ]
-        if args.quant_level != QL.eight:
+        if args.quant_level != QuantizationLevel.eight:
             transform.append(Quantize(args.quant_level.value))
         if args.input_noise:
             transform.append(NoisyDequantize(args.quant_level.value))
@@ -214,22 +215,20 @@ def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
             (context_len, train_len, test_len)
         )
 
-        cfg.misc._y_dim = 1
-        cfg.misc._s_dim = all_data.s_dim
+        y_dim = 1
+        s_dim = max(2, all_data.s_dim)
 
         def _subsample_inds_by_s_and_y(
             _data: emvi.TorchImageDataset, _subset_inds: Tensor, _target_props: Dict[str, float]
         ) -> Tensor:
-            _y_dim = max(2, cfg.misc._y_dim)
-            _s_dim = max(2, cfg.misc._s_dim)
 
             for _class_id, _prop in _target_props.items():
                 _class_id = int(_class_id)  # hydra doesn't allow ints as keys, so we have to cast
                 assert 0 <= _prop <= 1, "proportions should be between 0 and 1"
                 _s = _data.s[_subset_inds]
                 _y = _data.y[_subset_inds]
-                target_y = _class_id // _y_dim
-                target_s = _class_id % _s_dim
+                target_y = _class_id // y_dim
+                target_s = _class_id % s_dim
                 _indexes = (_y == int(target_y)) & (_s == int(target_s))
                 _n_matches = len(_indexes.nonzero(as_tuple=False))
                 _to_keep = torch.randperm(_n_matches) < (round(_prop * (_n_matches - 1)))
@@ -249,60 +248,13 @@ def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
         train_data = Subset(all_data, train_inds)
         test_data = Subset(all_data, test_inds)
 
-    elif args.dataset == DS.genfaces:
-
-        image_size = 64
-        transform = [
-            transforms.Resize(image_size),
-            transforms.CenterCrop(image_size),
-            transforms.ToTensor(),
-        ]
-        if args.quant_level != QL.eight:
-            transform.append(Quantize(args.quant_level.value))
-        if args.input_noise:
-            transform.append(NoisyDequantize(args.quant_level.value))
-        transform.append(transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)))
-        transform = transforms.Compose(transform)
-
-        unbiased_pcnt = args.test_pcnt + args.context_pcnt
-        unbiased_data = emvi.create_genfaces_dataset(
-            root=data_root,
-            sens_attr_name=args.genfaces_sens_attr.name,
-            target_attr_name=args.genfaces_target_attr.name,
-            biased=False,
-            mixing_factor=cfg.bias.mixing_factor,
-            unbiased_pcnt=unbiased_pcnt,
-            download=True,
-            transform=transform,
-            seed=cfg.misc.data_split_seed,
-        )
-
-        context_len = round(args.context_pcnt / unbiased_pcnt * len(unbiased_data))
-        test_len = len(unbiased_data) - context_len
-        context_data, test_data = random_split(unbiased_data, lengths=(context_len, test_len))
-
-        train_data = emvi.create_genfaces_dataset(
-            root=data_root,
-            sens_attr_name=args.genfaces_sens_attr.name,
-            target_attr_name=args.genfaces_target_attr.name,
-            biased=True,
-            mixing_factor=cfg.bias.mixing_factor,
-            unbiased_pcnt=unbiased_pcnt,
-            download=True,
-            transform=transform,
-            seed=cfg.misc.data_split_seed,
-        )
-
-        cfg.misc._y_dim = 1
-        cfg.misc._s_dim = unbiased_data.s_dim
-
-    elif args.dataset == DS.adult:
+    elif args.dataset == FdmDataset.adult:
         context_data, train_data, test_data = load_adult_data(cfg)
-        cfg.misc._y_dim = 1
-        if args.adult_split == AS.Education:
-            cfg.misc._s_dim = 3
-        elif args.adult_split == AS.Sex:
-            cfg.misc._s_dim = 1
+        y_dim = 1
+        if args.adult_split == AdultDatasetSplit.Education:
+            s_dim = 3
+        elif args.adult_split == AdultDatasetSplit.Sex:
+            s_dim = 1
         else:
             raise ValueError(f"This split is not yet fully supported: {args.adult_split}")
     else:
@@ -317,8 +269,8 @@ def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
         context=context_data,
         test=test_data,
         train=train_data,
-        s_dim=cfg.misc._s_dim,
-        y_dim=cfg.misc._y_dim,
+        s_dim=s_dim,
+        y_dim=y_dim,
     )
 
 
