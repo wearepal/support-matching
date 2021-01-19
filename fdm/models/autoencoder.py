@@ -15,7 +15,7 @@ from shared.utils import sample_concrete, to_discrete
 
 from .base import EncodingSize, ModelBase, Reconstructions, SplitEncoding
 
-__all__ = ["AutoEncoder", "VAE"]
+__all__ = ["AutoEncoder", "Vae"]
 
 
 class AutoEncoder(nn.Module):
@@ -142,7 +142,7 @@ class AutoEncoder(nn.Module):
         return encoding, loss, {"Loss reconstruction": recon_loss.item(), "Prior Loss": prior_loss}
 
 
-class VAE(AutoEncoder):
+class Vae(AutoEncoder):
     def __init__(
         self,
         encoder: nn.Module,

@@ -2,8 +2,8 @@ from pathlib import Path
 
 print("starting up...")  # print this before loading all those heavy libraries
 
-import typer
 from sklearn.metrics import confusion_matrix
+import typer
 
 from clustering.optimisation.utils import get_class_id
 from shared.utils import ClusterResults, load_results, save_results

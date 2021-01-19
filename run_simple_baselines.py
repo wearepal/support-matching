@@ -19,7 +19,7 @@ from tqdm import trange
 
 from fdm.models import Classifier
 from fdm.optimisation.train import build_weighted_sampler_from_dataset
-from shared.configs import BaseConfig, DS
+from shared.configs import BaseConfig, FdmDataset
 from shared.data import adult, load_dataset
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import ModelFn, compute_metrics, get_data_dim, random_seed
@@ -174,7 +174,7 @@ def run_baseline(cfg: Config) -> None:
         log.info(f"{name}: {{" + ", ".join(as_list) + "}")
     args = cfg.baselines
     if args.method == BaselineM.kamiran:
-        if cfg.data.dataset == DS.cmnist:
+        if cfg.data.dataset == FdmDataset.cmnist:
             raise ValueError(
                 "Kamiran & Calders reweighting scheme can only be used with binary sensitive "
                 "and target attributes."
@@ -231,9 +231,9 @@ def run_baseline(cfg: Config) -> None:
 
     #  Construct the network
     classifier_fn: ModelFn
-    if cfg.data.dataset == DS.cmnist:
+    if cfg.data.dataset == FdmDataset.cmnist:
         classifier_fn = Mp32x23Net(batch_norm=True)
-    elif cfg.data.dataset == DS.adult:
+    elif cfg.data.dataset == FdmDataset.adult:
 
         def adult_fc_net(input_dim: int, target_dim: int) -> nn.Sequential:
             encoder = FcNet(hidden_dims=[35])(input_dim=input_dim, target_dim=35)
@@ -278,11 +278,11 @@ def run_baseline(cfg: Config) -> None:
 
     preds, labels, sens = classifier.predict_dataset(test_data, device=device)
     preds = em.Prediction(pd.Series(preds))
-    if cfg.data.dataset == DS.cmnist:
+    if cfg.data.dataset == FdmDataset.cmnist:
         sens_name = "colour"
-    elif cfg.data.dataset == DS.celeba:
+    elif cfg.data.dataset == FdmDataset.celeba:
         sens_name = cfg.data.celeba_sens_attr.name
-    elif cfg.data.dataset == DS.adult:
+    elif cfg.data.dataset == FdmDataset.adult:
         sens_name = str(adult.SENS_ATTRS[0])
     else:
         sens_name = "sens_Label"
@@ -291,9 +291,9 @@ def run_baseline(cfg: Config) -> None:
     actual = em.DataTuple(x=sens_pd, s=sens_pd, y=labels_pd)
 
     full_name = "baseline"
-    if cfg.data.dataset == DS.cmnist:
+    if cfg.data.dataset == FdmDataset.cmnist:
         full_name += "_greyscale" if args.greyscale else "_color"
-    elif cfg.data.dataset == DS.celeba:
+    elif cfg.data.dataset == FdmDataset.celeba:
         full_name += f"_{str(cfg.data.celeba_sens_attr.name)}"
         full_name += f"_{cfg.data.celeba_target_attr.name}"
     full_name += f"_{str(args.epochs)}epochs.csv"

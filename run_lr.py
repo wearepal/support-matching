@@ -5,7 +5,7 @@ import hydra
 from hydra.core.config_store import ConfigStore
 from hydra.utils import to_absolute_path
 
-from shared.configs import DS, BaseConfig
+from shared.configs import BaseConfig, FdmDataset
 from shared.data import DatasetTriplet, get_data_tuples, load_dataset
 from shared.utils import compute_metrics, make_tuple_from_data
 
@@ -15,7 +15,7 @@ cs.store(name="logistic_regression", node=BaseConfig)
 
 @hydra.main(config_path="conf", config_name="logistic_regression")
 def baseline_metrics(cfg: BaseConfig) -> None:
-    assert cfg.data.dataset == DS.adult, "This script is only for the adult dataset."
+    assert cfg.data.dataset == FdmDataset.adult, "This script is only for the adult dataset."
     data: DatasetTriplet = load_dataset(cfg)
     train_data = data.train
     test_data = data.test

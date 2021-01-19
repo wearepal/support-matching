@@ -13,6 +13,7 @@ import torch
 from torch import Tensor
 from torch.utils.data import ConcatDataset, DataLoader
 from torchvision.models import resnet18, resnet50
+import wandb
 
 from clustering.models import (
     Classifier,
@@ -23,8 +24,8 @@ from clustering.models import (
     MultiHeadModel,
     PseudoLabelEnc,
     PseudoLabelEncNoNorm,
-    PseudoLabelOutput,
     PseudoLabeler,
+    PseudoLabelOutput,
     RankingStatistics,
     SelfSupervised,
     build_classifier,
@@ -58,7 +59,6 @@ from shared.utils import (
     save_results,
     wandb_log,
 )
-import wandb
 
 from .build import build_ae
 from .evaluation import classify_dataset

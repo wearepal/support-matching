@@ -7,8 +7,8 @@ from typing import Union
 # from pykeops.torch import LazyTensor
 import faiss
 import numpy as np
-import torch
 from omegaconf import OmegaConf
+import torch
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
