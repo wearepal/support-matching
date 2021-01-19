@@ -174,8 +174,8 @@ def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
         test_data = TensorDataTupleDataset(test_data_t.x, test_data_t.s, test_data_t.y)
         context_data = TensorDataTupleDataset(context_data_t.x, context_data_t.s, context_data_t.y)
 
-        cfg.misc._y_dim = 1 if num_classes == 2 else num_classes
-        cfg.misc._s_dim = 1 if num_colors == 2 else num_colors
+        y_dim = 1 if num_classes == 2 else num_classes
+        s_dim = 1 if num_colors == 2 else num_colors
 
     elif args.dataset == FdmDataset.celeba:
 
@@ -215,22 +215,20 @@ def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
             (context_len, train_len, test_len)
         )
 
-        cfg.misc._y_dim = 1
-        cfg.misc._s_dim = all_data.s_dim
+        y_dim = 1
+        s_dim = max(2, all_data.s_dim)
 
         def _subsample_inds_by_s_and_y(
             _data: emvi.TorchImageDataset, _subset_inds: Tensor, _target_props: Dict[str, float]
         ) -> Tensor:
-            _y_dim = max(2, cfg.misc._y_dim)
-            _s_dim = max(2, cfg.misc._s_dim)
 
             for _class_id, _prop in _target_props.items():
                 _class_id = int(_class_id)  # hydra doesn't allow ints as keys, so we have to cast
                 assert 0 <= _prop <= 1, "proportions should be between 0 and 1"
                 _s = _data.s[_subset_inds]
                 _y = _data.y[_subset_inds]
-                target_y = _class_id // _y_dim
-                target_s = _class_id % _s_dim
+                target_y = _class_id // y_dim
+                target_s = _class_id % s_dim
                 _indexes = (_y == int(target_y)) & (_s == int(target_s))
                 _n_matches = len(_indexes.nonzero(as_tuple=False))
                 _to_keep = torch.randperm(_n_matches) < (round(_prop * (_n_matches - 1)))
@@ -252,11 +250,11 @@ def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
 
     elif args.dataset == FdmDataset.adult:
         context_data, train_data, test_data = load_adult_data(cfg)
-        cfg.misc._y_dim = 1
+        y_dim = 1
         if args.adult_split == AdultDatasetSplit.Education:
-            cfg.misc._s_dim = 3
+            s_dim = 3
         elif args.adult_split == AdultDatasetSplit.Sex:
-            cfg.misc._s_dim = 1
+            s_dim = 1
         else:
             raise ValueError(f"This split is not yet fully supported: {args.adult_split}")
     else:
@@ -271,8 +269,8 @@ def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
         context=context_data,
         test=test_data,
         train=train_data,
-        s_dim=cfg.misc._s_dim,
-        y_dim=cfg.misc._y_dim,
+        s_dim=s_dim,
+        y_dim=y_dim,
     )
 
 

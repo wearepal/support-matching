@@ -22,7 +22,6 @@ import numpy as np
 from omegaconf import OmegaConf
 import torch
 from torch import Tensor
-from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
@@ -42,8 +41,7 @@ from shared.configs import (
     ReconstructionLoss,
 )
 from shared.data import DatasetTriplet, load_dataset
-from shared.layers import GatedAttentionAggregator, KvqAttentionAggregator
-from shared.layers.aggregation import Aggregator
+from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
 from shared.models.configs import (
     FcNet,
     ModelAggregatorWrapper,
@@ -111,19 +109,18 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
     """
     # ==== initialize globals ====
     global ARGS, CFG, DATA, ENC, MISC
-    ARGS = instantiate(cfg.fdm)
-    CFG = cfg
-    DATA = cfg.data
-    ENC = cfg.enc
-    MISC = cfg.misc
+    CFG = instantiate(cfg)
+    ARGS = CFG.fdm
+    DATA = CFG.data
+    ENC = CFG.enc
+    MISC = CFG.misc
 
     assert ARGS.test_batch_size  # test_batch_size defaults to eff_batch_size if unspecified
     # ==== current git commit ====
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha
 
-    use_gpu = torch.cuda.is_available() and MISC.gpu >= 0
-    random_seed(MISC.seed, use_gpu)
+    random_seed(MISC.seed, MISC.use_gpu)
     if cluster_label_file is not None:
         MISC.cluster_label_file = str(cluster_label_file)
 
@@ -151,8 +148,8 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
     log.info(str(OmegaConf.to_yaml(cfg, resolve=True, sort_keys=True)))
     log.info(f"Save directory: {save_dir.resolve()}")
     # ==== check GPU ====
-    MISC._device = f"cuda:{MISC.gpu}" if use_gpu else "cpu"
-    device = torch.device(MISC._device)
+    MISC
+    device = torch.device(MISC.device)
     log.info(f"{torch.cuda.device_count()} GPUs available. Using device '{device}'")
 
     # ==== construct dataset ====
@@ -273,7 +270,6 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
     else:
         raise ValueError(f"{ENC.recon_loss} is an invalid reconstruction gen_loss")
 
-    generator: AutoEncoder
     zs_dim = round(ARGS.zs_frac * enc_shape[0])
     zy_dim = enc_shape[0] - zs_dim
     encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim)
@@ -341,6 +337,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
             input_shape=disc_input_shape,
             target_dim=1,  # real vs fake
             model_fn=disc_fn,
+            use_amp=MISC.use_amp,
             optimizer_kwargs=disc_optimizer_kwargs,
         )
         disc_ensemble.append(disc)
@@ -350,6 +347,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
         input_shape=(prod(enc_shape),),  # this is always trained on encodings
         target_dim=datasets.y_dim,
         model_fn=FcNet(hidden_dims=None),  # no hidden layers
+        use_amp=MISC.use_amp,
         optimizer_kwargs=disc_optimizer_kwargs,
     )
     predictor_y.to(device)
@@ -358,6 +356,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
         input_shape=(prod(enc_shape),),  # this is always trained on encodings
         target_dim=datasets.s_dim,
         model_fn=FcNet(hidden_dims=None),  # no hidden layers
+        use_amp=MISC.use_amp,
         optimizer_kwargs=disc_optimizer_kwargs,
     )
     predictor_s.to(device)
@@ -717,7 +716,7 @@ def get_disc_input(
 
 def to_device(*tensors: Tensor) -> Union[Tensor, Tuple[Tensor, ...]]:
     """Place tensors on the correct device and set type to float32"""
-    moved = [tensor.to(torch.device(MISC._device), non_blocking=True) for tensor in tensors]
+    moved = [tensor.to(torch.device(MISC.device), non_blocking=True) for tensor in tensors]
     return moved[0] if len(moved) == 1 else tuple(moved)
 
 

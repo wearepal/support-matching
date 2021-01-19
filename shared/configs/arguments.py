@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 from omegaconf import MISSING
+import torch
 
 from .enums import (
     AdultDatasetSplit,
@@ -34,6 +35,8 @@ __all__ = [
 @dataclass
 class DatasetConfig:
     """General data set settings."""
+
+    _target_: str = "shared.configs.DatasetConfig"
 
     dataset: FdmDataset = MISSING
 
@@ -71,24 +74,26 @@ class DatasetConfig:
 
 @dataclass
 class BiasConfig:
+
+    _target_: str = "shared.configs.BiasConfig"
+
     # Dataset manipulation
     missing_s: List[int] = MISSING
-    mixing_factor: float = MISSING  # How much of context should be mixed into training?
-    adult_biased_train: bool = (
-        MISSING  # if True, make the training set biased, based on mixing factor
-    )
+    mixing_factor: float = 0  # How much of context should be mixed into training?
+    adult_biased_train: bool = True  # if True, make the training set biased, based on mixing factor
     # the subsample flags work like this: you give it a class id and a fraction in the form of a
     # float. the class id is given by class_id = y * s_count + s, so for binary s and y, the
     # correspondance is like this:
     # 0: y=0/s=0, 1: y=0/s=1, 2: y=1/s=0, 3: y=1/s=1
-    subsample_context: Dict[str, float] = MISSING
-    subsample_train: Dict[str, float] = MISSING
+    subsample_context: Dict[str, float] = field(default_factory=dict)
+    subsample_train: Dict[str, float] = field(default_factory=dict)
 
     log_dataset: str = ""
 
 
 @dataclass
 class Misc:
+    _target_: str = "shared.configs.Misc"
     # Cluster settings
     cluster_label_file: str = ""
 
@@ -97,6 +102,7 @@ class Misc:
     log_method: str = ""  # arbitrary string that's appended to the experiment group name
     use_wandb: bool = True
     gpu: int = 0  # which GPU to use (if available)
+    use_amp: bool = True  # Whether to use mixed-precision training
     seed: int = MISSING
     data_split_seed: int = MISSING
     save_dir: str = "experiments/finn"
@@ -104,15 +110,21 @@ class Misc:
     resume: Optional[str] = None
     evaluate: bool = False
     num_workers: int = 4
+    device: str = "cpu"
+    use_gpu: bool = False
 
-    _s_dim: int = MISSING
-    _y_dim: int = MISSING
-    _device: str = MISSING
+    def __post_init__(self) -> None:
+        self.use_gpu = torch.cuda.is_available() and self.gpu >= 0  # type: ignore
+        self.device = f"cuda:{self.gpu}" if self.use_gpu else "cpu"
+        if not self.use_gpu:  # If cuda is not enabled, set use_amp to False to avoid warning
+            self.use_amp = False
 
 
 @dataclass
 class ClusterArgs:
     """Flags for clustering."""
+
+    _target_: str = "shared.configs.ClusterArgs"
 
     # Optimization settings
     early_stopping: int = 30
@@ -178,6 +190,8 @@ class ClusterArgs:
 class EncoderConfig:
     """Flags for the encoder."""
 
+    _target_: str = "shared.configs.EncoderConfig"
+
     out_dim: int = 64
     levels: int = 4
     init_chans: int = 32
@@ -189,6 +203,7 @@ class FdmArgs:
     """Flags for disentangling."""
 
     _target_: str = "shared.configs.FdmArgs"
+
     # Optimization settings
     early_stopping: int = 30
     iters: int = 50_000
@@ -268,6 +283,8 @@ class FdmArgs:
 class BaseArgs:
     """Minimum needed config to do data loading."""
 
+    _target_: str = "shared.configs.bias"
+
     data: DatasetConfig = MISSING
     bias: BiasConfig = MISSING
     misc: Misc = MISSING
@@ -276,6 +293,8 @@ class BaseArgs:
 @dataclass
 class Config(BaseArgs):
     """Config used for clustering and disentangling."""
+
+    _target_: str = "shared.configs.Config"
 
     clust: ClusterArgs = MISSING
     enc: EncoderConfig = MISSING

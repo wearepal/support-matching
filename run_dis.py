@@ -6,7 +6,7 @@ from fdm.optimisation import main
 from shared.configs import Config
 
 cs = ConfigStore.instance()
-cs.store(name="config", node=Config)
+cs.store(name="config_schema", node=Config)
 
 
 @hydra.main(config_path="conf", config_name="config")
