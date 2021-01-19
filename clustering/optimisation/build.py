@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from clustering.models import VAE, AutoEncoder
-from shared.configs import RL, Config, Enc
+from shared.configs import Config, EncoderType, ReconstructionLoss
 from shared.models.configs import conv_autoencoder, fc_autoencoder
 
 from .loss import MixedLoss, PixelCrossEntropy, VGGLoss
@@ -19,10 +19,12 @@ def build_ae(
     feature_group_slices: Optional[Dict[str, List[slice]]],
 ) -> Tuple[AutoEncoder, Tuple[int, ...]]:
     is_image_data = len(input_shape) > 2
-    variational = cfg.clust.encoder == Enc.vae
+    variational = cfg.clust.encoder == EncoderType.vae
     enc_shape: Tuple[int, ...]
     if is_image_data:
-        decoding_dim = input_shape[0] * 256 if cfg.enc.recon_loss == RL.ce else input_shape[0]
+        decoding_dim = (
+            input_shape[0] * 256 if cfg.enc.recon_loss == ReconstructionLoss.ce else input_shape[0]
+        )
         # if cfg.enc.recon_loss == "ce":
         decoder_out_act = None
         # else:
@@ -46,17 +48,17 @@ def build_ae(
         )
 
     recon_loss_fn_: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
-    if cfg.enc.recon_loss == RL.l1:
+    if cfg.enc.recon_loss == ReconstructionLoss.l1:
         recon_loss_fn_ = nn.L1Loss(reduction="sum")
-    elif cfg.enc.recon_loss == RL.l2:
+    elif cfg.enc.recon_loss == ReconstructionLoss.l2:
         recon_loss_fn_ = nn.MSELoss(reduction="sum")
-    elif cfg.enc.recon_loss == RL.bce:
+    elif cfg.enc.recon_loss == ReconstructionLoss.bce:
         recon_loss_fn_ = nn.BCELoss(reduction="sum")
-    elif cfg.enc.recon_loss == RL.huber:
+    elif cfg.enc.recon_loss == ReconstructionLoss.huber:
         recon_loss_fn_ = lambda x, y: 0.1 * F.smooth_l1_loss(x * 10, y * 10, reduction="sum")
-    elif cfg.enc.recon_loss == RL.ce:
+    elif cfg.enc.recon_loss == ReconstructionLoss.ce:
         recon_loss_fn_ = PixelCrossEntropy(reduction="sum")
-    elif cfg.enc.recon_loss == RL.mixed:
+    elif cfg.enc.recon_loss == ReconstructionLoss.mixed:
         assert feature_group_slices is not None, "can only do multi gen_loss with feature groups"
         recon_loss_fn_ = MixedLoss(feature_group_slices, reduction="sum")
     else:

@@ -31,16 +31,16 @@ from clustering.models import (
     build_classifier,
 )
 from shared.configs import (
-    CL,
-    DS,
-    PL,
     ClusterArgs,
+    ClusteringLabel,
+    ClusteringMethod,
     Config,
     DatasetConfig,
-    Enc,
     EncoderConfig,
-    Meth,
+    EncoderType,
+    FdmDataset,
     Misc,
+    PlMethod,
 )
 from shared.data.data_loading import DatasetTriplet, load_dataset
 from shared.data.dataset_wrappers import RotationPrediction
@@ -160,7 +160,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
         pin_memory=True,
     )
     enc_train_data = ConcatDataset([datasets.context, datasets.train])
-    if ARGS.encoder == Enc.rotnet:
+    if ARGS.encoder == EncoderType.rotnet:
         enc_train_loader = DataLoader(
             RotationPrediction(enc_train_data, apply_all=True),
             shuffle=True,
@@ -197,9 +197,9 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
     input_shape = get_data_dim(context_loader)
     s_count = datasets.s_dim if datasets.s_dim > 1 else 2
     y_count = datasets.y_dim if datasets.y_dim > 1 else 2
-    if ARGS.cluster == CL.s:
+    if ARGS.cluster == ClusteringLabel.s:
         num_clusters = s_count
-    elif ARGS.cluster == CL.y:
+    elif ARGS.cluster == ClusteringLabel.y:
         num_clusters = y_count
     else:
         num_clusters = s_count * y_count
@@ -208,9 +208,9 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
     )
     mappings: List[str] = []
     for i in range(num_clusters):
-        if ARGS.cluster == CL.s:
+        if ARGS.cluster == ClusteringLabel.s:
             mappings.append(f"{i}: s = {i}")
-        elif ARGS.cluster == CL.y:
+        elif ARGS.cluster == ClusteringLabel.y:
             mappings.append(f"{i}: y = {i}")
         else:
             # class_id = y * s_count + s
@@ -221,14 +221,16 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
     # ================================= encoder =================================
     encoder: Encoder
     enc_shape: Tuple[int, ...]
-    if ARGS.encoder in (Enc.ae, Enc.vae):
+    if ARGS.encoder in (EncoderType.ae, EncoderType.vae):
         encoder, enc_shape = build_ae(CFG, input_shape, feature_group_slices)
     else:
         if len(input_shape) < 2:
             raise ValueError("RotNet can only be applied to image data.")
         enc_optimizer_kwargs = {"lr": ARGS.enc_lr, "weight_decay": ARGS.enc_wd}
         enc_kwargs = {"pretrained": False, "num_classes": 4, "zero_init_residual": True}
-        net = resnet18(**enc_kwargs) if DATA.dataset == DS.cmnist else resnet50(**enc_kwargs)
+        net = (
+            resnet18(**enc_kwargs) if DATA.dataset == FdmDataset.cmnist else resnet50(**enc_kwargs)
+        )
 
         encoder = SelfSupervised(model=net, num_classes=4, optimizer_kwargs=enc_optimizer_kwargs)
         enc_shape = (512,)
@@ -239,7 +241,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
     enc_path: Path
     if ARGS.enc_path:
         enc_path = Path(ARGS.enc_path)
-        if ARGS.encoder == Enc.rotnet:
+        if ARGS.encoder == EncoderType.rotnet:
             assert isinstance(encoder, SelfSupervised)
             encoder = encoder.get_encoder()
         save_dict = torch.load(ARGS.enc_path, map_location=lambda storage, loc: storage)
@@ -247,19 +249,19 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
         if "args" in save_dict:
             args_encoder = save_dict["args"]
             assert ARGS.encoder.name == args_encoder["encoder_type"]
-            assert ENC.levels == args_encoder["levels"]
+            assert EncoderType.levels == args_encoder["levels"]
     else:
         encoder.fit(
             enc_train_loader, epochs=ARGS.enc_epochs, device=device, use_wandb=ARGS.enc_wandb
         )
-        if ARGS.encoder == Enc.rotnet:
+        if ARGS.encoder == EncoderType.rotnet:
             assert isinstance(encoder, SelfSupervised)
             encoder = encoder.get_encoder()
         # the args names follow the convention of the standalone VAE commandline args
-        args_encoder = {"encoder_type": ARGS.encoder.name, "levels": ENC.levels}
+        args_encoder = {"encoder_type": ARGS.encoder.name, "levels": EncoderType.levels}
         enc_path = save_dir.resolve() / "encoder"
         torch.save({"encoder": encoder.state_dict(), "args": args_encoder}, enc_path)
-        log.info(f"To make use of this encoder:\n--enc-path {enc_path}")
+        log.info(f"To make use of this encoder:\n--EncoderType-path {enc_path}")
         if ARGS.enc_wandb:
             log.info("Stopping here because W&B will be messed up...")
             if run is not None:
@@ -267,7 +269,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
             return
 
     cluster_label_path = get_cluster_label_path(MISC, save_dir)
-    if ARGS.method == Meth.kmeans:
+    if ARGS.method == ClusteringMethod.kmeans:
         kmeans_results = train_k_means(
             CFG, encoder, datasets.context, num_clusters, s_count, enc_path
         )
@@ -282,20 +284,20 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
 
     # ================================= labeler =================================
     pseudo_labeler: PseudoLabeler
-    if ARGS.pseudo_labeler == PL.ranking:
+    if ARGS.pseudo_labeler == PlMethod.ranking:
         pseudo_labeler = RankingStatistics(k_num=ARGS.k_num)
-    elif ARGS.pseudo_labeler == PL.cosine:
+    elif ARGS.pseudo_labeler == PlMethod.cosine:
         pseudo_labeler = CosineSimThreshold(
             upper_threshold=ARGS.upper_threshold, lower_threshold=ARGS.lower_threshold
         )
 
     # ================================= method =================================
     method: Method
-    if ARGS.method == Meth.pl_enc:
+    if ARGS.method == ClusteringMethod.pl_enc:
         method = PseudoLabelEnc()
-    elif ARGS.method == Meth.pl_output:
+    elif ARGS.method == ClusteringMethod.pl_output:
         method = PseudoLabelOutput()
-    elif ARGS.method == Meth.pl_enc_no_norm:
+    elif ARGS.method == ClusteringMethod.pl_enc_no_norm:
         method = PseudoLabelEncNoNorm()
 
     # ================================= classifier =================================
@@ -315,9 +317,9 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
     model: Union[Model, MultiHeadModel]
     if ARGS.use_multi_head:
         labeler_fn: ModelFn
-        if DATA.dataset == DS.cmnist:
+        if DATA.dataset == FdmDataset.cmnist:
             labeler_fn = Mp32x23Net(batch_norm=True)
-        elif DATA.dataset == DS.celeba:
+        elif DATA.dataset == FdmDataset.celeba:
             labeler_fn = Mp64x64Net(batch_norm=True)
         else:
             labeler_fn = FcNet(hidden_dims=ARGS.labeler_hidden_dims)
@@ -504,9 +506,9 @@ def validate(
     to_cluster = ARGS.cluster
     y_count = MISC._y_dim if MISC._y_dim > 1 else 2
     s_count = MISC._s_dim if MISC._s_dim > 1 else 2
-    if to_cluster == CL.s:
+    if to_cluster == ClusteringLabel.s:
         num_clusters = s_count
-    elif to_cluster == CL.y:
+    elif to_cluster == ClusteringLabel.y:
         num_clusters = y_count
     else:
         num_clusters = s_count * y_count
