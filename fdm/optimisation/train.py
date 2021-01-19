@@ -208,56 +208,56 @@ class Experiment:
         ae.predictor_y.eval()
         ae.predictor_s.eval()
         ae.disc_ensemble.train()
+        with torch.cuda.amp.autocast(enabled=self.misc.use_amp):
+            if self.args.aggregator_type == AggregatorType.none:
+                ones = x_c.new_ones((x_c.size(0),))
+                zeros = x_t.new_zeros((x_t.size(0),))
+            else:
+                ones = x_c.new_ones(ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
+                zeros = x_c.new_zeros(ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
 
-        if self.args.aggregator_type == AggregatorType.none:
-            ones = x_c.new_ones((x_c.size(0),))
-            zeros = x_t.new_zeros((x_t.size(0),))
-        else:
-            ones = x_c.new_ones(ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
-            zeros = x_c.new_zeros(ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
+            if self.args.vae:
+                encoding_t = ae.generator.encode(x_t, stochastic=True)
+                if not self.args.train_on_recon:
+                    encoding_c = ae.generator.encode(x_c, stochastic=True)
+            else:
+                encoding_t = ae.generator.encode(x_t)
+                if not self.args.train_on_recon:
+                    encoding_c = ae.generator.encode(x_c)
 
-        if self.args.vae:
-            encoding_t = ae.generator.encode(x_t, stochastic=True)
+            if self.args.train_on_recon:
+                disc_input_c = x_c
+
+            disc_loss = x_c.new_zeros(())
+            disc_acc = 0.0
+            logging_dict = {}
+            disc_input_t = self.get_disc_input(ae.generator, encoding_t)
+            disc_input_t = disc_input_t.detach()
+
             if not self.args.train_on_recon:
-                encoding_c = ae.generator.encode(x_c, stochastic=True)
-        else:
-            encoding_t = ae.generator.encode(x_t)
-            if not self.args.train_on_recon:
-                encoding_c = ae.generator.encode(x_c)
+                disc_input_c = self.get_disc_input(ae.generator, encoding_c)
+                disc_input_c = disc_input_c.detach()
 
-        if self.args.train_on_recon:
-            disc_input_c = x_c
+            for discriminator in ae.disc_ensemble:
+                discriminator = cast(Classifier, discriminator)
+                disc_loss_true, acc_c = discriminator.routine(disc_input_c, ones)
+                disc_loss_false, acc_t = discriminator.routine(disc_input_t, zeros)
+                disc_loss += disc_loss_true + disc_loss_false
+                disc_acc += 0.5 * (acc_c + acc_t)
+            disc_loss /= len(ae.disc_ensemble)
+            logging_dict["Accuracy Discriminator (zy)"] = disc_acc / len(ae.disc_ensemble)
+            for discriminator in ae.disc_ensemble:
+                discriminator.zero_grad()
 
-        disc_loss = x_c.new_zeros(())
-        disc_acc = 0.0
-        logging_dict = {}
-        disc_input_t = self.get_disc_input(ae.generator, encoding_t)
-        disc_input_t = disc_input_t.detach()
+            if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
+                disc_loss = self.grad_scaler.scale(disc_loss)
+            disc_loss.backward()
 
-        if not self.args.train_on_recon:
-            disc_input_c = self.get_disc_input(ae.generator, encoding_c)
-            disc_input_c = disc_input_c.detach()
-
-        for discriminator in ae.disc_ensemble:
-            discriminator = cast(Classifier, discriminator)
-            disc_loss_true, acc_c = discriminator.routine(disc_input_c, ones)
-            disc_loss_false, acc_t = discriminator.routine(disc_input_t, zeros)
-            disc_loss += disc_loss_true + disc_loss_false
-            disc_acc += 0.5 * (acc_c + acc_t)
-        disc_loss /= len(ae.disc_ensemble)
-        logging_dict["Accuracy Discriminator (zy)"] = disc_acc / len(ae.disc_ensemble)
-        for discriminator in ae.disc_ensemble:
-            discriminator.zero_grad()
-
-        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
-            disc_loss = self.grad_scaler.scale(disc_loss)
-        disc_loss.backward()
-
-        for discriminator in ae.disc_ensemble:
-            discriminator = cast(Classifier, discriminator)
-            discriminator.step(grad_scaler=self.grad_scaler)
-        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
-            self.grad_scaler.update()
+            for discriminator in ae.disc_ensemble:
+                discriminator = cast(Classifier, discriminator)
+                discriminator.step(grad_scaler=self.grad_scaler)
+            if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
+                self.grad_scaler.update()
 
         return disc_loss, logging_dict
 
@@ -276,90 +276,93 @@ class Experiment:
         ae.disc_ensemble.eval()
         logging_dict = {}
 
-        # ================================ recon loss for training set =============================
-        encoding, elbo, logging_dict_elbo = ae.generator.routine(
-            x_t, ae.recon_loss_fn, self.args.kl_weight
-        )
+        with torch.cuda.amp.autocast(enabled=self.misc.use_amp):
+            # ================================ recon loss for training set =============================
+            encoding, elbo, logging_dict_elbo = ae.generator.routine(
+                x_t, ae.recon_loss_fn, self.args.kl_weight
+            )
 
-        # ================================ recon loss for context set ==============================
-        # we need a reconstruction loss for x_c because...
-        # ...when we train on encodings, the network will otherwise just falsify encodings for x_c
-        # ...when we train on recons, the GAN loss has it too easy to distinguish the two
-        encoding_c, elbo_c, logging_dict_elbo_c = ae.generator.routine(
-            x_c, ae.recon_loss_fn, self.args.kl_weight
-        )
-        logging_dict.update({k: v + logging_dict_elbo_c[k] for k, v in logging_dict_elbo.items()})
-        elbo = 0.5 * (elbo + elbo_c)  # take average of the two recon losses
-        elbo *= self.args.elbo_weight
-        logging_dict["ELBO"] = elbo
-        total_loss = elbo
+            # ================================ recon loss for context set ==============================
+            # we need a reconstruction loss for x_c because...
+            # ...when we train on encodings, the network will otherwise just falsify encodings for x_c
+            # ...when we train on recons, the GAN loss has it too easy to distinguish the two
+            encoding_c, elbo_c, logging_dict_elbo_c = ae.generator.routine(
+                x_c, ae.recon_loss_fn, self.args.kl_weight
+            )
+            logging_dict.update(
+                {k: v + logging_dict_elbo_c[k] for k, v in logging_dict_elbo.items()}
+            )
+            elbo = 0.5 * (elbo + elbo_c)  # take average of the two recon losses
+            elbo *= self.args.elbo_weight
+            logging_dict["ELBO"] = elbo
+            total_loss = elbo
 
-        # ==================================== adversarial losses ==================================
-        disc_input_no_s = self.get_disc_input(ae.generator, encoding, invariant_to="s")
+            # ==================================== adversarial losses ==================================
+            disc_input_no_s = self.get_disc_input(ae.generator, encoding, invariant_to="s")
 
-        if not warmup:
-            if self.args.disc_method == "nn":
-                if self.args.aggregator_type == "none":
-                    zeros = x_t.new_zeros((x_t.size(0),))
+            if not warmup:
+                if self.args.disc_method == "nn":
+                    if self.args.aggregator_type == "none":
+                        zeros = x_t.new_zeros((x_t.size(0),))
+                    else:
+                        zeros = x_c.new_zeros(ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
+
+                    disc_loss = x_t.new_zeros(())
+                    for discriminator in ae.disc_ensemble:
+                        disc_loss -= discriminator.routine(disc_input_no_s, zeros)[0]
+                    disc_loss /= len(ae.disc_ensemble)
+
                 else:
-                    zeros = x_c.new_zeros(ae.disc_ensemble[0].model[-1].batch_size)  # type: ignore
+                    x = disc_input_no_s
+                    y = self.get_disc_input(ae.generator, encoding_c.detach(), invariant_to="s")
+                    disc_loss = mmd2(
+                        x=x,
+                        y=y,
+                        kernel=self.args.mmd_kernel,
+                        scales=self.args.mmd_scales,
+                        wts=self.args.mmd_wts,
+                        add_dot=self.args.mmd_add_dot,
+                    )
+                disc_loss *= self.args.disc_weight
+                total_loss += disc_loss
+                logging_dict["Loss Discriminator"] = disc_loss
 
-                disc_loss = x_t.new_zeros(())
-                for discriminator in ae.disc_ensemble:
-                    disc_loss -= discriminator.routine(disc_input_no_s, zeros)[0]
-                disc_loss /= len(ae.disc_ensemble)
+            # this is a pretty cheap masking operation, so it's okay if it's not used
+            enc_no_s, enc_no_y = ae.generator.mask(encoding, random=False)
+            if self.args.pred_y_weight > 0:
+                # predictor is on encodings; predict y from the part that is invariant to s
+                pred_y_loss, pred_y_acc = ae.predictor_y.routine(enc_no_s, y_t)
+                pred_y_loss *= self.args.pred_y_weight
+                logging_dict["Loss Predictor y"] = pred_y_loss.item()
+                logging_dict["Accuracy Predictor y"] = pred_y_acc
+                total_loss += pred_y_loss
+            if self.args.pred_s_weight > 0:
+                pred_s_loss, pred_s_acc = ae.predictor_s.routine(enc_no_y, s_t)
+                pred_s_loss *= self.args.pred_s_weight
+                logging_dict["Loss Predictor s"] = pred_s_loss.item()
+                logging_dict["Accuracy Predictor s"] = pred_s_acc
+                total_loss += pred_s_loss
 
-            else:
-                x = disc_input_no_s
-                y = self.get_disc_input(ae.generator, encoding_c.detach(), invariant_to="s")
-                disc_loss = mmd2(
-                    x=x,
-                    y=y,
-                    kernel=self.args.mmd_kernel,
-                    scales=self.args.mmd_scales,
-                    wts=self.args.mmd_wts,
-                    add_dot=self.args.mmd_add_dot,
-                )
-            disc_loss *= self.args.disc_weight
-            total_loss += disc_loss
-            logging_dict["Loss Discriminator"] = disc_loss
+            logging_dict["Loss Total"] = total_loss
 
-        # this is a pretty cheap masking operation, so it's okay if it's not used
-        enc_no_s, enc_no_y = ae.generator.mask(encoding, random=False)
-        if self.args.pred_y_weight > 0:
-            # predictor is on encodings; predict y from the part that is invariant to s
-            pred_y_loss, pred_y_acc = ae.predictor_y.routine(enc_no_s, y_t)
-            pred_y_loss *= self.args.pred_y_weight
-            logging_dict["Loss Predictor y"] = pred_y_loss.item()
-            logging_dict["Accuracy Predictor y"] = pred_y_acc
-            total_loss += pred_y_loss
-        if self.args.pred_s_weight > 0:
-            pred_s_loss, pred_s_acc = ae.predictor_s.routine(enc_no_y, s_t)
-            pred_s_loss *= self.args.pred_s_weight
-            logging_dict["Loss Predictor s"] = pred_s_loss.item()
-            logging_dict["Accuracy Predictor s"] = pred_s_acc
-            total_loss += pred_s_loss
+            ae.generator.zero_grad()
+            if self.args.pred_y_weight > 0:
+                ae.predictor_y.zero_grad()
+            if self.args.pred_s_weight > 0:
+                ae.predictor_s.zero_grad()
 
-        logging_dict["Loss Total"] = total_loss
+            total_loss.backward()
+            if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
+                disc_loss = self.grad_scaler.scale(total_loss)
 
-        ae.generator.zero_grad()
-        if self.args.pred_y_weight > 0:
-            ae.predictor_y.zero_grad()
-        if self.args.pred_s_weight > 0:
-            ae.predictor_s.zero_grad()
-
-        total_loss.backward()
-        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
-            disc_loss = self.grad_scaler.scale(total_loss)
-
-        # Update the generator's parameters
-        ae.generator.step(grad_scaler=self.grad_scaler)
-        if self.args.pred_y_weight > 0:
-            ae.predictor_y.step(grad_scaler=self.grad_scaler)
-        if self.args.pred_s_weight > 0:
-            ae.predictor_s.step(grad_scaler=self.grad_scaler)
-        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
-            self.grad_scaler.update()
+            # Update the generator's parameters
+            ae.generator.step(grad_scaler=self.grad_scaler)
+            if self.args.pred_y_weight > 0:
+                ae.predictor_y.step(grad_scaler=self.grad_scaler)
+            if self.args.pred_s_weight > 0:
+                ae.predictor_s.step(grad_scaler=self.grad_scaler)
+            if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
+                self.grad_scaler.update()
 
         return total_loss, logging_dict
 
