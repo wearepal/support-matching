@@ -129,8 +129,8 @@ class ClusterArgs:
     # Optimization settings
     early_stopping: int = 30
     epochs: int = 250
-    batch_size: Optional[int] = None
-    test_batch_size: int = 256
+    batch_size: int = 256
+    test_batch_size: Optional[int] = 256
 
     # Evaluation settings
     eval_epochs: int = 40

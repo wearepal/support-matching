@@ -31,18 +31,11 @@ class ModelBase(nn.Module):
 
     default_kwargs = dict(optimizer_kwargs=dict(lr=1e-3, weight_decay=0))
 
-    def __init__(
-        self, model, use_amp: bool = True, optimizer_kwargs: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, model, optimizer_kwargs: Optional[Dict[str, Any]] = None):
         super().__init__()
         self.model = model
         optimizer_kwargs = optimizer_kwargs or self.default_kwargs["optimizer_kwargs"]
         self.optimizer = Adam(self.model.parameters(), **optimizer_kwargs)
-        self.use_amp = use_amp
-        if use_amp:
-            self.scaler = GradScaler()
-        else:
-            self.scaler = None
 
     def reset_parameters(self):
         def _reset_parameters(m: nn.Module):
@@ -53,10 +46,9 @@ class ModelBase(nn.Module):
 
         self.model.apply(_reset_parameters)
 
-    def step(self, grads=None):
-        if self.use_amp:
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
+    def step(self, grads=None, grad_scaler: Optional[GradScaler] = None):
+        if grad_scaler is not None:
+            grad_scaler.step(self.optimizer)
         else:
             self.optimizer.step(grads)
 

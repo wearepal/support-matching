@@ -22,6 +22,7 @@ import numpy as np
 from omegaconf import OmegaConf
 import torch
 from torch import Tensor
+from torch.cuda.amp.grad_scaler import GradScaler
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
@@ -84,6 +85,7 @@ CFG: Config = None  # type: ignore[assignment]
 DATA: DatasetConfig = None  # type: ignore[assignment]
 ENC: EncoderConfig = None  # type: ignore[assignment]
 MISC: Misc = None  # type: ignore[assignment]
+GRAD_SCALER: Optional[GradScaler] = None
 
 
 class AeComponents(NamedTuple):
@@ -108,12 +110,15 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
         the trained generator
     """
     # ==== initialize globals ====
-    global ARGS, CFG, DATA, ENC, MISC
+    global ARGS, CFG, DATA, ENC, MISC, GRAD_SCALER
     CFG = instantiate(cfg)
     ARGS = CFG.fdm
     DATA = CFG.data
     ENC = CFG.enc
     MISC = CFG.misc
+
+    if MISC.use_amp:  # Enable mixed-precision training
+        GRAD_SCALER = GradScaler()
 
     assert ARGS.test_batch_size  # test_batch_size defaults to eff_batch_size if unspecified
     # ==== current git commit ====
@@ -295,7 +300,6 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
 
     disc_optimizer_kwargs = {"lr": ARGS.disc_lr}
     disc_input_shape: Tuple[int, ...] = input_shape if ARGS.train_on_recon else enc_shape
-    # FIXME: Architectures need to be GAN specific (e.g. incorporate spectral norm)
     disc_fn: ModelFn
     if is_image_data and ARGS.train_on_recon:
         if DATA.dataset == FdmDataset.cmnist:
@@ -337,7 +341,6 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
             input_shape=disc_input_shape,
             target_dim=1,  # real vs fake
             model_fn=disc_fn,
-            use_amp=MISC.use_amp,
             optimizer_kwargs=disc_optimizer_kwargs,
         )
         disc_ensemble.append(disc)
@@ -347,7 +350,6 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
         input_shape=(prod(enc_shape),),  # this is always trained on encodings
         target_dim=datasets.y_dim,
         model_fn=FcNet(hidden_dims=None),  # no hidden layers
-        use_amp=MISC.use_amp,
         optimizer_kwargs=disc_optimizer_kwargs,
     )
     predictor_y.to(device)
@@ -356,7 +358,6 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
         input_shape=(prod(enc_shape),),  # this is always trained on encodings
         target_dim=datasets.s_dim,
         model_fn=FcNet(hidden_dims=None),  # no hidden layers
-        use_amp=MISC.use_amp,
         optimizer_kwargs=disc_optimizer_kwargs,
     )
     predictor_s.to(device)
@@ -510,7 +511,7 @@ def get_batch(
 
 
 def train_step(
-    components: Union[AeComponents, InnComponents],
+    components: AeComponents,
     context_data_itr: Iterator[Tuple[Tensor, Tensor, Tensor]],
     train_data_itr: Iterator[Tuple[Tensor, Tensor, Tensor]],
     itr: int,
@@ -588,13 +589,20 @@ def update_disc(x_c: Tensor, x_t: Tensor, ae: AeComponents) -> Tuple[Tensor, Dic
         disc_loss += disc_loss_true + disc_loss_false
         disc_acc += 0.5 * (acc_c + acc_t)
     disc_loss /= len(ae.disc_ensemble)
+
+    if GRAD_SCALER is not None:  # Apply scaling for mixed-precision training
+        disc_loss = GRAD_SCALER.scale(disc_loss)
+
     logging_dict["Accuracy Discriminator (zy)"] = disc_acc / len(ae.disc_ensemble)
     for discriminator in ae.disc_ensemble:
         discriminator.zero_grad()
     disc_loss.backward()
     for discriminator in ae.disc_ensemble:
         discriminator = cast(Classifier, discriminator)
-        discriminator.step()
+        discriminator.step(grad_scaler=GRAD_SCALER)
+
+    if GRAD_SCALER is not None:  # Apply scaling for mixed-precision training
+        GRAD_SCALER.update()
 
     return disc_loss, logging_dict
 
@@ -686,14 +694,20 @@ def update(
     if ARGS.pred_s_weight > 0:
         ae.predictor_s.zero_grad()
 
+    if GRAD_SCALER is not None:  # Apply scaling for mixed-precision training
+        total_loss = GRAD_SCALER.scale(total_loss)
     total_loss.backward()
 
     # Update the generator's parameters
-    ae.generator.step()
+    ae.generator.step(grad_scaler=GRAD_SCALER)
     if ARGS.pred_y_weight > 0:
-        ae.predictor_y.step()
+        ae.predictor_y.step(grad_scaler=GRAD_SCALER)
     if ARGS.pred_s_weight > 0:
-        ae.predictor_s.step()
+        ae.predictor_s.step(grad_scaler=GRAD_SCALER)
+
+    if GRAD_SCALER is not None:
+        GRAD_SCALER.update()
+
     return total_loss, logging_dict
 
 

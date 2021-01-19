@@ -30,19 +30,11 @@ class AutoEncoder(nn.Module):
     ):
         super(AutoEncoder, self).__init__()
 
-        self.encoder: ModelBase = ModelBase(
-            encoder, optimizer_kwargs=optimizer_kwargs, use_amp=False
-        )
-        self.decoder: ModelBase = ModelBase(
-            decoder, optimizer_kwargs=optimizer_kwargs, use_amp=False
-        )
+        self.encoder: ModelBase = ModelBase(encoder, optimizer_kwargs=optimizer_kwargs)
+        self.decoder: ModelBase = ModelBase(decoder, optimizer_kwargs=optimizer_kwargs)
         self.encoding_size = encoding_size
         self.feature_group_slices = feature_group_slices
         self.use_amp = use_amp
-        if use_amp:
-            self.scaler = GradScaler()
-        else:
-            self.scaler = None
 
     def encode(self, inputs: Tensor, stochastic: bool = False) -> Tensor:
         del stochastic
@@ -97,14 +89,9 @@ class AutoEncoder(nn.Module):
         self.encoder.zero_grad()
         self.decoder.zero_grad()
 
-    def step(self):
-        if self.use_amp:
-            self.scaler.scale(self.encoder.optimizer.step())
-            self.scaler.scale(self.decoder.optimizer.step())
-            self.scaler.update()
-        else:
-            self.encoder.step()
-            self.decoder.step()
+    def step(self, grad_scaler: Optional[GradScaler] = None):
+        self.encoder.step(grad_scaler=grad_scaler)
+        self.decoder.step(grad_scaler=grad_scaler)
 
     def split_encoding(self, z: Tensor) -> SplitEncoding:
         assert self.encoding_size is not None
@@ -152,8 +139,6 @@ class AutoEncoder(nn.Module):
         recon_loss /= x.nelement()
         prior_loss = kl_weight * encoding.norm(dim=1).mean()
         loss = recon_loss + prior_loss
-        if self.use_amp:
-            loss = self.scaler.scale(loss)
         return encoding, loss, {"Loss reconstruction": recon_loss.item(), "Prior Loss": prior_loss}
 
 
@@ -165,7 +150,6 @@ class VAE(AutoEncoder):
         encoding_size: Optional[EncodingSize],
         vae_std_tform: VaeStd,
         feature_group_slices: Optional[Dict[str, List[slice]]] = None,
-        use_amp: bool = True,
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(
@@ -173,7 +157,6 @@ class VAE(AutoEncoder):
             decoder=decoder,
             encoding_size=encoding_size,
             feature_group_slices=feature_group_slices,
-            use_amp=use_amp,
             optimizer_kwargs=optimizer_kwargs,
         )
         self.encoder: ModelBase = ModelBase(encoder, optimizer_kwargs=optimizer_kwargs)
@@ -219,9 +202,6 @@ class VAE(AutoEncoder):
         else:
             return sample
 
-    # def mask(self, z: Tensor, random: bool = False) -> Tuple[Tensor, Tensor]:
-    #     return super().mask(z, random=False)
-
     def routine(
         self, x: Tensor, recon_loss_fn, kl_weight: float
     ) -> Tuple[Tensor, Tensor, Dict[str, float]]:
@@ -234,7 +214,5 @@ class VAE(AutoEncoder):
         recon_loss = recon_loss_fn(recon_all, x)
         recon_loss /= x.nelement()
         elbo = recon_loss + kl_div
-        if self.use_amp:
-            elbo = self.scaler.scale(elbo)
         logging_dict = {"Loss Reconstruction": recon_loss.item(), "KL divergence": kl_div}
         return encoding, elbo, logging_dict

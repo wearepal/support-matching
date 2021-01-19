@@ -4,7 +4,6 @@ from typing import Dict, Optional, Tuple, Union
 from ethicml.implementations.dro_modules import DROLoss
 import torch
 from torch import Tensor, nn
-from torch.cuda.amp import GradScaler
 import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
 from torch.optim.lr_scheduler import MultiStepLR
@@ -25,7 +24,6 @@ class Classifier(ModelBase):
         self,
         model,
         num_classes: int,
-        use_amp: bool = True,
         optimizer_kwargs: Optional[Dict] = None,
         criterion: Optional[Union[str, _Loss]] = None,
     ):
@@ -39,7 +37,7 @@ class Classifier(ModelBase):
         Returns:
             None
         """
-        super().__init__(model, use_amp=use_amp, optimizer_kwargs=optimizer_kwargs)
+        super().__init__(model, optimizer_kwargs=optimizer_kwargs)
         if num_classes < 2:
             raise ValueError(
                 f"Invalid number of classes: must equal 2 or more," f" {num_classes} given."
@@ -169,8 +167,6 @@ class Classifier(ModelBase):
             loss = loss.view(-1) * instance_weights.view(-1)
         loss = loss.mean()
         acc = self.compute_accuracy(outputs, targets)
-        if self.use_amp:
-            loss = self.scaler.scale(loss)
 
         return loss, acc
 

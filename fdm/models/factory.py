@@ -10,7 +10,6 @@ def build_discriminator(
     input_shape: Tuple[int, ...],
     target_dim: int,
     model_fn: ModelFn,
-    use_amp: bool = True,
     optimizer_kwargs: Optional[dict] = None,
 ) -> Classifier:
     in_dim = input_shape[0]
@@ -19,6 +18,5 @@ def build_discriminator(
     return Classifier(
         model_fn(in_dim, target_dim),
         num_classes=num_classes,
-        use_amp=use_amp,
         optimizer_kwargs=optimizer_kwargs,
     )

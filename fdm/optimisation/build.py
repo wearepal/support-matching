@@ -12,7 +12,6 @@ def build_ae(
     decoder,
     encoding_size: Optional[EncodingSize],
     feature_group_slices: Optional[Dict[str, List[slice]]],
-    use_amp: bool = True,
 ) -> AutoEncoder:
     optimizer_args = {"lr": cfg.fdm.lr, "weight_decay": cfg.fdm.weight_decay}
     model: AutoEncoder
@@ -23,7 +22,6 @@ def build_ae(
             encoding_size=encoding_size,
             vae_std_tform=cfg.fdm.vae_std_tform,
             feature_group_slices=feature_group_slices,
-            use_amp=use_amp,
             optimizer_kwargs=optimizer_args,
         )
     else:
@@ -32,7 +30,6 @@ def build_ae(
             decoder=decoder,
             encoding_size=encoding_size,
             feature_group_slices=feature_group_slices,
-            use_amp=use_amp,
             optimizer_kwargs=optimizer_args,
         )
     model.to(cfg.misc.device)
