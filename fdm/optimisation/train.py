@@ -245,19 +245,20 @@ class Experiment:
                 disc_loss += disc_loss_true + disc_loss_false
                 disc_acc += 0.5 * (acc_c + acc_t)
             disc_loss /= len(ae.disc_ensemble)
-            logging_dict["Accuracy Discriminator (zy)"] = disc_acc / len(ae.disc_ensemble)
-            for discriminator in ae.disc_ensemble:
-                discriminator.zero_grad()
 
-            if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
-                disc_loss = self.grad_scaler.scale(disc_loss)
-            disc_loss.backward()
+        logging_dict["Accuracy Discriminator (zy)"] = disc_acc / len(ae.disc_ensemble)
+        for discriminator in ae.disc_ensemble:
+            discriminator.zero_grad()
 
-            for discriminator in ae.disc_ensemble:
-                discriminator = cast(Classifier, discriminator)
-                discriminator.step(grad_scaler=self.grad_scaler)
-            if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
-                self.grad_scaler.update()
+        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
+            disc_loss = self.grad_scaler.scale(disc_loss)
+        disc_loss.backward()
+
+        for discriminator in ae.disc_ensemble:
+            discriminator = cast(Classifier, discriminator)
+            discriminator.step(grad_scaler=self.grad_scaler)
+        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
+            self.grad_scaler.update()
 
         return disc_loss, logging_dict
 
@@ -343,26 +344,26 @@ class Experiment:
                 logging_dict["Accuracy Predictor s"] = pred_s_acc
                 total_loss += pred_s_loss
 
-            logging_dict["Loss Total"] = total_loss
+        logging_dict["Loss Total"] = total_loss
 
-            ae.generator.zero_grad()
-            if self.args.pred_y_weight > 0:
-                ae.predictor_y.zero_grad()
-            if self.args.pred_s_weight > 0:
-                ae.predictor_s.zero_grad()
+        ae.generator.zero_grad()
+        if self.args.pred_y_weight > 0:
+            ae.predictor_y.zero_grad()
+        if self.args.pred_s_weight > 0:
+            ae.predictor_s.zero_grad()
 
-            total_loss.backward()
-            if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
-                disc_loss = self.grad_scaler.scale(total_loss)
+        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
+            total_loss = self.grad_scaler.scale(total_loss)
+        total_loss.backward()
 
-            # Update the generator's parameters
-            ae.generator.step(grad_scaler=self.grad_scaler)
-            if self.args.pred_y_weight > 0:
-                ae.predictor_y.step(grad_scaler=self.grad_scaler)
-            if self.args.pred_s_weight > 0:
-                ae.predictor_s.step(grad_scaler=self.grad_scaler)
-            if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
-                self.grad_scaler.update()
+        # Update the generator's parameters
+        ae.generator.step(grad_scaler=self.grad_scaler)
+        if self.args.pred_y_weight > 0:
+            ae.predictor_y.step(grad_scaler=self.grad_scaler)
+        if self.args.pred_s_weight > 0:
+            ae.predictor_s.step(grad_scaler=self.grad_scaler)
+        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
+            self.grad_scaler.update()
 
         return total_loss, logging_dict
 
