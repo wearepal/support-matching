@@ -1,16 +1,15 @@
 """Main training file"""
 import logging
 import os
-import time
 from pathlib import Path
+import time
 from typing import Dict, List, Optional, Tuple, Union
 
 import git
-import numpy as np
-import torch
-import wandb
 from hydra.utils import to_absolute_path
+import numpy as np
 from omegaconf import OmegaConf
+import torch
 from torch import Tensor
 from torch.utils.data import ConcatDataset, DataLoader
 from torchvision.models import resnet18, resnet50
@@ -24,14 +23,14 @@ from clustering.models import (
     MultiHeadModel,
     PseudoLabelEnc,
     PseudoLabelEncNoNorm,
-    PseudoLabeler,
     PseudoLabelOutput,
+    PseudoLabeler,
     RankingStatistics,
     SelfSupervised,
     build_classifier,
 )
 from shared.configs import (
-    ClusterArgs,
+    ClusterConfig,
     ClusteringLabel,
     ClusteringMethod,
     Config,
@@ -39,7 +38,7 @@ from shared.configs import (
     EncoderConfig,
     EncoderType,
     FdmDataset,
-    Misc,
+    MiscConfig,
     PlMethod,
 )
 from shared.data.data_loading import DatasetTriplet, load_dataset
@@ -59,6 +58,7 @@ from shared.utils import (
     save_results,
     wandb_log,
 )
+import wandb
 
 from .build import build_ae
 from .evaluation import classify_dataset
@@ -77,11 +77,11 @@ __all__ = ["main"]
 
 log = logging.getLogger(__name__.split(".")[-1].upper())
 
-ARGS: ClusterArgs = None  # type: ignore[assignment]
+ARGS: ClusterConfig = None  # type: ignore[assignment]
 CFG: Config = None  # type: ignore[assignment]
 DATA: DatasetConfig = None  # type: ignore[assignment]
 ENC: EncoderConfig = None  # type: ignore[assignment]
-MISC: Misc = None  # type: ignore[assignment]
+MISC: MiscConfig = None  # type: ignore[assignment]
 
 
 def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model, Path]:

@@ -13,7 +13,7 @@ from torchvision import transforms
 from torchvision.datasets import MNIST
 from typing_extensions import Literal
 
-from shared.configs import AdultDatasetSplit, BaseArgs, FdmDataset, QuantizationLevel
+from shared.configs import AdultDatasetSplit, BaseConfig, FdmDataset, QuantizationLevel
 
 from .adult import load_adult_data
 from .dataset_wrappers import TensorDataTupleDataset
@@ -39,7 +39,7 @@ class RawDataTuple(NamedTuple):
     y: Tensor
 
 
-def load_dataset(cfg: BaseArgs) -> DatasetTriplet:
+def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
     context_data: Dataset
     test_data: Dataset
     train_data: Dataset

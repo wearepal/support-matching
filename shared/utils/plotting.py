@@ -1,10 +1,10 @@
 import matplotlib
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 import torch
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from shared.configs import Misc
+from shared.configs import MiscConfig
 
 from .utils import wandb_log
 
@@ -42,7 +42,7 @@ def plot_contrastive(original, recon, columns, filename):
 
 
 def plot_histogram(
-    misc: Misc,
+    misc: MiscConfig,
     vector: torch.Tensor,
     step: int,
     prefix: str = "train",

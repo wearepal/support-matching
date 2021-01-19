@@ -1,13 +1,13 @@
 """Main training file"""
 from typing import Dict, NamedTuple, Optional, Tuple
 
+from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
-from torch import Tensor
 from typing_extensions import Literal
 
 from clustering.models import Classifier, PartitionedAeInn
-from shared.configs import ClusterArgs
+from shared.configs import ClusterConfig
 
 __all__ = ["update_inn", "update_disc_on_inn"]
 
@@ -22,7 +22,7 @@ class InnComponents(NamedTuple):
 
 
 def update_disc_on_inn(
-    args: ClusterArgs, x_c: Tensor, x_t: Tensor, models: InnComponents, warmup: bool = False
+    args: ClusterConfig, x_c: Tensor, x_t: Tensor, models: InnComponents, warmup: bool = False
 ) -> Tuple[Tensor, float]:
     """Train the discriminator while keeping the generator constant.
 
@@ -76,7 +76,7 @@ def update_disc_on_inn(
 
 
 def update_inn(
-    args: ClusterArgs, x_c: Tensor, x_t: Tensor, models: InnComponents, pred_s_weight: float
+    args: ClusterConfig, x_c: Tensor, x_t: Tensor, models: InnComponents, pred_s_weight: float
 ) -> Tuple[Tensor, Dict[str, float]]:
     """Compute all losses.
 
@@ -185,7 +185,7 @@ def update_inn(
 
 
 def get_disc_input(
-    args: ClusterArgs,
+    args: ClusterConfig,
     inn: PartitionedAeInn,
     encoding: Tensor,
     invariant_to: Literal["s", "y"] = "s",

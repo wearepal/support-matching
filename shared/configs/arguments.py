@@ -21,14 +21,14 @@ from .enums import (
 )
 
 __all__ = [
-    "BaseArgs",
+    "BaseConfig",
     "BiasConfig",
-    "ClusterArgs",
+    "ClusterConfig",
     "Config",
     "DatasetConfig",
     "EncoderConfig",
-    "FdmArgs",
-    "Misc",
+    "FdmConfig",
+    "MiscConfig",
 ]
 
 
@@ -92,8 +92,8 @@ class BiasConfig:
 
 
 @dataclass
-class Misc:
-    _target_: str = "shared.configs.Misc"
+class MiscConfig:
+    _target_: str = "shared.configs.MiscConfig"
     # Cluster settings
     cluster_label_file: str = ""
 
@@ -121,10 +121,10 @@ class Misc:
 
 
 @dataclass
-class ClusterArgs:
+class ClusterConfig:
     """Flags for clustering."""
 
-    _target_: str = "shared.configs.ClusterArgs"
+    _target_: str = "shared.configs.ClusterConfig"
 
     # Optimization settings
     early_stopping: int = 30
@@ -199,10 +199,10 @@ class EncoderConfig:
 
 
 @dataclass
-class FdmArgs:
+class FdmConfig:
     """Flags for disentangling."""
 
-    _target_: str = "shared.configs.FdmArgs"
+    _target_: str = "shared.configs.FdmConfig"
 
     # Optimization settings
     early_stopping: int = 30
@@ -280,22 +280,22 @@ class FdmArgs:
 
 
 @dataclass
-class BaseArgs:
+class BaseConfig:
     """Minimum needed config to do data loading."""
 
-    _target_: str = "shared.configs.bias"
+    _target_: str = "shared.configs.BaseConfig"
 
     data: DatasetConfig = MISSING
     bias: BiasConfig = MISSING
-    misc: Misc = MISSING
+    misc: MiscConfig = MISSING
 
 
 @dataclass
-class Config(BaseArgs):
+class Config(BaseConfig):
     """Config used for clustering and disentangling."""
 
     _target_: str = "shared.configs.Config"
 
-    clust: ClusterArgs = MISSING
+    clust: ClusterConfig = MISSING
     enc: EncoderConfig = MISSING
-    fdm: FdmArgs = MISSING
+    fdm: FdmConfig = MISSING

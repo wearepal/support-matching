@@ -8,7 +8,7 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
 
-from shared.configs import BaseArgs
+from shared.configs import BaseConfig
 
 from .dataset_wrappers import DataTupleDataset
 
@@ -89,7 +89,7 @@ def get_invisible_demographics(
     return one_s_only, normal_subset
 
 
-def load_adult_data(cfg: BaseArgs) -> Tuple[DataTupleDataset, DataTupleDataset, DataTupleDataset]:
+def load_adult_data(cfg: BaseConfig) -> Tuple[DataTupleDataset, DataTupleDataset, DataTupleDataset]:
     global ADULT_DATASET
     ADULT_DATASET = em.adult(
         split=cfg.data.adult_split.name, binarize_nationality=cfg.data.drop_native
@@ -137,7 +137,7 @@ def load_adult_data(cfg: BaseArgs) -> Tuple[DataTupleDataset, DataTupleDataset, 
     return context_dataset, train_dataset, test_dataset
 
 
-def biased_split(cfg: BaseArgs, data: em.DataTuple) -> DataTupleTriplet:
+def biased_split(cfg: BaseConfig, data: em.DataTuple) -> DataTupleTriplet:
     """Split the dataset such that the training set is biased."""
     if cfg.bias.adult_biased_train:
         train_tuple, unbiased = get_invisible_demographics(  # get_biased_subset(

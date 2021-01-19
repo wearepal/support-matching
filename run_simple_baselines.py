@@ -1,25 +1,25 @@
-import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
+import logging
 from pathlib import Path
 
 import ethicml as em
-import hydra
-import numpy as np
-import pandas as pd
-import torch
 from ethicml import implementations
+import hydra
 from hydra.core.config_store import ConfigStore
 from hydra.utils import to_absolute_path
+import numpy as np
 from omegaconf.omegaconf import MISSING, OmegaConf
+import pandas as pd
+import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import trange
 
 from fdm.models import Classifier
 from fdm.optimisation.train import build_weighted_sampler_from_dataset
-from shared.configs import DS, BaseArgs
+from shared.configs import BaseConfig, DS
 from shared.data import adult, load_dataset
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import ModelFn, compute_metrics, get_data_dim, random_seed
@@ -70,7 +70,7 @@ class BaselineArgs:
 
 
 @dataclass
-class Config(BaseArgs):
+class Config(BaseConfig):
     baselines: BaselineArgs = MISSING
 
 

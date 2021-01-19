@@ -36,9 +36,9 @@ from shared.configs import (
     Config,
     DatasetConfig,
     EncoderConfig,
-    FdmArgs,
+    FdmConfig,
     FdmDataset,
-    Misc,
+    MiscConfig,
     ReconstructionLoss,
 )
 from shared.data import DatasetTriplet, load_dataset
@@ -94,7 +94,12 @@ class AeComponents(NamedTuple):
 
 class Experiment:
     def __init__(
-        self, args: FdmArgs, cfg: Config, data: DatasetConfig, enc: EncoderConfig, misc: Misc
+        self,
+        args: FdmConfig,
+        cfg: Config,
+        data: DatasetConfig,
+        enc: EncoderConfig,
+        misc: MiscConfig,
     ) -> None:
         self.args = args
         self.cfg = cfg

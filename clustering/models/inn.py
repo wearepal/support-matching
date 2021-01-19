@@ -1,13 +1,13 @@
 from typing import Callable, Dict, Optional, Sequence, Tuple, overload
 
 import torch
-import torch.distributions as td
 from torch import Tensor
+import torch.distributions as td
 from torch.utils.data import DataLoader
 
 from clustering.layers import Bijector
-from shared.configs import ClusterArgs
-from shared.utils import DLogistic, MixtureDistribution, prod  # to_discrete, logistic_distribution
+from shared.configs import ClusterConfig
+from shared.utils import DLogistic, MixtureDistribution, prod
 
 from .autoencoder import AutoEncoder
 from .base import Encoder, ModelBase
@@ -22,7 +22,7 @@ class AeInn(ModelBase, Encoder):
 
     def __init__(
         self,
-        args: ClusterArgs,
+        args: ClusterConfig,
         model: Bijector,
         autoencoder: AutoEncoder,
         input_shape: Sequence[int],

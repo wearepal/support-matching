@@ -4,7 +4,7 @@ import torch.nn as nn
 
 from clustering import layers
 from clustering.models import Classifier
-from shared.configs import ClusterArgs
+from shared.configs import ClusterConfig
 from shared.utils import ModelFn
 
 __all__ = ["build_classifier", "build_fc_inn", "build_conv_inn"]
@@ -40,7 +40,7 @@ def build_classifier(
 
 
 def build_fc_inn(
-    args: ClusterArgs, input_shape: Tuple[int, ...], level_depth: Optional[int] = None
+    args: ClusterConfig, input_shape: Tuple[int, ...], level_depth: Optional[int] = None
 ) -> layers.Bijector:
     """Build the model with args.inn_depth many layers
 
@@ -74,7 +74,7 @@ def build_fc_inn(
     return layers.BijectorChain(chain)
 
 
-def _block(args: ClusterArgs, input_dim: int) -> layers.Bijector:
+def _block(args: ClusterConfig, input_dim: int) -> layers.Bijector:
     """Construct one block of the conv INN"""
     _chain: List[layers.Bijector] = []
 
@@ -117,7 +117,7 @@ def _block(args: ClusterArgs, input_dim: int) -> layers.Bijector:
 
 
 def _build_multi_scale_chain(
-    args: ClusterArgs, input_dim, factor_splits, unsqueeze=False
+    args: ClusterConfig, input_dim, factor_splits, unsqueeze=False
 ) -> List[layers.Bijector]:
     chain: List[layers.Bijector] = []
 
@@ -148,7 +148,7 @@ def _build_multi_scale_chain(
     return chain
 
 
-def build_conv_inn(args: ClusterArgs, input_shape: Tuple[int, ...]) -> layers.Bijector:
+def build_conv_inn(args: ClusterConfig, input_shape: Tuple[int, ...]) -> layers.Bijector:
     input_dim = input_shape[0]
 
     full_chain: List[layers.Bijector] = []

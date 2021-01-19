@@ -1,17 +1,26 @@
 from pathlib import Path
 from typing import Dict, Optional, Tuple, Union
 
+from lapjv import lapjv
 import numpy as np
-import torch
-import torchvision
-import wandb
-from lapjv import lapjv  # pylint: disable=no-name-in-module
 from omegaconf import OmegaConf
-from sklearn.metrics import adjusted_rand_score, confusion_matrix, normalized_mutual_info_score
+from sklearn.metrics import (
+    adjusted_rand_score,
+    confusion_matrix,
+    normalized_mutual_info_score,
+)
+import torch
 from torch import Tensor
+import torchvision
 
 from clustering.models import Model
-from shared.configs import ClusteringLabel, Config, FdmDataset, Misc, ReconstructionLoss
+from shared.configs import (
+    ClusteringLabel,
+    Config,
+    FdmDataset,
+    MiscConfig,
+    ReconstructionLoss,
+)
 from shared.utils import (
     ClusterResults,
     class_id_to_label,
@@ -20,6 +29,7 @@ from shared.utils import (
     save_results,
     wandb_log,
 )
+import wandb
 
 __all__ = [
     "convert_and_save_results",
@@ -130,7 +140,7 @@ def get_class_id(*, s: Tensor, y: Tensor, s_count: int, to_cluster: ClusteringLa
     return class_id.view(-1)
 
 
-def get_cluster_label_path(misc: Misc, save_dir: Path) -> Path:
+def get_cluster_label_path(misc: MiscConfig, save_dir: Path) -> Path:
     if misc.cluster_label_file:
         return Path(misc.cluster_label_file)
     else:
