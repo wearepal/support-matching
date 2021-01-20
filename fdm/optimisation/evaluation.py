@@ -54,10 +54,12 @@ def log_metrics(
 
     log.info("\nComputing metrics...")
     evaluate(
-        cfg,
-        step,
-        train_inv_s,
-        test_repr,
+        cfg=cfg,
+        step=step,
+        train_data=train_inv_s,
+        test_data=test_repr,
+        y_dim=data.y_dim,
+        s_dim=data.s_dim,
         name="x_zero_s",
         eval_on_recon=cfg.fdm.eval_on_recon,
         pred_s=False,
@@ -89,6 +91,7 @@ def baseline_metrics(cfg: Config, data: DatasetTriplet, save_to_csv: Optional[Pa
                 cfg=cfg,
                 predictions=preds,
                 actual=test_data,
+                s_dim=data.s_dim,
                 exp_name="original_data",
                 model_name=clf.name,
                 step=0,
@@ -104,29 +107,30 @@ def fit_classifier(
     train_data: DataLoader,
     train_on_recon: bool,
     pred_s: bool,
+    target_dim: int,
     test_data: Optional[DataLoader] = None,
 ) -> Classifier:
     input_dim = input_shape[0]
     clf_fn: ModelFn
     if cfg.data.dataset == FdmDataset.cmnist and train_on_recon:
         clf_fn = Mp32x23Net(batch_norm=True)
-    elif cfg.data.dataset in (FdmDataset.celeba, FdmDataset.genfaces) and train_on_recon:
+    elif cfg.data.dataset in (FdmDataset.celeba) and train_on_recon:
         clf_fn = Mp64x64Net(batch_norm=True)
     else:
         clf_fn = FcNet(hidden_dims=None)
         input_dim = prod(input_shape)
-    clf = clf_fn(input_dim, target_dim=cfg.misc._y_dim)
+    clf_base = clf_fn(input_dim, target_dim=target_dim)
 
-    n_classes = cfg.misc._y_dim if cfg.misc._y_dim > 1 else 2
+    num_classes = max(2, target_dim)
     clf: Classifier = Classifier(
-        clf, num_classes=n_classes, optimizer_kwargs={"lr": cfg.fdm.eval_lr}
+        clf_base, num_classes=num_classes, optimizer_kwargs={"lr": cfg.fdm.eval_lr}
     )
-    clf.to(cfg.misc._device)
+    clf.to(cfg.misc.device)
     clf.fit(
         train_data,
         test_data=test_data,
         epochs=cfg.fdm.eval_epochs,
-        device=cfg.misc._device,
+        device=cfg.misc.device,
         pred_s=pred_s,
     )
 
@@ -136,8 +140,10 @@ def fit_classifier(
 def evaluate(
     cfg: Config,
     step: int,
-    train_data: "Dataset[Tuple[Tensor, Tensor, Tensor]]",
-    test_data: "Dataset[Tuple[Tensor, Tensor, Tensor]]",
+    train_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
+    test_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
+    y_dim: int,
+    s_dim: int,
     name: str,
     eval_on_recon: bool = True,
     pred_s: bool = False,
@@ -170,11 +176,10 @@ def evaluate(
             train_on_recon=eval_on_recon,
             pred_s=pred_s,
             test_data=test_loader,
+            target_dim=s_dim if pred_s else y_dim,
         )
 
-        preds, labels, sens = clf.predict_dataset(
-            test_loader, device=torch.device(cfg.misc._device)
-        )
+        preds, labels, sens = clf.predict_dataset(test_loader, device=torch.device(cfg.misc.device))
         preds = em.Prediction(hard=pd.Series(preds))
         if cfg.data.dataset == FdmDataset.cmnist:
             sens_name = "colour"
@@ -192,6 +197,7 @@ def evaluate(
             name,
             "pytorch_classifier",
             step=step,
+            s_dim=s_dim,
             save_to_csv=save_to_csv,
             results_csv=cfg.misc.results_csv,
             use_wandb=cfg.misc.use_wandb,
@@ -205,11 +211,12 @@ def evaluate(
         for eth_clf in [em.LR(), em.LRCV()]:  # , em.LRCV(), em.SVM(kernel="linear")]:
             preds = eth_clf.run(train_data, test_data)
             compute_metrics(
-                cfg,
-                preds,
-                test_data,
-                name,
-                eth_clf.name,
+                cfg=cfg,
+                predictions=preds,
+                actual=test_data,
+                exp_name=name,
+                model_name=eth_clf.name,
+                s_dim=s_dim,
                 step=step,
                 save_to_csv=save_to_csv,
                 results_csv=cfg.misc.results_csv,
@@ -237,7 +244,7 @@ def encode_dataset(
     with torch.set_grad_enabled(False):
         for x, s, y in tqdm(data_loader):
 
-            x = x.to(cfg.misc._device, non_blocking=True)
+            x = x.to(cfg.misc.device, non_blocking=True)
             all_s.append(s)
             all_y.append(y)
 

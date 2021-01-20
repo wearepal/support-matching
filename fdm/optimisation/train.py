@@ -4,16 +4,7 @@ from collections import defaultdict
 import logging
 from pathlib import Path
 import time
-from typing import (
-    Callable,
-    Dict,
-    Iterator,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import Callable, Dict, Iterator, Optional, Sequence, Tuple, Union, cast
 
 import git
 from hydra.utils import instantiate, to_absolute_path
@@ -691,7 +682,7 @@ def main(hydra_config: Config, cluster_label_file: Optional[Path] = None) -> Aut
             if itr == args.val_freq:  # first validation
                 baseline_metrics(cfg, datasets, save_to_csv=Path(to_absolute_path(misc.save_dir)))
             log_metrics(cfg, model=generator, data=datasets, step=itr)
-            save_model(cfg, save_dir, model=generator, itr=itr, sha=sha)
+            save_model(hydra_config, save_dir, model=generator, itr=itr, sha=sha)
 
         if args.disc_reset_prob > 0:
             for k, discriminator in enumerate(disc_ensemble):

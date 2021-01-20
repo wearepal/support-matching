@@ -3,9 +3,9 @@ from pathlib import Path
 from typing import Dict, Mapping, Optional, Tuple, Union
 
 import ethicml as em
-import wandb
 
 from shared.configs import BaseConfig
+import wandb
 
 from .utils import wandb_log
 
@@ -37,6 +37,7 @@ def compute_metrics(
     exp_name: str,
     model_name: str,
     step: int,
+    s_dim: int,
     save_to_csv: Optional[Path] = None,
     results_csv: str = "",
     use_wandb: bool = False,
@@ -63,7 +64,7 @@ def compute_metrics(
         actual,
         metrics=[em.Accuracy(), em.TPR(), em.TNR(), em.RenyiCorrelation()],
         per_sens_metrics=[em.Accuracy(), em.ProbPos(), em.TPR(), em.TNR()],
-        diffs_and_ratios=cfg.misc._s_dim < 4,  # this just gets too much with higher s dim
+        diffs_and_ratios=s_dim < 4,  # this just gets too much with higher s dim
     )
     # replace the slash; it's causing problems
     metrics = {k.replace("/", "÷"): v for k, v in metrics.items()}
