@@ -1,7 +1,6 @@
 """Main training file"""
 from __future__ import annotations
 from collections import defaultdict
-from dataclasses import asdict
 import logging
 from pathlib import Path
 import time
@@ -9,7 +8,6 @@ from typing import (
     Callable,
     Dict,
     Iterator,
-    NamedTuple,
     Optional,
     Sequence,
     Tuple,
@@ -351,18 +349,18 @@ class Experiment:
         log_images(self.cfg, recon.just_s, "reconstruction_just_s", step=itr, prefix=prefix)
 
 
-def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
+def main(hydra_config: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
     """Main function.
 
     Args:
+        hydra_config: configuration object from hydra
         cluster_label_file: path to a pth file with cluster IDs
-        initialize_wandb: if False, we assume that W&B has already been initialized
 
     Returns:
         the trained generator
     """
     # ==== initialize globals ====
-    cfg = instantiate(cfg)
+    cfg: Config = instantiate(hydra_config)
     args = cfg.fdm
     data = cfg.data
     enc = cfg.enc
@@ -390,7 +388,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
         run = wandb.init(
             entity="predictive-analytics-lab",
             project="fdm-hydra" + project_suffix,
-            config=flatten(asdict(cfg)),
+            config=flatten(OmegaConf.to_container(hydra_config, resolve=True, enum_to_str=True)),
             group=group if group else None,
             reinit=True,
         )
@@ -398,7 +396,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
     save_dir = Path(to_absolute_path(misc.save_dir)) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    log.info(str(OmegaConf.to_yaml(cfg, resolve=True, sort_keys=True)))
+    log.info(str(OmegaConf.to_yaml(hydra_config, resolve=True, sort_keys=True)))
     log.info(f"Save directory: {save_dir.resolve()}")
     # ==== check GPU ====
     misc

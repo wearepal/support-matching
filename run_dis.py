@@ -11,7 +11,7 @@ cs.store(name="config_schema", node=Config)
 
 @hydra.main(config_path="conf", config_name="config")
 def app(cfg: Config):
-    main(cfg=cfg)
+    main(hydra_config=cfg)
 
 
 if __name__ == "__main__":

@@ -200,6 +200,6 @@ def flatten(d: dict, parent_key: str = "", sep: str = ".") -> dict:
         new_key = parent_key + sep + k if parent_key else k
         if isinstance(v, collections.MutableMapping):
             items.extend(flatten(v, new_key, sep=sep).items())
-        else:
+        elif k != "_target_":
             items.append((new_key, v))
     return dict(items)

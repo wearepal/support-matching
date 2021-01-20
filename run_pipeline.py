@@ -23,7 +23,7 @@ def app(cfg: Config) -> None:
 
         from fdm.optimisation import main as disentangle
 
-        disentangle(cfg=cfg, cluster_label_file=clf)
+        disentangle(hydra_config=cfg, cluster_label_file=clf)
 
 
 if __name__ == "__main__":
