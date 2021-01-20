@@ -1,10 +1,13 @@
 """Utility functions."""
-import collections
+from collections.abc import MutableMapping
+from dataclasses import asdict
+from enum import Enum
 import os
 import random
 from typing import Any, Dict, Iterable, Iterator, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
+from omegaconf import OmegaConf
 import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
@@ -17,6 +20,7 @@ __all__ = [
     "AverageMeter",
     "ModelFn",
     "RunningAverageMeter",
+    "as_pretty_dict",
     "class_id_to_label",
     "count_parameters",
     "flatten",
@@ -193,13 +197,29 @@ def readable_duration(seconds: float, pad: str = "") -> str:
     return pad.join(parts)
 
 
-def flatten(d: dict, parent_key: str = "", sep: str = ".") -> dict:
+def flatten(d: MutableMapping, parent_key: str = "", sep: str = ".") -> dict:
     """Flatten a nested dictionary by separating the keys with `sep`."""
     items = []
     for k, v in d.items():
         new_key = parent_key + sep + k if parent_key else k
-        if isinstance(v, collections.MutableMapping):
+        if isinstance(v, MutableMapping):
             items.extend(flatten(v, new_key, sep=sep).items())
-        elif k != "_target_":
+        else:
             items.append((new_key, v))
     return dict(items)
+
+
+def _clean_up_dict(obj: Any) -> Any:
+    """Convert enums to strings and filter out _target_."""
+    if isinstance(obj, MutableMapping):
+        return {key: _clean_up_dict(value) for key, value in obj.items() if key != "_target_"}
+    elif isinstance(obj, Enum):
+        return str(f"{obj.name}")
+    elif OmegaConf.is_config(obj):  # hydra stores lists as omegaconf.ListConfig, so we convert here
+        return OmegaConf.to_container(obj, resolve=True, enum_to_str=True)
+    return obj
+
+
+def as_pretty_dict(data_class: object) -> dict:
+    """Convert dataclass to a pretty dictionary."""
+    return _clean_up_dict(asdict(data_class))

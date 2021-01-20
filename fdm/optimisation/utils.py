@@ -2,14 +2,13 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from omegaconf import OmegaConf
 import torch
 from torch import Tensor, nn
 import torchvision
 import wandb
 
 from shared.configs import Config, FdmDataset, ReconstructionLoss
-from shared.utils import class_id_to_label, flatten, wandb_log
+from shared.utils import as_pretty_dict, class_id_to_label, flatten, wandb_log
 
 __all__ = [
     "get_all_num_samples",
@@ -62,7 +61,7 @@ def save_model(
     else:
         filename = save_dir / f"checkpt_epoch{itr}.pth"
     save_dict = {
-        "args": flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
+        "args": flatten(as_pretty_dict(cfg)),
         "sha": sha,
         "model": model.state_dict(),
         "itr": itr,
