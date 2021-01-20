@@ -117,7 +117,7 @@ class AutoEncoder(Encoder):
         recon_loss /= x.nelement()
         prior_loss = self.prior_weight * encoding.norm(dim=1).mean()
         loss = recon_loss + prior_loss
-        logging_dict = {"Loss reconstruction": recon_loss.item(), "Prior Loss": prior_loss.item()}
+        logging_dict = {"Loss Reconstruction": recon_loss.item(), "Prior Loss": prior_loss.item()}
         return encoding, loss, logging_dict
 
     def freeze_initial_layers(self, num_layers: int, optimizer_kwargs: Dict[str, Any]) -> None:
