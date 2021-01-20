@@ -115,7 +115,7 @@ def fit_classifier(
     clf_fn: ModelFn
     if cfg.data.dataset == FdmDataset.cmnist and train_on_recon:
         clf_fn = Mp32x23Net(batch_norm=True)
-    elif cfg.data.dataset in (FdmDataset.celeba) and train_on_recon:
+    elif cfg.data.dataset == FdmDataset.celeba and train_on_recon:
         clf_fn = Mp64x64Net(batch_norm=True)
     else:
         clf_fn = FcNet(hidden_dims=None)
