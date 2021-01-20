@@ -251,9 +251,15 @@ class Experiment:
                         zeros = x_c.new_zeros(self.disc_ensemble[0].model[-1].batch_size)  # type: ignore
 
                     disc_loss = x_t.new_zeros(())
+                    disc_acc = 0.0
                     for discriminator in self.disc_ensemble:
-                        disc_loss -= discriminator.routine(disc_input_no_s, zeros)[0]
+                        disc_loss_m, disc_acc_m = discriminator.routine(disc_input_no_s, zeros)
+                        disc_loss += disc_loss_m
+                        disc_acc += disc_acc_m
                     disc_loss /= len(self.disc_ensemble)
+                    logging_dict["Accuracy Discriminator (zy)"] = disc_acc / len(
+                        self.disc_ensemble
+                    )
 
                 else:
                     x = disc_input_no_s
