@@ -1,11 +1,21 @@
 """Main training file"""
 from __future__ import annotations
-
 from collections import defaultdict
+from dataclasses import asdict
 import logging
 from pathlib import Path
 import time
-from typing import Callable, Dict, Iterator, NamedTuple, Optional, Sequence, Tuple, Union, cast
+from typing import (
+    Callable,
+    Dict,
+    Iterator,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    cast,
+)
 
 import git
 from hydra.utils import instantiate, to_absolute_path
@@ -18,7 +28,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from typing_extensions import Literal
-import wandb
 
 from fdm.models import AutoEncoder, Classifier, EncodingSize, build_discriminator
 from fdm.models.configs import Residual64x64Net, Strided28x28Net
@@ -35,7 +44,12 @@ from shared.configs import (
 )
 from shared.data import DatasetTriplet, load_dataset
 from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
-from shared.models.configs import FcNet, ModelAggregatorWrapper, conv_autoencoder, fc_autoencoder
+from shared.models.configs import (
+    FcNet,
+    ModelAggregatorWrapper,
+    conv_autoencoder,
+    fc_autoencoder,
+)
 from shared.utils import (
     AverageMeter,
     ModelFn,
@@ -49,6 +63,7 @@ from shared.utils import (
     readable_duration,
     wandb_log,
 )
+import wandb
 
 from .build import build_ae
 from .evaluation import baseline_metrics, log_metrics
@@ -375,7 +390,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
         run = wandb.init(
             entity="predictive-analytics-lab",
             project="fdm-hydra" + project_suffix,
-            config=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
+            config=flatten(asdict(cfg)),
             group=group if group else None,
             reinit=True,
         )
