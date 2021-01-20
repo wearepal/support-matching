@@ -24,7 +24,7 @@ def app(hydra_config: Config) -> None:
 
         from fdm.optimisation import main as disentangle
 
-        cfg: Config = instantiate(hydra_config)
+        cfg: Config = instantiate(hydra_config, _convert_="partial")
         disentangle(cfg=cfg, cluster_label_file=clf)
 
 

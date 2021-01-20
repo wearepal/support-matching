@@ -12,7 +12,7 @@ cs.store(name="config_schema", node=Config)
 
 @hydra.main(config_path="conf", config_name="config")
 def app(hydra_config: Config):
-    cfg: Config = instantiate(hydra_config)
+    cfg: Config = instantiate(hydra_config, _convert_="partial")
     main(cfg=cfg)
 
 
