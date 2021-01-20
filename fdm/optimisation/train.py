@@ -3,13 +3,14 @@ from __future__ import annotations
 from collections import defaultdict
 import logging
 from pathlib import Path
+
+from shared.utils.utils import as_pretty_dict
 import time
 from typing import Callable, Dict, Iterator, Optional, Sequence, Tuple, Union, cast
 
 import git
-from hydra.utils import instantiate, to_absolute_path
+from hydra.utils import to_absolute_path
 import numpy as np
-from omegaconf import OmegaConf
 import torch
 from torch import Tensor
 from torch.cuda.amp.grad_scaler import GradScaler
@@ -17,6 +18,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from typing_extensions import Literal
+import yaml
 
 from fdm.models import AutoEncoder, Classifier, EncodingSize, build_discriminator
 from fdm.models.configs import Residual64x64Net, Strided28x28Net
@@ -345,7 +347,7 @@ class Experiment:
         log_images(self.cfg, recon.just_s, "reconstruction_just_s", step=itr, prefix=prefix)
 
 
-def main(hydra_config: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
+def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
     """Main function.
 
     Args:
@@ -355,8 +357,7 @@ def main(hydra_config: Config, cluster_label_file: Optional[Path] = None) -> Aut
     Returns:
         the trained generator
     """
-    # ==== initialize globals ====
-    cfg: Config = instantiate(hydra_config)
+    # ==== initialize config shorthands ====
     args = cfg.fdm
     data = cfg.data
     enc = cfg.enc
@@ -384,7 +385,7 @@ def main(hydra_config: Config, cluster_label_file: Optional[Path] = None) -> Aut
         run = wandb.init(
             entity="predictive-analytics-lab",
             project="fdm-hydra" + project_suffix,
-            config=flatten(OmegaConf.to_container(hydra_config, resolve=True, enum_to_str=True)),
+            config=flatten(as_pretty_dict(cfg)),
             group=group if group else None,
             reinit=True,
         )
@@ -392,7 +393,10 @@ def main(hydra_config: Config, cluster_label_file: Optional[Path] = None) -> Aut
     save_dir = Path(to_absolute_path(misc.save_dir)) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    log.info(str(OmegaConf.to_yaml(hydra_config, resolve=True, sort_keys=True)))
+    log.info(
+        yaml.dump(as_pretty_dict(cfg), default_flow_style=False, allow_unicode=True, sort_keys=True)
+    )
+    breakpoint()
     log.info(f"Save directory: {save_dir.resolve()}")
     # ==== check GPU ====
     misc
