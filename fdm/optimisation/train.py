@@ -396,7 +396,6 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
     log.info(
         yaml.dump(as_pretty_dict(cfg), default_flow_style=False, allow_unicode=True, sort_keys=True)
     )
-    breakpoint()
     log.info(f"Save directory: {save_dir.resolve()}")
     # ==== check GPU ====
     misc
