@@ -58,13 +58,13 @@ class KvqAttentionAggregator(Aggregator):
     def forward(self, inputs: Tensor) -> Tensor:
         # for the query we just use an average of all inputs
         inputs_batched = inputs.view(-1, self.bag_size, *inputs.shape[1:])
-        query = inputs_batched.mean(dim=0, keepdim=True)
+        query = inputs_batched.mean(dim=1, keepdim=True)
         # the second dimension is supposed to be the "batch size",
         # but we're aggregating over the batch, so we set this just to 1
         key = inputs.view(-1, self.bag_size, self.latent_dim)
         value = key
         output = self.act(self.attn(query=query, key=key, value=value, need_weights=False)[0])
-        return self.final_proj(output.view(self.bag_size, self.latent_dim))
+        return self.final_proj(output.view(-1, self.latent_dim))
 
 
 class GatedAttentionAggregator(Aggregator):
@@ -91,8 +91,8 @@ class GatedAttentionAggregator(Aggregator):
 
     def forward(self, inputs: Tensor) -> Tensor:
         logits = torch.tanh(inputs @ self.V.t()) * torch.sigmoid(inputs @ self.U.t()) @ self.w.t()
-        logits_batched = logits.view(self.bag_size, -1)
-        weights = logits_batched.softmax(dim=1).unsqueeze(-1)
-        inputs_batched = inputs.view(self.bag_size, -1, *inputs.shape[1:])
+        logits_batched = logits.view(-1, self.bag_size, 1)
+        weights = logits_batched.softmax(dim=1)
+        inputs_batched = inputs.view(-1, self.bag_size, *inputs.shape[1:])
         weighted = torch.sum(weights * inputs_batched, dim=1, keepdim=False)
         return self.final_proj(weighted)

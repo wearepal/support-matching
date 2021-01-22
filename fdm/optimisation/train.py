@@ -155,8 +155,8 @@ class Experiment:
                 ones = x_c.new_ones((x_c.size(0),))
                 zeros = x_t.new_zeros((x_t.size(0),))
             else:
-                ones = x_c.new_ones(self.args.bag_size)  # type: ignore
-                zeros = x_c.new_zeros(self.args.bag_size)  # type: ignore
+                ones = x_c.new_ones(self.args.batch_size)  # type: ignore
+                zeros = x_c.new_zeros(self.args.batch_size)  # type: ignore
 
             if self.args.vae:
                 encoding_t = self.generator.encode(x_t, stochastic=True)
@@ -248,7 +248,7 @@ class Experiment:
                     if self.args.aggregator_type is AggregatorType.none:
                         zeros = x_t.new_zeros((x_t.size(0),))
                     else:
-                        zeros = x_c.new_zeros(self.args.bag_size)  # type: ignore
+                        zeros = x_c.new_zeros(self.args.batch_size)  # type: ignore
 
                     disc_loss = x_t.new_zeros(())
                     disc_acc = 0.0
@@ -445,7 +445,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
 
     context_loader = DataLoader(
         datasets.context,
-        batch_size=args.batch_size,
+        batch_size=args.eff_batch_size,
         num_workers=misc.num_workers,
         pin_memory=True,
         drop_last=True,
