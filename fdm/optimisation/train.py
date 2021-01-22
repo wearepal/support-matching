@@ -3,10 +3,8 @@ from __future__ import annotations
 from collections import defaultdict
 import logging
 from pathlib import Path
-
-from shared.utils.utils import as_pretty_dict
 import time
-from typing import Callable, Dict, Iterator, Optional, Sequence, Tuple, Union, cast
+from typing import Callable, Iterator, Sequence, cast
 
 import git
 from hydra.utils import to_absolute_path
@@ -21,12 +19,13 @@ from typing_extensions import Literal
 import yaml
 
 from fdm.models import AutoEncoder, Classifier, EncodingSize, build_discriminator
-from fdm.models.configs import Residual64x64Net, Strided28x28Net
+from fdm.models.configs import Residual64x64Net
 from fdm.optimisation.mmd import mmd2
 from shared.configs import (
     AggregatorType,
     Config,
     DatasetConfig,
+    DiscriminatorMethod,
     EncoderConfig,
     FdmConfig,
     FdmDataset,
@@ -54,6 +53,7 @@ from shared.utils import (
     readable_duration,
     wandb_log,
 )
+from shared.utils.utils import as_pretty_dict
 import wandb
 
 from .build import build_ae
@@ -85,7 +85,7 @@ class Experiment:
         misc: MiscConfig,
         generator: AutoEncoder,
         disc_ensemble: nn.ModuleList,
-        recon_loss_fn: Callable,
+        recon_loss_fn: Callable[[Tensor, Tensor], Tensor],
         predictor_y: Classifier,
         predictor_s: Classifier,
     ) -> None:
@@ -103,36 +103,34 @@ class Experiment:
 
     def get_batch(
         self,
-        context_data_itr: Iterator[Tuple[Tensor, Tensor, Tensor]],
-        train_data_itr: Iterator[Tuple[Tensor, Tensor, Tensor]],
-    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+        context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
+        train_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         x_c = self.to_device(next(context_data_itr)[0])
         x_t, s_t, y_t = self.to_device(*next(train_data_itr))
         return x_c, x_t, s_t, y_t  # type: ignore
 
     def train_step(
         self,
-        context_data_itr: Iterator[Tuple[Tensor, Tensor, Tensor]],
-        train_data_itr: Iterator[Tuple[Tensor, Tensor, Tensor]],
+        context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
+        train_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
         itr: int,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
 
         warmup = itr < self.args.warmup_steps
-        disc_logging = {}
-        if (not warmup) and (self.args.disc_method == "nn"):
+        if (not warmup) and (self.args.disc_method is DiscriminatorMethod.nn):
             # Train the discriminator on its own for a number of iterations
             for _ in range(self.args.num_disc_updates):
                 x_c, x_t, s_t, y_t = self.get_batch(
                     context_data_itr=context_data_itr, train_data_itr=train_data_itr
                 )
-                _, disc_logging = self.update_disc(x_c, x_t)
+                self.update_disc(x_c, x_t)
 
         x_c, x_t, s_t, y_t = self.get_batch(
             context_data_itr=context_data_itr, train_data_itr=train_data_itr
         )
         _, logging_dict = self.update(x_c=x_c, x_t=x_t, s_t=s_t, y_t=y_t, warmup=warmup)
 
-        logging_dict.update(disc_logging)
         wandb_log(self.misc, logging_dict, step=itr)
 
         # Log images
@@ -141,7 +139,7 @@ class Experiment:
                 self.log_recons(x=x_t, itr=itr)
         return logging_dict
 
-    def update_disc(self, x_c: Tensor, x_t: Tensor) -> Tuple[Tensor, Dict[str, float]]:
+    def update_disc(self, x_c: Tensor, x_t: Tensor) -> tuple[Tensor, dict[str, float]]:
         """Train the discriminator while keeping the generator constant.
 
         Args:
@@ -153,12 +151,12 @@ class Experiment:
         self.predictor_s.eval()
         self.disc_ensemble.train()
         with torch.cuda.amp.autocast(enabled=self.misc.use_amp):
-            if self.args.aggregator_type == AggregatorType.none:
+            if self.args.aggregator_type is AggregatorType.none:
                 ones = x_c.new_ones((x_c.size(0),))
                 zeros = x_t.new_zeros((x_t.size(0),))
             else:
-                ones = x_c.new_ones(self.disc_ensemble[0].model[-1].batch_size)  # type: ignore
-                zeros = x_c.new_zeros(self.disc_ensemble[0].model[-1].batch_size)  # type: ignore
+                ones = x_c.new_ones(self.args.bag_size)  # type: ignore
+                zeros = x_c.new_zeros(self.args.bag_size)  # type: ignore
 
             if self.args.vae:
                 encoding_t = self.generator.encode(x_t, stochastic=True)
@@ -208,7 +206,7 @@ class Experiment:
 
     def update(
         self, x_c: Tensor, x_t: Tensor, s_t: Tensor, y_t: Tensor, warmup: bool
-    ) -> Tuple[Tensor, Dict[str, float]]:
+    ) -> tuple[Tensor, dict[str, float]]:
         """Compute all losses.
 
         Args:
@@ -246,11 +244,11 @@ class Experiment:
             disc_input_no_s = self.get_disc_input(encoding, invariant_to="s")
 
             if not warmup:
-                if self.args.disc_method == "nn":
-                    if self.args.aggregator_type == "none":
+                if self.args.disc_method is DiscriminatorMethod.nn:
+                    if self.args.aggregator_type is AggregatorType.none:
                         zeros = x_t.new_zeros((x_t.size(0),))
                     else:
-                        zeros = x_c.new_zeros(self.disc_ensemble[0].model[-1].batch_size)  # type: ignore
+                        zeros = x_c.new_zeros(self.args.bag_size)  # type: ignore
 
                     disc_loss = x_t.new_zeros(())
                     disc_acc = 0.0
@@ -260,7 +258,8 @@ class Experiment:
                         disc_loss += disc_loss_m
                         disc_acc += disc_acc_m
                     disc_loss /= len(self.disc_ensemble)
-                    logging_dict["Accuracy Discriminator (zy)"] = disc_acc / len(self.disc_ensemble)
+                    disc_acc /= len(self.disc_ensemble)
+                    logging_dict["Accuracy Discriminator (zy)"] = disc_acc
 
                 else:
                     x = disc_input_no_s
@@ -321,7 +320,7 @@ class Experiment:
         if self.args.train_on_recon:
             zs_m, zy_m = self.generator.mask(encoding, random=True)
             recon = self.generator.decode(zs_m if invariant_to == "s" else zy_m, mode="relaxed")
-            if self.enc.recon_loss == ReconstructionLoss.ce:
+            if self.enc.recon_loss is ReconstructionLoss.ce:
                 recon = recon.argmax(dim=1).float() / 255
                 if self.data.dataset != FdmDataset.cmnist:
                     recon = recon * 2 - 1
@@ -330,12 +329,12 @@ class Experiment:
             zs_m, zy_m = self.generator.mask(encoding)
             return zs_m if invariant_to == "s" else zy_m
 
-    def to_device(self, *tensors: Tensor) -> Union[Tensor, Tuple[Tensor, ...]]:
+    def to_device(self, *tensors: Tensor) -> Tensor | tuple[Tensor, ...]:
         """Place tensors on the correct device and set type to float32"""
         moved = [tensor.to(torch.device(self.misc.device), non_blocking=True) for tensor in tensors]
         return moved[0] if len(moved) == 1 else tuple(moved)
 
-    def log_recons(self, x: Tensor, itr: int, prefix: Optional[str] = None) -> None:
+    def log_recons(self, x: Tensor, itr: int, prefix: str | None = None) -> None:
         """Log reconstructed images."""
         encoding = self.generator.encode(x[:64], stochastic=False)
         recon = self.generator.all_recons(encoding, mode="hard")
@@ -347,7 +346,7 @@ class Experiment:
         log_images(self.cfg, recon.just_s, "reconstruction_just_s", step=itr, prefix=prefix)
 
 
-def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
+def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
     """Main function.
 
     Args:
@@ -414,8 +413,8 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
     s_count = max(datasets.s_dim, 2)
 
     cluster_results = None
-    cluster_test_metrics: Dict[str, float] = {}
-    cluster_context_metrics: Dict[str, float] = {}
+    cluster_test_metrics: dict[str, float] = {}
+    cluster_context_metrics: dict[str, float] = {}
     if misc.cluster_label_file:
         cluster_results = load_results(cfg)
         cluster_test_metrics = cluster_results.test_metrics or {}
@@ -481,12 +480,9 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
 
     if is_image_data:
         decoding_dim = (
-            input_shape[0] * 256 if enc.recon_loss == ReconstructionLoss.ce else input_shape[0]
+            input_shape[0] * 256 if enc.recon_loss is ReconstructionLoss.ce else input_shape[0]
         )
-        # if args.recon_loss == "ce":
         decoder_out_act = None
-        # else:
-        #     decoder_out_act = nn.Sigmoid() if args.dataset == "cmnist" else nn.Tanh()
         encoder, decoder, enc_shape = conv_autoencoder(
             input_shape,
             enc.init_chans,
@@ -506,17 +502,17 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
         )
 
     recon_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
-    if enc.recon_loss == ReconstructionLoss.l1:
+    if enc.recon_loss is ReconstructionLoss.l1:
         recon_loss_fn = nn.L1Loss(reduction="sum")
-    elif enc.recon_loss == ReconstructionLoss.l2:
+    elif enc.recon_loss is ReconstructionLoss.l2:
         recon_loss_fn = nn.MSELoss(reduction="sum")
-    elif enc.recon_loss == ReconstructionLoss.bce:
+    elif enc.recon_loss is ReconstructionLoss.bce:
         recon_loss_fn = nn.BCELoss(reduction="sum")
-    elif enc.recon_loss == ReconstructionLoss.huber:
+    elif enc.recon_loss is ReconstructionLoss.huber:
         recon_loss_fn = lambda x, y: 0.1 * F.smooth_l1_loss(x * 10, y * 10, reduction="sum")
-    elif enc.recon_loss == ReconstructionLoss.ce:
+    elif enc.recon_loss is ReconstructionLoss.ce:
         recon_loss_fn = PixelCrossEntropy(reduction="sum")
-    elif enc.recon_loss == ReconstructionLoss.mixed:
+    elif enc.recon_loss is ReconstructionLoss.mixed:
         assert feature_group_slices is not None, "can only do multi gen_loss with feature groups"
         recon_loss_fn = MixedLoss(feature_group_slices, reduction="sum")
     else:
@@ -546,10 +542,10 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
     # ================================== Initialise Discriminator =================================
 
     disc_optimizer_kwargs = {"lr": args.disc_lr}
-    disc_input_shape: Tuple[int, ...] = input_shape if args.train_on_recon else enc_shape
+    disc_input_shape: tuple[int, ...] = input_shape if args.train_on_recon else enc_shape
     disc_fn: ModelFn
     if is_image_data and args.train_on_recon:
-        if data.dataset == FdmDataset.cmnist:
+        if data.dataset is FdmDataset.cmnist:
             disc_fn = Strided28x28Net(batch_norm=False)
         else:
             disc_fn = Residual64x64Net(batch_norm=False)
@@ -566,7 +562,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
     if args.aggregator_type != AggregatorType.none:
         final_proj = FcNet(args.aggregator_hidden_dims) if args.aggregator_hidden_dims else None
         aggregator: Aggregator
-        if args.aggregator_type == AggregatorType.kvq:
+        if args.aggregator_type is AggregatorType.kvq:
             aggregator = KvqAttentionAggregator(
                 args.aggregator_input_dim,
                 final_proj=final_proj,
@@ -690,7 +686,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> AutoEncoder:
             if itr == args.val_freq:  # first validation
                 baseline_metrics(cfg, datasets, save_to_csv=Path(to_absolute_path(misc.save_dir)))
             log_metrics(cfg, model=generator, data=datasets, step=itr)
-            save_model(hydra_config, save_dir, model=generator, itr=itr, sha=sha)
+            save_model(cfg, save_dir, model=generator, itr=itr, sha=sha)
 
         if args.disc_reset_prob > 0:
             for k, discriminator in enumerate(disc_ensemble):

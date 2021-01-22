@@ -10,7 +10,7 @@ from .enums import (
     CelebaAttributes,
     ClusteringLabel,
     ClusteringMethod,
-    DicriminatorMethod,
+    DiscriminatorMethod,
     EncoderType,
     FdmDataset,
     MMDKernel,
@@ -248,7 +248,7 @@ class FdmConfig:
     disc_reset_prob: float = 0.0
 
     # Discriminator settings
-    disc_method: DicriminatorMethod = DicriminatorMethod.nn
+    disc_method: DiscriminatorMethod = DiscriminatorMethod.nn
     mmd_kernel: MMDKernel = MMDKernel.rq
     mmd_scales: List[float] = field(default_factory=list)
     mmd_wts: List[float] = field(default_factory=list)

@@ -4,6 +4,7 @@ __all__ = [
     "AdultDatasetSplit",
     "AggregatorType",
     "ClusteringLabel",
+    "DiscriminatorMethod",
     "ClusteringMethod",
     "FdmDataset",
     "EncoderType",
@@ -73,8 +74,8 @@ class ClusteringMethod(Enum):
     kmeans = auto()
 
 
-class DicriminatorMethod(Enum):
-    """Discriminator method."""
+class DiscriminatorMethod(Enum):
+    """Method of distribution-discrimination."""
 
     nn = auto()
     mmd = auto()
