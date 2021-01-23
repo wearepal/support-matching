@@ -20,6 +20,7 @@ import yaml
 
 from fdm.models import AutoEncoder, Classifier, EncodingSize, build_discriminator
 from fdm.models.configs import Residual64x64Net
+from fdm.models.configs.classifiers import Strided28x28Net
 from fdm.optimisation.mmd import mmd2
 from shared.configs import (
     AggregatorType,
