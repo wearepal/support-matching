@@ -343,8 +343,8 @@ class Experiment:
         encoding = self.generator.encode(sample, stochastic=False)
         recon = self.generator.all_recons(encoding, mode="hard")
 
-        to_log: tuple[Tensor, ...] = (sample, recon.zero_s, recon.just_s, recon.all)
-        caption = "original | zero_s | just_s | all"
+        to_log: tuple[Tensor, ...] = (sample, recon.all, recon.zero_s, recon.just_s)
+        caption = "original | all | zero_s | just_s"
         if self.args.train_on_recon:
             to_log += (recon.rand_s,)
             caption += " | rand_s"
