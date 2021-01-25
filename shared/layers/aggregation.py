@@ -1,4 +1,6 @@
 """Modules that aggregate over a batch."""
+from __future__ import annotations
+
 from typing import Callable, Optional
 
 import torch
@@ -8,18 +10,14 @@ from typing_extensions import Literal
 
 from shared.utils import ModelFn
 
-__all__ = [
-    "Aggregator",
-    "KvqAttentionAggregator",
-    "GatedAttentionAggregator",
-]
+__all__ = ["Aggregator", "KvqAttentionAggregator", "GatedAttentionAggregator"]
 
 
 class Aggregator(nn.Module):
     output_dim: int
     bag_size: int
 
-    def __init__(self, bag_size: int = 1) -> None:
+    def __init__(self, bag_size: int) -> None:
         super().__init__()
         self.bag_size = bag_size
 
@@ -31,11 +29,11 @@ class KvqAttentionAggregator(Aggregator):
     def __init__(
         self,
         latent_dim: int,
+        bag_size: int,
         activation: Literal["relu", "gelu"] = "relu",
         dropout: float = 0.0,
-        final_proj: Optional[ModelFn] = None,
+        final_proj: None | ModelFn = None,
         output_dim: int = 1,
-        bag_size: int = 1,
     ):
         super().__init__(bag_size=bag_size)
         self.latent_dim = latent_dim
@@ -64,17 +62,17 @@ class KvqAttentionAggregator(Aggregator):
         key = inputs.view(-1, self.bag_size, self.latent_dim)
         value = key
         output = self.act(self.attn(query=query, key=key, value=value, need_weights=False)[0])
-        return self.final_proj(output.view(-1, self.latent_dim))
+        return self.final_proj(output.view(-1, self.latent_dim)).view(-1, 1)
 
 
 class GatedAttentionAggregator(Aggregator):
     def __init__(
         self,
         in_dim: int,
+        bag_size: int,
         embed_dim: int = 128,
-        final_proj: Optional[ModelFn] = None,
+        final_proj: None | ModelFn = None,
         output_dim: int = 1,
-        bag_size: int = 1,
     ) -> None:
         super().__init__(bag_size=bag_size)
         self.V = nn.Parameter(torch.empty(embed_dim, in_dim))
@@ -89,7 +87,7 @@ class GatedAttentionAggregator(Aggregator):
             self.final_proj = nn.Linear(in_dim, output_dim)
         self.output_dim = output_dim
 
-    def forward(self, inputs: Tensor) -> Tensor:
+    def forward(self, inputs: Tensor, s: Tensor, y: Tensor) -> Tensor:
         logits = torch.tanh(inputs @ self.V.t()) * torch.sigmoid(inputs @ self.U.t()) @ self.w.t()
         logits_batched = logits.view(-1, self.bag_size, 1)
         weights = logits_batched.softmax(dim=1)
