@@ -64,7 +64,7 @@ class DatasetConfig:
     padding: int = 2  # by how many pixels to pad the cmnist images by
     quant_level: QuantizationLevel = QuantizationLevel.eight  # number of bits that encode color
     input_noise: bool = False  # add uniform noise to the input
-    filter_labels: List[int] = field(default_factory=list)
+    filter_map_labels: Dict[str, int] = field(default_factory=dict)
     colors: List[int] = field(default_factory=list)
 
     # CelebA settings

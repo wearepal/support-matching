@@ -61,14 +61,17 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
         test_data = MNIST(root=data_root, download=True, train=False)
 
         num_classes = 10
-        if args.filter_labels:
-            num_classes = len(args.filter_labels)
+        if args.filter_map_labels:
+            num_classes = max(args.filter_map_labels.values()) + 1
+            if any(i not in args.filter_map_labels.values() for i in range(num_classes)):
+                raise ValueError("Some values are skipped in filter_map_labels.")
+            num_classes = len(args.filter_map_labels)
 
             def _filter_(dataset: MNIST):
                 final_mask = torch.zeros_like(dataset.targets).bool()
-                for index, label in enumerate(args.filter_labels):
-                    mask = dataset.targets == label
-                    dataset.targets[mask] = index
+                for old_label, new_label in args.filter_map_labels.items():
+                    mask = dataset.targets == int(old_label)
+                    dataset.targets[mask] = new_label
                     final_mask |= mask
                 dataset.data = dataset.data[final_mask]
                 dataset.targets = dataset.targets[final_mask]
