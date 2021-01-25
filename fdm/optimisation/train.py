@@ -337,14 +337,32 @@ class Experiment:
 
     def log_recons(self, x: Tensor, itr: int, prefix: str | None = None) -> None:
         """Log reconstructed images."""
-        encoding = self.generator.encode(x[:64], stochastic=False)
+        nsamples = 16
+        sample = x[:nsamples]
+        encoding = self.generator.encode(sample, stochastic=False)
         recon = self.generator.all_recons(encoding, mode="hard")
 
-        log_images(self.cfg, x[:64], "original_x", step=itr, prefix=prefix)
-        log_images(self.cfg, recon.all, "reconstruction_all", step=itr, prefix=prefix)
-        log_images(self.cfg, recon.rand_s, "reconstruction_rand_s", step=itr, prefix=prefix)
-        log_images(self.cfg, recon.zero_s, "reconstruction_zero_s", step=itr, prefix=prefix)
-        log_images(self.cfg, recon.just_s, "reconstruction_just_s", step=itr, prefix=prefix)
+        to_log = (sample, recon.zero_s, recon.just_s, recon.rand_s, recon.all)
+        ncols = len(to_log)
+
+        interleaved = torch.stack(to_log, dim=1).view(
+            ncols * nsamples, sample.size(1), sample.size(2), sample.size(3)
+        )
+        log_images(
+            self.cfg,
+            interleaved,
+            name="reconstructions",
+            step=itr,
+            nsamples=ncols * nsamples,
+            nrows=nsamples,
+            prefix=prefix,
+        )
+
+        # log_images(self.cfg, x[:64], "original_x", step=itr, prefix=prefix)
+        # log_images(self.cfg, recon.all, "reconstruction_all", step=itr, prefix=prefix)
+        # log_images(self.cfg, recon.rand_s, "reconstruction_rand_s", step=itr, prefix=prefix)
+        # log_images(self.cfg, recon.zero_s, "reconstruction_zero_s", step=itr, prefix=prefix)
+        # log_images(self.cfg, recon.just_s, "reconstruction_just_s", step=itr, prefix=prefix)
 
 
 def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:

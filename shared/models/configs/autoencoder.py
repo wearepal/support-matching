@@ -38,7 +38,7 @@ def conv_autoencoder(
     decoding_dim,
     variational: bool,
     decoder_out_act: Optional[nn.Module] = None,
-) -> Tuple[nn.Sequential, nn.Sequential, Tuple[int, int, int]]:
+) -> Tuple[nn.Sequential, nn.Sequential, Tuple[int, ...]]:
     encoder: List[nn.Module] = []
     decoder: List[nn.Module] = []
     c_in, height, width = input_shape
