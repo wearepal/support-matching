@@ -10,14 +10,14 @@ data_pcnt: 1.0
 dataset: cmnist
 filter_map_labels:
     "0": 0
-    "1": 1
+    "1": 0
     "2": 0
-    "3": 1
+    "3": 0
     "4": 0
     "5": 1
-    "6": 0
+    "6": 1
     "7": 1
-    "8": 0
+    "8": 1
     "9": 1
 greyscale: false
 input_noise: false
