@@ -140,7 +140,7 @@ class Experiment:
                 )
                 self.update_disc(x_c, tr.x)
 
-        c, tr = self.get_batch(context_data_itr=context_data_itr, train_data_itr=train_data_itr)
+        x_c, tr = self.get_batch(context_data_itr=context_data_itr, train_data_itr=train_data_itr)
         _, logging_dict = self.update(x_c=x_c, tr=tr, warmup=warmup)
 
         wandb_log(self.misc, logging_dict, step=itr)
@@ -595,11 +595,17 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
         aggregator: Aggregator
         if args.aggregator_type is AggregatorType.kvq:
             aggregator = KvqAttentionAggregator(
-                args.aggregator_input_dim, final_proj=final_proj, **args.aggregator_kwargs
+                latent_dim=args.aggregator_input_dim,
+                bag_size=args.bag_size,
+                final_proj=final_proj,
+                **args.aggregator_kwargs,
             )
         else:
             aggregator = GatedAttentionAggregator(
-                in_dim=args.aggregator_input_dim, final_proj=final_proj, **args.aggregator_kwargs
+                in_dim=args.aggregator_input_dim,
+                bag_size=args.bag_size,
+                final_proj=final_proj,
+                **args.aggregator_kwargs,
             )
         disc_fn = ModelAggregatorWrapper(disc_fn, aggregator, input_dim=args.aggregator_input_dim)
 

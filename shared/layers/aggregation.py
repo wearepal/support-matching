@@ -32,7 +32,7 @@ class KvqAttentionAggregator(Aggregator):
         bag_size: int,
         activation: Literal["relu", "gelu"] = "relu",
         dropout: float = 0.0,
-        final_proj: None | ModelFn = None,
+        final_proj: ModelFn | None = None,
         output_dim: int = 1,
     ):
         super().__init__(bag_size=bag_size)
@@ -71,7 +71,7 @@ class GatedAttentionAggregator(Aggregator):
         in_dim: int,
         bag_size: int,
         embed_dim: int = 128,
-        final_proj: None | ModelFn = None,
+        final_proj: ModelFn | None = None,
         output_dim: int = 1,
     ) -> None:
         super().__init__(bag_size=bag_size)
@@ -87,7 +87,7 @@ class GatedAttentionAggregator(Aggregator):
             self.final_proj = nn.Linear(in_dim, output_dim)
         self.output_dim = output_dim
 
-    def forward(self, inputs: Tensor, s: Tensor, y: Tensor) -> Tensor:
+    def forward(self, inputs: Tensor) -> Tensor:
         logits = torch.tanh(inputs @ self.V.t()) * torch.sigmoid(inputs @ self.U.t()) @ self.w.t()
         logits_batched = logits.view(-1, self.bag_size, 1)
         weights = logits_batched.softmax(dim=1)
