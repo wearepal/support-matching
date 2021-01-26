@@ -13,9 +13,7 @@ from shared.configs import Config, FdmDataset, ReconstructionLoss
 from shared.utils import StratifiedSampler, as_pretty_dict, class_id_to_label, flatten, wandb_log
 
 __all__ = [
-    "get_all_num_samples",
     "get_stratified_sampler",
-    "group_ids_with_counts",
     "log_images",
     "restore_model",
     "save_model",
@@ -122,8 +120,3 @@ def get_stratified_sampler(
     return StratifiedSampler(
         group_ids.squeeze().tolist(), group_size, replacement=oversample, multipliers=multipliers
     )
-
-
-def group_ids_with_counts(cluster_ids: Tensor) -> dict[int, int]:
-    unique, counts = torch.unique(cluster_ids, sorted=False, return_counts=True)
-    return {int(i): int(c) for i, c in zip(unique, counts)}

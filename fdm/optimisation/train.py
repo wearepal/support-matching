@@ -64,7 +64,6 @@ from .evaluation import baseline_metrics, log_metrics
 from .loss import MixedLoss, PixelCrossEntropy
 from .utils import (
     get_stratified_sampler,
-    group_ids_with_counts,
     log_images,
     restore_model,
     save_model,
@@ -763,25 +762,9 @@ def build_weighted_sampler_from_dataset(
     class_ids = label_to_class_id(s=s_all, y=y_all, s_count=s_count).view(-1)
     if balance_hierarchical:
         # Here we make sure that in a batch, y is balanced and within the y subsets, s is balanced.
-        # So, if, for y=0, there are only samples with s=0, but for y=1, there's s=0 and s=1,
-        # then the samples with y=0/s=0 get a multiplier of 2.
-        quad_unique_counts = group_ids_with_counts(class_ids)
-        num_subgroups_per_y = defaultdict(int)
-        for class_id, count in quad_unique_counts.items():
-            corresponding_y = class_id_to_label(class_id, s_count, "y")
-            num_subgroups_per_y[corresponding_y] += 1
-
-        # To make all subgroups the same size, we first scale everything by the least common
-        # multiplier and then we divide by the number of subgroups to get the final multiplier.
-        largest_multiplier = lcm(num_subgroups_per_y.values())
-        multipliers = {}
-        group_sizes = []
-        for class_id, count in quad_unique_counts.items():
-            num_subgroups = num_subgroups_per_y[class_id_to_label(class_id, s_count, "y")]
-            multiplier = largest_multiplier // num_subgroups
-            multipliers[class_id] = multiplier
-            group_sizes.append(count // multiplier)  # for bookkeeping, groups need to be smaller
-
+        # So, if, for y=1, there are only samples with s=1, but for y=0, there's s=0 and s=1,
+        # then the samples with y=1/s=1 get a multiplier of 2.
+        multipliers, group_sizes = _get_multipliers_and_group_size(class_ids, s_count)
         return StratifiedSampler(
             group_ids=class_ids.tolist(),
             num_samples_per_group=max(group_sizes) if oversample else min(group_sizes),
@@ -792,3 +775,29 @@ def build_weighted_sampler_from_dataset(
         return get_stratified_sampler(
             group_ids=class_ids, oversample=oversample, batch_size=batch_size
         )
+
+
+def _get_multipliers_and_group_size(
+    class_ids: Tensor, s_count: int
+) -> tuple[dict[int, int], list[int]]:
+    """This is a standalone function only because then we can have a unit test for it."""
+    unique_classes, counts = torch.unique(class_ids, sorted=False, return_counts=True)
+    class_ids_and_counts = [(int(i), int(c)) for i, c in zip(unique_classes, counts)]
+
+    # first, count how many subgroups there are for each y
+    num_subgroups_per_y = defaultdict(int)
+    for class_id, count in class_ids_and_counts:
+        corresponding_y = class_id_to_label(class_id, s_count, "y")
+        num_subgroups_per_y[corresponding_y] += 1
+
+    # To make all subgroups effectively the same size, we first scale everything by the least common
+    # multiplier and then we divide by the number of subgroups to get the final multiplier.
+    largest_multiplier = lcm(num_subgroups_per_y.values())
+    multipliers = {}
+    group_sizes = []
+    for class_id, count in class_ids_and_counts:
+        num_subgroups = num_subgroups_per_y[class_id_to_label(class_id, s_count, "y")]
+        multiplier = largest_multiplier // num_subgroups
+        multipliers[class_id] = multiplier
+        group_sizes.append(count // multiplier)  # for book keeping, groups need to be smaller
+    return multipliers, group_sizes
