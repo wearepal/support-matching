@@ -8,13 +8,13 @@ import os
 import random
 from typing import Any, Dict, Iterable, Iterator, Optional, Sequence, Tuple, TypeVar, Union
 
+import neptune
 import numpy as np
 from omegaconf import OmegaConf
 import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from typing_extensions import Literal, Protocol
-import wandb
 
 from shared.configs import MiscConfig
 
@@ -67,16 +67,15 @@ def class_id_to_label(class_id: Int, s_count: int, label: Literal["s", "y"]) -> 
         return class_id // s_count
 
 
-def wandb_log(
-    args: Union[bool, MiscConfig], row: Dict[str, Any], step: int, commit: Optional[bool] = None
-) -> None:
+def wandb_log(args: Union[bool, MiscConfig], row: Dict[str, Any], step: int) -> None:
     """Wrapper around wandb's log function"""
     if isinstance(args, bool):
         if not args:  # this has to be nested in order to make sure `args` is not bool in `elif`
             return
     elif not args.use_wandb:
         return
-    wandb.log(row, commit=commit, step=step)
+    for k, v in row.items():
+        neptune.log_metric(k, x=step, y=v)
 
 
 class AverageMeter:

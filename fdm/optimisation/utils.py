@@ -4,10 +4,10 @@ import logging
 from pathlib import Path
 from typing import Sequence
 
+import neptune
 import torch
 from torch import Tensor, nn
 import torchvision
-import wandb
 
 from shared.configs import Config, FdmDataset, ReconstructionLoss
 from shared.utils import StratifiedSampler, as_pretty_dict, class_id_to_label, flatten, wandb_log
@@ -60,9 +60,10 @@ def log_images(
         for block in blocks
     ]
     shw = [
-        wandb.Image(torchvision.transforms.functional.to_pil_image(i), caption=caption) for i in shw
+        torchvision.transforms.functional.to_pil_image(i) for i in shw
     ]
-    wandb_log(cfg.misc, {prefix + name: shw}, step=step)
+    for i, img in enumerate(shw):
+        neptune.log_image(prefix + name + f"-{i}", x=step, y=img, image_name=caption)
 
 
 def save_model(

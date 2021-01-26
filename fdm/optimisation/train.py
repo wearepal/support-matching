@@ -12,6 +12,7 @@ from typing import NamedTuple, cast
 
 import git
 from hydra.utils import to_absolute_path
+import neptune
 import numpy as np
 import torch
 from torch import Tensor
@@ -20,7 +21,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from typing_extensions import Literal
-import wandb
 import yaml
 
 from fdm.models import AutoEncoder, Classifier, EncodingSize, build_discriminator
@@ -403,7 +403,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
 
     run = None
     if misc.use_wandb:
-        project_suffix = f"-{data.dataset.name}" if data.dataset != FdmDataset.cmnist else ""
+        project_suffix = f"-{data.dataset.name}"
         group = ""
         if misc.log_method:
             group += misc.log_method
@@ -411,12 +411,11 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
             group += "." + misc.exp_group
         if cfg.bias.log_dataset:
             group += "." + cfg.bias.log_dataset
-        run = wandb.init(
-            entity="predictive-analytics-lab",
-            project="fdm-hydra" + project_suffix,
-            config=flatten(as_pretty_dict(cfg)),
-            group=group if group else None,
-            reinit=True,
+        neptune.init("pal/fdm" + project_suffix)
+        neptune.create_experiment(
+            properties={"group": group} if group else {},
+            params=flatten(as_pretty_dict(cfg)),
+            logger=log,
         )
 
     save_dir = Path(to_absolute_path(misc.save_dir)) / str(time.time())
