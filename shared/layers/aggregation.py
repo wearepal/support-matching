@@ -62,7 +62,7 @@ class KvqAttentionAggregator(Aggregator):
         key = inputs.view(-1, self.bag_size, self.latent_dim)
         value = key
         output = self.act(self.attn(query=query, key=key, value=value, need_weights=False)[0])
-        return self.final_proj(output.view(-1, self.latent_dim)).view(-1, 1)
+        return self.final_proj(output.view(-1, self.latent_dim))
 
 
 class GatedAttentionAggregator(Aggregator):

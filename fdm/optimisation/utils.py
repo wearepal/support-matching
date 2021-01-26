@@ -14,11 +14,11 @@ from shared.utils import StratifiedSampler, as_pretty_dict, class_id_to_label, f
 
 __all__ = [
     "get_all_num_samples",
+    "get_stratified_sampler",
+    "group_ids_with_counts",
     "log_images",
     "restore_model",
     "save_model",
-    "get_stratified_sampler",
-    "group_ids_with_counts",
 ]
 
 log = logging.getLogger(__name__.split(".")[-1].upper())

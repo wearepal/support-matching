@@ -1,5 +1,6 @@
 """Main training file"""
 from __future__ import annotations
+
 from collections import defaultdict
 from collections.abc import Callable, Iterator, Sequence
 import itertools
@@ -19,6 +20,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from typing_extensions import Literal
+import wandb
 import yaml
 
 from fdm.models import AutoEncoder, Classifier, EncodingSize, build_discriminator
@@ -38,15 +40,12 @@ from shared.configs import (
 )
 from shared.data import DatasetTriplet, load_dataset
 from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
-from shared.models.configs import (
-    FcNet,
-    ModelAggregatorWrapper,
-    conv_autoencoder,
-    fc_autoencoder,
-)
+from shared.models.configs import FcNet, ModelAggregatorWrapper, conv_autoencoder, fc_autoencoder
 from shared.utils import (
     AverageMeter,
     ModelFn,
+    StratifiedSampler,
+    as_pretty_dict,
     class_id_to_label,
     count_parameters,
     flatten,
@@ -59,18 +58,16 @@ from shared.utils import (
     readable_duration,
     wandb_log,
 )
-from shared.utils import StratifiedSampler, as_pretty_dict
-import wandb
 
 from .build import build_ae
 from .evaluation import baseline_metrics, log_metrics
 from .loss import MixedLoss, PixelCrossEntropy
 from .utils import (
+    get_stratified_sampler,
+    group_ids_with_counts,
     log_images,
     restore_model,
     save_model,
-    get_stratified_sampler,
-    group_ids_with_counts,
 )
 
 __all__ = ["main"]
