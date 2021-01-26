@@ -57,11 +57,11 @@ class KvqAttentionAggregator(Aggregator):
 
     def forward(self, inputs: Tensor) -> Tensor:
         # for the query we just use an average of all inputs
-        inputs_batched = inputs.view(-1, self.bag_size, *inputs.shape[1:])
+        inputs_batched = inputs.view(self.bag_size, -1, *inputs.shape[1:])
         query = inputs_batched.mean(dim=1, keepdim=True)
         # the second dimension is supposed to be the "batch size",
         # but we're aggregating over the batch, so we set this just to 1
-        key = inputs.view(-1, self.bag_size, self.latent_dim)
+        key = inputs.view(self.bag_size, -1, self.latent_dim)
         value = key
         output = self.act(self.attn(query=query, key=key, value=value, need_weights=False)[0])
         return self.final_proj(output.view(-1, self.latent_dim))
