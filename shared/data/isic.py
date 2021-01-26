@@ -2,9 +2,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 import logging
 from pathlib import Path
+import posixpath
 import shutil
-from typing import ClassVar, Literal
-import warnings
+from typing import Callable, ClassVar, Literal, Union
 
 from PIL import Image
 import pandas as pd
@@ -12,6 +12,7 @@ import requests
 import torch
 from torch.tensor import Tensor
 from torch.utils.data.dataset import Dataset
+from torchvision.transforms.transforms import ToTensor
 from tqdm import tqdm
 
 from shared.utils.utils import flatten_dict_with_sep
@@ -29,6 +30,7 @@ class Sample:
     y: Tensor
 
 
+Transform = Callable[[Union[Image.Image, Tensor]], Tensor]
 IsicAttrs = Literal["is_malignant", "patch"]
 
 
@@ -37,7 +39,7 @@ class IsicDataset(Dataset):
     'Skin Lesion Analysis Toward Melanoma Detection 2018: A Challenge Hosted by the International
     Skin Imaging Collaboration (ISIC)',"""
 
-    rest_api_url: ClassVar[str] = "https://isic-archive.com/api/v1"
+    _rest_api_url: ClassVar[str] = "https://isic-archive.com/api/v1"
 
     def __init__(
         self,
@@ -46,6 +48,8 @@ class IsicDataset(Dataset):
         max_samples: int = 23906,  # default is the number of samples used for the NSLB paper
         sens_attr: IsicAttrs = "patch",
         target_attr: IsicAttrs = "is_malignant",
+        transform: Transform | None = ToTensor(),
+        target_transform: Transform | None = None,
     ) -> None:
         super().__init__()
 
@@ -59,25 +63,22 @@ class IsicDataset(Dataset):
             raise ValueError("max_samples must be a positive integer.")
         self.max_samples = max_samples
         if self.download:
-            self._download_data()
+            self._download_and_process_data()
         elif not self._check_downloaded():
             raise RuntimeError(
-                f"Images don't exist at location {self._processed_dir.resolve()}. "
-                "Have you downloaded them?"
+                f"Data don't exist at location {self._processed_dir.resolve()}. "
+                "Have you downloaded it?"
             )
 
-        self.metadata = pd.read_csv(self._data_dir / "labels.csv")
-        if self.max_samples < self.metadata:
-            warnings.warn(
-                "max_samples is less than the number of samples of the already-downloaded data."
-                "IF more samples are desired, please try redownloading the data with the adjusted value."
-            )
-
+        self.metadata = pd.read_csv(self._processed_dir / "labels.csv")
         # Divide up the dataframe into it's constituent arrays because indexing with pandas is
         # considerably slower than indexing with numpy/torch
-        self.image_fps = self.metadata["Image Index"].values
+        self.image_ids = self.metadata["_id"].values
         self.sens_data = torch.as_tensor(self.metadata[sens_attr], dtype=torch.int32)
         self.target_data = torch.as_tensor(self.metadata[target_attr], dtype=torch.int32)
+
+        self.transform = transform
+        self.target_transform = target_transform
 
     def _check_downloaded(self) -> bool:
         return (self._data_dir / "processed" / "images").exists()
@@ -86,14 +87,14 @@ class IsicDataset(Dataset):
         """Downloads the metadata CSV from the ISIC website."""
         self._raw_dir.mkdir(parents=True, exist_ok=True)
         req = requests.get(
-            f"https://isic-archive.com/api/v1/image?limit={self.max_samples}"
+            f"{self._rest_api_url}/image?limit={self.max_samples}"
             f"&sort=name&sortdir=1&detail=false"
         )
         image_ids = req.json()
         image_ids = [image_id["_id"] for image_id in image_ids]
         entries = []
         for image_id in tqdm(image_ids):
-            req = requests.get(f"https://isic-archive.com/api/v1/image/{image_id}")
+            req = requests.get(posixpath.join(self._rest_api_url, "image", image_id))
             entry = flatten_dict_with_sep(req.json(), sep=".")
             entries.append(entry)
 
@@ -104,10 +105,10 @@ class IsicDataset(Dataset):
 
     def _download_isic_images(self) -> None:
         """Given the metadata CSV, downloads the ISIC images."""
-        metadata_path = self.root / "raw" / "metadata.csv"
+        metadata_path = self._raw_dir / "metadata.csv"
         if not metadata_path.is_file():
             raise FileNotFoundError(
-                "metadata.csv not downloaded. " "Run `download_isic_data` before this function."
+                "metadata.csv not downloaded. " "Run 'download_isic_data` before this function."
             )
         metadata_df = pd.read_csv(metadata_path)
         metadata_df = metadata_df.set_index("_id")
@@ -117,7 +118,7 @@ class IsicDataset(Dataset):
         image_ids = list(metadata_df.index)
         for image_id in tqdm(image_ids):
             req = requests.get(
-                f"https://isic-archive.com/api/v1/image/{image_id}/download", stream=True
+                posixpath.join(self._rest_api_url, "image", image_id, "download"), stream=True
             )
             req.raise_for_status()
             image_path = raw_image_dir / f"{image_id}.jpg"
@@ -191,27 +192,26 @@ class IsicDataset(Dataset):
         assert not any(patch is None for patch in labels_df["patch"])
         return labels_df
 
-    def _download_data(self) -> None:
+    def _download_and_process_data(self) -> None:
         """Attempt to download data if files cannot be found in the base folder."""
-
         # # Check whether the data has already been downloaded - if it has and the integrity
         # # of the files can be confirmed, then we are done
         if self._check_downloaded():
-            LOGGER.info("Files already downloaded and verified")
+            LOGGER.info("Files already downloaded and verified.")
             return
         # # Create the directory and any required ancestors if not already existent
         self._data_dir.mkdir(exist_ok=True, parents=True)
-        LOGGER.info(f"Downloading metadata into {str(self._data_dir / 'raw'/ 'metadata.csv')}...")
+        LOGGER.info(f"Downloading metadata into {str(self._raw_dir / 'metadata.csv')}...")
         self._download_isic_metadata()
-        LOGGER.info(
-            f"Downloading data into {str(self._data_dir)} for up to {self.max_samples} samples..."
-        )
-        self._download_isic_images()
         LOGGER.info(
             f"Preprocessing metadata (adding columns, removing uncertain diagnoses) and saving into "
             f"{str(self._data_dir/ 'processed'/ 'labels.csv')}..."
         )
         self._preprocess_isic_metadata()
+        LOGGER.info(
+            f"Downloading data into {str(self._raw_dir)} for up to {self.max_samples} samples..."
+        )
+        self._download_isic_images()
         LOGGER.info(
             f"Preprocessing images (transforming to 3-channel RGB, resizing to 224x224) and saving "
             f"into  {str(self._data_dir/ 'raw'/ 'images')}..."
@@ -219,9 +219,14 @@ class IsicDataset(Dataset):
         self._preprocess_isic_images()
 
     def __len__(self) -> int:
-        return len(self.image_fps)
+        return len(self.image_ids)
 
     def __getitem__(self, index: int) -> Sample:
-        image_fp = self.image_fps[index]
-        image = Image.open(self._processed_dir / "images" / image_fp)
-        return Sample(x=image, s=self.sens_data[index], y=self.target_data[index])
+        image_fp = self.image_ids[index]
+        image = Image.open((self._processed_dir / "images" / image_fp).with_suffix(".jpg"))
+        if self.transform is not None:
+            image = self.transform(image)
+        target = self.target_data[index]
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+        return Sample(x=image, s=self.sens_data[index], y=target)
