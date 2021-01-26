@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 import torch
 
+from shared.layers.aggregation import Aggregator
 from shared.utils import StratifiedSampler
 
 
@@ -39,6 +40,24 @@ def test_simple(group_ids: list[int]):
     assert 300 <= indexes[2] < 700
     assert 700 <= indexes[3] < 1500
     assert indexes[4] < 100
+
+    agg = Aggregator(bag_size=15)
+    bagged_indexes = agg.bag_batch(torch.from_numpy(indexes[:15 * 7]))
+    # bagged_indexes = bagged_indexes.transpose(0, 1)
+    first_bag = bagged_indexes[0]
+    assert first_bag[0] < 100
+    assert 100 <= first_bag[1] < 300
+    assert 300 <= first_bag[2] < 700
+    assert 700 <= first_bag[3] < 1500
+    assert first_bag[4] < 100
+
+    # the second batch is shifted, but also still balanced
+    second_batch = bagged_indexes[1]
+    assert 700 <= second_batch[0] < 1500
+    assert second_batch[1] < 100
+    assert 100 <= second_batch[2] < 300
+    assert 300 <= second_batch[3] < 700
+    assert 700 <= second_batch[4] < 1500
 
 
 def test_without_replacement(group_ids: list[int]):
