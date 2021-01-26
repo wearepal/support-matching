@@ -8,7 +8,7 @@ from shared.utils import StratifiedSampler
 
 
 def count_true(mask: np.ndarray[np.bool_]) -> int:
-    """Count the number of elements that are True"""
+    """Count the number of elements that are True."""
     return mask.nonzero()[0].shape[0]
 
 
@@ -22,12 +22,9 @@ def group_ids() -> list[int]:
 def test_simple(group_ids: list[int]):
     num_samples_per_group = 800
     indexes = np.fromiter(
-        StratifiedSampler(
-            group_ids,
-            num_samples_per_group=num_samples_per_group,
-            replacement=True,
-            multipliers=None,
-        ).__iter__(),
+        iter(
+            StratifiedSampler(group_ids, num_samples_per_group, replacement=True, multipliers=None)
+        ),
         np.int64,
     )
     assert len(indexes) == 4 * num_samples_per_group
@@ -40,12 +37,9 @@ def test_simple(group_ids: list[int]):
 def test_without_replacement(group_ids: list[int]):
     num_samples_per_group = 100
     indexes = np.fromiter(
-        StratifiedSampler(
-            group_ids,
-            num_samples_per_group=num_samples_per_group,
-            replacement=False,
-            multipliers=None,
-        ).__iter__(),
+        iter(
+            StratifiedSampler(group_ids, num_samples_per_group, replacement=False, multipliers=None)
+        ),
         np.int64,
     )
     assert len(indexes) == 4 * num_samples_per_group
@@ -58,12 +52,11 @@ def test_without_replacement(group_ids: list[int]):
 def test_with_multipliers(group_ids: list[int]):
     num_samples_per_group = 800
     indexes = np.fromiter(
-        StratifiedSampler(
-            group_ids,
-            num_samples_per_group=num_samples_per_group,
-            replacement=True,
-            multipliers={0: 2, 1: 0, 2: 3},
-        ).__iter__(),
+        iter(
+            StratifiedSampler(
+                group_ids, num_samples_per_group, replacement=True, multipliers={0: 2, 1: 0, 2: 3}
+            )
+        ),
         np.int64,
     )
     assert len(indexes) == (2 + 0 + 3 + 1) * num_samples_per_group

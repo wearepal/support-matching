@@ -60,11 +60,11 @@ class StratifiedSampler(Sampler[int]):
             )
         self.num_samples_per_group = num_samples_per_group
         self.replacement = replacement
-        multipliers_ = multipliers if multipliers is not None else {}
+        multipliers_ = {} if multipliers is None else multipliers
 
         group_ids_t = torch.as_tensor(group_ids, dtype=torch.int64)
         # find all unique IDs
-        groups = list(map(int, group_ids_t.unique()))
+        groups: list[int] = group_ids_t.unique().tolist()
 
         # get the indexes for each group separately and compute the effective number of groups
         groupwise_idx = []
