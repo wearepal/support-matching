@@ -661,7 +661,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
                 cluster_context_metrics=cluster_context_metrics,
             )
             if run is not None:
-                run.finish()  # this allows multiple experiments in one python process
+                run.join()  # this allows multiple experiments in one python process
             return generator
 
     if args.snorm:
@@ -732,7 +732,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
         cluster_context_metrics=cluster_context_metrics,
     )
     if run is not None:
-        run.finish()  # this allows multiple experiments in one python process
+        run.join()  # this allows multiple experiments in one python process
 
     return generator
 

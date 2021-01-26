@@ -32,6 +32,6 @@ setup(
         "typed-argument-parser == 1.4",
         "typer",
         "typing-extensions >= 3.7.2",
-        "wandb >= 0.10.2",
+        "wandb == 0.9.7",
     ],
 )

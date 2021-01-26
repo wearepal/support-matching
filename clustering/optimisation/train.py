@@ -265,7 +265,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
         if ARGS.enc_wandb:
             log.info("Stopping here because W&B will be messed up...")
             if run is not None:
-                run.finish()  # this allows multiple experiments in one python process
+                run.join()  # this allows multiple experiments in one python process
             return
 
     cluster_label_path = get_cluster_label_path(MISC, save_dir)
@@ -275,7 +275,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
         )
         pth = save_results(save_path=cluster_label_path, cluster_results=kmeans_results)
         if run is not None:
-            run.finish()  # this allows multiple experiments in one python process
+            run.join()  # this allows multiple experiments in one python process
         return (), pth
     if ARGS.finetune_encoder:
         encoder.freeze_initial_layers(
@@ -371,7 +371,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
                 context_metrics={},  # TODO: compute this
             )
             if run is not None:
-                run.finish()  # this allows multiple experiments in one python process
+                run.join()  # this allows multiple experiments in one python process
             return model, pth_path
 
     # Logging
@@ -436,7 +436,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
         test_metrics=test_metrics,
     )
     if run is not None:
-        run.finish()  # this allows multiple experiments in one python process
+        run.join()  # this allows multiple experiments in one python process
     return model, pth_path
 
 
