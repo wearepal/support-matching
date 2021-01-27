@@ -10,7 +10,7 @@ import torchvision
 import wandb
 
 from shared.configs import Config, FdmDataset, ReconstructionLoss
-from shared.utils import StratifiedSampler, as_pretty_dict, class_id_to_label, flatten, wandb_log
+from shared.utils import StratifiedSampler, as_pretty_dict, flatten, wandb_log
 
 __all__ = [
     "get_stratified_sampler",
