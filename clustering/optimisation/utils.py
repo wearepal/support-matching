@@ -1,97 +1,22 @@
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union
 
 from lapjv import lapjv
 import numpy as np
-from omegaconf import OmegaConf
-from sklearn.metrics import (
-    adjusted_rand_score,
-    confusion_matrix,
-    normalized_mutual_info_score,
-)
-import torch
+from sklearn.metrics import adjusted_rand_score, confusion_matrix, normalized_mutual_info_score
 from torch import Tensor
-import torchvision
 
-from clustering.models import Model
-from shared.configs import (
-    ClusteringLabel,
-    Config,
-    FdmDataset,
-    MiscConfig,
-    ReconstructionLoss,
-)
-from shared.utils import (
-    ClusterResults,
-    class_id_to_label,
-    flatten_dict,
-    label_to_class_id,
-    save_results,
-    wandb_log,
-)
-import wandb
+from shared.configs import ClusteringLabel, MiscConfig
+from shared.utils import class_id_to_label, label_to_class_id
 
 __all__ = [
-    "convert_and_save_results",
+    "cluster_metrics",
     "count_occurances",
     "find_assignment",
     "get_class_id",
     "get_cluster_label_path",
-    "log_images",
-    "restore_model",
-    "save_model",
 ]
-
-
-def log_images(
-    cfg: Config, image_batch, name, step, nsamples=64, nrows=8, monochrome=False, prefix=None
-):
-    """Make a grid of the given images, save them in a file and log them with W&B"""
-    prefix = "train_" if prefix is None else f"{prefix}_"
-    images = image_batch[:nsamples]
-
-    if cfg.enc.recon_loss == ReconstructionLoss.ce:
-        images = images.argmax(dim=1).float() / 255
-    else:
-        if cfg.data.dataset in (FdmDataset.celeba,):
-            images = 0.5 * images + 0.5
-
-    if monochrome:
-        images = images.mean(dim=1, keepdim=True)
-    # torchvision.utils.save_image(images, f'./experiments/finn/{prefix}{name}.png', nrow=nrows)
-    shw = torchvision.utils.make_grid(images, nrow=nrows).clamp(0, 1).cpu()
-    wandb_log(
-        cfg.misc,
-        {prefix + name: [wandb.Image(torchvision.transforms.functional.to_pil_image(shw))]},
-        step=step,
-    )
-
-
-def save_model(
-    cfg: Config, save_dir: Path, model: Model, epoch: int, sha: str, best: bool = False
-) -> Path:
-    if best:
-        filename = save_dir / "checkpt_best.pth"
-    else:
-        filename = save_dir / f"checkpt_epoch{epoch}.pth"
-    save_dict = {
-        "args": flatten_dict(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
-        "sha": sha,
-        "model": model.state_dict(),
-        "epoch": epoch,
-    }
-
-    torch.save(save_dict, filename)
-
-    return filename
-
-
-def restore_model(cfg: Config, filename: Path, model: Model) -> Tuple[Model, int]:
-    chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
-    args_chkpt = chkpt["args"]
-    assert cfg.enc.levels == args_chkpt["enc.levels"]
-    model.load_state_dict(chkpt["model"])
-    return model, chkpt["epoch"]
 
 
 def count_occurances(
@@ -101,7 +26,7 @@ def count_occurances(
     y: Tensor,
     s_count: int,
     to_cluster: ClusteringLabel,
-) -> Tuple[np.ndarray, Tensor]:
+) -> tuple[np.ndarray, Tensor]:
     """Count how often cluster IDs coincide with the class IDs.
 
     All possible combinations are accounted for.
@@ -116,7 +41,7 @@ def count_occurances(
 
 def find_assignment(
     counts: np.ndarray, num_total: int
-) -> Tuple[float, "np.ndarray[np.int64]", Dict[str, Union[float, str]]]:
+) -> tuple[float, "np.ndarray[np.int64]", dict[str, float | str]]:
     """Find an assignment of cluster to class such that the overall accuracy is maximized."""
     # row_ind maps from class ID to cluster ID: cluster_id = row_ind[class_id]
     # col_ind maps from cluster ID to class ID: class_id = row_ind[cluster_id]
@@ -147,28 +72,6 @@ def get_cluster_label_path(misc: MiscConfig, save_dir: Path) -> Path:
         return save_dir / "cluster_results.pth"
 
 
-def convert_and_save_results(
-    cfg: Config,
-    cluster_label_path: Path,
-    results: Tuple[Tensor, Tensor, Tensor],
-    enc_path: Path,
-    context_metrics: Optional[Dict[str, float]],
-    test_metrics: Optional[Dict[str, float]] = None,
-) -> Path:
-    clusters, s, y = results
-    s_count = cfg.misc._s_dim if cfg.misc._s_dim > 1 else 2
-    class_ids = get_class_id(s=s, y=y, s_count=s_count, to_cluster=cfg.clust.cluster)
-    cluster_results = ClusterResults(
-        flags=flatten_dict(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
-        cluster_ids=clusters,
-        class_ids=class_ids,
-        enc_path=enc_path,
-        context_metrics=context_metrics,
-        test_metrics=test_metrics,
-    )
-    return save_results(save_path=cluster_label_path, cluster_results=cluster_results)
-
-
 def cluster_metrics(
     *,
     cluster_ids: np.ndarray,
@@ -177,7 +80,7 @@ def cluster_metrics(
     num_total: int,
     s_count: int,
     to_cluster: ClusteringLabel,
-) -> Tuple[float, Dict[str, float], Dict[str, Union[str, float]]]:
+) -> tuple[float, dict[str, float], dict[str, str | float]]:
     # find best assignment for cluster to classes
     best_acc, best_ass, logging_dict = find_assignment(counts, num_total)
     metrics = {"Accuracy": best_acc}

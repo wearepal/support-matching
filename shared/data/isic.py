@@ -1,10 +1,11 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
 import logging
 from pathlib import Path
 import posixpath
 import shutil
-from typing import Callable, ClassVar, Literal, Union
+from typing import Callable, ClassVar, Union
 
 from PIL import Image
 import numpy as np
@@ -15,9 +16,9 @@ from torch.tensor import Tensor
 from torch.utils.data.dataset import Dataset
 from torchvision.transforms.transforms import ToTensor
 from tqdm import tqdm
+from typing_extensions import Literal
 
 from shared.utils.utils import flatten_dict
-
 
 __all__ = ["IsicDataset"]
 

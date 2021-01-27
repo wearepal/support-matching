@@ -1,5 +1,6 @@
 """Main training file"""
 from __future__ import annotations
+
 from collections import defaultdict
 from collections.abc import Callable, Iterator, Sequence
 import logging
@@ -17,6 +18,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 from typing_extensions import Literal
+import wandb
 import yaml
 
 from fdm.models import AutoEncoder, Classifier, EncodingSize, build_discriminator
@@ -36,14 +38,10 @@ from shared.configs import (
 )
 from shared.data import DatasetTriplet, load_dataset
 from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
-from shared.models.configs import (
-    FcNet,
-    ModelAggregatorWrapper,
-    conv_autoencoder,
-    fc_autoencoder,
-)
+from shared.models.configs import FcNet, ModelAggregatorWrapper, conv_autoencoder, fc_autoencoder
 from shared.utils import (
     AverageMeter,
+    ExperimentBase,
     ModelFn,
     StratifiedSampler,
     as_pretty_dict,
@@ -59,7 +57,6 @@ from shared.utils import (
     readable_duration,
     wandb_log,
 )
-import wandb
 
 from .build import build_ae
 from .evaluation import baseline_metrics, log_metrics
@@ -79,7 +76,7 @@ class Triplet(NamedTuple):
     y: Tensor
 
 
-class Experiment:
+class Experiment(ExperimentBase):
     """Experiment singleton class."""
 
     def __init__(
@@ -94,12 +91,10 @@ class Experiment:
         recon_loss_fn: Callable[[Tensor, Tensor], Tensor],
         predictor_y: Classifier,
         predictor_s: Classifier,
+        device: torch.device,
     ) -> None:
+        super().__init__(cfg=cfg, data=data, enc=enc, misc=misc, device=device)
         self.args = args
-        self.cfg = cfg
-        self.data = data
-        self.enc = enc
-        self.misc = misc
         self.grad_scaler = GradScaler() if self.misc.use_amp else None
         self.generator = generator
         self.disc_ensemble = disc_ensemble
@@ -332,11 +327,6 @@ class Experiment:
             zs_m, zy_m = self.generator.mask(encoding)
             return zs_m if invariant_to == "s" else zy_m
 
-    def to_device(self, *tensors: Tensor) -> Tensor | tuple[Tensor, ...]:
-        """Place tensors on the correct device and set type to float32"""
-        moved = [tensor.to(torch.device(self.misc.device), non_blocking=True) for tensor in tensors]
-        return moved[0] if len(moved) == 1 else tuple(moved)
-
     def log_recons(self, x: Tensor, itr: int, prefix: str | None = None) -> None:
         """Log reconstructed images."""
         rows_per_block = 8
@@ -408,9 +398,12 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
             group += "." + misc.exp_group
         if cfg.bias.log_dataset:
             group += "." + cfg.bias.log_dataset
+        local_dir = Path(".", "local_logging")
+        local_dir.mkdir(exist_ok=True)
         run = wandb.init(
             entity="predictive-analytics-lab",
             project="fdm-hydra" + project_suffix,
+            dir=str(local_dir),
             config=flatten_dict(as_pretty_dict(cfg)),
             group=group if group else None,
             reinit=True,
@@ -424,7 +417,6 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
     )
     log.info(f"Save directory: {save_dir.resolve()}")
     # ==== check GPU ====
-    misc
     device = torch.device(misc.device)
     log.info(f"{torch.cuda.device_count()} GPUs available. Using device '{device}'")
 
@@ -640,6 +632,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
         recon_loss_fn=recon_loss_fn,
         predictor_y=predictor_y,
         predictor_s=predictor_s,
+        device=device,
     )
 
     start_itr = 1  # start at 1 so that the val_freq works correctly
