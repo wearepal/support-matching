@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Sequence
 
 import torch
 from torch import Tensor, nn
@@ -24,17 +26,17 @@ log = logging.getLogger(__name__.split(".")[-1].upper())
 
 def log_images(
     cfg: Config,
-    image_batch,
+    images,
     name,
     step,
-    nsamples=64,
-    nrows=8,
-    monochrome=False,
-    prefix=None,
+    nsamples: int | Sequence[int] = 64,
+    ncols: int = 8,
+    monochrome: bool = False,
+    prefix: str | None = None,
+    caption: str | None = None,
 ):
     """Make a grid of the given images, save them in a file and log them with W&B"""
     prefix = "train_" if prefix is None else f"{prefix}_"
-    images = image_batch[:nsamples]
 
     if cfg.enc.recon_loss == ReconstructionLoss.ce:
         images = images.argmax(dim=1).float() / 255
@@ -44,13 +46,25 @@ def log_images(
 
     if monochrome:
         images = images.mean(dim=1, keepdim=True)
+
+    if isinstance(nsamples, int):
+        blocks = [images[:nsamples]]
+    else:
+        blocks = []
+        start_index = 0
+        for num in nsamples:
+            blocks.append(images[start_index : start_index + num])
+            start_index += num
+
     # torchvision.utils.save_image(images, f'./experiments/finn/{prefix}{name}.png', nrow=nrows)
-    shw = torchvision.utils.make_grid(images, nrow=nrows).clamp(0, 1).cpu()
-    wandb_log(
-        cfg.misc,
-        {prefix + name: [wandb.Image(torchvision.transforms.functional.to_pil_image(shw))]},
-        step=step,
-    )
+    shw = [
+        torchvision.utils.make_grid(block, nrow=ncols, pad_value=1.0).clamp(0, 1).cpu()
+        for block in blocks
+    ]
+    shw = [
+        wandb.Image(torchvision.transforms.functional.to_pil_image(i), caption=caption) for i in shw
+    ]
+    wandb_log(cfg.misc, {prefix + name: shw}, step=step)
 
 
 def save_model(
@@ -72,7 +86,7 @@ def save_model(
     return filename
 
 
-def restore_model(cfg: Config, filename: Path, model: nn.Module) -> Tuple[nn.Module, int]:
+def restore_model(cfg: Config, filename: Path, model: nn.Module) -> tuple[nn.Module, int]:
     chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
     args_chkpt = chkpt["args"]
     assert cfg.enc.levels == args_chkpt["enc.levels"]
@@ -81,7 +95,7 @@ def restore_model(cfg: Config, filename: Path, model: nn.Module) -> Tuple[nn.Mod
     return model, chkpt["itr"]
 
 
-def _get_weights(cluster_ids: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+def _get_weights(cluster_ids: Tensor) -> tuple[Tensor, Tensor, Tensor]:
     unique, counts = torch.unique(cluster_ids, sorted=False, return_counts=True)
     n_clusters = int(unique.max() + 1)
     weights = torch.zeros((n_clusters,))
@@ -91,8 +105,8 @@ def _get_weights(cluster_ids: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
 
 
 def weight_for_balance(
-    cluster_ids: Tensor, min_size: Optional[int] = None
-) -> Tuple[Tensor, int, int, int]:
+    cluster_ids: Tensor, min_size: int | None = None
+) -> tuple[Tensor, int, int, int]:
     weights, counts, unique = _get_weights(cluster_ids)
 
     n_used_clusters = counts.size(0)
@@ -112,17 +126,17 @@ def weight_for_balance(
     return weights[cluster_ids.long()], n_used_clusters, smallest_used_cluster, int(counts.max())
 
 
-def weights_with_counts(cluster_ids: Tensor) -> Tuple[Tensor, Dict[int, Tuple[float, int]]]:
+def weights_with_counts(cluster_ids: Tensor) -> tuple[Tensor, dict[int, tuple[float, int]]]:
     weights, counts, unique = _get_weights(cluster_ids)
     w_and_c = {int(i): (float(weights[i.long()]), int(c)) for i, c in zip(unique, counts)}
     return weights[cluster_ids.long()], w_and_c
 
 
 def get_all_num_samples(
-    quad_w_and_c: Dict[int, Tuple[float, int]],
-    y_w_and_c: Dict[int, Tuple[float, int]],
+    quad_w_and_c: dict[int, tuple[float, int]],
+    y_w_and_c: dict[int, tuple[float, int]],
     s_count: int,
-) -> List[int]:
+) -> list[int]:
     # multiply the quad weights with the correct y weights
     combined_w_and_c = []
     for class_id, (weight, count) in quad_w_and_c.items():

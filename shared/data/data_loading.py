@@ -65,7 +65,6 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
             num_classes = max(args.filter_map_labels.values()) + 1
             if any(i not in args.filter_map_labels.values() for i in range(num_classes)):
                 raise ValueError("Some values are skipped in filter_map_labels.")
-            num_classes = len(args.filter_map_labels)
 
             def _filter_(dataset: MNIST):
                 final_mask = torch.zeros_like(dataset.targets).bool()
