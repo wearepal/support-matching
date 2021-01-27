@@ -14,7 +14,6 @@ from .enums import (
     EncoderType,
     FdmDataset,
     IsicAttrs,
-    IsicAttrs,
     MMDKernel,
     PlMethod,
     QuantizationLevel,
