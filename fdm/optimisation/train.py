@@ -161,25 +161,21 @@ class Experiment(ExperimentBase):
 
             if self.args.vae:
                 encoding_t = self.generator.encode(x_t, stochastic=True)
-                if not self.args.train_on_recon:
-                    encoding_c = self.generator.encode(x_c, stochastic=True)
+                encoding_c = self.generator.encode(x_c, stochastic=True)
             else:
                 encoding_t = self.generator.encode(x_t)
-                if not self.args.train_on_recon:
-                    encoding_c = self.generator.encode(x_c)
+                encoding_c = self.generator.encode(x_c)
 
             if self.args.train_on_recon:
-                disc_input_c = x_c
+                disc_input_c = self.generator.decode(encoding_c, mode="relaxed").detach()
+            else:
+                disc_input_c = self.get_disc_input(encoding_c).detach()
 
             disc_loss = x_c.new_zeros(())
             disc_acc = 0.0
             logging_dict = {}
             disc_input_t = self.get_disc_input(encoding_t)
             disc_input_t = disc_input_t.detach()
-
-            if not self.args.train_on_recon:
-                disc_input_c = self.get_disc_input(encoding_c)
-                disc_input_c = disc_input_c.detach()
 
             for discriminator in self.disc_ensemble:
                 discriminator = cast(Classifier, discriminator)
