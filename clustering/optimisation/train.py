@@ -415,7 +415,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         if args.enc_wandb:
             log.info("Stopping here because W&B will be messed up...")
             if run is not None:
-                run.join()  # this allows multiple experiments in one python process
+                run.finish()  # this allows multiple experiments in one python process
             return
 
     cluster_label_path = get_cluster_label_path(misc, save_dir)
@@ -425,7 +425,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         )
         save_results(save_path=cluster_label_path, cluster_results=kmeans_results)
         if run is not None:
-            run.join()  # this allows multiple experiments in one python process
+            run.finish()  # this allows multiple experiments in one python process
         return
     if args.finetune_encoder:
         encoder.freeze_initial_layers(
@@ -532,7 +532,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
                 context_metrics={},  # TODO: compute this
             )
             if run is not None:
-                run.join()  # this allows multiple experiments in one python process
+                run.finish()  # this allows multiple experiments in one python process
             return model, pth_path
 
     # Logging
@@ -596,4 +596,4 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         test_metrics=test_metrics,
     )
     if run is not None:
-        run.join()  # this allows multiple experiments in one python process
+        run.finish()  # this allows multiple experiments in one python process

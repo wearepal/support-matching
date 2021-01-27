@@ -114,7 +114,7 @@ class MiscConfig:
     use_gpu: bool = False
 
     def __post_init__(self) -> None:
-        self.use_gpu = torch.cuda.is_available() and self.gpu >= 0  # type: ignore
+        self.use_gpu = torch.cuda.is_available() and self.gpu >= 0
         self.device = f"cuda:{self.gpu}" if self.use_gpu else "cpu"
         if not self.use_gpu:  # If cuda is not enabled, set use_amp to False to avoid warning
             self.use_amp = False
