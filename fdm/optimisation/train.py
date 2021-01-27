@@ -1,25 +1,24 @@
 """Main training file"""
 from __future__ import annotations
-
-import logging
-import time
 from collections import defaultdict
 from collections.abc import Callable, Iterator, Sequence
+import logging
 from pathlib import Path
+import time
 from typing import NamedTuple, cast
 
 import git
+from hydra.utils import to_absolute_path
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import wandb
-import yaml
-from hydra.utils import to_absolute_path
 from torch import Tensor
 from torch.cuda.amp.grad_scaler import GradScaler
+import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 from typing_extensions import Literal
+import wandb
+import yaml
 
 from fdm.models import AutoEncoder, Classifier, EncodingSize, build_discriminator
 from fdm.models.configs import Residual64x64Net
@@ -38,7 +37,12 @@ from shared.configs import (
 )
 from shared.data import DatasetTriplet, load_dataset
 from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
-from shared.models.configs import FcNet, ModelAggregatorWrapper, conv_autoencoder, fc_autoencoder
+from shared.models.configs import (
+    FcNet,
+    ModelAggregatorWrapper,
+    conv_autoencoder,
+    fc_autoencoder,
+)
 from shared.utils import (
     AverageMeter,
     ExperimentBase,

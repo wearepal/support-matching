@@ -1,13 +1,12 @@
 from __future__ import annotations
-
 import logging
 from pathlib import Path
 from typing import Sequence
 
 import torch
+from torch import Tensor, nn
 import torchvision
 import wandb
-from torch import Tensor, nn
 
 from shared.configs import Config, FdmDataset, ReconstructionLoss
 from shared.utils import StratifiedSampler, as_pretty_dict, flatten_dict, wandb_log
