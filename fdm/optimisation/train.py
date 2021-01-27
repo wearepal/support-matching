@@ -1,6 +1,5 @@
 """Main training file"""
 from __future__ import annotations
-
 from collections import defaultdict
 from collections.abc import Callable, Iterator, Sequence
 import logging
@@ -18,7 +17,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 from typing_extensions import Literal
-import wandb
 import yaml
 
 from fdm.models import AutoEncoder, Classifier, EncodingSize, build_discriminator
@@ -38,7 +36,12 @@ from shared.configs import (
 )
 from shared.data import DatasetTriplet, load_dataset
 from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
-from shared.models.configs import FcNet, ModelAggregatorWrapper, conv_autoencoder, fc_autoencoder
+from shared.models.configs import (
+    FcNet,
+    ModelAggregatorWrapper,
+    conv_autoencoder,
+    fc_autoencoder,
+)
 from shared.utils import (
     AverageMeter,
     ExperimentBase,
@@ -57,6 +60,7 @@ from shared.utils import (
     readable_duration,
     wandb_log,
 )
+import wandb
 
 from .build import build_ae
 from .evaluation import baseline_metrics, log_metrics
@@ -65,7 +69,7 @@ from .utils import get_stratified_sampler, log_images, restore_model, save_model
 
 __all__ = ["main"]
 
-log = logging.getLogger(__name__.split(".")[-1].upper())
+LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 class Triplet(NamedTuple):
@@ -320,7 +324,7 @@ class Experiment(ExperimentBase):
             recon = self.generator.decode(zs_m if invariant_to == "s" else zy_m, mode="relaxed")
             if self.enc.recon_loss is ReconstructionLoss.ce:
                 recon = recon.argmax(dim=1).float() / 255
-                if self.data.dataset != FdmDataset.cmnist:
+                if self.data.dataset is not FdmDataset.cmnist:
                     recon = recon * 2 - 1
             return recon
         else:
@@ -390,7 +394,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
 
     run = None
     if misc.use_wandb:
-        project_suffix = f"-{data.dataset.name}" if data.dataset != FdmDataset.cmnist else ""
+        project_suffix = f"-{data.dataset.name}" if data.dataset is not FdmDataset.cmnist else ""
         group = ""
         if misc.log_method:
             group += misc.log_method
@@ -412,17 +416,17 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
     save_dir = Path(to_absolute_path(misc.save_dir)) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    log.info(
+    LOGGER.info(
         yaml.dump(as_pretty_dict(cfg), default_flow_style=False, allow_unicode=True, sort_keys=True)
     )
-    log.info(f"Save directory: {save_dir.resolve()}")
+    LOGGER.info(f"Save directory: {save_dir.resolve()}")
     # ==== check GPU ====
     device = torch.device(misc.device)
-    log.info(f"{torch.cuda.device_count()} GPUs available. Using device '{device}'")
+    LOGGER.info(f"{torch.cuda.device_count()} GPUs available. Using device '{device}'")
 
     # ==== construct dataset ====
     datasets: DatasetTriplet = load_dataset(cfg)
-    log.info(
+    LOGGER.info(
         "Size of context-set: {}, training-set: {}, test-set: {}".format(
             len(datasets.context),  # type: ignore
             len(datasets.train),  # type: ignore
@@ -553,7 +557,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
             assert args_encoder["encoder_type"] == "vae" if args.vae else "ae"
             assert args_encoder["levels"] == enc.levels
 
-    log.info(f"Encoding shape: {enc_shape}, {encoding_size}")
+    LOGGER.info(f"Encoding shape: {enc_shape}, {encoding_size}")
 
     # ================================== Initialise Discriminator =================================
 
@@ -575,7 +579,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
             else disc_input_shape
         )
 
-    if args.aggregator_type != AggregatorType.none:
+    if args.aggregator_type is not AggregatorType.none:
         final_proj = FcNet(args.aggregator_hidden_dims) if args.aggregator_hidden_dims else None
         aggregator: Aggregator
         if args.aggregator_type is AggregatorType.kvq:
@@ -638,7 +642,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
     start_itr = 1  # start at 1 so that the val_freq works correctly
     # Resume from checkpoint
     if misc.resume is not None:
-        log.info("Restoring generator from checkpoint")
+        LOGGER.info("Restoring generator from checkpoint")
         generator, start_itr = restore_model(cfg, Path(misc.resume), generator)
         generator = cast(AutoEncoder, generator)
 
@@ -666,7 +670,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
         disc_ensemble.apply(_snorm)
 
     # Logging
-    log.info(f"Number of trainable parameters: {count_parameters(generator)}")
+    LOGGER.info(f"Number of trainable parameters: {count_parameters(generator)}")
 
     itr = start_itr
     disc: nn.Module
@@ -687,7 +691,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
         if itr % args.log_freq == 0:
             log_string = " | ".join(f"{name}: {loss.avg:.5g}" for name, loss in loss_meters.items())
             elapsed = time.monotonic() - start_time
-            log.info(
+            LOGGER.info(
                 "[TRN] Iteration {:04d} | Elapsed: {} | Iterations/s: {:.4g} | {}".format(
                     itr,
                     readable_duration(elapsed),
@@ -709,10 +713,10 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
             for k, discriminator in enumerate(disc_ensemble):
                 discriminator = cast(Classifier, discriminator)
                 if np.random.uniform() < args.disc_reset_prob:
-                    log.info(f"Reinitializing discriminator {k}")
+                    LOGGER.info(f"Reinitializing discriminator {k}")
                     discriminator.reset_parameters()
 
-    log.info("Training has finished.")
+    LOGGER.info("Training has finished.")
 
     log_metrics(
         cfg,

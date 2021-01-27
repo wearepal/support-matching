@@ -24,7 +24,7 @@ from shared.data import adult, load_dataset
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import ModelFn, compute_metrics, get_data_dim, random_seed
 
-log = logging.getLogger("BASELINE")
+LOGGER = logging.getLogger("BASELINE")
 
 BaselineM = Enum("BaselineM", "cnn dro kamiran")
 
@@ -171,7 +171,7 @@ def run_baseline(cfg: Config) -> None:
             f"{k}: {v}"
             for k, v in OmegaConf.to_container(settings, resolve=True, enum_to_str=True).items()
         )
-        log.info(f"{name}: {{" + ", ".join(as_list) + "}")
+        LOGGER.info(f"{name}: {{" + ", ".join(as_list) + "}")
     args = cfg.baselines
     if args.method == BaselineM.kamiran:
         if cfg.data.dataset == FdmDataset.cmnist:
@@ -189,7 +189,7 @@ def run_baseline(cfg: Config) -> None:
     random_seed(cfg.misc.seed, use_gpu)
 
     device = torch.device(f"cuda:{cfg.misc.gpu}" if use_gpu else "cpu")
-    log.info(f"Running on {device}")
+    LOGGER.info(f"Running on {device}")
 
     #  Load the datasets and wrap with dataloaders
     datasets = load_dataset(cfg)
@@ -282,6 +282,8 @@ def run_baseline(cfg: Config) -> None:
         sens_name = "colour"
     elif cfg.data.dataset == FdmDataset.celeba:
         sens_name = cfg.data.celeba_sens_attr.name
+    elif cfg.data.dataset == FdmDataset.isic:
+        sens_name = cfg.data.isic_sens_attr.name
     elif cfg.data.dataset == FdmDataset.adult:
         sens_name = str(adult.SENS_ATTRS[0])
     else:
@@ -296,6 +298,9 @@ def run_baseline(cfg: Config) -> None:
     elif cfg.data.dataset == FdmDataset.celeba:
         full_name += f"_{str(cfg.data.celeba_sens_attr.name)}"
         full_name += f"_{cfg.data.celeba_target_attr.name}"
+    elif cfg.data.dataset == FdmDataset.isic:
+        full_name += f"_{str(cfg.data.isic_sens_attr.name)}"
+        full_name += f"_{cfg.data.isic_target_attr.name}"
     full_name += f"_{str(args.epochs)}epochs.csv"
 
     compute_metrics(
@@ -305,6 +310,7 @@ def run_baseline(cfg: Config) -> None:
         exp_name="baseline",
         model_name=args.method.name,
         step=0,
+        s_dim=datasets.s_dim,
         save_to_csv=Path(to_absolute_path(cfg.misc.save_dir)) if cfg.misc.save_dir else None,
         results_csv=full_name,
         use_wandb=False,

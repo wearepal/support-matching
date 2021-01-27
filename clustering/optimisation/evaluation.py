@@ -11,13 +11,13 @@ from shared.configs import Config
 
 __all__ = ["classify_dataset", "encode_dataset"]
 
-log = logging.getLogger(__name__.split(".")[-1].upper())
+LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 def encode_dataset(
     cfg: Config, data: Dataset, generator: Encoder
 ) -> "Dataset[Tuple[Tensor, Tensor, Tensor]]":
-    log.info("Encoding dataset...")
+    LOGGER.info("Encoding dataset...")
     all_enc = []
     all_s = []
     all_y = []
@@ -42,7 +42,7 @@ def encode_dataset(
     all_y = torch.cat(all_y, dim=0)
 
     encoded_dataset = TensorDataset(all_enc, all_s, all_y)
-    log.info("Done.")
+    LOGGER.info("Done.")
 
     return encoded_dataset
 

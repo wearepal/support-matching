@@ -9,7 +9,7 @@ import torch
 from torch import Tensor
 import torch.nn as nn
 from torch.utils.data import Dataset, Subset
-from torchvision import transforms
+from torchvision import transforms as TF
 from torchvision.datasets import MNIST
 from typing_extensions import Literal
 
@@ -17,12 +17,13 @@ from shared.configs import AdultDatasetSplit, BaseConfig, FdmDataset, Quantizati
 
 from .adult import load_adult_data
 from .dataset_wrappers import TensorDataTupleDataset
+from .isic import IsicDataset
 from .misc import shrink_dataset
 from .transforms import NoisyDequantize, Quantize
 
 __all__ = ["DatasetTriplet", "load_dataset"]
 
-log = logging.getLogger(__name__.split(".")[-1].upper())
+LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 class DatasetTriplet(NamedTuple):
@@ -47,11 +48,11 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
     data_root = args.root or find_data_dir()
 
     # =============== get whole dataset ===================
-    if args.dataset == FdmDataset.cmnist:
+    if args.dataset is FdmDataset.cmnist:
         augs = []
         if args.padding > 0:
             augs.append(nn.ConstantPad2d(padding=args.padding, value=0))
-        if args.quant_level != QuantizationLevel.eight:
+        if args.quant_level is QuantizationLevel.eight:
             augs.append(Quantize(args.quant_level.value))
         if args.input_noise:
             augs.append(NoisyDequantize(args.quant_level.value))
@@ -149,7 +150,9 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
                 if _num_to_keep != 0 and _num_to_keep < smallest[0]:
                     smallest = (_num_to_keep, target_y, target_s)
             if smallest[1] is not None:
-                log.info(f"    Smallest cluster (y={smallest[1]}, s={smallest[2]}): {smallest[0]}")
+                LOGGER.info(
+                    f"    Smallest cluster (y={smallest[1]}, s={smallest[2]}): {smallest[0]}"
+                )
             return RawDataTuple(x=_x, s=_s, y=_y)
 
         if cfg.bias.subsample_train:
@@ -157,7 +160,7 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
                 raise RuntimeError("Don't use subsample_train and missing_s together!")
             # when we manually subsample the training set, we ignore color correlation
             train_data_t = _colorize_subset(train_data, _correlation=0, _decorr_op="random")
-            log.info("Subsampling training set...")
+            LOGGER.info("Subsampling training set...")
             train_data_t = _subsample_by_s_and_y(train_data_t, cfg.bias.subsample_train)
         else:
             train_data_t = _colorize_subset(
@@ -167,7 +170,7 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
         context_data_t = _colorize_subset(context_data, _correlation=0, _decorr_op="random")
 
         if cfg.bias.subsample_context:
-            log.info("Subsampling context set...")
+            LOGGER.info("Subsampling context set...")
             context_data_t = _subsample_by_s_and_y(context_data_t, cfg.bias.subsample_context)
             # test data remains balanced
             # test_data = _subsample_by_class(*test_data, args.subsample)
@@ -179,34 +182,45 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
         y_dim = 1 if num_classes == 2 else num_classes
         s_dim = 1 if num_colors == 2 else num_colors
 
-    elif args.dataset == FdmDataset.celeba:
-
-        image_size = 64
-        transform = [
-            transforms.Resize(image_size),
-            transforms.CenterCrop(image_size),
-            transforms.ToTensor(),
-        ]
-        if args.quant_level != QuantizationLevel.eight:
-            transform.append(Quantize(args.quant_level.value))
+    elif args.dataset in (FdmDataset.celeba, FdmDataset.isic):
+        if args.dataset is FdmDataset.celeba:
+            tform_ls = [TF.Resize(64), TF.CenterCrop(64)]
+        else:
+            tform_ls = []
+        tform_ls.append(TF.ToTensor())
+        if args.quant_level is not QuantizationLevel.eight:
+            tform_ls.append(Quantize(args.quant_level.value))
         if args.input_noise:
-            transform.append(NoisyDequantize(args.quant_level.value))
+            tform_ls.append(NoisyDequantize(args.quant_level.value))
+        tform_ls.append(TF.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)))
+        transform = TF.Compose(tform_ls)
 
-        transform.append(transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)))
-        transform = transforms.Compose(transform)
-
-        # unbiased_pcnt = args.test_pcnt + args.context_pcnt
-        dataset, base_dir = em.celeba(
-            download_dir=data_root,
-            label=args.celeba_target_attr.name,
-            sens_attr=args.celeba_sens_attr.name,
-            download=True,
-            check_integrity=True,
-        )
-        assert dataset is not None
-        all_data = emvi.TorchImageDataset(
-            data=dataset.load(), root=base_dir, transform=transform, target_transform=None
-        )
+        y_dim = 1
+        if args.dataset is FdmDataset.celeba:
+            # unbiased_pcnt = args.test_pcnt + args.context_pcnt
+            dataset, base_dir = em.celeba(
+                download_dir=data_root,
+                label=args.celeba_target_attr.name,
+                sens_attr=args.celeba_sens_attr.name,
+                download=True,
+                check_integrity=True,
+            )
+            assert dataset is not None
+            all_data = emvi.TorchImageDataset(
+                data=dataset.load(), root=base_dir, transform=transform, target_transform=None
+            )
+            s_dim = max(2, all_data.s_dim)
+        else:
+            all_data = IsicDataset(
+                root=data_root,
+                sens_attr=args.isic_sens_attr.name,
+                target_attr=args.isic_target_attr.name,
+                max_samples=400,
+                download=True,
+                transform=transform,
+                target_transform=None,
+            )
+            s_dim = 1
 
         size = len(all_data)
         context_len = round(args.context_pcnt * size)
@@ -217,11 +231,8 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
             (context_len, train_len, test_len)
         )
 
-        y_dim = 1
-        s_dim = max(2, all_data.s_dim)
-
         def _subsample_inds_by_s_and_y(
-            _data: emvi.TorchImageDataset, _subset_inds: Tensor, _target_props: Dict[str, float]
+            _data: Dataset, _subset_inds: Tensor, _target_props: Dict[str, float]
         ) -> Tensor:
 
             for _class_id, _prop in _target_props.items():
@@ -246,16 +257,16 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
         if cfg.bias.subsample_train:
             train_inds = _subsample_inds_by_s_and_y(all_data, train_inds, cfg.bias.subsample_train)
 
-        context_data = Subset(all_data, context_inds)
-        train_data = Subset(all_data, train_inds)
+        context_data = Subset(all_data, context_inds.tolist())
+        train_data = Subset(all_data, train_inds.tolist())
         test_data = Subset(all_data, test_inds)
 
-    elif args.dataset == FdmDataset.adult:
+    elif args.dataset is FdmDataset.adult:
         context_data, train_data, test_data = load_adult_data(cfg)
         y_dim = 1
-        if args.adult_split == AdultDatasetSplit.Education:
+        if args.adult_split is AdultDatasetSplit.Education:
             s_dim = 3
-        elif args.adult_split == AdultDatasetSplit.Sex:
+        elif args.adult_split is AdultDatasetSplit.Sex:
             s_dim = 1
         else:
             raise ValueError(f"This split is not yet fully supported: {args.adult_split}")

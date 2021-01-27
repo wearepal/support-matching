@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import logging
 from pathlib import Path
 from typing import Dict, Optional, Sequence, Tuple
@@ -10,6 +9,8 @@ import pandas as pd
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, TensorDataset
+from torchvision.models import resnet50
+from torchvision.models.resnet import ResNet
 from tqdm import tqdm
 from typing_extensions import Literal
 
@@ -23,7 +24,7 @@ from shared.utils import ModelFn, compute_metrics, make_tuple_from_data, prod
 
 from .utils import log_images
 
-log = logging.getLogger(__name__.split(".")[-1].upper())
+LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 def log_sample_images(cfg: Config, data, name, step):
@@ -44,7 +45,7 @@ def log_metrics(
     """Compute and log a variety of metrics."""
     model.eval()
 
-    log.info("Encoding training set...")
+    LOGGER.info("Encoding training set...")
     train_inv_s = encode_dataset(
         cfg, data.train, model, recons=cfg.fdm.eval_on_recon, invariant_to="s"
     )
@@ -54,7 +55,7 @@ def log_metrics(
     else:
         test_repr = encode_dataset(cfg, data.test, model, recons=False, invariant_to="s")
 
-    log.info("\nComputing metrics...")
+    LOGGER.info("\nComputing metrics...")
     evaluate(
         cfg=cfg,
         step=step,
@@ -72,8 +73,8 @@ def log_metrics(
 
 
 def baseline_metrics(cfg: Config, data: DatasetTriplet, save_to_csv: Optional[Path]) -> None:
-    if cfg.data.dataset not in (FdmDataset.cmnist, FdmDataset.celeba):
-        log.info("Baselines...")
+    if cfg.data.dataset not in (FdmDataset.cmnist, FdmDataset.celeba, FdmDataset.isic):
+        LOGGER.info("Baselines...")
         train_data = data.train
         test_data = data.test
         if not isinstance(train_data, em.DataTuple):
@@ -114,10 +115,14 @@ def fit_classifier(
 ) -> Classifier:
     input_dim = input_shape[0]
     clf_fn: ModelFn
-    if cfg.data.dataset == FdmDataset.cmnist and train_on_recon:
-        clf_fn = Mp32x23Net(batch_norm=True)
-    elif cfg.data.dataset == FdmDataset.celeba and train_on_recon:
-        clf_fn = Mp64x64Net(batch_norm=True)
+
+    if cfg.data.dataset is not FdmDataset.adult and train_on_recon:
+        if cfg.data.dataset is FdmDataset.cmnist:
+            clf_fn = Mp32x23Net(batch_norm=True)
+        elif cfg.data.dataset is FdmDataset.celeba:
+            clf_fn = Mp64x64Net(batch_norm=True)
+        else:  # ISIC dataset
+            clf_fn = lambda input_dim, target_dim: resnet50(num_classes=target_dim)
     else:
         clf_fn = FcNet(hidden_dims=None)
         input_dim = prod(input_shape)
@@ -162,7 +167,7 @@ def evaluate(
             {f"Clust/Context {k}": v for k, v in cluster_context_metrics.items()}
         )
 
-    if cfg.data.dataset in (FdmDataset.cmnist, FdmDataset.celeba):
+    if cfg.data.dataset in (FdmDataset.cmnist, FdmDataset.celeba, FdmDataset.isic):
 
         train_loader = DataLoader(
             train_data, batch_size=cfg.fdm.eff_batch_size, shuffle=True, pin_memory=True
@@ -183,10 +188,12 @@ def evaluate(
 
         preds, labels, sens = clf.predict_dataset(test_loader, device=torch.device(cfg.misc.device))
         preds = em.Prediction(hard=pd.Series(preds))
-        if cfg.data.dataset == FdmDataset.cmnist:
+        if cfg.data.dataset is FdmDataset.cmnist:
             sens_name = "colour"
-        elif cfg.data.dataset == FdmDataset.celeba:
+        elif cfg.data.dataset is FdmDataset.celeba:
             sens_name = cfg.data.celeba_sens_attr
+        elif cfg.data.dataset is FdmDataset.isic:
+            sens_name = cfg.data.isic_sens_attr
         else:
             sens_name = "sens_Label"
         sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=[sens_name])
@@ -234,7 +241,7 @@ def encode_dataset(
     recons: bool,
     invariant_to: Literal["s", "y"] = "s",
 ) -> "TensorDataset":
-    log.info("Encoding dataset...")
+    LOGGER.info("Encoding dataset...")
     all_x_m = []
     all_s = []
     all_y = []
@@ -261,7 +268,7 @@ def encode_dataset(
                 z_m = zs_m if invariant_to == "s" else zy_m
                 x_m = generator.decode(z_m, mode="hard")
 
-                if cfg.data.dataset == FdmDataset.celeba:
+                if cfg.data.dataset in (FdmDataset.celeba, FdmDataset.isic):
                     x_m = 0.5 * x_m + 0.5
                 if x.dim() > 2:
                     x_m = x_m.clamp(min=0, max=1)
@@ -277,6 +284,6 @@ def encode_dataset(
     all_y = torch.cat(all_y, dim=0)
 
     encoded_dataset = TensorDataset(all_x_m, all_s, all_y)
-    log.info("Done.")
+    LOGGER.info("Done.")
 
     return encoded_dataset

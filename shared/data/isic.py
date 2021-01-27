@@ -1,11 +1,10 @@
 from __future__ import annotations
-
 from dataclasses import dataclass
 import logging
 from pathlib import Path
 import posixpath
 import shutil
-from typing import Callable, ClassVar, Union
+from typing import Callable, ClassVar, NamedTuple, Union
 
 from PIL import Image
 import numpy as np
@@ -16,8 +15,8 @@ from torch.tensor import Tensor
 from torch.utils.data.dataset import Dataset
 from torchvision.transforms.transforms import ToTensor
 from tqdm import tqdm
-from typing_extensions import Literal
 
+from shared.configs.enums import IsicAttrs
 from shared.utils.utils import flatten_dict
 
 __all__ = ["IsicDataset"]
@@ -25,15 +24,13 @@ __all__ = ["IsicDataset"]
 LOGGER = logging.getLogger(__name__)
 
 
-@dataclass
-class Sample:
+class Sample(NamedTuple):
     x: Tensor
     s: Tensor
     y: Tensor
 
 
 Transform = Callable[[Union[Image.Image, Tensor]], Tensor]
-IsicAttrs = Literal["malignant", "patch", "histo"]
 
 
 class IsicDataset(Dataset):
@@ -48,8 +45,8 @@ class IsicDataset(Dataset):
         root: str | Path,
         download: bool = True,
         max_samples: int = 23906,  # default is the number of samples used for the NSLB paper
-        sens_attr: IsicAttrs = "histo",
-        target_attr: IsicAttrs = "malignant",
+        sens_attr: IsicAttrs = IsicAttrs.histo,
+        target_attr: IsicAttrs = IsicAttrs.malignant,
         transform: Transform | None = ToTensor(),
         target_transform: Transform | None = None,
     ) -> None:

@@ -13,6 +13,8 @@ from .enums import (
     DiscriminatorMethod,
     EncoderType,
     FdmDataset,
+    IsicAttrs,
+    IsicAttrs,
     MMDKernel,
     PlMethod,
     QuantizationLevel,
@@ -70,6 +72,10 @@ class DatasetConfig:
     # CelebA settings
     celeba_sens_attr: CelebaAttributes = CelebaAttributes.Male
     celeba_target_attr: CelebaAttributes = CelebaAttributes.Smiling
+
+    # ISIC settings
+    isic_sens_attr: IsicAttrs = IsicAttrs.histo
+    isic_target_attr: IsicAttrs = IsicAttrs.malignant
 
 
 @dataclass

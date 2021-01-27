@@ -17,7 +17,7 @@ from .base import Encoder, ModelBase
 
 __all__ = ["AutoEncoder", "Vae"]
 
-log = logging.getLogger(__name__.split(".")[-1].upper())
+LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 class AutoEncoder(Encoder):
@@ -107,7 +107,7 @@ class AutoEncoder(Encoder):
                         wandb_log(True, logging_dict, step)
                 # enc_sched.step()
                 # dec_sched.step()
-        log.info("Final result from encoder training:")
+        LOGGER.info("Final result from encoder training:")
         print_metrics({f"Enc {k}": v for k, v in logging_dict.items()})
 
     def routine(self, x: Tensor) -> Tuple[Tensor, Tensor, Dict[str, float]]:
