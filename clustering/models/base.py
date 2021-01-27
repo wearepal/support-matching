@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 __all__ = ["ModelBase", "Encoder"]
 
-log = logging.getLogger("MODELS")
+LOGGER = logging.getLogger("MODELS")
 
 
 class ModelBase(nn.Module):
@@ -53,7 +53,7 @@ class ModelBase(nn.Module):
         self, num_layers: int, optimizer_kwargs: Optional[Dict[str, Any]] = None
     ) -> None:
         assert isinstance(self.model, nn.Sequential), "model isn't indexable"
-        log.info(f"Freezing {num_layers} out of {len(self.model)} layers.")
+        LOGGER.info(f"Freezing {num_layers} out of {len(self.model)} layers.")
         for block in self.model[:num_layers]:
             for parameter in block.parameters():
                 parameter.requires_grad_(False)

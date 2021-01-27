@@ -14,7 +14,7 @@ from shared.utils import wandb_log
 
 __all__ = ["Classifier", "Regressor"]
 
-log = logging.getLogger(__name__.split(".")[-1].upper())
+LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 class Classifier(ModelBase):
@@ -159,7 +159,7 @@ class Classifier(ModelBase):
         if lr_milestones is not None:
             scheduler = MultiStepLR(optimizer=self.optimizer, **lr_milestones)
 
-        log.info("Training classifier...")
+        LOGGER.info("Training classifier...")
         pbar = trange(epochs)
         for epoch in pbar:
             self.model.train()

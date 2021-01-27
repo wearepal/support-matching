@@ -9,7 +9,7 @@ from shared.configs import BaseConfig
 
 __all__ = ["ClusterResults", "save_results", "load_results"]
 
-log = logging.getLogger(__name__.split(".")[-1].upper())
+LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 class ClusterResults(NamedTuple):
@@ -34,7 +34,7 @@ def save_results(save_path: Path, cluster_results: ClusterResults) -> Path:
         "test_metrics": cluster_results.test_metrics or {},
     }
     torch.save(save_dict, save_path)
-    log.info(
+    LOGGER.info(
         f"To make use of the generated cluster labels:\n"
         f"misc.cluster_label_file={save_path.resolve()}"
     )

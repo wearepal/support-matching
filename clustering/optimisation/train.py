@@ -71,7 +71,7 @@ from .utils import cluster_metrics, count_occurances, get_class_id, get_cluster_
 
 __all__ = ["main"]
 
-log = logging.getLogger(__name__.split(".")[-1].upper())
+LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 class Experiment(ExperimentBase):
@@ -150,7 +150,7 @@ class Experiment(ExperimentBase):
             " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items()),
             total_loss_meter.avg,
         )
-        log.info(to_log)
+        LOGGER.info(to_log)
         return itr
 
     def validate(
@@ -285,15 +285,15 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     save_dir = Path(to_absolute_path(misc.save_dir)) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    log.info(str(OmegaConf.to_yaml(cfg, resolve=True, sort_keys=True)))
-    log.info(f"Save directory: {save_dir.resolve()}")
+    LOGGER.info(str(OmegaConf.to_yaml(cfg, resolve=True, sort_keys=True)))
+    LOGGER.info(f"Save directory: {save_dir.resolve()}")
     # ==== check GPU ====
     device = torch.device(misc.device)
-    log.info(f"{torch.cuda.device_count()} GPUs available. Using device '{device}'")
+    LOGGER.info(f"{torch.cuda.device_count()} GPUs available. Using device '{device}'")
 
     # ==== construct dataset ====
     datasets: DatasetTriplet = load_dataset(cfg)
-    log.info(
+    LOGGER.info(
         "Size of context-set: {}, training-set: {}, test-set: {}".format(
             len(datasets.context),
             len(datasets.train),
@@ -353,7 +353,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         num_clusters = y_count
     else:
         num_clusters = s_count * y_count
-    log.info(
+    LOGGER.info(
         f"Number of clusters: {num_clusters}, accuracy computed with respect to {args.cluster.name}"
     )
     mappings: list[str] = []
@@ -365,7 +365,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         else:
             # class_id = y * s_count + s
             mappings.append(f"{i}: (y = {i // s_count}, s = {i % s_count})")
-    log.info("class IDs:\n\t" + "\n\t".join(mappings))
+    LOGGER.info("class IDs:\n\t" + "\n\t".join(mappings))
     feature_group_slices = getattr(datasets.context, "feature_group_slices", None)
 
     # ================================= encoder =================================
@@ -386,7 +386,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         enc_shape = (512,)
         encoder.to(device)
 
-    log.info(f"Encoding shape: {enc_shape}")
+    LOGGER.info(f"Encoding shape: {enc_shape}")
 
     enc_path: Path
     if args.enc_path:
@@ -411,9 +411,9 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         args_encoder = {"encoder_type": args.encoder.name, "levels": enc.levels}
         enc_path = save_dir.resolve() / "encoder"
         torch.save({"encoder": encoder.state_dict(), "args": args_encoder}, enc_path)
-        log.info(f"To make use of this encoder:\n--enc-path {enc_path}")
+        LOGGER.info(f"To make use of this encoder:\n--enc-path {enc_path}")
         if args.enc_wandb:
-            log.info("Stopping here because W&B will be messed up...")
+            LOGGER.info("Stopping here because W&B will be messed up...")
             if run is not None:
                 run.finish()  # this allows multiple experiments in one python process
             return
@@ -471,6 +471,8 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
             labeler_fn = Mp32x23Net(batch_norm=True)
         elif data.dataset == FdmDataset.celeba:
             labeler_fn = Mp64x64Net(batch_norm=True)
+        elif data.dataset == FdmDataset.isic:
+            labeler_fn = lambda input_dim, target_dim: resnet50(num_classes=target_dim)
         else:
             labeler_fn = FcNet(hidden_dims=args.labeler_hidden_dims)
 
@@ -482,7 +484,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
             optimizer_kwargs=labeler_optimizer_kwargs,
         )
         labeler.to(device)
-        log.info("Fitting the labeler to the labeled data.")
+        LOGGER.info("Fitting the labeler to the labeled data.")
         labeler.fit(
             train_loader,
             epochs=args.labeler_epochs,
@@ -522,7 +524,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     start_epoch = 1  # start at 1 so that the val_freq works correctly
     # Resume from checkpoint
     if misc.resume is not None:
-        log.info("Restoring generator from checkpoint")
+        LOGGER.info("Restoring generator from checkpoint")
         model, start_epoch = exp.restore_model(Path(misc.resume))
         if misc.evaluate:
             pth_path = exp.convert_and_save_results(
@@ -538,7 +540,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     # Logging
     # wandb.set_model_graph(str(generator))
     num_parameters = count_parameters(model)
-    log.info(f"Number of trainable parameters: {num_parameters}")
+    LOGGER.info(f"Number of trainable parameters: {num_parameters}")
 
     # best_loss = float("inf")
     best_acc = 0.0
@@ -566,7 +568,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
             prepare = (
                 f"{k}: {v:.5g}" if isinstance(v, float) else f"{k}: {v}" for k, v in val_log.items()
             )
-            log.info(
+            LOGGER.info(
                 "[VAL] Epoch {:04d} | {} | "
                 "No improvement during validation: {:02d}".format(
                     epoch,
@@ -579,14 +581,14 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         #     log_metrics(args, model=model.bundle, data=datasets, step=itr)
         #     save_model(args, save_dir, model=model.bundle, epoch=epoch, sha=sha)
 
-    log.info("Training has finished.")
+    LOGGER.info("Training has finished.")
     # path = save_model(args, save_dir, model=model, epoch=epoch, sha=sha)
     # model, _ = restore_model(args, path, model=model)
     _, test_metrics, _ = exp.validate(val_loader)
     _, context_metrics, _ = exp.validate(context_loader)
-    log.info("Test metrics:")
+    LOGGER.info("Test metrics:")
     print_metrics({f"Test {k}": v for k, v in test_metrics.items()})
-    log.info("Context metrics:")
+    LOGGER.info("Context metrics:")
     print_metrics({f"Context {k}": v for k, v in context_metrics.items()})
     pth_path = exp.convert_and_save_results(
         cluster_label_path=cluster_label_path,

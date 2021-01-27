@@ -15,9 +15,7 @@ from shared.utils import ClusterResults, as_pretty_dict, flatten_dict, print_met
 from .evaluation import encode_dataset
 from .utils import cluster_metrics, count_occurances, get_class_id
 
-# from tqdm import tqdm
-
-log = logging.getLogger(__name__.split(".")[-1].upper())
+LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 def train(
@@ -55,9 +53,9 @@ def train(
     prepared = (
         f"{k}: {v:.5g}" if isinstance(v, float) else f"{k}: {v}" for k, v in logging_dict.items()
     )
-    log.info(" | ".join(prepared))
+    LOGGER.info(" | ".join(prepared))
     wandb_log(cfg.misc, logging_dict, step=0)
-    log.info("Context metrics:")
+    LOGGER.info("Context metrics:")
     print_metrics({f"Context {k}": v for k, v in context_metrics.items()})
     return ClusterResults(
         flags=flatten_dict(as_pretty_dict(cfg)),

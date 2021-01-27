@@ -19,7 +19,7 @@ __all__ = [
     "save_model",
 ]
 
-log = logging.getLogger(__name__.split(".")[-1].upper())
+LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 def log_images(
@@ -39,7 +39,7 @@ def log_images(
     if cfg.enc.recon_loss == ReconstructionLoss.ce:
         images = images.argmax(dim=1).float() / 255
     else:
-        if cfg.data.dataset == FdmDataset.celeba:
+        if cfg.data.dataset in (FdmDataset.celeba, FdmDataset.isic):
             images = 0.5 * images + 0.5
 
     if monochrome:
@@ -105,8 +105,8 @@ def get_stratified_sampler(
         for cluster, count in zip(unique, counts):
             count_int = int(count)
             if count_int < min_size:
-                log.info(f"Dropping cluster {cluster} with only {count_int} elements.")
-                log.info("Consider setting --oversample to True (or improve clustering).")
+                LOGGER.info(f"Dropping cluster {cluster} with only {count_int} elements.")
+                LOGGER.info("Consider setting --oversample to True (or improve clustering).")
                 # set this cluster's multiplier to 0 so that it is skipped
                 multipliers[int(cluster)] = 0
                 n_used_clusters -= 1

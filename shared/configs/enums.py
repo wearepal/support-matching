@@ -22,6 +22,7 @@ class FdmDataset(Enum):
     adult = auto()
     cmnist = auto()
     celeba = auto()
+    isic = auto()
 
 
 class ClusteringLabel(Enum):
@@ -148,6 +149,14 @@ class CelebaAttributes(Enum):
     Wearing_Necklace = auto()
     Wearing_Necktie = auto()
     Young = auto()
+
+
+class IsicAttrs(Enum):
+    """Attributes available for the ISIC dataset."""
+
+    histo = auto()
+    malignant = auto()
+    patch = auto()
 
 
 class AdultDatasetSplit(Enum):
