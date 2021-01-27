@@ -52,7 +52,7 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
         augs = []
         if args.padding > 0:
             augs.append(nn.ConstantPad2d(padding=args.padding, value=0))
-        if args.quant_level is QuantizationLevel.eight:
+        if args.quant_level is not QuantizationLevel.eight:
             augs.append(Quantize(args.quant_level.value))
         if args.input_noise:
             augs.append(NoisyDequantize(args.quant_level.value))
