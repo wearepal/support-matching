@@ -7,6 +7,7 @@ import shutil
 from typing import Callable, ClassVar, Literal, Union
 
 from PIL import Image
+import numpy as np
 import pandas as pd
 import requests
 import torch
@@ -31,7 +32,7 @@ class Sample:
 
 
 Transform = Callable[[Union[Image.Image, Tensor]], Tensor]
-IsicAttrs = Literal["is_malignant", "patch"]
+IsicAttrs = Literal["malignant", "patch", "histo"]
 
 
 class IsicDataset(Dataset):
@@ -46,8 +47,8 @@ class IsicDataset(Dataset):
         root: str | Path,
         download: bool = True,
         max_samples: int = 23906,  # default is the number of samples used for the NSLB paper
-        sens_attr: IsicAttrs = "patch",
-        target_attr: IsicAttrs = "is_malignant",
+        sens_attr: IsicAttrs = "histo",
+        target_attr: IsicAttrs = "malignant",
         transform: Transform | None = ToTensor(),
         target_transform: Transform | None = None,
     ) -> None:
@@ -170,15 +171,13 @@ class IsicDataset(Dataset):
         labels_df = metadata_df.loc[
             metadata_df["meta.clinical.benign_malignant"].isin({"benign", "malignant"})
         ]  # throw out unknowns
-        LOGGER.info(
-            f"Using {len(labels_df)} out of {len(metadata_df)} total samples with confirmed 'benign' or 'malignant' diagnoses..."
-        )
         malignant_mask = labels_df["meta.clinical.benign_malignant"] == "malignant"
+        labels_df["malignant"] = malignant_mask.astype(np.uint8)
 
-        labels_df["is_malignant"] = None
-        labels_df.loc[malignant_mask, "is_malignant"] = 1
-        labels_df.loc[~malignant_mask, "is_malignant"] = 0
-        assert not any(is_malignant is None for is_malignant in labels_df["is_malignant"])
+        labels_df["meta.clinical.diagnosis_confirm_type"].fillna(value="non-histopathology")
+        histopathology_mask = labels_df["meta.clinical.diagnosis_confirm_type"] == "histopathology"
+        labels_df["histo"] = histopathology_mask.astype(np.uint8)
+
         return labels_df
 
     @staticmethod
