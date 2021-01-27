@@ -111,15 +111,12 @@ def compute_metrics(
                 wandb.run.summary[metric_name] = value
 
     log.info(f"Results for {exp_name} ({model_name}):")
-    print_metrics({f"{k} ({model_name})": v for k, v in metrics.items()})
-    log.info("")  # empty line
+    print_metrics(metrics)
     return metrics
 
 
 def print_metrics(metrics: Mapping[str, Union[int, float, str]]) -> None:
-    """Print metrics in such a way that they are picked up by guildai."""
-    log.info("---")
-    log.info(
-        "\n".join(f"{key.replace(' ', '_').lower()}: {value:.5g}" for key, value in metrics.items())
-    )
+    """Print metrics such that they don't clutter everything too much."""
+    for key, value in metrics.items():
+        log.info(f"    {key}: {value:.3g}")
     log.info("---")
