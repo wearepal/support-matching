@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from dataclasses import dataclass
 import logging
 from pathlib import Path
@@ -93,10 +92,13 @@ class IsicDataset(Dataset):
         image_ids = req.json()
         image_ids = [image_id["_id"] for image_id in image_ids]
         entries = []
-        for image_id in tqdm(image_ids):
-            req = requests.get(posixpath.join(self._rest_api_url, "image", image_id))
-            entry = flatten_dict(req.json(), sep=".")
-            entries.append(entry)
+        with tqdm(total=len(image_ids), desc="Downloading metadata") as pbar:
+            for image_id in image_ids:
+                pbar.set_postfix(image_id=image_id)
+                req = requests.get(posixpath.join(self._rest_api_url, "image", image_id))
+                entry = flatten_dict(req.json(), sep=".")
+                entries.append(entry)
+                pbar.update()
 
         metadata_df = pd.DataFrame(entries)
         metadata_df = metadata_df.set_index("_id")
@@ -116,15 +118,18 @@ class IsicDataset(Dataset):
         raw_image_dir = self._raw_dir / "images"
         raw_image_dir.mkdir(exist_ok=True)
         image_ids = list(metadata_df.index)
-        for image_id in tqdm(image_ids):
-            req = requests.get(
-                posixpath.join(self._rest_api_url, "image", image_id, "download"), stream=True
-            )
-            req.raise_for_status()
-            image_path = raw_image_dir / f"{image_id}.jpg"
-            with open(image_path, "wb") as f:
-                shutil.copyfileobj(req.raw, f)
-            del req
+        with tqdm(total=len(image_ids), desc="Downloading images") as pbar:
+            for image_id in image_ids:
+                pbar.set_postfix(image_id=image_id)
+                req = requests.get(
+                    posixpath.join(self._rest_api_url, "image", image_id, "download"), stream=True
+                )
+                req.raise_for_status()
+                image_path = raw_image_dir / f"{image_id}.jpg"
+                with open(image_path, "wb") as f:
+                    shutil.copyfileobj(req.raw, f)
+                del req
+                pbar.update()
 
     def _preprocess_isic_metadata(self) -> None:
         """Preprocesses the raw ISIC metadata."""
@@ -155,15 +160,18 @@ class IsicDataset(Dataset):
         image_ids = labels_df.index.tolist()
 
         (self._processed_dir / "images").mkdir(exist_ok=True)
-        for image_id in tqdm(image_ids):
-            out_path = self._processed_dir / "images" / f"{image_id}.jpg"
-            if out_path.is_file():
-                continue
-            image = Image.open(self._raw_dir / "images" / f"{image_id}.jpg")
-            image = image.resize((224, 224))
-            if image.mode in ("RGBA", "P"):
-                image = image.convert("RGB")
-            image.save(out_path)
+        with tqdm(total=len(image_ids), desc="Processing images") as pbar:
+            for image_id in image_ids:
+                pbar.set_postfix(image_id=image_id)
+                out_path = self._processed_dir / "images" / f"{image_id}.jpg"
+                if out_path.is_file():
+                    continue
+                image = Image.open(self._raw_dir / "images" / f"{image_id}.jpg")
+                image = image.resize((224, 224))
+                if image.mode in ("RGBA", "P"):
+                    image = image.convert("RGB")
+                image.save(out_path)
+                pbar.update()
 
     @staticmethod
     def _remove_uncertain_diagnoses(metadata_df: pd.DataFrame) -> pd.DataFrame:
