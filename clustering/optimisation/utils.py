@@ -65,7 +65,6 @@ def get_class_id(*, s: Tensor, y: Tensor, s_count: int, to_cluster: ClusteringLa
     return class_id.view(-1)
 
 
-<<<<<<< HEAD
 def get_cluster_label_path(misc: MiscConfig, save_dir: Path) -> Path:
     if misc.cluster_label_file:
         return Path(misc.cluster_label_file)
@@ -73,30 +72,6 @@ def get_cluster_label_path(misc: MiscConfig, save_dir: Path) -> Path:
         return save_dir / "cluster_results.pth"
 
 
-def convert_and_save_results(
-    cfg: Config,
-    cluster_label_path: Path,
-    results: Tuple[Tensor, Tensor, Tensor],
-    enc_path: Path,
-    context_metrics: Optional[Dict[str, float]],
-    test_metrics: Optional[Dict[str, float]] = None,
-) -> Path:
-    clusters, s, y = results
-    s_count = cfg.misc._s_dim if cfg.misc._s_dim > 1 else 2
-    class_ids = get_class_id(s=s, y=y, s_count=s_count, to_cluster=cfg.clust.cluster)
-    cluster_results = ClusterResults(
-        flags=flatten_dict(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
-        cluster_ids=clusters,
-        class_ids=class_ids,
-        enc_path=enc_path,
-        context_metrics=context_metrics,
-        test_metrics=test_metrics,
-    )
-    return save_results(save_path=cluster_label_path, cluster_results=cluster_results)
-
-
-=======
->>>>>>> Update clustering/optimisation/train.py to match fdm
 def cluster_metrics(
     *,
     cluster_ids: np.ndarray,
@@ -128,10 +103,3 @@ def cluster_metrics(
 
     logging_dict.update(metrics)
     return best_acc, metrics, logging_dict
-
-
-def get_cluster_label_path(misc: MiscConfig, save_dir: Path) -> Path:
-    if misc.cluster_label_file:
-        return Path(misc.cluster_label_file)
-    else:
-        return save_dir / "cluster_results.pth"
