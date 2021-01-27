@@ -1,36 +1,35 @@
 import torch
 
-from fdm.optimisation.utils import get_all_num_samples, weight_for_balance, weights_with_counts
+from fdm.optimisation.train import _get_multipliers_and_group_size
 from shared.utils import label_to_class_id
 
 
-def test_weight_for_balance() -> None:
-    cluster_ids = torch.tensor([4, 4, 3, 3, 3, 3, 1, 1, 1, 1, 0])
-    weights, n_clusters, min_count, max_count = weight_for_balance(cluster_ids)
+def test_binary_s_and_y() -> None:
+    class_ids = torch.tensor([0, 0, 0, 0, 1, 1, 3, 3, 3, 3, 3])
+    s_count = 2
+    multipliers, group_sizes = _get_multipliers_and_group_size(class_ids, s_count)
 
-    torch.testing.assert_allclose(
-        weights,
-        torch.tensor([0.5, 0.5, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 1.0]),
-        rtol=0,
-        atol=0,
-    )
-    assert n_clusters == 4
-    assert min_count == 1
-    assert max_count == 4
+    assert multipliers == {0: 1, 1: 1, 3: 2}
+    assert group_sizes == [2, 2, 4]
 
 
-def test_get_all_num_samples() -> None:
-    s_dim = 2
-    s = torch.tensor([0, 0, 1, 1, 1, 1, 1, 1, 1])
-    y = torch.tensor([0, 0, 0, 0, 0, 0, 1, 1, 1])
-    class_ids = label_to_class_id(s=s, y=y, s_count=s_dim)
-    _, y_w_and_c = weights_with_counts(y)
-    _, quad_w_and_c = weights_with_counts(class_ids)
+def test_multiclass_s_and_y() -> None:
+    # setup:
+    #
+    # y=0
+    #   s=0: 0
+    #   s=1: 1
+    # y=1
+    #   s=0: 3
+    #   s=1: 4
+    #   s=2: 5
+    # y=2
+    #   s=2: 8
+    #
+    # this means that 8 gets a multiplier of 6, 3/4/5 get 2 and 0/1 get 3
+    class_ids = torch.tensor([0, 0, 0, 1, 1, 1, 3, 3, 4, 4, 5, 5, 8, 8, 8, 8, 8, 8])
+    s_count = 3
+    multipliers, group_sizes = _get_multipliers_and_group_size(class_ids, s_count)
 
-    all_num_samples = get_all_num_samples(
-        quad_w_and_c=quad_w_and_c, y_w_and_c=y_w_and_c, s_dim=s_dim
-    )
-    expected = [2 * 4, 4 * 4, 3 * 2]
-    # check that the two lists are identical (except for the order)
-    assert len(expected) == len(all_num_samples)
-    assert all(num_samples in all_num_samples for num_samples in expected)
+    assert multipliers == {0: 3, 1: 3, 3: 2, 4: 2, 5: 2, 8: 6}
+    assert group_sizes == [1, 1, 1, 1, 1, 1]

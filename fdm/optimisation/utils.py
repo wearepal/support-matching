@@ -10,15 +10,13 @@ import torchvision
 import wandb
 
 from shared.configs import Config, FdmDataset, ReconstructionLoss
-from shared.utils import as_pretty_dict, class_id_to_label, flatten, wandb_log
+from shared.utils import StratifiedSampler, as_pretty_dict, class_id_to_label, flatten, wandb_log
 
 __all__ = [
-    "get_all_num_samples",
+    "get_stratified_sampler",
     "log_images",
     "restore_model",
     "save_model",
-    "weight_for_balance",
-    "weights_with_counts",
 ]
 
 log = logging.getLogger(__name__.split(".")[-1].upper())
@@ -95,21 +93,13 @@ def restore_model(cfg: Config, filename: Path, model: nn.Module) -> tuple[nn.Mod
     return model, chkpt["itr"]
 
 
-def _get_weights(cluster_ids: Tensor) -> tuple[Tensor, Tensor, Tensor]:
-    unique, counts = torch.unique(cluster_ids, sorted=False, return_counts=True)
-    n_clusters = int(unique.max() + 1)
-    weights = torch.zeros((n_clusters,))
-    # the higher the count the lower the weight to balance out
-    weights[unique.long()] = 1 / counts.float()
-    return weights, counts, unique
-
-
-def weight_for_balance(
-    cluster_ids: Tensor, min_size: int | None = None
-) -> tuple[Tensor, int, int, int]:
-    weights, counts, unique = _get_weights(cluster_ids)
+def get_stratified_sampler(
+    group_ids: Tensor, oversample: bool, batch_size: int, min_size: int | None = None
+) -> StratifiedSampler:
+    unique, counts = torch.unique(group_ids, sorted=False, return_counts=True)
 
     n_used_clusters = counts.size(0)
+    multipliers = {}
     if min_size is not None:
         smallest_used_cluster = int(counts.max())
         for cluster, count in zip(unique, counts):
@@ -117,36 +107,16 @@ def weight_for_balance(
             if count_int < min_size:
                 log.info(f"Dropping cluster {cluster} with only {count_int} elements.")
                 log.info("Consider setting --oversample to True (or improve clustering).")
-                weights[cluster] = 0  # skip this cluster
+                # set this cluster's multiplier to 0 so that it is skipped
+                multipliers[int(cluster)] = 0
                 n_used_clusters -= 1
             elif count_int < smallest_used_cluster:
                 smallest_used_cluster = count_int
     else:
         smallest_used_cluster = int(counts.min())
-    return weights[cluster_ids.long()], n_used_clusters, smallest_used_cluster, int(counts.max())
-
-
-def weights_with_counts(cluster_ids: Tensor) -> tuple[Tensor, dict[int, tuple[float, int]]]:
-    weights, counts, unique = _get_weights(cluster_ids)
-    w_and_c = {int(i): (float(weights[i.long()]), int(c)) for i, c in zip(unique, counts)}
-    return weights[cluster_ids.long()], w_and_c
-
-
-def get_all_num_samples(
-    quad_w_and_c: dict[int, tuple[float, int]],
-    y_w_and_c: dict[int, tuple[float, int]],
-    s_count: int,
-) -> list[int]:
-    # multiply the quad weights with the correct y weights
-    combined_w_and_c = []
-    for class_id, (weight, count) in quad_w_and_c.items():
-        y_weight, _ = y_w_and_c[class_id_to_label(class_id, s_count, "y")]
-        combined_w_and_c.append((weight * y_weight, count))
-
-    # compute what the intended proportions were for a balanced batch
-    intended_proportions = [weight * count for weight, count in combined_w_and_c]
-    sum_int_prop = sum(intended_proportions)
-    intended_proportions = [prop / sum_int_prop for prop in intended_proportions]
-    # compute what the size of the dataset would be if we were to use all the samples from the
-    # individual clusters and the correct proportions for all the other clusters
-    return [round(count / prop) for (_, count), prop in zip(combined_w_and_c, intended_proportions)]
+    group_size = int(counts.max()) if oversample else smallest_used_cluster
+    num_samples = n_used_clusters * group_size
+    assert num_samples > batch_size, f"not enough training samples ({num_samples}) to fill a batch"
+    return StratifiedSampler(
+        group_ids.squeeze().tolist(), group_size, replacement=oversample, multipliers=multipliers
+    )

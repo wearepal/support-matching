@@ -2,6 +2,8 @@
 from collections.abc import MutableMapping
 from dataclasses import asdict
 from enum import Enum
+from functools import reduce
+from math import gcd
 import os
 import random
 from typing import Any, Dict, Iterable, Iterator, Optional, Sequence, Tuple, TypeVar, Union
@@ -27,6 +29,7 @@ __all__ = [
     "get_data_dim",
     "inf_generator",
     "label_to_class_id",
+    "lcm",
     "prod",
     "random_seed",
     "readable_duration",
@@ -223,3 +226,8 @@ def _clean_up_dict(obj: Any) -> Any:
 def as_pretty_dict(data_class: object) -> dict:
     """Convert dataclass to a pretty dictionary."""
     return _clean_up_dict(asdict(data_class))
+
+
+def lcm(denominators):
+    """Least common multiplier."""
+    return reduce(lambda a, b: a * b // gcd(a, b), denominators)

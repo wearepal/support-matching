@@ -1,10 +1,14 @@
 """Main training file"""
 from __future__ import annotations
+
 from collections import defaultdict
+from collections.abc import Callable, Iterator, Sequence
+import itertools
 import logging
+from math import floor
 from pathlib import Path
 import time
-from typing import Callable, Iterator, Sequence, cast
+from typing import NamedTuple, cast
 
 import git
 from hydra.utils import to_absolute_path
@@ -16,6 +20,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from typing_extensions import Literal
+import wandb
 import yaml
 
 from fdm.models import AutoEncoder, Classifier, EncodingSize, build_discriminator
@@ -35,43 +40,46 @@ from shared.configs import (
 )
 from shared.data import DatasetTriplet, load_dataset
 from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
-from shared.models.configs import (
-    FcNet,
-    ModelAggregatorWrapper,
-    conv_autoencoder,
-    fc_autoencoder,
-)
+from shared.models.configs import FcNet, ModelAggregatorWrapper, conv_autoencoder, fc_autoencoder
 from shared.utils import (
     AverageMeter,
     ModelFn,
+    StratifiedSampler,
+    as_pretty_dict,
+    class_id_to_label,
     count_parameters,
     flatten,
     inf_generator,
     label_to_class_id,
+    lcm,
     load_results,
     prod,
     random_seed,
     readable_duration,
     wandb_log,
 )
-from shared.utils.utils import as_pretty_dict
-import wandb
 
 from .build import build_ae
 from .evaluation import baseline_metrics, log_metrics
 from .loss import MixedLoss, PixelCrossEntropy
 from .utils import (
-    get_all_num_samples,
+    get_stratified_sampler,
     log_images,
     restore_model,
     save_model,
-    weight_for_balance,
-    weights_with_counts,
 )
 
 __all__ = ["main"]
 
 log = logging.getLogger(__name__.split(".")[-1].upper())
+
+
+class Triplet(NamedTuple):
+    """A data structure for reducing clutter."""
+
+    x: Tensor
+    s: Tensor
+    y: Tensor
 
 
 class Experiment:
@@ -106,10 +114,11 @@ class Experiment:
         self,
         context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
         train_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
-    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+    ) -> tuple[Tensor, Triplet]:
         x_c = self.to_device(next(context_data_itr)[0])
+        x_c = cast(Tensor, x_c)
         x_t, s_t, y_t = self.to_device(*next(train_data_itr))
-        return x_c, x_t, s_t, y_t  # type: ignore
+        return x_c, Triplet(x_t, s_t, y_t)
 
     def train_step(
         self,
@@ -122,22 +131,20 @@ class Experiment:
         if (not warmup) and (self.args.disc_method is DiscriminatorMethod.nn):
             # Train the discriminator on its own for a number of iterations
             for _ in range(self.args.num_disc_updates):
-                x_c, x_t, s_t, y_t = self.get_batch(
+                x_c, tr = self.get_batch(
                     context_data_itr=context_data_itr, train_data_itr=train_data_itr
                 )
-                self.update_disc(x_c, x_t)
+                self.update_disc(x_c, tr.x)
 
-        x_c, x_t, s_t, y_t = self.get_batch(
-            context_data_itr=context_data_itr, train_data_itr=train_data_itr
-        )
-        _, logging_dict = self.update(x_c=x_c, x_t=x_t, s_t=s_t, y_t=y_t, warmup=warmup)
+        x_c, tr = self.get_batch(context_data_itr=context_data_itr, train_data_itr=train_data_itr)
+        _, logging_dict = self.update(x_c=x_c, tr=tr, warmup=warmup)
 
         wandb_log(self.misc, logging_dict, step=itr)
 
         # Log images
         if itr % self.args.log_freq == 0:
             with torch.no_grad():
-                self.log_recons(x=x_t, itr=itr)
+                self.log_recons(x=tr.x, itr=itr)
         return logging_dict
 
     def update_disc(self, x_c: Tensor, x_t: Tensor) -> tuple[Tensor, dict[str, float]]:
@@ -205,9 +212,7 @@ class Experiment:
 
         return disc_loss, logging_dict
 
-    def update(
-        self, x_c: Tensor, x_t: Tensor, s_t: Tensor, y_t: Tensor, warmup: bool
-    ) -> tuple[Tensor, dict[str, float]]:
+    def update(self, x_c: Tensor, tr: Triplet, warmup: bool) -> tuple[Tensor, dict[str, float]]:
         """Compute all losses.
 
         Args:
@@ -223,7 +228,7 @@ class Experiment:
         with torch.cuda.amp.autocast(enabled=self.misc.use_amp):
             # ============================= recon loss for training set ===========================
             encoding, elbo, logging_dict_elbo = self.generator.routine(
-                x_t, self.recon_loss_fn, self.args.kl_weight
+                tr.x, self.recon_loss_fn, self.args.kl_weight
             )
 
             # ============================= recon loss for context set ============================
@@ -247,11 +252,11 @@ class Experiment:
             if not warmup:
                 if self.args.disc_method is DiscriminatorMethod.nn:
                     if self.args.aggregator_type is AggregatorType.none:
-                        zeros = x_t.new_zeros((x_t.size(0),))
+                        zeros = tr.x.new_zeros((tr.x.size(0),))
                     else:
                         zeros = x_c.new_zeros(self.args.batch_size)  # type: ignore
 
-                    disc_loss = x_t.new_zeros(())
+                    disc_loss = tr.x.new_zeros(())
                     disc_acc = 0.0
                     for discriminator in self.disc_ensemble:
                         discriminator = cast(Classifier, discriminator)
@@ -281,13 +286,13 @@ class Experiment:
             enc_no_s, enc_no_y = self.generator.mask(encoding, random=False)
             if self.args.pred_y_weight > 0:
                 # predictor is on encodings; predict y from the part that is invariant to s
-                pred_y_loss, pred_y_acc = self.predictor_y.routine(enc_no_s, y_t)
+                pred_y_loss, pred_y_acc = self.predictor_y.routine(enc_no_s, tr.y)
                 pred_y_loss *= self.args.pred_y_weight
                 logging_dict["Loss Predictor y"] = pred_y_loss.item()
                 logging_dict["Accuracy Predictor y"] = pred_y_acc
                 total_loss += pred_y_loss
             if self.args.pred_s_weight > 0:
-                pred_s_loss, pred_s_acc = self.predictor_s.routine(enc_no_y, s_t)
+                pred_s_loss, pred_s_acc = self.predictor_s.routine(enc_no_y, tr.s)
                 pred_s_loss *= self.args.pred_s_weight
                 logging_dict["Loss Predictor s"] = pred_s_loss.item()
                 logging_dict["Accuracy Predictor s"] = pred_s_acc
@@ -444,14 +449,11 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
         cluster_results = load_results(cfg)
         cluster_test_metrics = cluster_results.test_metrics or {}
         cluster_context_metrics = cluster_results.context_metrics or {}
-        weights, n_clusters, min_count, max_count = weight_for_balance(
-            cluster_results.cluster_ids, min_size=None if args.oversample else args.eff_batch_size
-        )
-        # if args.oversample, oversample the smaller clusters instead of undersample the larger ones
-        num_samples = n_clusters * max_count if args.oversample else n_clusters * min_count
-        assert num_samples > args.batch_size, "not enough samples for a batch"
-        context_sampler = WeightedRandomSampler(
-            weights.tolist(), num_samples, replacement=args.oversample
+        context_sampler = get_stratified_sampler(
+            group_ids=cluster_results.cluster_ids,
+            oversample=args.oversample,
+            batch_size=args.batch_size,
+            min_size=None if args.oversample else args.eff_batch_size,
         )
         dataloader_kwargs = dict(sampler=context_sampler)
     elif args.balanced_context:
@@ -589,9 +591,9 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
         aggregator: Aggregator
         if args.aggregator_type is AggregatorType.kvq:
             aggregator = KvqAttentionAggregator(
-                args.aggregator_input_dim,
-                final_proj=final_proj,
+                latent_dim=args.aggregator_input_dim,
                 bag_size=args.bag_size,
+                final_proj=final_proj,
                 **args.aggregator_kwargs,
             )
         else:
@@ -745,7 +747,7 @@ def build_weighted_sampler_from_dataset(
     batch_size: int,
     num_workers: int,
     balance_hierarchical: bool,
-) -> WeightedRandomSampler:
+) -> StratifiedSampler:
     #  Extract the s and y labels in a dataset-agnostic way (by iterating)
     data_loader = DataLoader(
         dataset=dataset, drop_last=False, batch_size=test_batch_size, num_workers=num_workers
@@ -759,17 +761,43 @@ def build_weighted_sampler_from_dataset(
     # Balance the batches of the training set via weighted sampling
     class_ids = label_to_class_id(s=s_all, y=y_all, s_count=s_count).view(-1)
     if balance_hierarchical:
-        # here we make sure that in a batch, y is balanced and within the y subsets, s is balanced
-        y_weights, y_unique_weights_counts = weights_with_counts(y_all.view(-1))
-        quad_weights, quad_unique_weights_counts = weights_with_counts(class_ids)
-        weights = y_weights * quad_weights
-
-        all_num_samples = get_all_num_samples(
-            quad_unique_weights_counts, y_unique_weights_counts, s_count
+        # Here we make sure that in a batch, y is balanced and within the y subsets, s is balanced.
+        # So, if, for y=1, there are only samples with s=1, but for y=0, there's s=0 and s=1,
+        # then the samples with y=1/s=1 get a multiplier of 2.
+        multipliers, group_sizes = _get_multipliers_and_group_size(class_ids, s_count)
+        return StratifiedSampler(
+            group_ids=class_ids.tolist(),
+            num_samples_per_group=max(group_sizes) if oversample else min(group_sizes),
+            replacement=oversample,
+            multipliers=multipliers,
         )
-        num_samples = max(all_num_samples) if oversample else min(all_num_samples)
     else:
-        weights, n_clusters, min_count, max_count = weight_for_balance(class_ids)
-        num_samples = n_clusters * max_count if oversample else n_clusters * min_count
-    assert num_samples > batch_size, f"not enough training samples ({num_samples}) to fill a batch"
-    return WeightedRandomSampler(weights.squeeze().tolist(), num_samples, replacement=oversample)
+        return get_stratified_sampler(
+            group_ids=class_ids, oversample=oversample, batch_size=batch_size
+        )
+
+
+def _get_multipliers_and_group_size(
+    class_ids: Tensor, s_count: int
+) -> tuple[dict[int, int], list[int]]:
+    """This is a standalone function only because then we can have a unit test for it."""
+    unique_classes, counts = torch.unique(class_ids, sorted=False, return_counts=True)
+    class_ids_and_counts = [(int(i), int(c)) for i, c in zip(unique_classes, counts)]
+
+    # first, count how many subgroups there are for each y
+    num_subgroups_per_y = defaultdict(int)
+    for class_id, count in class_ids_and_counts:
+        corresponding_y = class_id_to_label(class_id, s_count, "y")
+        num_subgroups_per_y[corresponding_y] += 1
+
+    # To make all subgroups effectively the same size, we first scale everything by the least common
+    # multiplier and then we divide by the number of subgroups to get the final multiplier.
+    largest_multiplier = lcm(num_subgroups_per_y.values())
+    multipliers = {}
+    group_sizes = []
+    for class_id, count in class_ids_and_counts:
+        num_subgroups = num_subgroups_per_y[class_id_to_label(class_id, s_count, "y")]
+        multiplier = largest_multiplier // num_subgroups
+        multipliers[class_id] = multiplier
+        group_sizes.append(count // multiplier)  # for book keeping, groups need to be smaller
+    return multipliers, group_sizes
