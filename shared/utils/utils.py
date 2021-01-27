@@ -6,7 +6,17 @@ from functools import reduce
 from math import gcd
 import os
 import random
-from typing import Any, Dict, Iterable, Iterator, Optional, Sequence, Tuple, TypeVar, Union
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    Iterator,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 import numpy as np
 from omegaconf import OmegaConf
@@ -14,9 +24,9 @@ import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from typing_extensions import Literal, Protocol
-import wandb
 
 from shared.configs import MiscConfig
+import wandb
 
 __all__ = [
     "AverageMeter",
@@ -25,7 +35,8 @@ __all__ = [
     "as_pretty_dict",
     "class_id_to_label",
     "count_parameters",
-    "flatten",
+    "flatten_dict",
+    "flatten_dict_with_sep",
     "get_data_dim",
     "inf_generator",
     "label_to_class_id",
@@ -77,6 +88,17 @@ def wandb_log(
     elif not args.use_wandb:
         return
     wandb.log(row, commit=commit, step=step)
+
+
+def flatten_dict(dict_: Dict[Any, Any]) -> Dict[Any, Any]:
+    """flatten a nested dictionary."""
+    out: Dict[Any, Any] = {}
+    for key, val in dict_.items():
+        if isinstance(val, dict):
+            flatten_dict(val)
+        else:
+            out[key] = val
+    return out
 
 
 class AverageMeter:
@@ -200,13 +222,13 @@ def readable_duration(seconds: float, pad: str = "") -> str:
     return pad.join(parts)
 
 
-def flatten(d: MutableMapping, parent_key: str = "", sep: str = ".") -> dict:
+def flatten_dict_with_sep(d: MutableMapping, parent_key: str = "", sep: str = ".") -> dict:
     """Flatten a nested dictionary by separating the keys with `sep`."""
     items = []
     for k, v in d.items():
         new_key = parent_key + sep + k if parent_key else k
         if isinstance(v, MutableMapping):
-            items.extend(flatten(v, new_key, sep=sep).items())
+            items.extend(flatten_dict_with_sep(v, new_key, sep=sep).items())
         else:
             items.append((new_key, v))
     return dict(items)
