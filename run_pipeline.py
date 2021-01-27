@@ -15,16 +15,17 @@ cs.store(name="config", node=Config)
 @hydra.main(config_path="conf", config_name="config")
 def app(hydra_config: Config) -> None:
     """First run the clustering, then pass on the cluster labels to the fair representation code."""
+    cfg: Config = instantiate(hydra_config, _convert_="partial")
+
     with TemporaryDirectory() as tmpdir:
         clf = Path(tmpdir) / "labels.pth"
 
         from clustering.optimisation import main as cluster
 
-        cluster(cfg=hydra_config, cluster_label_file=clf)
+        cluster(cfg=cfg, cluster_label_file=clf)
 
         from fdm.optimisation import main as disentangle
 
-        cfg: Config = instantiate(hydra_config, _convert_="partial")
         disentangle(cfg=cfg, cluster_label_file=clf)
 
 

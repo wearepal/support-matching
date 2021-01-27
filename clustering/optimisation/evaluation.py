@@ -9,17 +9,9 @@ from tqdm import tqdm
 from clustering.models import Encoder, Model
 from shared.configs import Config
 
-from .utils import log_images
-
 __all__ = ["classify_dataset", "encode_dataset"]
 
 log = logging.getLogger(__name__.split(".")[-1].upper())
-
-
-def log_sample_images(cfg: Config, data: Dataset, name: str, step: int) -> None:
-    data_loader = DataLoader(data, shuffle=False, batch_size=64)
-    x, _, _ = next(iter(data_loader))
-    log_images(cfg, x, f"Samples from {name}", prefix="eval", step=step)
 
 
 def encode_dataset(

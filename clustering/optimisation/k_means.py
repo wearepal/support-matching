@@ -4,14 +4,19 @@ from typing import Union
 
 import faiss
 import numpy as np
-from omegaconf import OmegaConf
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
 from clustering.models import Encoder
 from shared.configs import Config
-from shared.utils import ClusterResults, flatten_dict, print_metrics, wandb_log
+from shared.utils import (
+    ClusterResults,
+    as_pretty_dict,
+    flatten_dict,
+    print_metrics,
+    wandb_log,
+)
 
 from .evaluation import encode_dataset
 from .utils import cluster_metrics, count_occurances, get_class_id
@@ -37,7 +42,7 @@ def train(
     preds = run_kmeans_faiss(
         encoded,
         nmb_clusters=num_clusters,
-        cuda=str(cfg.misc._device) != "cpu",
+        cuda=str(cfg.misc.device) != "cpu",
         n_iter=cfg.clust.epochs,
         verbose=True,
     )
@@ -61,7 +66,7 @@ def train(
     log.info("Context metrics:")
     print_metrics({f"Context {k}": v for k, v in context_metrics.items()})
     return ClusterResults(
-        flags=flatten_dict(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
+        flags=flatten_dict(as_pretty_dict(cfg)),
         cluster_ids=preds,
         class_ids=get_class_id(s=s, y=y, s_count=s_count, to_cluster=cfg.clust.cluster),
         enc_path=enc_path,

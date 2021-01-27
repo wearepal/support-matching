@@ -1,9 +1,10 @@
 """Main training file"""
+from __future__ import annotations
+
+from collections import defaultdict
 import logging
-import os
 from pathlib import Path
 import time
-from typing import Dict, List, Optional, Tuple, Union
 
 import git
 from hydra.utils import to_absolute_path
@@ -48,9 +49,12 @@ from shared.data.misc import adaptive_collate
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import (
     AverageMeter,
+    ClusterResults,
+    ExperimentBase,
     ModelFn,
+    as_pretty_dict,
     count_parameters,
-    flatten,
+    flatten_dict,
     get_data_dim,
     print_metrics,
     prod,
@@ -63,86 +67,232 @@ from shared.utils import (
 from .build import build_ae
 from .evaluation import classify_dataset
 from .k_means import train as train_k_means
-from .utils import (
-    cluster_metrics,
-    convert_and_save_results,
-    count_occurances,
-    get_class_id,
-    get_cluster_label_path,
-    restore_model,
-    save_model,
-)
+from .utils import cluster_metrics, count_occurances, get_class_id, get_cluster_label_path
 
 __all__ = ["main"]
 
 log = logging.getLogger(__name__.split(".")[-1].upper())
 
-ARGS: ClusterConfig = None  # type: ignore[assignment]
-CFG: Config = None  # type: ignore[assignment]
-DATA: DatasetConfig = None  # type: ignore[assignment]
-ENC: EncoderConfig = None  # type: ignore[assignment]
-MISC: MiscConfig = None  # type: ignore[assignment]
+
+class Experiment(ExperimentBase):
+    """Experiment singleton class."""
+
+    def __init__(
+        self,
+        args: ClusterConfig,
+        cfg: Config,
+        data: DatasetConfig,
+        enc: EncoderConfig,
+        misc: MiscConfig,
+        model: Model,
+        s_dim: int,
+        y_dim: int,
+        device: torch.device,
+    ) -> None:
+        super().__init__(cfg=cfg, data=data, enc=enc, misc=misc, device=device)
+        self.args = args
+        self.model = model
+        self.s_dim = s_dim
+        self.y_dim = y_dim
+
+    def train(self, context_data: DataLoader, train_data: DataLoader, epoch: int) -> int:
+        total_loss_meter = AverageMeter()
+        loss_meters = defaultdict(AverageMeter)
+
+        time_meter = AverageMeter()
+        start_epoch_time = time.time()
+        end = start_epoch_time
+        epoch_len = min(len(context_data), len(train_data))
+        itr = start_itr = (epoch - 1) * epoch_len
+        data_iterator = zip(context_data, train_data)
+        self.model.train()
+        s_count = self.s_dim if self.s_dim > 1 else 2
+
+        for itr, ((x_c, _, _), (x_t, s_t, y_t)) in enumerate(data_iterator, start=start_itr):
+
+            x_c, x_t, y_t, s_t = self.to_device(x_c, x_t, y_t, s_t)
+
+            if self.args.with_supervision and not self.args.use_multi_head:
+                class_id = get_class_id(s=s_t, y=y_t, s_count=s_count, to_cluster=self.args.cluster)
+                loss_sup, logging_sup = self.model.supervised_loss(
+                    x_t,
+                    class_id,
+                    ce_weight=self.args.sup_ce_weight,
+                    bce_weight=self.args.sup_bce_weight,
+                )
+            else:
+                loss_sup = x_t.new_zeros(())
+                logging_sup = {}
+            loss_unsup, logging_unsup = self.model.unsupervised_loss(x_c)
+            loss = loss_sup + loss_unsup
+
+            self.model.zero_grad()
+            loss.backward()
+            self.model.step()
+
+            # Log losses
+            logging_dict = {**logging_unsup, **logging_sup}
+            total_loss_meter.update(loss.item())
+            for name, value in logging_dict.items():
+                loss_meters[name].update(value)
+
+            time_for_batch = time.time() - end
+            time_meter.update(time_for_batch)
+
+            wandb_log(self.misc, logging_dict, step=itr)
+            end = time.time()
+
+        time_for_epoch = time.time() - start_epoch_time
+        to_log = "[TRN] Epoch {:04d} | Duration: {} | Batches/s: {:.4g} | {} ({:.5g})".format(
+            epoch,
+            readable_duration(time_for_epoch),
+            1 / time_meter.avg,
+            " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items()),
+            total_loss_meter.avg,
+        )
+        log.info(to_log)
+        return itr
+
+    def validate(
+        self, val_data: DataLoader
+    ) -> tuple[float, dict[str, float], dict[str, float | str]]:
+        self.model.eval()
+        to_cluster = self.args.cluster
+        y_count = self.y_dim if self.y_dim > 1 else 2
+        s_count = self.s_dim if self.s_dim > 1 else 2
+        if to_cluster is ClusteringLabel.s:
+            num_clusters = s_count
+        elif to_cluster is ClusteringLabel.y:
+            num_clusters = y_count
+        else:
+            num_clusters = s_count * y_count
+        counts = np.zeros((num_clusters, num_clusters), dtype=np.int64)
+        num_total = 0
+        cluster_ids: list[np.ndarray] = []
+        class_ids: list[Tensor] = []
+
+        with torch.set_grad_enabled(False):
+            for (x_v, s_v, y_v) in val_data:
+                x_v = self.to_device(x_v)
+                logits = self.model(x_v)
+                preds = logits.argmax(dim=-1).detach().cpu().numpy()
+                counts, class_id = count_occurances(counts, preds, s_v, y_v, s_count, to_cluster)
+                num_total += y_v.size(0)
+                cluster_ids.append(preds)
+                class_ids.append(class_id)
+
+        cluster_ids_np = np.concatenate(cluster_ids, axis=0)
+        true_class_ids = torch.cat(class_ids).numpy()
+        return cluster_metrics(
+            cluster_ids=cluster_ids_np,
+            counts=counts,
+            true_class_ids=true_class_ids,
+            num_total=num_total,
+            s_count=s_count,
+            to_cluster=to_cluster,
+        )
+
+    def convert_and_save_results(
+        self,
+        cluster_label_path: Path,
+        results: tuple[Tensor, Tensor, Tensor],
+        enc_path: Path,
+        context_metrics: dict[str, float] | None,
+        test_metrics: dict[str, float] | None = None,
+    ) -> Path:
+        clusters, s, y = results
+        s_count = self.s_dim if self.s_dim > 1 else 2
+        class_ids = get_class_id(s=s, y=y, s_count=s_count, to_cluster=self.args.cluster)
+        cluster_results = ClusterResults(
+            flags=flatten_dict(as_pretty_dict(self.cfg)),
+            cluster_ids=clusters,
+            class_ids=class_ids,
+            enc_path=enc_path,
+            context_metrics=context_metrics,
+            test_metrics=test_metrics,
+        )
+        return save_results(save_path=cluster_label_path, cluster_results=cluster_results)
+
+    def save_model(self, save_dir: Path, epoch: int, sha: str, best: bool = False) -> Path:
+        if best:
+            filename = save_dir / "checkpt_best.pth"
+        else:
+            filename = save_dir / f"checkpt_epoch{epoch}.pth"
+        save_dict = {
+            "args": flatten_dict(as_pretty_dict(self.cfg)),
+            "sha": sha,
+            "model": self.model.state_dict(),
+            "epoch": epoch,
+        }
+
+        torch.save(save_dict, filename)
+
+        return filename
+
+    def restore_model(self, filename: Path) -> tuple[Model, int]:
+        chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
+        args_chkpt = chkpt["args"]
+        assert self.enc.levels == args_chkpt["enc.levels"]
+        self.model.load_state_dict(chkpt["model"])
+        return self.model, chkpt["epoch"]
 
 
-def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model, Path]:
+def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     """Main function
 
     Args:
+        hydra_config: configuration object from hydra
         cluster_label_file: path to a pth file with cluster IDs
-        use_wandb: this arguments overwrites the flag
 
     Returns:
         the trained generator
     """
-    # ==== initialize globals ====
-    global ARGS, CFG, DATA, ENC, MISC
-    ARGS = cfg.clust
-    CFG = cfg
-    DATA = cfg.data
-    ENC = cfg.enc
-    MISC = cfg.misc
+    # ==== initialize config shorthands ====
+    args = cfg.clust
+    data = cfg.data
+    enc = cfg.enc
+    misc = cfg.misc
 
     # ==== current git commit ====
-    if os.environ.get("STARTED_BY_GUILDAI", None) == "1":
-        sha = ""
-    else:
-        repo = git.Repo(search_parent_directories=True)
-        sha = repo.head.object.hexsha
+    repo = git.Repo(search_parent_directories=True)
+    sha = repo.head.object.hexsha
 
-    use_gpu = torch.cuda.is_available() and MISC.gpu >= 0
-    random_seed(MISC.seed, use_gpu)
+    use_gpu = torch.cuda.is_available() and misc.gpu >= 0
+    random_seed(misc.seed, use_gpu)
     if cluster_label_file is not None:
-        MISC.cluster_label_file = str(cluster_label_file)
+        misc.cluster_label_file = str(cluster_label_file)
 
     run = None
-    if MISC.use_wandb:
+    if misc.use_wandb:
         group = ""
-        if MISC.log_method:
-            group += MISC.log_method
-        if MISC.exp_group:
-            group += "." + MISC.exp_group
+        if misc.log_method:
+            group += misc.log_method
+        if misc.exp_group:
+            group += "." + misc.exp_group
         if cfg.bias.log_dataset:
             group += "." + cfg.bias.log_dataset
+        local_dir = Path(".", "local_logging")
+        local_dir.mkdir(exist_ok=True)
         run = wandb.init(
             entity="predictive-analytics-lab",
             project="fcm-hydra",
-            config=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
+            dir=str(local_dir),
+            config=flatten_dict(as_pretty_dict(cfg)),
             group=group if group else None,
             reinit=True,
         )
 
-    save_dir = Path(to_absolute_path(MISC.save_dir)) / str(time.time())
+    save_dir = Path(to_absolute_path(misc.save_dir)) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
     log.info(str(OmegaConf.to_yaml(cfg, resolve=True, sort_keys=True)))
     log.info(f"Save directory: {save_dir.resolve()}")
     # ==== check GPU ====
-    MISC._device = f"cuda:{MISC.gpu}" if use_gpu else "cpu"
-    device = torch.device(MISC._device)
+    device = torch.device(misc.device)
     log.info(f"{torch.cuda.device_count()} GPUs available. Using device '{device}'")
 
     # ==== construct dataset ====
-    datasets: DatasetTriplet = load_dataset(CFG)
+    datasets: DatasetTriplet = load_dataset(cfg)
     log.info(
         "Size of context-set: {}, training-set: {}, test-set: {}".format(
             len(datasets.context),
@@ -150,22 +300,22 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
             len(datasets.test),
         )
     )
-    ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
-    context_batch_size = round(ARGS.batch_size * len(datasets.context) / len(datasets.train))
+    args.test_batch_size = args.test_batch_size if args.test_batch_size else args.batch_size
+    context_batch_size = round(args.batch_size * len(datasets.context) / len(datasets.train))
     context_loader = DataLoader(
         datasets.context,
         shuffle=True,
         batch_size=context_batch_size,
-        num_workers=MISC.num_workers,
+        num_workers=misc.num_workers,
         pin_memory=True,
     )
     enc_train_data = ConcatDataset([datasets.context, datasets.train])
-    if ARGS.encoder == EncoderType.rotnet:
+    if args.encoder == EncoderType.rotnet:
         enc_train_loader = DataLoader(
             RotationPrediction(enc_train_data, apply_all=True),
             shuffle=True,
-            batch_size=ARGS.batch_size,
-            num_workers=MISC.num_workers,
+            batch_size=args.batch_size,
+            num_workers=misc.num_workers,
             pin_memory=True,
             collate_fn=adaptive_collate,
         )
@@ -173,23 +323,23 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
         enc_train_loader = DataLoader(
             enc_train_data,
             shuffle=True,
-            batch_size=ARGS.batch_size,
-            num_workers=MISC.num_workers,
+            batch_size=args.batch_size,
+            num_workers=misc.num_workers,
             pin_memory=True,
         )
 
     train_loader = DataLoader(
         datasets.train,
         shuffle=True,
-        batch_size=ARGS.batch_size,
-        num_workers=MISC.num_workers,
+        batch_size=args.batch_size,
+        num_workers=misc.num_workers,
         pin_memory=True,
     )
     val_loader = DataLoader(
         datasets.test,
         shuffle=False,
-        batch_size=ARGS.test_batch_size,
-        num_workers=MISC.num_workers,
+        batch_size=args.test_batch_size,
+        num_workers=misc.num_workers,
         pin_memory=True,
     )
 
@@ -197,20 +347,20 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
     input_shape = get_data_dim(context_loader)
     s_count = datasets.s_dim if datasets.s_dim > 1 else 2
     y_count = datasets.y_dim if datasets.y_dim > 1 else 2
-    if ARGS.cluster == ClusteringLabel.s:
+    if args.cluster == ClusteringLabel.s:
         num_clusters = s_count
-    elif ARGS.cluster == ClusteringLabel.y:
+    elif args.cluster == ClusteringLabel.y:
         num_clusters = y_count
     else:
         num_clusters = s_count * y_count
     log.info(
-        f"Number of clusters: {num_clusters}, accuracy computed with respect to {ARGS.cluster.name}"
+        f"Number of clusters: {num_clusters}, accuracy computed with respect to {args.cluster.name}"
     )
-    mappings: List[str] = []
+    mappings: list[str] = []
     for i in range(num_clusters):
-        if ARGS.cluster == ClusteringLabel.s:
+        if args.cluster == ClusteringLabel.s:
             mappings.append(f"{i}: s = {i}")
-        elif ARGS.cluster == ClusteringLabel.y:
+        elif args.cluster == ClusteringLabel.y:
             mappings.append(f"{i}: y = {i}")
         else:
             # class_id = y * s_count + s
@@ -220,16 +370,16 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
 
     # ================================= encoder =================================
     encoder: Encoder
-    enc_shape: Tuple[int, ...]
-    if ARGS.encoder in (EncoderType.ae, EncoderType.vae):
-        encoder, enc_shape = build_ae(CFG, input_shape, feature_group_slices)
+    enc_shape: tuple[int, ...]
+    if args.encoder in (EncoderType.ae, EncoderType.vae):
+        encoder, enc_shape = build_ae(cfg, input_shape, feature_group_slices)
     else:
         if len(input_shape) < 2:
             raise ValueError("RotNet can only be applied to image data.")
-        enc_optimizer_kwargs = {"lr": ARGS.enc_lr, "weight_decay": ARGS.enc_wd}
+        enc_optimizer_kwargs = {"lr": args.enc_lr, "weight_decay": args.enc_wd}
         enc_kwargs = {"pretrained": False, "num_classes": 4, "zero_init_residual": True}
         net = (
-            resnet18(**enc_kwargs) if DATA.dataset == FdmDataset.cmnist else resnet50(**enc_kwargs)
+            resnet18(**enc_kwargs) if data.dataset is FdmDataset.cmnist else resnet50(**enc_kwargs)
         )
 
         encoder = SelfSupervised(model=net, num_classes=4, optimizer_kwargs=enc_optimizer_kwargs)
@@ -239,92 +389,92 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
     log.info(f"Encoding shape: {enc_shape}")
 
     enc_path: Path
-    if ARGS.enc_path:
-        enc_path = Path(ARGS.enc_path)
-        if ARGS.encoder == EncoderType.rotnet:
+    if args.enc_path:
+        enc_path = Path(args.enc_path)
+        if args.encoder is EncoderType.rotnet:
             assert isinstance(encoder, SelfSupervised)
             encoder = encoder.get_encoder()
-        save_dict = torch.load(ARGS.enc_path, map_location=lambda storage, loc: storage)
+        save_dict = torch.load(args.enc_path, map_location=lambda storage, loc: storage)
         encoder.load_state_dict(save_dict["encoder"])
         if "args" in save_dict:
             args_encoder = save_dict["args"]
-            assert ARGS.encoder.name == args_encoder["encoder_type"]
-            assert EncoderType.levels == args_encoder["levels"]
+            assert args.encoder.name == args_encoder["encoder_type"]
+            assert enc.levels == args_encoder["levels"]
     else:
         encoder.fit(
-            enc_train_loader, epochs=ARGS.enc_epochs, device=device, use_wandb=ARGS.enc_wandb
+            enc_train_loader, epochs=args.enc_epochs, device=device, use_wandb=args.enc_wandb
         )
-        if ARGS.encoder == EncoderType.rotnet:
+        if args.encoder is EncoderType.rotnet:
             assert isinstance(encoder, SelfSupervised)
             encoder = encoder.get_encoder()
         # the args names follow the convention of the standalone VAE commandline args
-        args_encoder = {"encoder_type": ARGS.encoder.name, "levels": EncoderType.levels}
+        args_encoder = {"encoder_type": args.encoder.name, "levels": enc.levels}
         enc_path = save_dir.resolve() / "encoder"
         torch.save({"encoder": encoder.state_dict(), "args": args_encoder}, enc_path)
-        log.info(f"To make use of this encoder:\n--EncoderType-path {enc_path}")
-        if ARGS.enc_wandb:
+        log.info(f"To make use of this encoder:\n--enc-path {enc_path}")
+        if args.enc_wandb:
             log.info("Stopping here because W&B will be messed up...")
             if run is not None:
                 run.join()  # this allows multiple experiments in one python process
             return
 
-    cluster_label_path = get_cluster_label_path(MISC, save_dir)
-    if ARGS.method == ClusteringMethod.kmeans:
+    cluster_label_path = get_cluster_label_path(misc, save_dir)
+    if args.method == ClusteringMethod.kmeans:
         kmeans_results = train_k_means(
-            CFG, encoder, datasets.context, num_clusters, s_count, enc_path
+            cfg, encoder, datasets.context, num_clusters, s_count, enc_path
         )
-        pth = save_results(save_path=cluster_label_path, cluster_results=kmeans_results)
+        save_results(save_path=cluster_label_path, cluster_results=kmeans_results)
         if run is not None:
             run.join()  # this allows multiple experiments in one python process
-        return (), pth
-    if ARGS.finetune_encoder:
+        return
+    if args.finetune_encoder:
         encoder.freeze_initial_layers(
-            ARGS.freeze_layers, {"lr": ARGS.finetune_lr, "weight_decay": ARGS.weight_decay}
+            args.freeze_layers, {"lr": args.finetune_lr, "weight_decay": args.weight_decay}
         )
 
     # ================================= labeler =================================
     pseudo_labeler: PseudoLabeler
-    if ARGS.pseudo_labeler == PlMethod.ranking:
-        pseudo_labeler = RankingStatistics(k_num=ARGS.k_num)
-    elif ARGS.pseudo_labeler == PlMethod.cosine:
+    if args.pseudo_labeler == PlMethod.ranking:
+        pseudo_labeler = RankingStatistics(k_num=args.k_num)
+    elif args.pseudo_labeler == PlMethod.cosine:
         pseudo_labeler = CosineSimThreshold(
-            upper_threshold=ARGS.upper_threshold, lower_threshold=ARGS.lower_threshold
+            upper_threshold=args.upper_threshold, lower_threshold=args.lower_threshold
         )
 
     # ================================= method =================================
     method: Method
-    if ARGS.method == ClusteringMethod.pl_enc:
+    if args.method == ClusteringMethod.pl_enc:
         method = PseudoLabelEnc()
-    elif ARGS.method == ClusteringMethod.pl_output:
+    elif args.method == ClusteringMethod.pl_output:
         method = PseudoLabelOutput()
-    elif ARGS.method == ClusteringMethod.pl_enc_no_norm:
+    elif args.method == ClusteringMethod.pl_enc_no_norm:
         method = PseudoLabelEncNoNorm()
 
     # ================================= classifier =================================
-    clf_optimizer_kwargs = {"lr": ARGS.lr, "weight_decay": ARGS.weight_decay}
-    clf_fn = FcNet(hidden_dims=ARGS.cl_hidden_dims)
+    clf_optimizer_kwargs = {"lr": args.lr, "weight_decay": args.weight_decay}
+    clf_fn = FcNet(hidden_dims=args.cl_hidden_dims)
     clf_input_shape = (prod(enc_shape),)  # FcNet first flattens the input
 
     classifier = build_classifier(
         input_shape=clf_input_shape,
-        target_dim=s_count if ARGS.use_multi_head else num_clusters,
+        target_dim=s_count if args.use_multi_head else num_clusters,
         model_fn=clf_fn,
         optimizer_kwargs=clf_optimizer_kwargs,
-        num_heads=y_count if ARGS.use_multi_head else 1,
+        num_heads=y_count if args.use_multi_head else 1,
     )
     classifier.to(device)
 
-    model: Union[Model, MultiHeadModel]
-    if ARGS.use_multi_head:
+    model: Model | MultiHeadModel
+    if args.use_multi_head:
         labeler_fn: ModelFn
-        if DATA.dataset == FdmDataset.cmnist:
+        if data.dataset == FdmDataset.cmnist:
             labeler_fn = Mp32x23Net(batch_norm=True)
-        elif DATA.dataset == FdmDataset.celeba:
+        elif data.dataset == FdmDataset.celeba:
             labeler_fn = Mp64x64Net(batch_norm=True)
         else:
-            labeler_fn = FcNet(hidden_dims=ARGS.labeler_hidden_dims)
+            labeler_fn = FcNet(hidden_dims=args.labeler_hidden_dims)
 
-        labeler_optimizer_kwargs = {"lr": ARGS.labeler_lr, "weight_decay": ARGS.labeler_wd}
+        labeler_optimizer_kwargs = {"lr": args.labeler_lr, "weight_decay": args.labeler_wd}
         labeler: Classifier = build_classifier(
             input_shape=input_shape,
             target_dim=s_count,
@@ -335,9 +485,9 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
         log.info("Fitting the labeler to the labeled data.")
         labeler.fit(
             train_loader,
-            epochs=ARGS.labeler_epochs,
+            epochs=args.labeler_epochs,
             device=device,
-            use_wandb=ARGS.labeler_wandb,
+            use_wandb=args.labeler_wandb,
         )
         labeler.eval()
         model = MultiHeadModel(
@@ -346,7 +496,7 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
             method=method,
             pseudo_labeler=pseudo_labeler,
             labeler=labeler,
-            train_encoder=ARGS.finetune_encoder,
+            train_encoder=args.finetune_encoder,
         )
     else:
         model = Model(
@@ -354,19 +504,30 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
             classifier=classifier,
             method=method,
             pseudo_labeler=pseudo_labeler,
-            train_encoder=ARGS.finetune_encoder,
+            train_encoder=args.finetune_encoder,
         )
+
+    exp = Experiment(
+        args=args,
+        cfg=cfg,
+        data=data,
+        enc=enc,
+        misc=misc,
+        model=model,
+        s_dim=datasets.s_dim,
+        y_dim=datasets.y_dim,
+        device=device,
+    )
 
     start_epoch = 1  # start at 1 so that the val_freq works correctly
     # Resume from checkpoint
-    if MISC.resume is not None:
+    if misc.resume is not None:
         log.info("Restoring generator from checkpoint")
-        model, start_epoch = restore_model(CFG, Path(MISC.resume), model)
-        if MISC.evaluate:
-            pth_path = convert_and_save_results(
-                CFG,
+        model, start_epoch = exp.restore_model(Path(misc.resume))
+        if misc.evaluate:
+            pth_path = exp.convert_and_save_results(
                 cluster_label_path,
-                classify_dataset(CFG, model, datasets.context),
+                classify_dataset(cfg, model, datasets.context),
                 enc_path=enc_path,
                 context_metrics={},  # TODO: compute this
             )
@@ -382,22 +543,22 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
     # best_loss = float("inf")
     best_acc = 0.0
     n_vals_without_improvement = 0
-    # super_val_freq = ARGS.super_val_freq or ARGS.val_freq
+    # super_val_freq = args.super_val_freq or args.val_freq
 
     itr = 0
     # Train generator for N epochs
-    for epoch in range(start_epoch, start_epoch + ARGS.epochs):
-        if n_vals_without_improvement > ARGS.early_stopping > 0:
+    for epoch in range(start_epoch, start_epoch + args.epochs):
+        if n_vals_without_improvement > args.early_stopping > 0:
             break
 
-        itr = train(model=model, context_data=context_loader, train_data=train_loader, epoch=epoch)
+        itr = exp.train(context_data=context_loader, train_data=train_loader, epoch=epoch)
 
-        if epoch % ARGS.val_freq == 0:
-            val_acc, _, val_log = validate(model, val_loader)
+        if epoch % args.val_freq == 0:
+            val_acc, _, val_log = exp.validate(val_loader)
 
             if val_acc > best_acc:
                 best_acc = val_acc
-                save_model(CFG, save_dir, model, epoch=epoch, sha=sha, best=True)
+                exp.save_model(save_dir, epoch=epoch, sha=sha, best=True)
                 n_vals_without_improvement = 0
             else:
                 n_vals_without_improvement += 1
@@ -413,133 +574,26 @@ def main(cfg: Config, cluster_label_file: Optional[Path] = None) -> Tuple[Model,
                     n_vals_without_improvement,
                 )
             )
-            wandb_log(MISC, val_log, step=itr)
-        # if ARGS.super_val and epoch % super_val_freq == 0:
-        #     log_metrics(ARGS, model=model.bundle, data=datasets, step=itr)
+            wandb_log(misc, val_log, step=itr)
+        # if args.super_val and epoch % super_val_freq == 0:
+        #     log_metrics(args, model=model.bundle, data=datasets, step=itr)
         #     save_model(args, save_dir, model=model.bundle, epoch=epoch, sha=sha)
 
     log.info("Training has finished.")
     # path = save_model(args, save_dir, model=model, epoch=epoch, sha=sha)
     # model, _ = restore_model(args, path, model=model)
-    _, test_metrics, _ = validate(model, val_loader)
-    _, context_metrics, _ = validate(model, context_loader)
+    _, test_metrics, _ = exp.validate(val_loader)
+    _, context_metrics, _ = exp.validate(context_loader)
     log.info("Test metrics:")
     print_metrics({f"Test {k}": v for k, v in test_metrics.items()})
     log.info("Context metrics:")
     print_metrics({f"Context {k}": v for k, v in context_metrics.items()})
-    pth_path = convert_and_save_results(
-        CFG,
+    pth_path = exp.convert_and_save_results(
         cluster_label_path=cluster_label_path,
-        results=classify_dataset(CFG, model, datasets.context),
+        results=classify_dataset(cfg, model, datasets.context),
         enc_path=enc_path,
         context_metrics=context_metrics,
         test_metrics=test_metrics,
     )
     if run is not None:
         run.join()  # this allows multiple experiments in one python process
-    return model, pth_path
-
-
-def train(model: Model, context_data: DataLoader, train_data: DataLoader, epoch: int) -> int:
-    total_loss_meter = AverageMeter()
-    loss_meters: Optional[Dict[str, AverageMeter]] = None
-
-    time_meter = AverageMeter()
-    start_epoch_time = time.time()
-    end = start_epoch_time
-    epoch_len = min(len(context_data), len(train_data))
-    itr = start_itr = (epoch - 1) * epoch_len
-    data_iterator = zip(context_data, train_data)
-    model.train()
-    s_count = MISC._s_dim if MISC._s_dim > 1 else 2
-
-    for itr, ((x_c, _, _), (x_t, s_t, y_t)) in enumerate(data_iterator, start=start_itr):
-
-        x_c, x_t, y_t, s_t = to_device(x_c, x_t, y_t, s_t)
-
-        if ARGS.with_supervision and not ARGS.use_multi_head:
-            class_id = get_class_id(s=s_t, y=y_t, s_count=s_count, to_cluster=ARGS.cluster)
-            loss_sup, logging_sup = model.supervised_loss(
-                x_t, class_id, ce_weight=ARGS.sup_ce_weight, bce_weight=ARGS.sup_bce_weight
-            )
-        else:
-            loss_sup = x_t.new_zeros(())
-            logging_sup = {}
-        loss_unsup, logging_unsup = model.unsupervised_loss(x_c)
-        loss = loss_sup + loss_unsup
-
-        model.zero_grad()
-        loss.backward()
-        model.step()
-
-        # Log losses
-        logging_dict = {**logging_unsup, **logging_sup}
-        total_loss_meter.update(loss.item())
-        if loss_meters is None:
-            loss_meters = {name: AverageMeter() for name in logging_dict}
-        for name, value in logging_dict.items():
-            loss_meters[name].update(value)
-
-        time_for_batch = time.time() - end
-        time_meter.update(time_for_batch)
-
-        wandb_log(MISC, logging_dict, step=itr)
-        end = time.time()
-
-    time_for_epoch = time.time() - start_epoch_time
-    assert loss_meters is not None
-    to_log = "[TRN] Epoch {:04d} | Duration: {} | Batches/s: {:.4g} | {} ({:.5g})".format(
-        epoch,
-        readable_duration(time_for_epoch),
-        1 / time_meter.avg,
-        " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items()),
-        total_loss_meter.avg,
-    )
-    log.info(to_log)
-    return itr
-
-
-def validate(
-    model: Model, val_data: DataLoader
-) -> Tuple[float, Dict[str, float], Dict[str, Union[float, str]]]:
-    model.eval()
-    to_cluster = ARGS.cluster
-    y_count = MISC._y_dim if MISC._y_dim > 1 else 2
-    s_count = MISC._s_dim if MISC._s_dim > 1 else 2
-    if to_cluster == ClusteringLabel.s:
-        num_clusters = s_count
-    elif to_cluster == ClusteringLabel.y:
-        num_clusters = y_count
-    else:
-        num_clusters = s_count * y_count
-    counts = np.zeros((num_clusters, num_clusters), dtype=np.int64)
-    num_total = 0
-    cluster_ids: List[np.ndarray] = []
-    class_ids: List[Tensor] = []
-
-    with torch.set_grad_enabled(False):
-        for (x_v, s_v, y_v) in val_data:
-            x_v = to_device(x_v)
-            logits = model(x_v)
-            preds = logits.argmax(dim=-1).detach().cpu().numpy()
-            counts, class_id = count_occurances(counts, preds, s_v, y_v, s_count, to_cluster)
-            num_total += y_v.size(0)
-            cluster_ids.append(preds)
-            class_ids.append(class_id)
-
-    cluster_ids_np = np.concatenate(cluster_ids, axis=0)
-    true_class_ids = torch.cat(class_ids).numpy()
-    return cluster_metrics(
-        cluster_ids=cluster_ids_np,
-        counts=counts,
-        true_class_ids=true_class_ids,
-        num_total=num_total,
-        s_count=s_count,
-        to_cluster=to_cluster,
-    )
-
-
-def to_device(*tensors: Tensor) -> Union[Tensor, Tuple[Tensor, ...]]:
-    """Place tensors on the correct device and set type to float32"""
-    moved = [tensor.to(torch.device(MISC._device), non_blocking=True) for tensor in tensors]
-    return moved[0] if len(moved) == 1 else tuple(moved)

@@ -1,22 +1,14 @@
 """Utility functions."""
-from collections.abc import MutableMapping
+from __future__ import annotations
+
+from collections.abc import Iterable, Iterator, MutableMapping, Sequence
 from dataclasses import asdict
 from enum import Enum
 from functools import reduce
 from math import gcd
 import os
 import random
-from typing import (
-    Any,
-    Dict,
-    Iterable,
-    Iterator,
-    Optional,
-    Sequence,
-    Tuple,
-    TypeVar,
-    Union,
-)
+from typing import Any, TypeVar
 
 import numpy as np
 from omegaconf import OmegaConf
@@ -24,12 +16,13 @@ import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from typing_extensions import Literal, Protocol
-
-from shared.configs import MiscConfig
 import wandb
+
+from shared.configs import Config, DatasetConfig, EncoderConfig, MiscConfig
 
 __all__ = [
     "AverageMeter",
+    "ExperimentBase",
     "ModelFn",
     "RunningAverageMeter",
     "as_pretty_dict",
@@ -52,12 +45,35 @@ T = TypeVar("T")
 Int = TypeVar("Int", Tensor, int)
 
 
+class ExperimentBase:
+    """Experiment singleton base class."""
+
+    def __init__(
+        self,
+        cfg: Config,
+        data: DatasetConfig,
+        enc: EncoderConfig,
+        misc: MiscConfig,
+        device: torch.device,
+    ) -> None:
+        self.cfg = cfg
+        self.data = data
+        self.enc = enc
+        self.misc = misc
+        self.device = device
+
+    def to_device(self, *tensors: Tensor) -> Tensor | tuple[Tensor, ...]:
+        """Place tensors on the correct device."""
+        moved = [tensor.to(self.device, non_blocking=True) for tensor in tensors]
+        return moved[0] if len(moved) == 1 else tuple(moved)
+
+
 class ModelFn(Protocol):
     def __call__(self, input_dim: int, target_dim: int) -> nn.Module:
         ...
 
 
-def get_data_dim(data_loader: DataLoader) -> Tuple[int, ...]:
+def get_data_dim(data_loader: DataLoader) -> tuple[int, ...]:
     x = next(iter(data_loader))[0]
     x_dim = x.shape[1:]
 
@@ -78,7 +94,7 @@ def class_id_to_label(class_id: Int, s_count: int, label: Literal["s", "y"]) -> 
 
 
 def wandb_log(
-    args: Union[bool, MiscConfig], row: Dict[str, Any], step: int, commit: Optional[bool] = None
+    args: bool | MiscConfig, row: dict[str, Any], step: int, commit: bool | None = None
 ) -> None:
     """Wrapper around wandb's log function"""
     if isinstance(args, bool):
