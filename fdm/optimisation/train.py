@@ -136,7 +136,8 @@ class Experiment(ExperimentBase):
         # Log images
         if itr % self.args.log_freq == 0:
             with torch.no_grad():
-                self.log_recons(x=tr.x, itr=itr)
+                self.log_recons(x=tr.x, itr=itr, prefix="train")
+                self.log_recons(x=x_c, itr=itr, prefix="context")
         return logging_dict
 
     def update_disc(self, x_c: Tensor, x_t: Tensor) -> tuple[Tensor, dict[str, float]]:
@@ -408,6 +409,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
             group=group if group else None,
             reinit=True,
         )
+        run.__enter__()  # call the context manager dunders manually to avoid excessive indentation
 
     save_dir = Path(to_absolute_path(misc.save_dir)) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -653,7 +655,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
                 cluster_context_metrics=cluster_context_metrics,
             )
             if run is not None:
-                run.finish()  # this allows multiple experiments in one python process
+                run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
             return generator
 
     if args.snorm:
@@ -724,7 +726,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
         cluster_context_metrics=cluster_context_metrics,
     )
     if run is not None:
-        run.finish()  # this allows multiple experiments in one python process
+        run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
 
     return generator
 
@@ -775,7 +777,7 @@ def _get_multipliers_and_group_size(
     class_ids_and_counts = [(int(i), int(c)) for i, c in zip(unique_classes, counts)]
 
     # first, count how many subgroups there are for each y
-    num_subgroups_per_y = defaultdict(int)
+    num_subgroups_per_y: defaultdict[int, int] = defaultdict(int)
     for class_id, count in class_ids_and_counts:
         corresponding_y = class_id_to_label(class_id, s_count, "y")
         num_subgroups_per_y[corresponding_y] += 1

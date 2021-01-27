@@ -281,6 +281,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
             group=group if group else None,
             reinit=True,
         )
+        run.__enter__()  # call the context manager dunders manually to avoid excessive indentation
 
     save_dir = Path(to_absolute_path(misc.save_dir)) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -415,7 +416,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         if args.enc_wandb:
             LOGGER.info("Stopping here because W&B will be messed up...")
             if run is not None:
-                run.finish()  # this allows multiple experiments in one python process
+                run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
             return
 
     cluster_label_path = get_cluster_label_path(misc, save_dir)
@@ -425,7 +426,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         )
         save_results(save_path=cluster_label_path, cluster_results=kmeans_results)
         if run is not None:
-            run.finish()  # this allows multiple experiments in one python process
+            run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
         return
     if args.finetune_encoder:
         encoder.freeze_initial_layers(
@@ -534,7 +535,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
                 context_metrics={},  # TODO: compute this
             )
             if run is not None:
-                run.finish()  # this allows multiple experiments in one python process
+                run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
             return model, pth_path
 
     # Logging
@@ -598,4 +599,4 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         test_metrics=test_metrics,
     )
     if run is not None:
-        run.finish()  # this allows multiple experiments in one python process
+        run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
