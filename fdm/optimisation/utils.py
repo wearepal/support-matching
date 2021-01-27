@@ -8,7 +8,7 @@ from torch import Tensor, nn
 import torchvision
 
 from shared.configs import Config, FdmDataset, ReconstructionLoss
-from shared.utils import StratifiedSampler, as_pretty_dict, flatten, wandb_log
+from shared.utils import StratifiedSampler, as_pretty_dict, flatten_dict, wandb_log
 import wandb
 
 __all__ = [
@@ -72,7 +72,7 @@ def save_model(
     else:
         filename = save_dir / f"checkpt_epoch{itr}.pth"
     save_dict = {
-        "args": flatten(as_pretty_dict(cfg)),
+        "args": flatten_dict(as_pretty_dict(cfg)),
         "sha": sha,
         "model": model.state_dict(),
         "itr": itr,

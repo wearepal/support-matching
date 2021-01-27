@@ -1,10 +1,7 @@
 import logging
 from pathlib import Path
-
-# import time
 from typing import Union
 
-# from pykeops.torch import LazyTensor
 import faiss
 import numpy as np
 from omegaconf import OmegaConf
@@ -14,7 +11,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from clustering.models import Encoder
 from shared.configs import Config
-from shared.utils import ClusterResults, flatten, print_metrics, wandb_log
+from shared.utils import ClusterResults, flatten_dict, print_metrics, wandb_log
 
 from .evaluation import encode_dataset
 from .utils import cluster_metrics, count_occurances, get_class_id
@@ -64,7 +61,7 @@ def train(
     log.info("Context metrics:")
     print_metrics({f"Context {k}": v for k, v in context_metrics.items()})
     return ClusterResults(
-        flags=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
+        flags=flatten_dict(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
         cluster_ids=preds,
         class_ids=get_class_id(s=s, y=y, s_count=s_count, to_cluster=cfg.clust.cluster),
         enc_path=enc_path,

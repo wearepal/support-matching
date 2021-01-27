@@ -4,22 +4,32 @@ from typing import Dict, Optional, Tuple, Union
 from lapjv import lapjv
 import numpy as np
 from omegaconf import OmegaConf
-from sklearn.metrics import adjusted_rand_score, confusion_matrix, normalized_mutual_info_score
+from sklearn.metrics import (
+    adjusted_rand_score,
+    confusion_matrix,
+    normalized_mutual_info_score,
+)
 import torch
 from torch import Tensor
 import torchvision
-import wandb
 
 from clustering.models import Model
-from shared.configs import ClusteringLabel, Config, FdmDataset, MiscConfig, ReconstructionLoss
+from shared.configs import (
+    ClusteringLabel,
+    Config,
+    FdmDataset,
+    MiscConfig,
+    ReconstructionLoss,
+)
 from shared.utils import (
     ClusterResults,
     class_id_to_label,
-    flatten,
+    flatten_dict,
     label_to_class_id,
     save_results,
     wandb_log,
 )
+import wandb
 
 __all__ = [
     "convert_and_save_results",
@@ -65,7 +75,7 @@ def save_model(
     else:
         filename = save_dir / f"checkpt_epoch{epoch}.pth"
     save_dict = {
-        "args": flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
+        "args": flatten_dict(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
         "sha": sha,
         "model": model.state_dict(),
         "epoch": epoch,
@@ -149,7 +159,7 @@ def convert_and_save_results(
     s_count = cfg.misc._s_dim if cfg.misc._s_dim > 1 else 2
     class_ids = get_class_id(s=s, y=y, s_count=s_count, to_cluster=cfg.clust.cluster)
     cluster_results = ClusterResults(
-        flags=flatten(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
+        flags=flatten_dict(OmegaConf.to_container(cfg, resolve=True, enum_to_str=True)),
         cluster_ids=clusters,
         class_ids=class_ids,
         enc_path=enc_path,
