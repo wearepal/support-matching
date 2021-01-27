@@ -1,8 +1,8 @@
 from abc import abstractmethod
 from typing import Optional, Tuple
 
-import torch.nn as nn
 from torch import Tensor
+import torch.nn as nn
 
 __all__ = ["Bijector", "InvertBijector"]
 

@@ -1,17 +1,17 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import logging
+from pathlib import Path
 import posixpath
 import shutil
-from dataclasses import dataclass
-from pathlib import Path
 from typing import Callable, ClassVar, NamedTuple, Union
 
+from PIL import Image
 import numpy as np
 import pandas as pd
 import requests
 import torch
-from PIL import Image
 from torch.tensor import Tensor
 from torch.utils.data.dataset import Dataset
 from torchvision.transforms.transforms import ToTensor

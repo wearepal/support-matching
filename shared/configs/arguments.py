@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-import torch
 from omegaconf import MISSING
+import torch
 
 from .enums import (
     AdultDatasetSplit,

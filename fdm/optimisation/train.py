@@ -1,5 +1,6 @@
 """Main training file"""
 from __future__ import annotations
+
 from collections import defaultdict
 from collections.abc import Callable, Iterator, Sequence
 import logging
@@ -37,12 +38,7 @@ from shared.configs import (
 )
 from shared.data import DatasetTriplet, load_dataset
 from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
-from shared.models.configs import (
-    FcNet,
-    ModelAggregatorWrapper,
-    conv_autoencoder,
-    fc_autoencoder,
-)
+from shared.models.configs import FcNet, ModelAggregatorWrapper, conv_autoencoder, fc_autoencoder
 from shared.utils import (
     AverageMeter,
     ExperimentBase,

@@ -1,8 +1,8 @@
 from typing import Callable, Dict, Optional, Sequence, Tuple, overload
 
 import torch
-import torch.distributions as td
 from torch import Tensor
+import torch.distributions as td
 from torch.utils.data import DataLoader
 
 from clustering.layers import Bijector

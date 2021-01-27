@@ -1,10 +1,10 @@
-import logging
 from abc import abstractmethod
+import logging
 from typing import Any, Dict, Optional
 
 import torch
-import torch.nn as nn
 from torch import Tensor
+import torch.nn as nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 

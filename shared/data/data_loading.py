@@ -4,10 +4,10 @@ from typing import Dict, NamedTuple, Optional, Tuple, Union
 
 import ethicml as em
 import ethicml.vision as emvi
-import torch
-import torch.nn as nn
 from hydra.utils import to_absolute_path
+import torch
 from torch import Tensor
+import torch.nn as nn
 from torch.utils.data import Dataset, Subset
 from torchvision import transforms as TF
 from torchvision.datasets import MNIST
