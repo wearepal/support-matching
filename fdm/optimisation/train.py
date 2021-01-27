@@ -3,9 +3,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Callable, Iterator, Sequence
-import itertools
 import logging
-from math import floor
 from pathlib import Path
 import time
 from typing import NamedTuple, cast
@@ -18,7 +16,7 @@ from torch import Tensor
 from torch.cuda.amp.grad_scaler import GradScaler
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
+from torch.utils.data import DataLoader, Dataset
 from typing_extensions import Literal
 import wandb
 import yaml
@@ -62,12 +60,7 @@ from shared.utils import (
 from .build import build_ae
 from .evaluation import baseline_metrics, log_metrics
 from .loss import MixedLoss, PixelCrossEntropy
-from .utils import (
-    get_stratified_sampler,
-    log_images,
-    restore_model,
-    save_model,
-)
+from .utils import get_stratified_sampler, log_images, restore_model, save_model
 
 __all__ = ["main"]
 
