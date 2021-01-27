@@ -3,9 +3,9 @@ from pathlib import Path
 from typing import Dict, Mapping, Optional, Tuple, Union
 
 import ethicml as em
+import wandb
 
 from shared.configs import BaseConfig
-import wandb
 
 from .utils import wandb_log
 

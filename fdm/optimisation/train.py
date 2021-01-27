@@ -60,12 +60,7 @@ from shared.utils import (
 from .build import build_ae
 from .evaluation import baseline_metrics, log_metrics
 from .loss import MixedLoss, PixelCrossEntropy
-from .utils import (
-    get_stratified_sampler,
-    log_images,
-    restore_model,
-    save_model,
-)
+from .utils import get_stratified_sampler, log_images, restore_model, save_model
 
 __all__ = ["main"]
 
