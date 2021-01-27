@@ -1,8 +1,8 @@
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import torch
-from torch import Tensor
 import torch.nn as nn
+from torch import Tensor
 
 from .bijector import Bijector
 from .misc import Flatten

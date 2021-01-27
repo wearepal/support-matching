@@ -1,8 +1,8 @@
 from typing import Callable, Dict, List, Optional, Tuple
 
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 
 from clustering.models import AutoEncoder, Vae
 from shared.configs import Config, EncoderType, ReconstructionLoss

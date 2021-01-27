@@ -2,11 +2,11 @@ from abc import abstractmethod
 from typing import Optional, Tuple, Union
 
 import numpy as np
-from scipy import linalg
 import torch
-from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
+from scipy import linalg
+from torch import Tensor
 
 from .bijector import Bijector
 

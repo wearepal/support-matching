@@ -1,18 +1,18 @@
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-import logging
 from pathlib import Path
 
 import ethicml as em
-from ethicml import implementations
 import hydra
-from hydra.core.config_store import ConfigStore
-from hydra.utils import to_absolute_path
 import numpy as np
-from omegaconf.omegaconf import MISSING, OmegaConf
 import pandas as pd
 import torch
+from ethicml import implementations
+from hydra.core.config_store import ConfigStore
+from hydra.utils import to_absolute_path
+from omegaconf.omegaconf import MISSING, OmegaConf
 from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import trange

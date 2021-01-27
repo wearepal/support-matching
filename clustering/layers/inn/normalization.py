@@ -1,8 +1,8 @@
 from typing import List, Optional, Tuple
 
 import torch
-from torch import Tensor
 import torch.nn as nn
+from torch import Tensor
 from torch.nn import Parameter
 
 from shared.utils import is_positive_int, sum_except_batch

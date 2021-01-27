@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from lapjv import lapjv
 import numpy as np
+from lapjv import lapjv
 from sklearn.metrics import adjusted_rand_score, confusion_matrix, normalized_mutual_info_score
 from torch import Tensor
 

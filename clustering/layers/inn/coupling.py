@@ -1,9 +1,9 @@
 from typing import List, Optional, Sequence, Tuple
 
 import torch
-from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
+from torch import Tensor
 from typing_extensions import Literal
 
 from shared.utils import RoundSTE, sum_except_batch
