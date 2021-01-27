@@ -1,8 +1,8 @@
 from typing import Any, Dict, NamedTuple, Optional
 
+import torch.nn as nn
 from torch import Tensor
 from torch.cuda.amp.grad_scaler import GradScaler
-import torch.nn as nn
 from torch.optim import Adam
 
 __all__ = ["ModelBase", "EncodingSize", "SplitEncoding", "Reconstructions"]

@@ -1,6 +1,6 @@
 import csv
-from itertools import groupby
 import os
+from itertools import groupby
 from typing import Any, Dict, Iterator, List, Tuple
 
 import numpy as np

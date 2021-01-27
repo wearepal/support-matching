@@ -1,10 +1,10 @@
 import logging
 from typing import Dict, Optional, Tuple, Union
 
-from ethicml.implementations.dro_modules import DROLoss
 import torch
-from torch import Tensor, nn
 import torch.nn.functional as F
+from ethicml.implementations.dro_modules import DROLoss
+from torch import Tensor, nn
 from torch.nn.modules.loss import _Loss
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader, Dataset

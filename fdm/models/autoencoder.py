@@ -1,11 +1,11 @@
 from typing import Any, Dict, List, Optional, Tuple, Union, overload
 
 import torch
-from torch import Tensor
-from torch.cuda.amp.grad_scaler import GradScaler
 import torch.distributions as td
 import torch.nn as nn
 import torch.nn.functional as F
+from torch import Tensor
+from torch.cuda.amp.grad_scaler import GradScaler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from typing_extensions import Literal
