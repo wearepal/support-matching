@@ -16,7 +16,7 @@ from torch.utils.data.dataset import Dataset
 from torchvision.transforms.transforms import ToTensor
 from tqdm import tqdm
 
-from shared.utils.utils import flatten_dict_with_sep
+from shared.utils.utils import flatten_dict
 
 
 __all__ = ["IsicDataset"]
@@ -96,7 +96,7 @@ class IsicDataset(Dataset):
         entries = []
         for image_id in tqdm(image_ids):
             req = requests.get(posixpath.join(self._rest_api_url, "image", image_id))
-            entry = flatten_dict_with_sep(req.json(), sep=".")
+            entry = flatten_dict(req.json(), sep=".")
             entries.append(entry)
 
         metadata_df = pd.DataFrame(entries)
