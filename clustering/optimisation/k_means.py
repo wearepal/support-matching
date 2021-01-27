@@ -10,13 +10,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from clustering.models import Encoder
 from shared.configs import Config
-from shared.utils import (
-    ClusterResults,
-    as_pretty_dict,
-    flatten_dict,
-    print_metrics,
-    wandb_log,
-)
+from shared.utils import ClusterResults, as_pretty_dict, flatten_dict, print_metrics, wandb_log
 
 from .evaluation import encode_dataset
 from .utils import cluster_metrics, count_occurances, get_class_id

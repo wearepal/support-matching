@@ -1,5 +1,6 @@
 """Main training file"""
 from __future__ import annotations
+
 from collections import defaultdict
 from collections.abc import Callable, Iterator, Sequence
 import logging
@@ -17,6 +18,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 from typing_extensions import Literal
+import wandb
 import yaml
 
 from fdm.models import AutoEncoder, Classifier, EncodingSize, build_discriminator
@@ -36,12 +38,7 @@ from shared.configs import (
 )
 from shared.data import DatasetTriplet, load_dataset
 from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
-from shared.models.configs import (
-    FcNet,
-    ModelAggregatorWrapper,
-    conv_autoencoder,
-    fc_autoencoder,
-)
+from shared.models.configs import FcNet, ModelAggregatorWrapper, conv_autoencoder, fc_autoencoder
 from shared.utils import (
     AverageMeter,
     ExperimentBase,
@@ -60,7 +57,6 @@ from shared.utils import (
     readable_duration,
     wandb_log,
 )
-import wandb
 
 from .build import build_ae
 from .evaluation import baseline_metrics, log_metrics
