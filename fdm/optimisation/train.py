@@ -20,9 +20,10 @@ from typing_extensions import Literal
 import wandb
 import yaml
 
-from fdm.models import AutoEncoder, Classifier, EncodingSize, build_discriminator
+from fdm.models import AutoEncoder, Classifier, EncodingSize, build_classifier
 from fdm.models.configs import Residual64x64Net
 from fdm.models.configs.classifiers import Strided28x28Net
+from fdm.models.discriminator import Discriminator
 from fdm.optimisation.mmd import mmd2
 from shared.configs import (
     AggregatorType,
@@ -37,7 +38,12 @@ from shared.configs import (
 )
 from shared.data import DatasetTriplet, load_dataset
 from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
-from shared.models.configs import FcNet, ModelAggregatorWrapper, conv_autoencoder, fc_autoencoder
+from shared.models.configs import (
+    FcNet,
+    ModelAggregatorWrapper,
+    conv_autoencoder,
+    fc_autoencoder,
+)
 from shared.utils import (
     AverageMeter,
     ExperimentBase,
@@ -150,7 +156,7 @@ class Experiment(ExperimentBase):
         self.predictor_y.eval()
         self.predictor_s.eval()
         self.disc_ensemble.train()
-        with torch.cuda.amp.autocast(enabled=self.misc.use_amp):
+        with torch.cuda.amp.autocast(enabled=self.misc.use_amp): # type: ignore
             if self.args.aggregator_type is AggregatorType.none:
                 ones = x_c.new_ones((x_c.size(0),))
                 zeros = x_t.new_zeros((x_t.size(0),))
@@ -171,24 +177,19 @@ class Experiment(ExperimentBase):
                 disc_input_c = x_c
 
             disc_loss = x_c.new_zeros(())
-            disc_acc = 0.0
             logging_dict = {}
             disc_input_t = self.get_disc_input(encoding_t)
             disc_input_t = disc_input_t.detach()
 
             if not self.args.train_on_recon:
-                disc_input_c = self.get_disc_input(encoding_c)
+                disc_input_c = self.get_disc_input(encoding_c) # type: ignore
                 disc_input_c = disc_input_c.detach()
 
             for discriminator in self.disc_ensemble:
-                discriminator = cast(Classifier, discriminator)
-                disc_loss_true, acc_c = discriminator.routine(disc_input_c, ones)
-                disc_loss_false, acc_t = discriminator.routine(disc_input_t, zeros)
-                disc_loss += disc_loss_true + disc_loss_false
-                disc_acc += 0.5 * (acc_c + acc_t)
+                discriminator = cast(Discriminator, discriminator)
+                disc_loss += discriminator.routine(fake=disc_input_t, real=disc_input_c) # type: ignore
             disc_loss /= len(self.disc_ensemble)
 
-        logging_dict["Accuracy Discriminator (zy)"] = disc_acc / len(self.disc_ensemble)
         for discriminator in self.disc_ensemble:
             discriminator.zero_grad()
 
@@ -197,7 +198,7 @@ class Experiment(ExperimentBase):
         disc_loss.backward()
 
         for discriminator in self.disc_ensemble:
-            discriminator = cast(Classifier, discriminator)
+            discriminator = cast(Discriminator, discriminator)
             discriminator.step(grad_scaler=self.grad_scaler)
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
             self.grad_scaler.update()
@@ -243,22 +244,11 @@ class Experiment(ExperimentBase):
 
             if not warmup:
                 if self.args.disc_method is DiscriminatorMethod.nn:
-                    if self.args.aggregator_type is AggregatorType.none:
-                        zeros = tr.x.new_zeros((tr.x.size(0),))
-                    else:
-                        zeros = x_c.new_zeros(self.args.batch_size)  # type: ignore
-
                     disc_loss = tr.x.new_zeros(())
-                    disc_acc = 0.0
                     for discriminator in self.disc_ensemble:
-                        discriminator = cast(Classifier, discriminator)
-                        disc_loss_m, disc_acc_m = discriminator.routine(disc_input_no_s, zeros)
-                        disc_loss += disc_loss_m
-                        disc_acc += disc_acc_m
+                        discriminator = cast(Discriminator, discriminator)
+                        disc_loss -= discriminator.predict(fake=disc_input_no_s)
                     disc_loss /= len(self.disc_ensemble)
-                    disc_acc /= len(self.disc_ensemble)
-                    logging_dict["Accuracy Discriminator (zy)"] = disc_acc
-
                 else:
                     x = disc_input_no_s
                     y = self.get_disc_input(encoding_c.detach(), invariant_to="s")
@@ -329,8 +319,8 @@ class Experiment(ExperimentBase):
 
     def log_recons(self, x: Tensor, itr: int, prefix: str | None = None) -> None:
         """Log reconstructed images."""
-        rows_per_block = 8
-        num_blocks = 4
+        rows_per_block = min(x.size(0), 8)
+        num_blocks = min(1 + (x.size(0) - 1) // 8, 4)
         sample = x[: num_blocks * rows_per_block]
         encoding = self.generator.encode(sample, stochastic=False)
         recon = self.generator.all_recons(encoding, mode="hard")
@@ -597,16 +587,15 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
 
     disc_ensemble: nn.ModuleList = nn.ModuleList()
     for k in range(args.num_discs):
-        disc = build_discriminator(
-            input_shape=disc_input_shape,
-            target_dim=1,  # real vs fake
-            model_fn=disc_fn,
+        disc = Discriminator(
+            model=disc_fn(disc_input_shape, 1), # type: ignore
             optimizer_kwargs=disc_optimizer_kwargs,
+            criterion=args.disc_loss,
         )
         disc_ensemble.append(disc)
     disc_ensemble.to(device)
 
-    predictor_y = build_discriminator(
+    predictor_y = build_classifier(
         input_shape=(prod(enc_shape),),  # this is always trained on encodings
         target_dim=datasets.y_dim,
         model_fn=FcNet(hidden_dims=None),  # no hidden layers
@@ -614,7 +603,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
     )
     predictor_y.to(device)
 
-    predictor_s = build_discriminator(
+    predictor_s = build_classifier(
         input_shape=(prod(enc_shape),),  # this is always trained on encodings
         target_dim=datasets.s_dim,
         model_fn=FcNet(hidden_dims=None),  # no hidden layers
@@ -708,7 +697,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
 
         if args.disc_reset_prob > 0:
             for k, discriminator in enumerate(disc_ensemble):
-                discriminator = cast(Classifier, discriminator)
+                discriminator = cast(Discriminator, discriminator)
                 if np.random.uniform() < args.disc_reset_prob:
                     LOGGER.info(f"Reinitializing discriminator {k}")
                     discriminator.reset_parameters()

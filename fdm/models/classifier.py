@@ -1,5 +1,6 @@
+from __future__ import annotations
 import logging
-from typing import Dict, Optional, Tuple, Union
+from typing import Any
 
 from ethicml.implementations.dro_modules import DROLoss
 import torch
@@ -22,10 +23,10 @@ class Classifier(ModelBase):
 
     def __init__(
         self,
-        model,
+        model: nn.Module,
         num_classes: int,
-        optimizer_kwargs: Optional[Dict] = None,
-        criterion: Optional[Union[str, _Loss]] = None,
+        optimizer_kwargs: dict[str, Any] | None = None,
+        criterion: str | _Loss | None = None,
     ):
         """Build classifier model.
 
@@ -103,7 +104,9 @@ class Classifier(ModelBase):
 
         return pred
 
-    def predict_dataset(self, data: Union[Dataset, DataLoader], device, batch_size=100):
+    def predict_dataset(
+        self, data: Dataset | DataLoader, device: torch.device, batch_size: int = 100
+    ):
         if not isinstance(data, DataLoader):
             data = DataLoader(data, batch_size=batch_size, shuffle=False, pin_memory=True)
         preds, actual, sens = [], [], []
@@ -147,11 +150,11 @@ class Classifier(ModelBase):
         correct = correct[:top].view(-1).float().sum(0, keepdim=True)
         accuracy = correct / targets.size(0) * 100
 
-        return accuracy.detach().item()
+        return accuracy.detach().item()  # type: ignore
 
     def routine(
-        self, data: Tensor, targets: Tensor, instance_weights: Optional[Tensor] = None
-    ) -> Tuple[Tensor, float]:
+        self, data: Tensor, targets: Tensor, instance_weights: Tensor | None = None
+    ) -> tuple[Tensor, float]:
         """Classifier routine.
 
         Args:
@@ -172,14 +175,14 @@ class Classifier(ModelBase):
 
     def fit(
         self,
-        train_data: Union[Dataset, DataLoader],
+        train_data: Dataset | DataLoader,
         epochs: int,
-        device,
-        test_data: Optional[Union[Dataset, DataLoader]] = None,
+        device: torch.device,
+        test_data: Dataset | DataLoader | None = None,
         pred_s: bool = False,
         batch_size: int = 256,
         test_batch_size: int = 1000,
-        lr_milestones: Optional[Dict] = None,
+        lr_milestones: dict | None = None,
     ):
 
         if not isinstance(train_data, DataLoader):
@@ -249,7 +252,7 @@ class Classifier(ModelBase):
 class Regressor(Classifier):
     """Wrapper for regression models."""
 
-    def __init__(self, model, optimizer_kwargs: Optional[Dict] = None):
+    def __init__(self, model, optimizer_kwargs: dict[str, Any] | None = None):
         """Build classifier model.
 
         Args:

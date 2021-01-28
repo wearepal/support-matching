@@ -3,10 +3,10 @@ from typing import Optional, Tuple
 from fdm.models import Classifier
 from shared.utils import ModelFn
 
-__all__ = ["build_discriminator"]
+__all__ = ["build_classifier"]
 
 
-def build_discriminator(
+def build_classifier(
     input_shape: Tuple[int, ...],
     target_dim: int,
     model_fn: ModelFn,
