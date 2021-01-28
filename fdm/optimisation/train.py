@@ -220,7 +220,7 @@ class Experiment(ExperimentBase):
 
         with torch.cuda.amp.autocast(enabled=self.misc.use_amp):
             # ============================= recon loss for training set ===========================
-            encoding, elbo, logging_dict_elbo = self.generator.routine(
+            encoding_t, elbo, logging_dict_elbo = self.generator.routine(
                 tr.x, self.recon_loss_fn, self.args.kl_weight
             )
 
@@ -240,18 +240,20 @@ class Experiment(ExperimentBase):
             total_loss = elbo
 
             # ================================= adversarial losses ================================
-            disc_input_no_s = self.get_disc_input(encoding, invariant_to="s")
-
             if not warmup:
+                disc_input_t = self.get_disc_input(encoding_t)
+                disc_input_c = self.get_disc_input(encoding_c)
+
                 if self.args.disc_method is DiscriminatorMethod.nn:
                     disc_loss = tr.x.new_zeros(())
                     for discriminator in self.disc_ensemble:
                         discriminator = cast(Discriminator, discriminator)
-                        disc_loss += discriminator.generator_loss(fake=disc_input_no_s)
-
+                        disc_loss += discriminator.discriminator_loss(
+                            fake=disc_input_t, real=disc_input_c
+                        )
                     disc_loss /= len(self.disc_ensemble)
                 else:
-                    x = disc_input_no_s
+                    x = disc_input_t
                     y = self.get_disc_input(encoding_c.detach(), invariant_to="s")
                     disc_loss = mmd2(
                         x=x,
@@ -262,11 +264,11 @@ class Experiment(ExperimentBase):
                         add_dot=self.args.mmd_add_dot,
                     )
                 disc_loss *= self.args.disc_weight
-                total_loss += disc_loss
+                total_loss -= disc_loss  # subtract the loss!
                 logging_dict["Loss Discriminator"] = disc_loss
 
             # this is a pretty cheap masking operation, so it's okay if it's not used
-            enc_no_s, enc_no_y = self.generator.mask(encoding, random=False)
+            enc_no_s, enc_no_y = self.generator.mask(encoding_t, random=False)
             if self.args.pred_y_weight > 0:
                 # predictor is on encodings; predict y from the part that is invariant to s
                 pred_y_loss, pred_y_acc = self.predictor_y.routine(enc_no_s, tr.y)
