@@ -1,11 +1,10 @@
 from __future__ import annotations
 from typing import Any
 
-from torch import Tensor, nn
-import torch.nn.functional as F
-
 from fdm.models.base import ModelBase
 from shared.configs.enums import DiscriminatorLoss
+from torch import Tensor, nn
+import torch.nn.functional as F
 
 __all__ = ["Discriminator"]
 
@@ -14,28 +13,30 @@ class Discriminator(ModelBase):
     def __init__(
         self,
         model: nn.Module,
-        optimizer_kwargs: dict[str, Any] | None,
-        criterion: DiscriminatorLoss,
+        criterion: DiscriminatorLoss = DiscriminatorLoss.logistic,
+        optimizer_kwargs: dict[str, Any] | None = None,
     ):
         super().__init__(model, optimizer_kwargs=optimizer_kwargs)
         self.criterion = criterion
 
     def discriminator_loss(self, fake: Tensor, real: Tensor) -> Tensor:
-        logits_real = self.model(real)
-        logits_fake = self.model(fake)
-        if self.criterion is DiscriminatorLoss.minimax:
-            ones = logits_fake.new_ones((logits_fake.size(0), 1))
-            zeros = logits_fake.new_zeros((logits_fake.size(0), 1))
-            loss_fake = F.binary_cross_entropy_with_logits(logits_fake, zeros, reduction="mean")
-            loss_real = F.binary_cross_entropy_with_logits(logits_real, ones, reduction="mean")
-            return loss_real + loss_fake
+        scores_real = self.model(real)
+        scores_fake = self.model(fake)
+        scores_real = scores_real - scores_real.mean(dim=0)
+        scores_fake = scores_real - scores_real.mean(dim=0)
+        if self.criterion is Discriminator.logistic:
+            loss_fake = F.softplus(scores_real) # -log(1-sigmoid(fake_scores_out))
+            loss_real = F.softplus(1 - scores_real) # -log(sigmoid(real_scores_out)) 
+            return (loss_real + loss_fake).mean()
         else:  # WGAN Loss is simply the difference between the means of the real and fake batches
-            return logits_real.mean() - logits_fake.mean()
+            return scores_real.mean() - scores_fake.mean()
 
     def generator_loss(self, fake: Tensor) -> Tensor:
         logits = self.model(fake)
         if self.criterion is DiscriminatorLoss.minimax:
             zeros = fake.new_zeros((logits.size(0), 1))
             return -F.binary_cross_entropy_with_logits(logits, zeros, reduction="mean")
+        elif self.criterion is Discriminator.logistic:
+            return F.softplus(-logits).mean()
         else:
             return logits.mean()
