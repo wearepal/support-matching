@@ -1,6 +1,5 @@
 """Main training file"""
 from __future__ import annotations
-
 from collections import defaultdict
 from collections.abc import Callable, Iterator, Sequence
 import logging

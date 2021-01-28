@@ -1,6 +1,5 @@
 """Main training file"""
 from __future__ import annotations
-
 from collections import defaultdict
 import logging
 from pathlib import Path
