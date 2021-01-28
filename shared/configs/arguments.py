@@ -11,7 +11,6 @@ from .enums import (
     ClusteringLabel,
     ClusteringMethod,
     DiscriminatorLoss,
-    DiscriminatorLoss,
     DiscriminatorMethod,
     EncoderType,
     FdmDataset,
