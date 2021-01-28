@@ -271,7 +271,7 @@ class Experiment(ExperimentBase):
                         add_dot=self.args.mmd_add_dot,
                     )
                 disc_loss *= self.args.disc_weight
-                total_loss += disc_loss
+                total_loss -= disc_loss  # subtract the loss!!
                 logging_dict["Loss Discriminator"] = disc_loss
 
             # this is a pretty cheap masking operation, so it's okay if it's not used
