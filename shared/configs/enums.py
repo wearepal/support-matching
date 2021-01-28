@@ -4,10 +4,11 @@ __all__ = [
     "AdultDatasetSplit",
     "AggregatorType",
     "ClusteringLabel",
-    "DiscriminatorMethod",
     "ClusteringMethod",
-    "FdmDataset",
+    "DiscriminatorLoss",
+    "DiscriminatorMethod",
     "EncoderType",
+    "FdmDataset",
     "MMDKernel",
     "PlMethod",
     "QuantizationLevel",
@@ -96,6 +97,13 @@ class AggregatorType(Enum):
     none = auto()
     kvq = auto()
     gated = auto()
+
+
+class DiscriminatorLoss(Enum):
+    """Which type of adversarial loss to use."""
+
+    minimax = auto()
+    wasserstein = auto()
 
 
 class QuantizationLevel(Enum):
