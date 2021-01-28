@@ -66,7 +66,12 @@ from shared.utils import (
 from .build import build_ae
 from .evaluation import classify_dataset
 from .k_means import train as train_k_means
-from .utils import cluster_metrics, count_occurances, get_class_id, get_cluster_label_path
+from .utils import (
+    cluster_metrics,
+    count_occurances,
+    get_class_id,
+    get_cluster_label_path,
+)
 
 __all__ = ["main"]
 

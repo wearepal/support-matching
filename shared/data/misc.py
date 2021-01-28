@@ -7,7 +7,10 @@ import numpy as np
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset, Sampler, Subset, random_split
-from torch.utils.data._utils.collate import default_collate_err_msg_format, np_str_obj_array_pattern
+from torch.utils.data._utils.collate import (
+    default_collate_err_msg_format,
+    np_str_obj_array_pattern,
+)
 
 __all__ = [
     "train_test_split",

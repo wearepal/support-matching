@@ -3,7 +3,11 @@ from pathlib import Path
 
 from lapjv import lapjv
 import numpy as np
-from sklearn.metrics import adjusted_rand_score, confusion_matrix, normalized_mutual_info_score
+from sklearn.metrics import (
+    adjusted_rand_score,
+    confusion_matrix,
+    normalized_mutual_info_score,
+)
 from torch import Tensor
 
 from shared.configs import ClusteringLabel, MiscConfig

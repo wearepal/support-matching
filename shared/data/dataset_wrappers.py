@@ -1,6 +1,16 @@
 from pathlib import Path
 import random
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
 
 from ethicml.utility import DataTuple
 import numpy as np
