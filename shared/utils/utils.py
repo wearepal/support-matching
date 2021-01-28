@@ -1,6 +1,5 @@
 """Utility functions."""
 from __future__ import annotations
-
 from collections.abc import Iterable, Iterator, MutableMapping, Sequence
 from dataclasses import asdict
 from enum import Enum

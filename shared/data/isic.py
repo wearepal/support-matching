@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from collections.abc import Iterable, Iterator
 from itertools import islice
 import logging
