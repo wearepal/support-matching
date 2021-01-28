@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Iterable, Iterator
+from itertools import islice
 import logging
 from pathlib import Path
-import posixpath
 import shutil
-from typing import Callable, ClassVar, NamedTuple, Union
+from typing import Callable, ClassVar, NamedTuple, TypeVar, Union
 
 from PIL import Image
 import numpy as np
@@ -32,6 +32,7 @@ class Sample(NamedTuple):
 
 
 Transform = Callable[[Union[Image.Image, Tensor]], Tensor]
+T = TypeVar("T")
 
 
 class IsicDataset(Dataset):
@@ -83,6 +84,12 @@ class IsicDataset(Dataset):
     def _check_downloaded(self) -> bool:
         return (self._data_dir / "processed" / "images").exists()
 
+    @staticmethod
+    def chunk(it: Iterable[T], size: int) -> Iterator[list[T]]:
+        """Divide any iterable into chunks of the given size."""
+        it = iter(it)
+        return iter(lambda: list(islice(it, size)), [])  # this is magic from stackoverflow
+
     def _download_isic_metadata(self) -> pd.DataFrame:
         """Downloads the metadata CSV from the ISIC website."""
         self._raw_dir.mkdir(parents=True, exist_ok=True)
@@ -92,11 +99,24 @@ class IsicDataset(Dataset):
         )
         image_ids = req.json()
         image_ids = [image_id["_id"] for image_id in image_ids]
+
+        template_start = "?limit=300&sort=name&sortdir=1&detail=true&imageIds=%5B%22"
+        template_sep = "%22%2C%22"
+        template_end = "%22%5D"
         entries = []
-        for image_id in tqdm(image_ids):
-            req = requests.get(posixpath.join(self._rest_api_url, "image", image_id))
-            entry = flatten_dict(req.json(), sep=".")
-            entries.append(entry)
+        with tqdm(total=len(image_ids) // 300 + 1, desc="Downloading metadata") as pbar:
+            for block in self.chunk(image_ids, 300):
+                pbar.set_postfix(image_id=block[0])
+                args = ""
+                args += template_start
+                args += template_sep.join(block)
+                args += template_end
+                req = requests.get(f"{self._rest_api_url}/image{args}")
+                image_details = req.json()
+                for image_detail in image_details:
+                    entry = flatten_dict(image_detail, sep=".")
+                    entries.append(entry)
+                pbar.update()
 
         metadata_df = pd.DataFrame(entries)
         metadata_df = metadata_df.set_index("_id")
@@ -113,18 +133,26 @@ class IsicDataset(Dataset):
         metadata_df = pd.read_csv(metadata_path)
         metadata_df = metadata_df.set_index("_id")
 
+        template_start = "?include=images&imageIds=%5B%22"
+        template_sep = "%22%2C%22"
+        template_end = "%22%5D"
         raw_image_dir = self._raw_dir / "images"
         raw_image_dir.mkdir(exist_ok=True)
         image_ids = list(metadata_df.index)
-        for image_id in tqdm(image_ids):
-            req = requests.get(
-                posixpath.join(self._rest_api_url, "image", image_id, "download"), stream=True
-            )
-            req.raise_for_status()
-            image_path = raw_image_dir / f"{image_id}.jpg"
-            with open(image_path, "wb") as f:
-                shutil.copyfileobj(req.raw, f)
-            del req
+        with tqdm(total=len(image_ids) // 50 + 1, desc="Downloading images") as pbar:
+            for i, block in enumerate(self.chunk(image_ids, 50)):
+                pbar.set_postfix(image_id=block[0])
+                args = ""
+                args += template_start
+                args += template_sep.join(block)
+                args += template_end
+                req = requests.get(f"{self._rest_api_url}/image/download{args}", stream=True)
+                req.raise_for_status()
+                image_path = raw_image_dir / f"{i}.zip"
+                with open(image_path, "wb") as f:
+                    shutil.copyfileobj(req.raw, f)
+                del req
+                pbar.update()
 
     def _preprocess_isic_metadata(self) -> None:
         """Preprocesses the raw ISIC metadata."""
@@ -155,15 +183,18 @@ class IsicDataset(Dataset):
         image_ids = labels_df.index.tolist()
 
         (self._processed_dir / "images").mkdir(exist_ok=True)
-        for image_id in tqdm(image_ids):
-            out_path = self._processed_dir / "images" / f"{image_id}.jpg"
-            if out_path.is_file():
-                continue
-            image = Image.open(self._raw_dir / "images" / f"{image_id}.jpg")
-            image = image.resize((224, 224))
-            if image.mode in ("RGBA", "P"):
-                image = image.convert("RGB")
-            image.save(out_path)
+        with tqdm(total=len(image_ids), desc="Processing images") as pbar:
+            for image_id in image_ids:
+                pbar.set_postfix(image_id=image_id)
+                out_path = self._processed_dir / "images" / f"{image_id}.jpg"
+                if out_path.is_file():
+                    continue
+                image = Image.open(self._raw_dir / "images" / f"{image_id}.jpg")
+                image = image.resize((224, 224))
+                if image.mode in ("RGBA", "P"):
+                    image = image.convert("RGB")
+                image.save(out_path)
+                pbar.update()
 
     @staticmethod
     def _remove_uncertain_diagnoses(metadata_df: pd.DataFrame) -> pd.DataFrame:
