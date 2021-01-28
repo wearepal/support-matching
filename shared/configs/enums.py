@@ -100,7 +100,7 @@ class AggregatorType(Enum):
 
 
 class DiscriminatorLoss(Enum):
-    """ Which type of adversarial loss to use.  """
+    """Which type of adversarial loss to use."""
 
     minimax = auto()
     wasserstein = auto()
