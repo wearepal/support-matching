@@ -7,26 +7,26 @@ from shared.layers import View
 __all__ = ["conv_autoencoder", "fc_autoencoder"]
 
 
-def gated_conv(in_channels, out_channels, kernel_size, stride, padding):
+def down_conv(in_channels, out_channels, kernel_size, stride, padding):
     return nn.Sequential(
         nn.Conv2d(
-            in_channels, out_channels * 2, kernel_size=kernel_size, stride=stride, padding=padding
+            in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding
         ),
-        nn.GLU(dim=1),
+        nn.GELU(),
     )
 
 
-def gated_up_conv(in_channels, out_channels, kernel_size, stride, padding, output_padding):
+def up_conv(in_channels, out_channels, kernel_size, stride, padding, output_padding):
     return nn.Sequential(
         nn.ConvTranspose2d(
             in_channels,
-            out_channels * 2,
+            out_channels,
             kernel_size=kernel_size,
             stride=stride,
             padding=padding,
             output_padding=output_padding,
         ),
-        nn.GLU(dim=1),
+        nn.GELU(),
     )
 
 
@@ -51,20 +51,16 @@ def conv_autoencoder(
 
         encoder.append(
             nn.Sequential(
-                gated_conv(c_in, c_out, kernel_size=3, stride=1, padding=1),
-                nn.Dropout2d(p=0.5),
-                gated_conv(c_out, c_out, kernel_size=4, stride=2, padding=1),
-                nn.Dropout2d(p=0.5),
+                down_conv(c_in, c_out, kernel_size=3, stride=1, padding=1),
+                down_conv(c_out, c_out, kernel_size=4, stride=2, padding=1),
             )
         )
 
         decoder.append(
             nn.Sequential(
                 # inverted order
-                gated_up_conv(c_out, c_out, kernel_size=4, stride=2, padding=1, output_padding=0),
-                nn.Dropout2d(p=0.5),
-                gated_conv(c_out, c_in, kernel_size=3, stride=1, padding=1),
-                nn.Dropout2d(p=0.5),
+                up_conv(c_out, c_out, kernel_size=4, stride=2, padding=1, output_padding=0),
+                down_conv(c_out, c_in, kernel_size=3, stride=1, padding=1),
             )
         )
 
