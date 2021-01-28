@@ -24,7 +24,7 @@ class Discriminator(ModelBase):
         scores_fake = self.model(fake)
         scores_real = scores_real - scores_real.mean(dim=0)
         scores_fake = scores_real - scores_real.mean(dim=0)
-        if self.criterion is Discriminator.logistic:
+        if self.criterion is DiscriminatorLoss.logistic:
             loss_fake = F.softplus(scores_real) # -log(1-sigmoid(fake_scores_out))
             loss_real = F.softplus(1 - scores_real) # -log(sigmoid(real_scores_out)) 
             return (loss_real + loss_fake).mean()
@@ -33,10 +33,7 @@ class Discriminator(ModelBase):
 
     def generator_loss(self, fake: Tensor) -> Tensor:
         logits = self.model(fake)
-        if self.criterion is DiscriminatorLoss.minimax:
-            zeros = fake.new_zeros((logits.size(0), 1))
-            return -F.binary_cross_entropy_with_logits(logits, zeros, reduction="mean")
-        elif self.criterion is Discriminator.logistic:
+        if self.criterion is DiscriminatorLoss.logistic:
             return F.softplus(-logits).mean()
         else:
             return logits.mean()
