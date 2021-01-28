@@ -187,7 +187,7 @@ class Experiment(ExperimentBase):
 
             for discriminator in self.disc_ensemble:
                 discriminator = cast(Discriminator, discriminator)
-                disc_loss += discriminator.routine(fake=disc_input_t, real=disc_input_c)  # type: ignore
+                disc_loss += discriminator.discriminator_loss(fake=disc_input_t, real=disc_input_c)  # type: ignore
             disc_loss /= len(self.disc_ensemble)
 
         for discriminator in self.disc_ensemble:
@@ -247,7 +247,7 @@ class Experiment(ExperimentBase):
                     disc_loss = tr.x.new_zeros(())
                     for discriminator in self.disc_ensemble:
                         discriminator = cast(Discriminator, discriminator)
-                        disc_loss += discriminator.predict(fake=disc_input_no_s)
+                        disc_loss += discriminator.generator_loss(fake=disc_input_no_s)
 
                     disc_loss /= len(self.disc_ensemble)
                 else:

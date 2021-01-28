@@ -30,12 +30,12 @@ class Discriminator(ModelBase):
         else:  # WGAN Loss is simply the difference between the means of the real and fake batches
             return logits_real.mean() - logits_fake.mean()
 
-    def routine(self, fake: Tensor, real: Tensor) -> Tensor:
+    def discriminator_loss(self, fake: Tensor, real: Tensor) -> Tensor:
         logits_real = self.model(real)
         logits_fake = self.model(fake)
         return self._apply_criterion(logits_real=logits_real, logits_fake=logits_fake)
 
-    def predict(self, fake: Tensor) -> Tensor:
+    def generator_loss(self, fake: Tensor) -> Tensor:
         logits = self.model(fake)
         if self.criterion is DiscriminatorLoss.minimax:
             zeros = fake.new_zeros((logits.size(0), 1))
