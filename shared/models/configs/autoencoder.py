@@ -52,7 +52,9 @@ def conv_autoencoder(
         encoder.append(
             nn.Sequential(
                 gated_conv(c_in, c_out, kernel_size=3, stride=1, padding=1),
+                nn.Dropout2d(p=0.5),
                 gated_conv(c_out, c_out, kernel_size=4, stride=2, padding=1),
+                nn.Dropout2d(p=0.5),
             )
         )
 
@@ -60,7 +62,9 @@ def conv_autoencoder(
             nn.Sequential(
                 # inverted order
                 gated_up_conv(c_out, c_out, kernel_size=4, stride=2, padding=1, output_padding=0),
+                nn.Dropout2d(p=0.5),
                 gated_conv(c_out, c_in, kernel_size=3, stride=1, padding=1),
+                nn.Dropout2d(p=0.5),
             )
         )
 

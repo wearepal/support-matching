@@ -111,6 +111,7 @@ class Strided28x28Net:
         _block += [nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size, stride=stride, padding=1)]
         if self.batch_norm:
             _block += [nn.BatchNorm2d(out_dim)]
+        _block += [nn.Dropout2d(p=0.5)]
         _block += [nn.LeakyReLU()]
         return _block
 
