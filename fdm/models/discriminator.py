@@ -39,6 +39,6 @@ class Discriminator(ModelBase):
         logits = self.model(fake)
         if self.criterion is DiscriminatorLoss.minimax:
             zeros = fake.new_zeros((logits.size(0), 1))
-            return F.binary_cross_entropy_with_logits(logits, zeros, reduction="mean")
+            return -F.binary_cross_entropy_with_logits(logits, zeros, reduction="mean")
         else:
-            return -logits.mean()
+            return logits.mean()
