@@ -156,7 +156,7 @@ class Experiment(ExperimentBase):
         self.predictor_y.eval()
         self.predictor_s.eval()
         self.disc_ensemble.train()
-        with torch.cuda.amp.autocast(enabled=self.misc.use_amp): # type: ignore
+        with torch.cuda.amp.autocast(enabled=self.misc.use_amp):  # type: ignore
             if self.args.aggregator_type is AggregatorType.none:
                 ones = x_c.new_ones((x_c.size(0),))
                 zeros = x_t.new_zeros((x_t.size(0),))
@@ -182,12 +182,12 @@ class Experiment(ExperimentBase):
             disc_input_t = disc_input_t.detach()
 
             if not self.args.train_on_recon:
-                disc_input_c = self.get_disc_input(encoding_c) # type: ignore
+                disc_input_c = self.get_disc_input(encoding_c)  # type: ignore
                 disc_input_c = disc_input_c.detach()
 
             for discriminator in self.disc_ensemble:
                 discriminator = cast(Discriminator, discriminator)
-                disc_loss += discriminator.routine(fake=disc_input_t, real=disc_input_c) # type: ignore
+                disc_loss += discriminator.routine(fake=disc_input_t, real=disc_input_c)  # type: ignore
             disc_loss /= len(self.disc_ensemble)
 
         for discriminator in self.disc_ensemble:
@@ -248,6 +248,7 @@ class Experiment(ExperimentBase):
                     for discriminator in self.disc_ensemble:
                         discriminator = cast(Discriminator, discriminator)
                         disc_loss += discriminator.predict(fake=disc_input_no_s)
+
                     disc_loss /= len(self.disc_ensemble)
                 else:
                     x = disc_input_no_s
@@ -588,7 +589,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
     disc_ensemble: nn.ModuleList = nn.ModuleList()
     for k in range(args.num_discs):
         disc = Discriminator(
-            model=disc_fn(disc_input_shape, 1), # type: ignore
+            model=disc_fn(disc_input_shape, 1),  # type: ignore
             optimizer_kwargs=disc_optimizer_kwargs,
             criterion=args.disc_loss,
         )
