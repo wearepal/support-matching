@@ -31,7 +31,7 @@ class Discriminator(ModelBase):
             loss_real = F.softplus(-real_scores)  # -log(sigmoid(real_scores_out))
             loss_fake = F.softplus(fake_scores)  # -log(1-sigmoid(fake_scores_out))
             return (loss_real + loss_fake).mean()
-        else:  # WGAN Loss is simply the difference between the means of the real and fake batches
+        else:  # WGAN Loss is just the difference between the mean scores for the real and fake data
             return real_scores.mean() - fake_scores.mean()
 
     def encoder_loss(self, fake: Tensor, real: Tensor) -> Tensor:
@@ -45,5 +45,5 @@ class Discriminator(ModelBase):
             loss_real = -F.softplus(-real_scores)  # log(sigmoid(real_scores_out))
             loss_fake = F.softplus(-fake_scores)  # -log(sigmoid(fake_scores_out))
             return (loss_real + loss_fake).mean()
-        else:  # WGAN Loss is simply the difference between the means of the real and fake batches
+        else:  # WGAN Loss is just the difference between the mean scores for the fake and real data
             return fake_scores.mean() - real_scores.mean()
