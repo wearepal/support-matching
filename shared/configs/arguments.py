@@ -46,6 +46,7 @@ class DatasetConfig:
     context_pcnt: float = 0.4
     test_pcnt: float = 0.2
     root: str = ""
+    transductive: bool = False  # whether to include the test data in the pool of unlabelled data
 
     # Adult data set feature settings
     drop_native: bool = True
