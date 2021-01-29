@@ -65,7 +65,8 @@ class IsicDataset(Dataset):
             raise ValueError("max_samples must be a positive integer.")
         self.max_samples = max_samples
         if self.download:
-            self._download_and_process_data()
+            self._download_data()
+            self._preprocess_data()
         elif not self._check_downloaded():
             raise RuntimeError(
                 f"Data don't exist at location {self._processed_dir.resolve()}. "
@@ -83,7 +84,12 @@ class IsicDataset(Dataset):
         self.target_transform = target_transform
 
     def _check_downloaded(self) -> bool:
-        return (self._data_dir / "processed" / "images").exists()
+        return (self._raw_dir / "images").exists() and (self._raw_dir / "metadata.csv").exists()
+
+    def _check_processed(self) -> bool:
+        return (self._processed_dir / "ISIC-Images").exists() and (
+            self._processed_dir / "metadata.csv"
+        ).exists()
 
     @staticmethod
     def chunk(it: Iterable[T], size: int) -> Iterator[list[T]]:
@@ -241,7 +247,7 @@ class IsicDataset(Dataset):
         assert not any(patch is None for patch in labels_df["patch"])
         return labels_df
 
-    def _download_and_process_data(self) -> None:
+    def _download_data(self) -> None:
         """Attempt to download data if files cannot be found in the base folder."""
         # # Check whether the data has already been downloaded - if it has and the integrity
         # # of the files can be confirmed, then we are done
@@ -253,14 +259,20 @@ class IsicDataset(Dataset):
         LOGGER.info(f"Downloading metadata into {str(self._raw_dir / 'metadata.csv')}...")
         self._download_isic_metadata()
         LOGGER.info(
+            f"Downloading data into {str(self._raw_dir)} for up to {self.max_samples} samples..."
+        )
+        self._download_isic_images()
+
+    def _preprocess_data(self) -> None:
+        """Preprocess the downloaded data if the processed image-directory/metadata don't exist."""
+        # If the data has already been processed, skip this operation
+        if self._check_processed():
+            return
+        LOGGER.info(
             f"Preprocessing metadata (adding columns, removing uncertain diagnoses) and saving into "
             f"{str(self._data_dir/ 'processed'/ 'labels.csv')}..."
         )
         self._preprocess_isic_metadata()
-        LOGGER.info(
-            f"Downloading data into {str(self._raw_dir)} for up to {self.max_samples} samples..."
-        )
-        self._download_isic_images()
         LOGGER.info(
             f"Preprocessing images (transforming to 3-channel RGB, resizing to 224x224) and saving "
             f"into  {str(self._data_dir/ 'raw'/ 'images')}..."
