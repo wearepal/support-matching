@@ -297,7 +297,7 @@ def find_data_dir() -> str:
         "fear": "/mnt/data0/data",
         "hydra": "/mnt/archive/shared/data",
         "m900382.inf.susx.ac.uk": "/Users/tk324/PycharmProjects/NoSINN/data",
-        # "turing": "/srv/galene0/shared/data",
+        "turing": "/srv/galene0/shared/data",
     }
     name_of_machine = platform.node()  # name of machine as reported by operating system
     return data_dirs.get(name_of_machine, to_absolute_path("data"))
