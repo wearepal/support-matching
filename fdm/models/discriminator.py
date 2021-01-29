@@ -1,10 +1,11 @@
 from __future__ import annotations
 from typing import Any
 
-from fdm.models.base import ModelBase
-from shared.configs.enums import DiscriminatorLoss
 from torch import Tensor, nn
 import torch.nn.functional as F
+
+from fdm.models.base import ModelBase
+from shared.configs.enums import DiscriminatorLoss
 
 __all__ = ["Discriminator"]
 
@@ -20,16 +21,14 @@ class Discriminator(ModelBase):
         self.criterion = criterion
 
     def discriminator_loss(self, fake: Tensor, real: Tensor) -> Tensor:
-        scores_real = self.model(real)
-        scores_fake = self.model(fake)
-        scores_real = scores_real - scores_real.mean(dim=0)
-        scores_fake = scores_real - scores_real.mean(dim=0)
+        real_scores = self.model(real)
+        fake_scores = self.model(fake)
         if self.criterion is DiscriminatorLoss.logistic:
-            loss_fake = F.softplus(scores_real) # -log(1-sigmoid(fake_scores_out))
-            loss_real = F.softplus(1 - scores_real) # -log(sigmoid(real_scores_out)) 
+            loss_real = F.softplus(real_scores)  # -log(sigmoid(real_scores_out))
+            loss_fake = F.softplus(1 - fake_scores)  # -log(1-sigmoid(fake_scores_out))
             return (loss_real + loss_fake).mean()
         else:  # WGAN Loss is simply the difference between the means of the real and fake batches
-            return scores_real.mean() - scores_fake.mean()
+            return real_scores.mean() - fake_scores.mean()
 
     def generator_loss(self, fake: Tensor) -> Tensor:
         logits = self.model(fake)
