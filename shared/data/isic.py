@@ -245,26 +245,26 @@ class IsicDataset(Dataset):
         """Attempt to download data if files cannot be found in the base folder."""
         # # Check whether the data has already been downloaded - if it has and the integrity
         # # of the files can be confirmed, then we are done
-        # if self._check_downloaded():
-        #     LOGGER.info("Files already downloaded and verified.")
-        #     return
-        # # Create the directory and any required ancestors if not already existent
-        # self._data_dir.mkdir(exist_ok=True, parents=True)
-        # LOGGER.info(f"Downloading metadata into {str(self._raw_dir / 'metadata.csv')}...")
-        # self._download_isic_metadata()
-        # LOGGER.info(
-        #     f"Preprocessing metadata (adding columns, removing uncertain diagnoses) and saving into "
-        #     f"{str(self._data_dir/ 'processed'/ 'labels.csv')}..."
-        # )
+        if self._check_downloaded():
+            LOGGER.info("Files already downloaded and verified.")
+            return
+        # Create the directory and any required ancestors if not already existent
+        self._data_dir.mkdir(exist_ok=True, parents=True)
+        LOGGER.info(f"Downloading metadata into {str(self._raw_dir / 'metadata.csv')}...")
+        self._download_isic_metadata()
+        LOGGER.info(
+            f"Preprocessing metadata (adding columns, removing uncertain diagnoses) and saving into "
+            f"{str(self._data_dir/ 'processed'/ 'labels.csv')}..."
+        )
         self._preprocess_isic_metadata()
         LOGGER.info(
             f"Downloading data into {str(self._raw_dir)} for up to {self.max_samples} samples..."
         )
-        # self._download_isic_images()
-        # LOGGER.info(
-        #     f"Preprocessing images (transforming to 3-channel RGB, resizing to 224x224) and saving "
-        #     f"into  {str(self._data_dir/ 'raw'/ 'images')}..."
-        # )
+        self._download_isic_images()
+        LOGGER.info(
+            f"Preprocessing images (transforming to 3-channel RGB, resizing to 224x224) and saving "
+            f"into  {str(self._data_dir/ 'raw'/ 'images')}..."
+        )
         self._preprocess_isic_images()
 
     def __len__(self) -> int:
