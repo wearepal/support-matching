@@ -3,7 +3,6 @@ from collections.abc import Iterable, Iterator
 from itertools import islice
 import logging
 import os
-import os
 from pathlib import Path
 import shutil
 from typing import Callable, ClassVar, NamedTuple, TypeVar, Union
