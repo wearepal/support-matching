@@ -9,6 +9,7 @@ import torch
 from torch import Tensor
 import torch.nn as nn
 from torch.utils.data import Dataset, Subset
+from torch.utils.data.dataset import ConcatDataset
 from torchvision import transforms as TF
 from torchvision.datasets import MNIST
 from typing_extensions import Literal
@@ -277,6 +278,9 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
         context_data = shrink_dataset(context_data, args.data_pcnt)
         train_data = shrink_dataset(train_data, args.data_pcnt)
         test_data = shrink_dataset(test_data, args.data_pcnt)
+    # Enable transductive learning (i.e. using the test data for semi-supervised learning)
+    if args.transductive:
+        context_data = ConcatDataset([context_data, test_data])
 
     return DatasetTriplet(
         context=context_data,
