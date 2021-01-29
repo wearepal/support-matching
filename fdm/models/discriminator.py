@@ -24,8 +24,8 @@ class Discriminator(ModelBase):
         real_scores = self.model(real)
         fake_scores = self.model(fake)
         if self.criterion is DiscriminatorLoss.logistic:
-            loss_real = F.softplus(real_scores)  # -log(sigmoid(real_scores_out))
-            loss_fake = F.softplus(1 - fake_scores)  # -log(1-sigmoid(fake_scores_out))
+            loss_real = F.softplus(-real_scores)  # -log(sigmoid(real_scores_out))
+            loss_fake = F.softplus(fake_scores)  # -log(1-sigmoid(fake_scores_out))
             return (loss_real + loss_fake).mean()
         else:  # WGAN Loss is simply the difference between the means of the real and fake batches
             return real_scores.mean() - fake_scores.mean()
