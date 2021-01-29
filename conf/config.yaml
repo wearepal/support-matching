@@ -6,13 +6,14 @@ defaults:
     - enc: mnist
     - fdm: cmnist/fallen_sun
     - misc: default
+    # hydra config
+    - hydra/launcher/ray/init/custom
+    - override hydra/launcher: ray
     - override hydra/job_logging: custom
-      # hydra config
-      # - hydra/launcher: basic
-      # - hydra/launcher/ray_init_cfg/custom
 
-      # run config
-# hydra:
-#     launcher:
-#         ray_remote_cfg:
-#             num_gpus: 1 # how many GPUs this task needs
+# run config
+hydra:
+    launcher:
+        ray:
+            remote:
+                num_gpus: 1 # how many GPUs this task needs
