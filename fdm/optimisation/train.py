@@ -376,9 +376,8 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
 
     assert args.test_batch_size  # test_batch_size defaults to eff_batch_size if unspecified
     # ==== current git commit ====
-    # repo = git.Repo(search_parent_directories=True)
-    # sha = repo.head.object.hexsha
-    sha = ""
+    repo = git.Repo(search_parent_directories=True)
+    sha = repo.head.object.hexsha
 
     random_seed(misc.seed, misc.use_gpu)
     if cluster_label_file is not None:
