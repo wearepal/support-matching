@@ -1,6 +1,7 @@
-from typing import List, Optional, Sequence, Union
+from typing import Callable, List, Optional, Sequence, Union
 
 from torch import nn
+from torch.tensor import Tensor
 
 from shared.layers.aggregation import Aggregator
 from shared.utils import ModelFn, prod
@@ -46,14 +47,18 @@ class Mp32x23Net:
 
 
 class FcNet:
-    def __init__(self, hidden_dims: Optional[Sequence[int]]):
+    def __init__(
+        self,
+        hidden_dims: Optional[Sequence[int]],
+        activation: nn.Module = nn.SELU(),
+    ):
         self.hidden_dims = hidden_dims
+        self.activation = activation
 
-    @staticmethod
-    def _fc_block(in_dim: int, out_dim: int) -> List[nn.Module]:
+    def _fc_block(self, in_dim: int, out_dim: int) -> List[nn.Module]:
         _block: List[nn.Module] = []
         _block += [nn.Linear(in_dim, out_dim)]
-        _block += [nn.SELU()]
+        _block += [self.activation]
         return _block
 
     def __call__(self, input_dim: Union[int, Sequence[int]], target_dim: int) -> nn.Sequential:

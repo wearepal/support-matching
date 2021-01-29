@@ -7,8 +7,17 @@ from pathlib import Path
 import time
 from typing import NamedTuple, cast
 
+import git
+from hydra.utils import to_absolute_path
 import numpy as np
+import torch
+from torch import Tensor
+from torch.cuda.amp.grad_scaler import GradScaler
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import DataLoader, Dataset
 from typing_extensions import Literal
+import wandb
 import yaml
 
 from fdm.models import AutoEncoder, Classifier, EncodingSize, build_classifier
@@ -16,8 +25,6 @@ from fdm.models.configs import Residual64x64Net
 from fdm.models.configs.classifiers import Strided28x28Net
 from fdm.models.discriminator import Discriminator
 from fdm.optimisation.mmd import mmd2
-import git
-from hydra.utils import to_absolute_path
 from shared.configs import (
     AggregatorType,
     Config,
@@ -55,13 +62,6 @@ from shared.utils import (
     readable_duration,
     wandb_log,
 )
-import torch
-from torch import Tensor
-from torch.cuda.amp.grad_scaler import GradScaler
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset
-import wandb
 
 from .build import build_ae
 from .evaluation import baseline_metrics, log_metrics
@@ -559,7 +559,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
             disc_fn = Residual64x64Net(batch_norm=False)
 
     else:
-        disc_fn = FcNet(hidden_dims=args.disc_hidden_dims)
+        disc_fn = FcNet(hidden_dims=args.disc_hidden_dims, activation=nn.GELU())
         # FcNet first flattens the input
         disc_input_shape = (
             (prod(disc_input_shape),)

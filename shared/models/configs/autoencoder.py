@@ -1,8 +1,7 @@
 from typing import List, Optional, Tuple
 
-import torch.nn as nn
-
 from shared.layers import View
+import torch.nn as nn
 
 __all__ = ["conv_autoencoder", "fc_autoencoder"]
 
@@ -12,7 +11,7 @@ def down_conv(in_channels, out_channels, kernel_size, stride, padding):
         nn.Conv2d(
             in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding
         ),
-        nn.SiLU(inplace=True),
+        nn.GELU(inplace=True)
     )
 
 
@@ -26,7 +25,7 @@ def up_conv(in_channels, out_channels, kernel_size, stride, padding, output_padd
             padding=padding,
             output_padding=output_padding,
         ),
-        nn.SiLU(inplace=True),
+        nn.GELU(inplace=True)
     )
 
 
