@@ -1,7 +1,6 @@
-from typing import Callable, List, Optional, Sequence, Union
+from typing import List, Optional, Sequence, Union
 
 from torch import nn
-from torch.tensor import Tensor
 
 from shared.layers.aggregation import Aggregator
 from shared.utils import ModelFn, prod
