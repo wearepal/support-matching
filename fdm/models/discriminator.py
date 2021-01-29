@@ -30,5 +30,5 @@ class Discriminator(ModelBase):
         else:  # WGAN Loss is simply the difference between the means of the real and fake batches
             return real_scores.mean() - fake_scores.mean()
 
-    def generator_loss(self, fake: Tensor, real: Tensor) -> Tensor:
+    def encoder_loss(self, fake: Tensor, real: Tensor) -> Tensor:
         return -self.discriminator_loss(fake=fake, real=real)

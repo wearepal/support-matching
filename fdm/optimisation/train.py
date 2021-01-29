@@ -249,7 +249,7 @@ class Experiment(ExperimentBase):
                     disc_loss = tr.x.new_zeros(())
                     for discriminator in self.disc_ensemble:
                         discriminator = cast(Discriminator, discriminator)
-                        disc_loss += discriminator.generator_loss(
+                        disc_loss += discriminator.encoder_loss(
                             fake=disc_input_t, real=disc_input_c
                         )
 
