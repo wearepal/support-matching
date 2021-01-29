@@ -103,6 +103,7 @@ class DiscriminatorLoss(Enum):
     """Which type of adversarial loss to use."""
 
     wasserstein = auto()
+    logistic_ns = auto()
     logistic = auto()
 
 
