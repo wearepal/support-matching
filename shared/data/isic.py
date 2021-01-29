@@ -41,6 +41,7 @@ class IsicDataset(Dataset):
     'Skin Lesion Analysis Toward Melanoma Detection 2018: A Challenge Hosted by the International
     Skin Imaging Collaboration (ISIC)',"""
 
+    _pbar_col: ClassVar[str] = "#fac000"
     _rest_api_url: ClassVar[str] = "https://isic-archive.com/api/v1"
 
     def __init__(
@@ -111,7 +112,11 @@ class IsicDataset(Dataset):
         template_sep = "%22%2C%22"
         template_end = "%22%5D"
         entries = []
-        with tqdm(total=(len(image_ids) - 1) // 300 + 1, desc="Downloading metadata") as pbar:
+        with tqdm(
+            total=(len(image_ids) - 1) // 300 + 1,
+            desc="Downloading metadata",
+            colour=self._pbar_col,
+        ) as pbar:
             for block in self.chunk(image_ids, 300):
                 pbar.set_postfix(image_id=block[0])
                 args = ""
@@ -146,7 +151,9 @@ class IsicDataset(Dataset):
         raw_image_dir = self._raw_dir / "images"
         raw_image_dir.mkdir(exist_ok=True)
         image_ids = list(metadata_df.index)
-        with tqdm(total=(len(image_ids) - 1) // 50 + 1, desc="Downloading images") as pbar:
+        with tqdm(
+            total=(len(image_ids) - 1) // 50 + 1, desc="Downloading images", colour=self._pbar_col
+        ) as pbar:
             for i, block in enumerate(self.chunk(image_ids, 50)):
                 pbar.set_postfix(image_id=block[0])
                 args = ""
@@ -205,16 +212,16 @@ class IsicDataset(Dataset):
         self._processed_dir.mkdir(exist_ok=True)
         image_zips = tuple((self._raw_dir / "images").glob("**/*.zip"))
         images = []
-        with tqdm(total=len(image_zips), desc="Unzipping images") as pbar:
+        with tqdm(total=len(image_zips), desc="Unzipping images", colour=self._pbar_col) as pbar:
             for image_path in image_zips:
                 pbar.set_postfix(filename=image_path.stem)
                 with zipfile.ZipFile(image_path, "r") as zip_ref:
                     zip_ref.extractall(self._processed_dir)
                     pbar.update()
         images = tuple(self._processed_dir.glob("**/*.jpg"))
-        with tqdm(total=len(images), desc="Processing images") as pbar:
+        with tqdm(total=len(images), desc="Processing images", colour=self._pbar_col) as pbar:
             for image_path in images:
-                pbar.set_postfix(image_id=image_path)
+                pbar.set_postfix(image_name=image_path.stem)
                 image = Image.open(image_path)
                 image = image.resize((224, 224))  # Resize the images to be of size 224 x 224
                 if image.mode in ("RGBA", "P"):
