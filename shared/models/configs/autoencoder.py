@@ -9,10 +9,8 @@ __all__ = ["conv_autoencoder", "fc_autoencoder"]
 
 def down_conv(in_channels, out_channels, kernel_size, stride, padding):
     return nn.Sequential(
-        nn.utils.weight_norm(
-            nn.Conv2d(
-                in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding
-            ),
+        nn.Conv2d(
+            in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding
         ),
         nn.SiLU(inplace=True),
     )
@@ -20,17 +18,15 @@ def down_conv(in_channels, out_channels, kernel_size, stride, padding):
 
 def up_conv(in_channels, out_channels, kernel_size, stride, padding, output_padding):
     return nn.Sequential(
-        nn.utils.weight_norm(
-            nn.ConvTranspose2d(
-                in_channels,
-                out_channels,
-                kernel_size=kernel_size,
-                stride=stride,
-                padding=padding,
-                output_padding=output_padding,
-            ),
+        nn.ConvTranspose2d(
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            output_padding=output_padding,
         ),
-        nn.SiLU(),
+        nn.SiLU(inplace=True),
     )
 
 
