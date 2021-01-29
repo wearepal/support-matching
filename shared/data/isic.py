@@ -2,9 +2,12 @@ from __future__ import annotations
 from collections.abc import Iterable, Iterator
 from itertools import islice
 import logging
+import os
+import os
 from pathlib import Path
 import shutil
 from typing import Callable, ClassVar, NamedTuple, TypeVar, Union
+import zipfile
 
 from PIL import Image
 import numpy as np
@@ -73,9 +76,9 @@ class IsicDataset(Dataset):
         self.metadata = pd.read_csv(self._processed_dir / "labels.csv")
         # Divide up the dataframe into it's constituent arrays because indexing with pandas is
         # considerably slower than indexing with numpy/torch
-        self.image_ids = self.metadata["_id"].values
-        self.sens_data = torch.as_tensor(self.metadata[sens_attr], dtype=torch.int32)
-        self.target_data = torch.as_tensor(self.metadata[target_attr], dtype=torch.int32)
+        self.image_fps = self.metadata["path"].values
+        self.sens_data = torch.as_tensor(self.metadata[sens_attr.name], dtype=torch.int32)
+        self.target_data = torch.as_tensor(self.metadata[target_attr.name], dtype=torch.int32)
 
         self.transform = transform
         self.target_transform = target_transform
@@ -103,7 +106,7 @@ class IsicDataset(Dataset):
         template_sep = "%22%2C%22"
         template_end = "%22%5D"
         entries = []
-        with tqdm(total=len(image_ids) // 300 + 1, desc="Downloading metadata") as pbar:
+        with tqdm(total=(len(image_ids) - 1) // 300 + 1, desc="Downloading metadata") as pbar:
             for block in self.chunk(image_ids, 300):
                 pbar.set_postfix(image_id=block[0])
                 args = ""
@@ -138,7 +141,7 @@ class IsicDataset(Dataset):
         raw_image_dir = self._raw_dir / "images"
         raw_image_dir.mkdir(exist_ok=True)
         image_ids = list(metadata_df.index)
-        with tqdm(total=len(image_ids) // 50 + 1, desc="Downloading images") as pbar:
+        with tqdm(total=(len(image_ids) - 1) // 50 + 1, desc="Downloading images") as pbar:
             for i, block in enumerate(self.chunk(image_ids, 50)):
                 pbar.set_postfix(image_id=block[0])
                 args = ""
@@ -168,10 +171,23 @@ class IsicDataset(Dataset):
         metadata_df = metadata_df.set_index("_id")
         labels_df = self._remove_uncertain_diagnoses(metadata_df)
         labels_df = self._add_patch_column(labels_df)
+
+        labels_df["path"] = (
+            str(self._processed_dir)  # type: ignore
+            + os.sep
+            + "ISIC-Images"
+            + os.sep
+            + labels_df["dataset.name"]
+            + os.sep
+            + labels_df["name"]
+            + ".jpg"
+        )
         labels_df.to_csv(self._processed_dir / "labels.csv")
 
     def _preprocess_isic_images(self) -> None:
         """Preprocesses the images."""
+        if (self._processed_dir / "ISIC-images").is_dir():
+            return
         if not (self._raw_dir / "images").is_dir():
             raise FileNotFoundError(
                 "Raw ISIC images not found. Run `download_isic_images` before "
@@ -181,18 +197,24 @@ class IsicDataset(Dataset):
         labels_df = labels_df.set_index("_id")
         image_ids = labels_df.index.tolist()
 
-        (self._processed_dir / "images").mkdir(exist_ok=True)
-        with tqdm(total=len(image_ids), desc="Processing images") as pbar:
-            for image_id in image_ids:
-                pbar.set_postfix(image_id=image_id)
-                out_path = self._processed_dir / "images" / f"{image_id}.jpg"
-                if out_path.is_file():
-                    continue
-                image = Image.open(self._raw_dir / "images" / f"{image_id}.jpg")
-                image = image.resize((224, 224))
+        self._processed_dir.mkdir(exist_ok=True)
+        image_zips = tuple((self._raw_dir / "images").glob("**/*.zip"))
+        images = []
+        with tqdm(total=len(image_zips), desc="Unzipping images") as pbar:
+            for image_path in image_zips:
+                pbar.set_postfix(filename=image_path.stem)
+                with zipfile.ZipFile(image_path, "r") as zip_ref:
+                    zip_ref.extractall(self._processed_dir)
+                    pbar.update()
+        images = tuple(self._processed_dir.glob("**/*.jpg"))
+        with tqdm(total=len(images), desc="Processing images") as pbar:
+            for image_path in images:
+                pbar.set_postfix(image_id=image_path)
+                image = Image.open(image_path)
+                image = image.resize((224, 224))  # Resize the images to be of size 224 x 224
                 if image.mode in ("RGBA", "P"):
                     image = image.convert("RGB")
-                image.save(out_path)
+                image.save(image_path)
                 pbar.update()
 
     @staticmethod
@@ -224,34 +246,33 @@ class IsicDataset(Dataset):
         """Attempt to download data if files cannot be found in the base folder."""
         # # Check whether the data has already been downloaded - if it has and the integrity
         # # of the files can be confirmed, then we are done
-        if self._check_downloaded():
-            LOGGER.info("Files already downloaded and verified.")
-            return
+        # if self._check_downloaded():
+        #     LOGGER.info("Files already downloaded and verified.")
+        #     return
         # # Create the directory and any required ancestors if not already existent
-        self._data_dir.mkdir(exist_ok=True, parents=True)
-        LOGGER.info(f"Downloading metadata into {str(self._raw_dir / 'metadata.csv')}...")
-        self._download_isic_metadata()
-        LOGGER.info(
-            f"Preprocessing metadata (adding columns, removing uncertain diagnoses) and saving into "
-            f"{str(self._data_dir/ 'processed'/ 'labels.csv')}..."
-        )
+        # self._data_dir.mkdir(exist_ok=True, parents=True)
+        # LOGGER.info(f"Downloading metadata into {str(self._raw_dir / 'metadata.csv')}...")
+        # self._download_isic_metadata()
+        # LOGGER.info(
+        #     f"Preprocessing metadata (adding columns, removing uncertain diagnoses) and saving into "
+        #     f"{str(self._data_dir/ 'processed'/ 'labels.csv')}..."
+        # )
         self._preprocess_isic_metadata()
         LOGGER.info(
             f"Downloading data into {str(self._raw_dir)} for up to {self.max_samples} samples..."
         )
-        self._download_isic_images()
-        LOGGER.info(
-            f"Preprocessing images (transforming to 3-channel RGB, resizing to 224x224) and saving "
-            f"into  {str(self._data_dir/ 'raw'/ 'images')}..."
-        )
+        # self._download_isic_images()
+        # LOGGER.info(
+        #     f"Preprocessing images (transforming to 3-channel RGB, resizing to 224x224) and saving "
+        #     f"into  {str(self._data_dir/ 'raw'/ 'images')}..."
+        # )
         self._preprocess_isic_images()
 
     def __len__(self) -> int:
-        return len(self.image_ids)
+        return len(self.image_fps)
 
     def __getitem__(self, index: int) -> Sample:
-        image_fp = self.image_ids[index]
-        image = Image.open((self._processed_dir / "images" / image_fp).with_suffix(".jpg"))
+        image = Image.open(self.image_fps[index])
         if self.transform is not None:
             image = self.transform(image)
         target = self.target_data[index]
