@@ -280,7 +280,7 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
         test_data = shrink_dataset(test_data, args.data_pcnt)
     # Enable transductive learning (i.e. using the test data for semi-supervised learning)
     if args.transductive:
-        context_data = ConcatDataset([context_data, train_data])
+        context_data = ConcatDataset([context_data, test_data])
 
     return DatasetTriplet(
         context=context_data,
