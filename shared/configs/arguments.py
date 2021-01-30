@@ -109,7 +109,7 @@ class MiscConfig:
     log_method: str = ""  # arbitrary string that's appended to the experiment group name
     use_wandb: bool = True
     gpu: int = 0  # which GPU to use (if available)
-    use_amp: bool = True  # Whether to use mixed-precision training
+    use_amp: bool = False  # Whether to use mixed-precision training
     seed: int = MISSING
     data_split_seed: int = MISSING
     save_dir: str = "experiments/finn"
