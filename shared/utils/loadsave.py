@@ -46,9 +46,10 @@ def load_results(cfg: BaseConfig, check: bool = True) -> ClusterResults:
     data = torch.load(cfg.misc.cluster_label_file, map_location=torch.device("cpu"))
     if check:
         saved_cfg = data["args"]
-        assert (
-            saved_cfg["data.dataset"] == cfg.data.dataset.name
-        ), f'{saved_cfg["data.dataset"]} != {cfg.data.dataset.name}'
+        # TODO: re-enable this check
+        # assert (
+        #     saved_cfg["data.dataset"] == cfg.data.dataset.name
+        # ), f'{saved_cfg["data.dataset"]} != {cfg.data.dataset.name}'
         assert (
             saved_cfg["data.data_pcnt"] == cfg.data.data_pcnt
         ), f'{saved_cfg["data.data_pcnt"]} != {cfg.data.data_pcnt}'
