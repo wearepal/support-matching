@@ -10,11 +10,13 @@ import hydra
 from hydra.core.config_store import ConfigStore
 from hydra.utils import to_absolute_path
 import numpy as np
-from omegaconf import MISSING, DictConfig
+from omegaconf import DictConfig, MISSING
 import pandas as pd
 import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
+from torchvision.models import resnet50
+from torchvision.models.resnet import ResNet
 from tqdm import trange
 
 from fdm.models import Classifier
@@ -65,7 +67,7 @@ class IntanceWeightedDataset(Dataset):
 
 @dataclass
 class BaselineArgs:
-    _target_: str = "run_simple_baselines.BaselineArgs"
+    _target_: str = "run_baselines.BaselineArgs"
 
     # General data set settings
     greyscale: bool = False
@@ -183,7 +185,7 @@ def run_baseline(cfg: Config) -> None:
         ("misc", cfg.misc),
     ]:
         as_list = sorted(f"{k}: {v}" for k, v in as_pretty_dict(settings).items())
-        LOGGER.info(f"{name}: {{" + ", ".join(as_list) + "}")
+        LOGGER.info(f"{name}: " + "{" + ", ".join(as_list) + "}")
     args = cfg.baselines
     if args.method == BaselineM.kamiran:
         if isinstance(cfg.data, CmnistConfig):
@@ -197,7 +199,7 @@ def run_baseline(cfg: Config) -> None:
                 "sample available for each sensitive/target attribute combination."
             )
 
-    use_gpu = torch.cuda.is_available() and not cfg.misc.gpu < 0
+    use_gpu = torch.cuda.is_available() and not cfg.misc.gpu < 0  # type: ignore
     random_seed(cfg.misc.seed, use_gpu)
 
     device = torch.device(f"cuda:{cfg.misc.gpu}" if use_gpu else "cpu")
@@ -245,6 +247,14 @@ def run_baseline(cfg: Config) -> None:
     classifier_fn: ModelFn
     if isinstance(cfg.data, CmnistConfig):
         classifier_fn = Mp32x23Net(batch_norm=True)
+    elif isinstance(cfg.data, IsicConfig):
+
+        def resnet50_ft(input_dim: int, target_dim: int) -> ResNet:
+            classifier = resnet50(pretrained=True)
+            classifier.fc = nn.Linear(classifier.fc.in_features, target_dim)
+            return classifier
+
+        classifier_fn = resnet50_ft
     elif isinstance(cfg.data, AdultConfig):
 
         def adult_fc_net(input_dim: int, target_dim: int) -> nn.Sequential:
@@ -253,8 +263,10 @@ def run_baseline(cfg: Config) -> None:
             return nn.Sequential(encoder, classifier)
 
         classifier_fn = adult_fc_net
-    else:
+    elif isinstance(cfg.data, CelebaConfig):
         classifier_fn = Mp64x64Net(batch_norm=True)
+    else:
+        raise NotImplementedError()
 
     target_dim = datasets.s_dim if args.pred_s else datasets.y_dim
 
@@ -265,12 +277,11 @@ def run_baseline(cfg: Config) -> None:
         else:
             criterion = implementations.dro_modules.DROLoss(nn.CrossEntropyLoss, eta=args.eta)
 
-    # TODO: Using FDM Classifier - should this be clustering classifier?
     classifier: Classifier = Classifier(
         classifier_fn(input_shape[0], target_dim),
         num_classes=2 if target_dim == 1 else target_dim,
         optimizer_kwargs={"lr": args.lr, "weight_decay": args.weight_decay},
-        criterion=criterion,
+        criterion=criterion,  # type: ignore
     )
     classifier.to(device)
 
@@ -295,7 +306,7 @@ def run_baseline(cfg: Config) -> None:
     elif isinstance(cfg.data, CelebaConfig):
         sens_name = cfg.data.celeba_sens_attr.name
     elif isinstance(cfg.data, IsicConfig):
-        sens_name = cfg.data.isic_sens_attr.name
+        sens_name = cfg.data.sens_attr.name
     elif isinstance(cfg.data, AdultConfig):
         sens_name = str(adult.SENS_ATTRS[0])
     else:
@@ -311,8 +322,8 @@ def run_baseline(cfg: Config) -> None:
         full_name += f"_{str(cfg.data.celeba_sens_attr.name)}"
         full_name += f"_{cfg.data.celeba_target_attr.name}"
     elif isinstance(cfg.data, IsicConfig):
-        full_name += f"_{str(cfg.data.isic_sens_attr.name)}"
-        full_name += f"_{cfg.data.isic_target_attr.name}"
+        full_name += f"_{str(cfg.data.sens_attr.name)}"
+        full_name += f"_{cfg.data.target_attr.name}"
     full_name += f"_{str(args.epochs)}epochs.csv"
 
     compute_metrics(

@@ -88,8 +88,8 @@ class IsicDataset(Dataset):
         return (self._raw_dir / "images").exists() and (self._raw_dir / "metadata.csv").exists()
 
     def _check_processed(self) -> bool:
-        return (self._processed_dir / "ISIC-Images").exists() and (
-            self._processed_dir / "metadata.csv"
+        return (self._processed_dir / "ISIC-images").exists() and (
+            self._processed_dir / "labels.csv"
         ).exists()
 
     @staticmethod
@@ -187,7 +187,7 @@ class IsicDataset(Dataset):
         labels_df["path"] = (
             str(self._processed_dir)  # type: ignore
             + os.sep
-            + "ISIC-Images"
+            + "ISIC-images"
             + os.sep
             + labels_df["dataset.name"]
             + os.sep
@@ -274,6 +274,7 @@ class IsicDataset(Dataset):
         """Preprocess the downloaded data if the processed image-directory/metadata don't exist."""
         # If the data has already been processed, skip this operation
         if self._check_processed():
+            LOGGER.info("Metadata and images already preprocessed.")
             return
         LOGGER.info(
             f"Preprocessing metadata (adding columns, removing uncertain diagnoses) and saving into "

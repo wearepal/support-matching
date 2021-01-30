@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import torch
 from torch import Tensor
+import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
@@ -128,7 +129,13 @@ def fit_classifier(
         elif isinstance(cfg.data, CelebaConfig):
             clf_fn = Mp64x64Net(batch_norm=True)
         else:  # ISIC dataset
-            clf_fn = lambda input_dim, target_dim: resnet50(num_classes=target_dim)
+
+            def resnet50_ft(input_dim: int, target_dim: int) -> ResNet:
+                classifier = resnet50(pretrained=True)
+                classifier.fc = nn.Linear(classifier.fc.in_features, target_dim)
+                return classifier
+
+            clf_fn = resnet50_ft
     else:
         clf_fn = FcNet(hidden_dims=None)
         input_dim = prod(input_shape)
@@ -199,7 +206,7 @@ def evaluate(
         elif isinstance(cfg.data, CelebaConfig):
             sens_name = cfg.data.celeba_sens_attr
         elif isinstance(cfg.data, IsicConfig):
-            sens_name = cfg.data.isic_sens_attr
+            sens_name = cfg.data.sens_attr
         else:
             sens_name = "sens_Label"
         sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=[sens_name])

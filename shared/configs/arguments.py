@@ -3,7 +3,7 @@ from typing import ClassVar, Dict, List, Optional, Type, TypeVar
 
 from hydra.core.config_store import ConfigStore
 from hydra.utils import instantiate
-from omegaconf import MISSING, DictConfig
+from omegaconf import DictConfig, MISSING
 import torch
 
 from .enums import (

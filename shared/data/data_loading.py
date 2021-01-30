@@ -222,8 +222,8 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
         else:
             all_data = IsicDataset(
                 root=data_root,
-                sens_attr=args.isic_sens_attr.name,
-                target_attr=args.isic_target_attr.name,
+                sens_attr=args.isic_sens_attr,
+                target_attr=args.isic_target_attr,
                 max_samples=400,
                 download=True,
                 transform=transform,
