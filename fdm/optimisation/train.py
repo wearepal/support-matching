@@ -27,12 +27,12 @@ from fdm.models.discriminator import Discriminator
 from fdm.optimisation.mmd import mmd2
 from shared.configs import (
     AggregatorType,
+    CmnistConfig,
     Config,
     DatasetConfig,
     DiscriminatorMethod,
     EncoderConfig,
     FdmConfig,
-    FdmDataset,
     MiscConfig,
     ReconstructionLoss,
 )
@@ -315,7 +315,7 @@ class Experiment(ExperimentBase):
             recon = self.generator.decode(zs_m if invariant_to == "s" else zy_m, mode="relaxed")
             if self.enc.recon_loss is ReconstructionLoss.ce:
                 recon = recon.argmax(dim=1).float() / 255
-                if self.data.dataset is not FdmDataset.cmnist:
+                if not isinstance(self.data, CmnistConfig):
                     recon = recon * 2 - 1
             return recon
         else:
@@ -386,7 +386,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
 
     run = None
     if misc.use_wandb:
-        project_suffix = f"-{data.dataset.name}" if data.dataset is not FdmDataset.cmnist else ""
+        project_suffix = f"-{data.dataset.name}" if not isinstance(data, CmnistConfig) else ""
         group = ""
         if misc.log_method:
             group += misc.log_method
@@ -558,7 +558,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
     disc_input_shape: tuple[int, ...] = input_shape if args.train_on_recon else enc_shape
     disc_fn: ModelFn
     if is_image_data and args.train_on_recon:
-        if data.dataset is FdmDataset.cmnist:
+        if isinstance(data, CmnistConfig):
             disc_fn = Strided28x28Net(batch_norm=False)
         else:
             disc_fn = Residual64x64Net(batch_norm=False)

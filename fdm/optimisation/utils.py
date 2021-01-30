@@ -8,7 +8,7 @@ from torch import Tensor, nn
 import torchvision
 import wandb
 
-from shared.configs import Config, FdmDataset, ReconstructionLoss
+from shared.configs import CelebaConfig, Config, IsicConfig, ReconstructionLoss
 from shared.utils import StratifiedSampler, as_pretty_dict, flatten_dict, wandb_log
 
 __all__ = [
@@ -38,7 +38,7 @@ def log_images(
     if cfg.enc.recon_loss == ReconstructionLoss.ce:
         images = images.argmax(dim=1).float() / 255
     else:
-        if cfg.data.dataset in (FdmDataset.celeba, FdmDataset.isic):
+        if isinstance(cfg.data, (CelebaConfig, IsicConfig)):
             images = 0.5 * images + 0.5
 
     if monochrome:

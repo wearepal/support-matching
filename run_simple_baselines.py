@@ -10,7 +10,7 @@ import hydra
 from hydra.core.config_store import ConfigStore
 from hydra.utils import to_absolute_path
 import numpy as np
-from omegaconf.omegaconf import MISSING, OmegaConf
+from omegaconf import MISSING, DictConfig
 import pandas as pd
 import torch
 from torch import Tensor, nn
@@ -19,10 +19,23 @@ from tqdm import trange
 
 from fdm.models import Classifier
 from fdm.optimisation.train import build_weighted_sampler_from_dataset
-from shared.configs import BaseConfig, FdmDataset
+from shared.configs import (
+    AdultConfig,
+    BaseConfig,
+    CelebaConfig,
+    CmnistConfig,
+    IsicConfig,
+    register_configs,
+)
 from shared.data import adult, load_dataset
-from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
-from shared.utils import ModelFn, compute_metrics, get_data_dim, random_seed
+from shared.models.configs import FcNet, Mp32x23Net, Mp64x64Net
+from shared.utils import (
+    ModelFn,
+    as_pretty_dict,
+    compute_metrics,
+    get_data_dim,
+    random_seed,
+)
 
 LOGGER = logging.getLogger("BASELINE")
 
@@ -52,6 +65,8 @@ class IntanceWeightedDataset(Dataset):
 
 @dataclass
 class BaselineArgs:
+    _target_: str = "run_simple_baselines.BaselineArgs"
+
     # General data set settings
     greyscale: bool = False
 
@@ -167,14 +182,11 @@ def run_baseline(cfg: Config) -> None:
         ("data", cfg.data),
         ("misc", cfg.misc),
     ]:
-        as_list = sorted(
-            f"{k}: {v}"
-            for k, v in OmegaConf.to_container(settings, resolve=True, enum_to_str=True).items()
-        )
+        as_list = sorted(f"{k}: {v}" for k, v in as_pretty_dict(settings).items())
         LOGGER.info(f"{name}: {{" + ", ".join(as_list) + "}")
     args = cfg.baselines
     if args.method == BaselineM.kamiran:
-        if cfg.data.dataset == FdmDataset.cmnist:
+        if isinstance(cfg.data, CmnistConfig):
             raise ValueError(
                 "Kamiran & Calders reweighting scheme can only be used with binary sensitive "
                 "and target attributes."
@@ -231,9 +243,9 @@ def run_baseline(cfg: Config) -> None:
 
     #  Construct the network
     classifier_fn: ModelFn
-    if cfg.data.dataset == FdmDataset.cmnist:
+    if isinstance(cfg.data, CmnistConfig):
         classifier_fn = Mp32x23Net(batch_norm=True)
-    elif cfg.data.dataset == FdmDataset.adult:
+    elif isinstance(cfg.data, AdultConfig):
 
         def adult_fc_net(input_dim: int, target_dim: int) -> nn.Sequential:
             encoder = FcNet(hidden_dims=[35])(input_dim=input_dim, target_dim=35)
@@ -278,13 +290,13 @@ def run_baseline(cfg: Config) -> None:
 
     preds, labels, sens = classifier.predict_dataset(test_data, device=device)
     preds = em.Prediction(pd.Series(preds))
-    if cfg.data.dataset == FdmDataset.cmnist:
+    if isinstance(cfg.data, CmnistConfig):
         sens_name = "colour"
-    elif cfg.data.dataset == FdmDataset.celeba:
+    elif isinstance(cfg.data, CelebaConfig):
         sens_name = cfg.data.celeba_sens_attr.name
-    elif cfg.data.dataset == FdmDataset.isic:
+    elif isinstance(cfg.data, IsicConfig):
         sens_name = cfg.data.isic_sens_attr.name
-    elif cfg.data.dataset == FdmDataset.adult:
+    elif isinstance(cfg.data, AdultConfig):
         sens_name = str(adult.SENS_ATTRS[0])
     else:
         sens_name = "sens_Label"
@@ -293,12 +305,12 @@ def run_baseline(cfg: Config) -> None:
     actual = em.DataTuple(x=sens_pd, s=sens_pd, y=labels_pd)
 
     full_name = "baseline"
-    if cfg.data.dataset == FdmDataset.cmnist:
+    if isinstance(cfg.data, CmnistConfig):
         full_name += "_greyscale" if args.greyscale else "_color"
-    elif cfg.data.dataset == FdmDataset.celeba:
+    elif isinstance(cfg.data, CelebaConfig):
         full_name += f"_{str(cfg.data.celeba_sens_attr.name)}"
         full_name += f"_{cfg.data.celeba_target_attr.name}"
-    elif cfg.data.dataset == FdmDataset.isic:
+    elif isinstance(cfg.data, IsicConfig):
         full_name += f"_{str(cfg.data.isic_sens_attr.name)}"
         full_name += f"_{cfg.data.isic_target_attr.name}"
     full_name += f"_{str(args.epochs)}epochs.csv"
@@ -319,11 +331,13 @@ def run_baseline(cfg: Config) -> None:
 
 
 cs = ConfigStore.instance()
-cs.store(name="baseline", node=Config)
+cs.store(name="baseline_schema", node=Config)
+register_configs()
 
 
 @hydra.main(config_path="conf", config_name="baseline")
-def main(cfg: Config) -> None:
+def main(hydra_config: DictConfig) -> None:
+    cfg = Config.from_hydra(hydra_config)
     run_baseline(cfg=cfg)
 
 

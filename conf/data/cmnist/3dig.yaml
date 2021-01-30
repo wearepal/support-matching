@@ -1,3 +1,6 @@
+defaults:
+    - /data/schema: cmnist
+
 background: false
 binarize: true
 black: true
@@ -8,7 +11,6 @@ colors:
     - 6
 context_pcnt: 0.4
 data_pcnt: 1.0
-dataset: cmnist
 filter_map_labels:
     "2": 0
     "4": 1

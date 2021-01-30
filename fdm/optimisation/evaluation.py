@@ -16,8 +16,14 @@ from typing_extensions import Literal
 
 from fdm.models import AutoEncoder
 from fdm.models.classifier import Classifier
-from shared.configs.arguments import Config
-from shared.configs.enums import FdmDataset
+from shared.configs import (
+    AdultConfig,
+    CelebaConfig,
+    CmnistConfig,
+    Config,
+    ImageDatasetConfig,
+    IsicConfig,
+)
 from shared.data import DatasetTriplet, get_data_tuples
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import ModelFn, compute_metrics, make_tuple_from_data, prod
@@ -73,7 +79,7 @@ def log_metrics(
 
 
 def baseline_metrics(cfg: Config, data: DatasetTriplet, save_to_csv: Optional[Path]) -> None:
-    if cfg.data.dataset not in (FdmDataset.cmnist, FdmDataset.celeba, FdmDataset.isic):
+    if isinstance(cfg.data, AdultConfig):
         LOGGER.info("Baselines...")
         train_data = data.train
         test_data = data.test
@@ -116,10 +122,10 @@ def fit_classifier(
     input_dim = input_shape[0]
     clf_fn: ModelFn
 
-    if cfg.data.dataset is not FdmDataset.adult and train_on_recon:
-        if cfg.data.dataset is FdmDataset.cmnist:
+    if not isinstance(cfg.data, AdultConfig) and train_on_recon:
+        if isinstance(cfg.data, CmnistConfig):
             clf_fn = Mp32x23Net(batch_norm=True)
-        elif cfg.data.dataset is FdmDataset.celeba:
+        elif isinstance(cfg.data, CelebaConfig):
             clf_fn = Mp64x64Net(batch_norm=True)
         else:  # ISIC dataset
             clf_fn = lambda input_dim, target_dim: resnet50(num_classes=target_dim)
@@ -167,7 +173,7 @@ def evaluate(
             {f"Clust/Context {k}": v for k, v in cluster_context_metrics.items()}
         )
 
-    if cfg.data.dataset in (FdmDataset.cmnist, FdmDataset.celeba, FdmDataset.isic):
+    if isinstance(cfg.data, ImageDatasetConfig):
 
         train_loader = DataLoader(
             train_data, batch_size=cfg.fdm.eff_batch_size, shuffle=True, pin_memory=True
@@ -188,11 +194,11 @@ def evaluate(
 
         preds, labels, sens = clf.predict_dataset(test_loader, device=torch.device(cfg.misc.device))
         preds = em.Prediction(hard=pd.Series(preds))
-        if cfg.data.dataset is FdmDataset.cmnist:
+        if isinstance(cfg.data, CmnistConfig):
             sens_name = "colour"
-        elif cfg.data.dataset is FdmDataset.celeba:
+        elif isinstance(cfg.data, CelebaConfig):
             sens_name = cfg.data.celeba_sens_attr
-        elif cfg.data.dataset is FdmDataset.isic:
+        elif isinstance(cfg.data, IsicConfig):
             sens_name = cfg.data.isic_sens_attr
         else:
             sens_name = "sens_Label"
@@ -268,7 +274,7 @@ def encode_dataset(
                 z_m = zs_m if invariant_to == "s" else zy_m
                 x_m = generator.decode(z_m, mode="hard")
 
-                if cfg.data.dataset in (FdmDataset.celeba, FdmDataset.isic):
+                if isinstance(cfg.data, (CelebaConfig, IsicConfig)):
                     x_m = 0.5 * x_m + 0.5
                 if x.dim() > 2:
                     x_m = x_m.clamp(min=0, max=1)

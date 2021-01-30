@@ -4,18 +4,19 @@ from tempfile import TemporaryDirectory
 
 import hydra
 from hydra.core.config_store import ConfigStore
-from hydra.utils import instantiate
+from omegaconf import DictConfig
 
-from shared.configs import Config
+from shared.configs import Config, register_configs
 
 cs = ConfigStore.instance()
-cs.store(name="config", node=Config)
+cs.store(name="config_schema", node=Config)
+register_configs()
 
 
 @hydra.main(config_path="conf", config_name="config")
-def app(hydra_config: Config) -> None:
+def app(hydra_config: DictConfig) -> None:
     """First run the clustering, then pass on the cluster labels to the fair representation code."""
-    cfg: Config = instantiate(hydra_config, _convert_="partial")
+    cfg = Config.from_hydra(hydra_config=hydra_config)
 
     with TemporaryDirectory() as tmpdir:
         clf = Path(tmpdir) / "labels.pth"

@@ -1,7 +1,9 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import ClassVar, Dict, List, Optional, Type, TypeVar
 
-from omegaconf import MISSING
+from hydra.core.config_store import ConfigStore
+from hydra.utils import instantiate
+from omegaconf import MISSING, DictConfig
 import torch
 
 from .enums import (
@@ -23,14 +25,20 @@ from .enums import (
 )
 
 __all__ = [
+    "AdultConfig",
     "BaseConfig",
     "BiasConfig",
+    "CelebaConfig",
     "ClusterConfig",
+    "CmnistConfig",
     "Config",
     "DatasetConfig",
     "EncoderConfig",
     "FdmConfig",
+    "ImageDatasetConfig",
+    "IsicConfig",
     "MiscConfig",
+    "register_configs",
 ]
 
 
@@ -39,8 +47,7 @@ class DatasetConfig:
     """General data set settings."""
 
     _target_: str = "shared.configs.DatasetConfig"
-
-    dataset: FdmDataset = MISSING
+    dataset: ClassVar[FdmDataset] = MISSING  # this cannot be set from outside
 
     data_pcnt: float = 1.0  # data pcnt should be a real value > 0, and up to 1
     context_pcnt: float = 0.4
@@ -48,12 +55,36 @@ class DatasetConfig:
     root: str = ""
     transductive: bool = False  # whether to include the test data in the pool of unlabelled data
 
+
+@dataclass
+class AdultConfig(DatasetConfig):
+    """Settings specific to the Adult dataset."""
+
+    _target_: str = "shared.configs.AdultConfig"
+    dataset: ClassVar[FdmDataset] = FdmDataset.adult
+
     # Adult data set feature settings
     drop_native: bool = True
     adult_split: AdultDatasetSplit = AdultDatasetSplit.Sex
     drop_discrete: bool = False
     adult_balanced_test: bool = True
     balance_all_quadrants: bool = True
+
+
+@dataclass
+class ImageDatasetConfig(DatasetConfig):
+    """Settings specific to image datasets."""
+
+    quant_level: QuantizationLevel = QuantizationLevel.eight  # number of bits that encode color
+    input_noise: bool = False  # add uniform noise to the input
+
+
+@dataclass
+class CmnistConfig(ImageDatasetConfig):
+    """Settings specific to the cMNIST dataset."""
+
+    _target_: str = "shared.configs.CmnistConfig"
+    dataset: ClassVar[FdmDataset] = FdmDataset.cmnist
 
     # Colored MNIST settings
     scale: float = 0.0
@@ -65,14 +96,28 @@ class DatasetConfig:
     shift_data: bool = False
     color_correlation: float = 1.0
     padding: int = 2  # by how many pixels to pad the cmnist images by
-    quant_level: QuantizationLevel = QuantizationLevel.eight  # number of bits that encode color
-    input_noise: bool = False  # add uniform noise to the input
     filter_map_labels: Dict[str, int] = field(default_factory=dict)
     colors: List[int] = field(default_factory=list)
+
+
+@dataclass
+class CelebaConfig(ImageDatasetConfig):
+    """Settings specific to the CelebA dataset."""
+
+    _target_: str = "shared.configs.CelebaConfig"
+    dataset: ClassVar[FdmDataset] = FdmDataset.celeba
 
     # CelebA settings
     celeba_sens_attr: CelebaAttributes = CelebaAttributes.Male
     celeba_target_attr: CelebaAttributes = CelebaAttributes.Smiling
+
+
+@dataclass
+class IsicConfig(ImageDatasetConfig):
+    """Settings specific to the ISIC dataset."""
+
+    _target_: str = "shared.configs.IsicConfig"
+    dataset: ClassVar[FdmDataset] = FdmDataset.isic
 
     # ISIC settings
     isic_sens_attr: IsicAttrs = IsicAttrs.histo
@@ -287,6 +332,9 @@ class FdmConfig:
             self.test_batch_size = self.eff_batch_size
 
 
+T = TypeVar("T", bound="BaseConfig")
+
+
 @dataclass
 class BaseConfig:
     """Minimum needed config to do data loading."""
@@ -296,6 +344,19 @@ class BaseConfig:
     data: DatasetConfig = MISSING
     bias: BiasConfig = MISSING
     misc: MiscConfig = MISSING
+
+    @classmethod
+    def from_hydra(cls: Type[T], hydra_config: DictConfig) -> T:
+        """Instantiate this class based on a hydra config.
+
+        This is necessary because dataclasses cannot be instantiated recursively yet.
+        """
+        subconfigs = {
+            k: instantiate(v, _convert_="partial")
+            for k, v in hydra_config.items()
+            if k != "_target_"
+        }
+        return cls(**subconfigs)
 
 
 @dataclass
@@ -307,3 +368,11 @@ class Config(BaseConfig):
     clust: ClusterConfig = MISSING
     enc: EncoderConfig = MISSING
     fdm: FdmConfig = MISSING
+
+
+def register_configs() -> None:
+    cs = ConfigStore.instance()
+    cs.store(node=AdultConfig, name="adult", package="data", group="data/schema")
+    cs.store(node=CmnistConfig, name="cmnist", package="data", group="data/schema")
+    cs.store(node=CelebaConfig, name="celeba", package="data", group="data/schema")
+    cs.store(node=IsicConfig, name="isic", package="data", group="data/schema")

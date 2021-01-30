@@ -26,10 +26,11 @@ def encode_dataset(
         data, batch_size=cfg.clust.encode_batch_size, pin_memory=True, shuffle=False, num_workers=0
     )
 
+    device = torch.device(cfg.misc.device)
     with torch.set_grad_enabled(False):
         for x, s, y in tqdm(data_loader):
 
-            x = x.to(cfg.misc._device, non_blocking=True)
+            x = x.to(device, non_blocking=True)
             all_s.append(s)
             all_y.append(y)
 
@@ -58,9 +59,10 @@ def classify_dataset(cfg: Config, model: Model, data: Dataset) -> Tuple[Tensor, 
         data, batch_size=cfg.clust.encode_batch_size, pin_memory=True, shuffle=False, num_workers=0
     )
 
+    device = torch.device(cfg.misc.device)
     with torch.set_grad_enabled(False):
         for (x, s, y) in data_loader:
-            x = x.to(cfg.misc._device, non_blocking=True)
+            x = x.to(device, non_blocking=True)
             all_s.append(s)
             all_y.append(y)
             logits = model(x)
