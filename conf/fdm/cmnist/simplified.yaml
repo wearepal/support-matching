@@ -1,5 +1,6 @@
 defaults:
-    - fallen_sun
+    # the "@_here_" is needed to move "fallen_sun" out of the "cmnist" subdir
+    - cmnist/fallen_sun@_here_
 
 batch_size: 1
 bag_size: 256
