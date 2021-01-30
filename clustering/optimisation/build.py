@@ -67,7 +67,7 @@ def build_ae(
     recon_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
     if cfg.clust.vgg_weight != 0:
         vgg_loss = VGGLoss()
-        vgg_loss.to(cfg.misc._device)
+        vgg_loss.to(cfg.misc.device)
 
         def recon_loss_fn(input_: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
             return recon_loss_fn_(input_, target) + cfg.clust.vgg_weight * vgg_loss(input_, target)
@@ -95,5 +95,4 @@ def build_ae(
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_args,
         )
-    generator.to(cfg.misc._device)
     return generator, enc_shape

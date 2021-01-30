@@ -4,10 +4,11 @@ from hydra.core.config_store import ConfigStore
 from omegaconf import DictConfig
 
 from clustering.optimisation import main
-from shared.configs import Config
+from shared.configs import Config, register_configs
 
 cs = ConfigStore.instance()
 cs.store(name="config_schema", node=Config)
+register_configs()
 
 
 @hydra.main(config_path="conf", config_name="config")

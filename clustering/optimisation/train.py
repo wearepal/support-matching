@@ -391,7 +391,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
 
         encoder = SelfSupervised(model=net, num_classes=4, optimizer_kwargs=enc_optimizer_kwargs)
         enc_shape = (512,)
-        encoder.to(device)
+    encoder.to(device)
 
     LOGGER.info(f"Encoding shape: {enc_shape}")
 
