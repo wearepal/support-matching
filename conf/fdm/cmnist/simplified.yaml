@@ -1,0 +1,9 @@
+defaults:
+    - fallen_sun
+
+batch_size: 1
+bag_size: 256
+iters: 8000
+aggregator_type: gated
+num_discs: 1
+disc_reset_prob: 0.0
