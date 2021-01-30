@@ -8,12 +8,12 @@ import time
 import git
 from hydra.utils import to_absolute_path
 import numpy as np
-from omegaconf import OmegaConf
 import torch
 from torch import Tensor
 from torch.utils.data import ConcatDataset, DataLoader
 from torchvision.models import resnet18, resnet50
 import wandb
+import yaml
 
 from clustering.models import (
     Classifier,
@@ -31,14 +31,16 @@ from clustering.models import (
     build_classifier,
 )
 from shared.configs import (
+    CelebaConfig,
     ClusterConfig,
     ClusteringLabel,
     ClusteringMethod,
+    CmnistConfig,
     Config,
     DatasetConfig,
     EncoderConfig,
     EncoderType,
-    FdmDataset,
+    IsicConfig,
     MiscConfig,
     PlMethod,
 )
@@ -290,7 +292,9 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     save_dir = Path(to_absolute_path(misc.save_dir)) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    LOGGER.info(str(OmegaConf.to_yaml(cfg, resolve=True, sort_keys=True)))
+    LOGGER.info(
+        yaml.dump(as_pretty_dict(cfg), default_flow_style=False, allow_unicode=True, sort_keys=True)
+    )
     LOGGER.info(f"Save directory: {save_dir.resolve()}")
     # ==== check GPU ====
     device = torch.device(misc.device)
@@ -383,9 +387,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
             raise ValueError("RotNet can only be applied to image data.")
         enc_optimizer_kwargs = {"lr": args.enc_lr, "weight_decay": args.enc_wd}
         enc_kwargs = {"pretrained": False, "num_classes": 4, "zero_init_residual": True}
-        net = (
-            resnet18(**enc_kwargs) if data.dataset is FdmDataset.cmnist else resnet50(**enc_kwargs)
-        )
+        net = resnet18(**enc_kwargs) if isinstance(data, CmnistConfig) else resnet50(**enc_kwargs)
 
         encoder = SelfSupervised(model=net, num_classes=4, optimizer_kwargs=enc_optimizer_kwargs)
         enc_shape = (512,)
@@ -472,11 +474,11 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     model: Model | MultiHeadModel
     if args.use_multi_head:
         labeler_fn: ModelFn
-        if data.dataset == FdmDataset.cmnist:
+        if isinstance(data, CmnistConfig):
             labeler_fn = Mp32x23Net(batch_norm=True)
-        elif data.dataset == FdmDataset.celeba:
+        elif isinstance(data, CelebaConfig):
             labeler_fn = Mp64x64Net(batch_norm=True)
-        elif data.dataset == FdmDataset.isic:
+        elif isinstance(data, IsicConfig):
             labeler_fn = lambda input_dim, target_dim: resnet50(num_classes=target_dim)
         else:
             labeler_fn = FcNet(hidden_dims=args.labeler_hidden_dims)

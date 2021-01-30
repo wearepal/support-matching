@@ -14,7 +14,15 @@ from torchvision import transforms as TF
 from torchvision.datasets import MNIST
 from typing_extensions import Literal
 
-from shared.configs import AdultDatasetSplit, BaseConfig, FdmDataset, QuantizationLevel
+from shared.configs import (
+    AdultConfig,
+    AdultDatasetSplit,
+    BaseConfig,
+    CelebaConfig,
+    CmnistConfig,
+    IsicConfig,
+    QuantizationLevel,
+)
 
 from .adult import load_adult_data
 from .dataset_wrappers import TensorDataTupleDataset
@@ -49,7 +57,7 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
     data_root = args.root or find_data_dir()
 
     # =============== get whole dataset ===================
-    if args.dataset is FdmDataset.cmnist:
+    if isinstance(args, CmnistConfig):
         augs = []
         if args.padding > 0:
             augs.append(nn.ConstantPad2d(padding=args.padding, value=0))
@@ -183,8 +191,8 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
         y_dim = 1 if num_classes == 2 else num_classes
         s_dim = 1 if num_colors == 2 else num_colors
 
-    elif args.dataset in (FdmDataset.celeba, FdmDataset.isic):
-        if args.dataset is FdmDataset.celeba:
+    elif isinstance(args, (CelebaConfig, IsicConfig)):
+        if isinstance(args, CelebaConfig):
             tform_ls = [TF.Resize(64), TF.CenterCrop(64)]
         else:
             tform_ls = []
@@ -197,7 +205,7 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
         transform = TF.Compose(tform_ls)
 
         y_dim = 1
-        if args.dataset is FdmDataset.celeba:
+        if isinstance(args, CelebaConfig):
             # unbiased_pcnt = args.test_pcnt + args.context_pcnt
             dataset, base_dir = em.celeba(
                 download_dir=data_root,
@@ -262,7 +270,7 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
         train_data = Subset(all_data, train_inds.tolist())
         test_data = Subset(all_data, test_inds)
 
-    elif args.dataset is FdmDataset.adult:
+    elif isinstance(args, AdultConfig):
         context_data, train_data, test_data = load_adult_data(cfg)
         y_dim = 1
         if args.adult_split is AdultDatasetSplit.Education:
@@ -272,7 +280,7 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
         else:
             raise ValueError(f"This split is not yet fully supported: {args.adult_split}")
     else:
-        raise ValueError("Invalid choice of dataset.")
+        raise ValueError(f"Invalid choice of dataset: {args}")
 
     if 0 < args.data_pcnt < 1:
         context_data = shrink_dataset(context_data, args.data_pcnt)

@@ -1,3 +1,6 @@
+defaults:
+    - /data/schema: cmnist
+
 background: false
 binarize: true
 black: true
@@ -5,7 +8,6 @@ color_correlation: 1.0
 colors: []
 context_pcnt: 0.4
 data_pcnt: 1.0
-dataset: cmnist
 filter_labels: []
 greyscale: false
 input_noise: false

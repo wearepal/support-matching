@@ -1,7 +1,7 @@
 """Simply call the main function."""
 import hydra
 from hydra.core.config_store import ConfigStore
-from hydra.utils import instantiate
+from omegaconf import DictConfig
 
 from clustering.optimisation import main
 from shared.configs import Config
@@ -11,8 +11,8 @@ cs.store(name="config_schema", node=Config)
 
 
 @hydra.main(config_path="conf", config_name="config")
-def app(hydra_config: Config):
-    cfg: Config = instantiate(hydra_config, _convert_="partial")
+def app(hydra_config: DictConfig):
+    cfg = Config.from_hydra(hydra_config=hydra_config)
     main(cfg=cfg)
 
 
