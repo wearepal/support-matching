@@ -278,12 +278,12 @@ class IsicDataset(Dataset):
             return
         LOGGER.info(
             f"Preprocessing metadata (adding columns, removing uncertain diagnoses) and saving into "
-            f"{str(self._data_dir/ 'processed'/ 'labels.csv')}..."
+            f"{str(self._processed_dir / 'labels.csv')}..."
         )
         self._preprocess_isic_metadata()
         LOGGER.info(
             f"Preprocessing images (transforming to 3-channel RGB, resizing to 224x224) and saving "
-            f"into  {str(self._data_dir/ 'raw'/ 'images')}..."
+            f"into  {str(self._processed_dir / 'images')}..."
         )
         self._preprocess_isic_images()
 
