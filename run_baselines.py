@@ -15,12 +15,13 @@ import pandas as pd
 import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
+from torch.utils.data.dataset import ConcatDataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
 from tqdm import trange
 
 from fdm.models import Classifier
-from fdm.optimisation.train import build_weighted_sampler_from_dataset
+from fdm.optimisation.utils import build_weighted_sampler_from_dataset
 from shared.configs import (
     AdultConfig,
     BaseConfig,
@@ -38,31 +39,11 @@ from shared.utils import (
     get_data_dim,
     random_seed,
 )
+from shared.utils.sampler import StratifiedSampler
 
 LOGGER = logging.getLogger("BASELINE")
 
 BaselineM = Enum("BaselineM", "cnn dro kamiran")
-
-
-class IntanceWeightedDataset(Dataset):
-    def __init__(self, dataset: Dataset, instance_weights: Dataset) -> None:
-        super().__init__()
-        if len(dataset) != len(instance_weights):
-            raise ValueError("Number of instance weights must equal the number of data samples.")
-        self.dataset = dataset
-        self.instance_weights = instance_weights
-
-    def __len__(self) -> int:
-        return len(self.dataset)
-
-    def __getitem__(self, index: int) -> Tensor:
-        data = self.dataset[index]
-        if not isinstance(data, tuple):
-            data = (data,)
-        iw = self.instance_weights[index]
-        if not isinstance(iw, tuple):
-            iw = (iw,)
-        return data + iw
 
 
 @dataclass
@@ -71,6 +52,9 @@ class BaselineArgs:
 
     # General data set settings
     greyscale: bool = False
+    labelled_context_set: bool = (
+        False  # Whether to train the baseline on the context set with labels
+    )
 
     # Optimization settings
     epochs: int = 60
@@ -111,72 +95,6 @@ def get_instance_weights(dataset: Dataset, batch_size: int) -> TensorDataset:
     return instance_weights
 
 
-class Trainer(ABC):
-    @staticmethod
-    @abstractmethod
-    def __call__(
-        classifier: nn.Module,
-        train_loader: DataLoader,
-        test_loader: DataLoader,
-        epochs: int,
-        device: torch.device,
-        pred_s: bool = False,
-    ) -> None:
-        ...
-
-
-class TrainNaive(Trainer):
-    @staticmethod
-    def __call__(
-        classifier: nn.Module,
-        train_loader: DataLoader,
-        test_loader: DataLoader,
-        epochs: int,
-        device: torch.device,
-        pred_s: bool = False,
-    ) -> None:
-        pbar = trange(epochs)
-        for _ in pbar:
-            classifier.train()
-            for x, s, y in train_loader:
-                target = s if pred_s else y
-                x = x.to(device)
-                target = target.to(device)
-
-                classifier.zero_grad()
-                loss, _ = classifier.routine(x, target)
-                loss.backward()
-                classifier.step()
-        pbar.close()
-
-
-class TrainKamiran(Trainer):
-    @staticmethod
-    def __call__(
-        classifier: nn.Module,
-        train_loader: DataLoader,
-        test_loader: DataLoader,
-        epochs: int,
-        device: torch.device,
-        pred_s: bool = False,
-    ) -> None:
-        pbar = trange(epochs)
-        for _ in pbar:
-            classifier.train()
-            for x, s, y, iw in train_loader:
-                target = s if pred_s else y
-                x = x.to(device)
-                target = target.to(device)
-                iw = iw.to(device)
-
-                classifier.zero_grad()
-                loss, _ = classifier.routine(x, target, instance_weights=iw)
-                loss.backward()
-                classifier.step()
-
-        pbar.close()
-
-
 def run_baseline(cfg: Config) -> None:
     for name, settings in [
         ("bias", cfg.bias),
@@ -209,22 +127,19 @@ def run_baseline(cfg: Config) -> None:
     datasets = load_dataset(cfg)
 
     train_data = datasets.train
+    if args.labelled_context_set:
+        train_data = ConcatDataset([train_data, datasets.context])
     test_data = datasets.test
 
-    if args.method == BaselineM.kamiran:
-        instance_weights = get_instance_weights(train_data, batch_size=args.test_batch_size)
-        train_data = IntanceWeightedDataset(train_data, instance_weights=instance_weights)
-        train_sampler = None
-    else:
-        train_sampler = build_weighted_sampler_from_dataset(
-            dataset=datasets.train,
-            s_count=max(datasets.s_dim, 2),
-            test_batch_size=args.test_batch_size,
-            batch_size=args.batch_size,
-            num_workers=cfg.misc.num_workers,
-            oversample=args.oversample,
-            balance_hierarchical=False,
-        )
+    train_sampler = build_weighted_sampler_from_dataset(
+        dataset=datasets.train,
+        s_count=max(datasets.s_dim, 2),
+        test_batch_size=args.test_batch_size,
+        batch_size=args.batch_size,
+        num_workers=cfg.misc.num_workers,
+        oversample=args.oversample,
+        balance_hierarchical=False,
+    )
     train_loader = DataLoader(
         train_data,
         batch_size=args.batch_size,
@@ -259,7 +174,7 @@ def run_baseline(cfg: Config) -> None:
 
         def adult_fc_net(input_dim: int, target_dim: int) -> nn.Sequential:
             encoder = FcNet(hidden_dims=[35])(input_dim=input_dim, target_dim=35)
-            classifier = torch.nn.Linear(35, target_dim)
+            classifier = nn.Linear(35, target_dim)
             return nn.Sequential(encoder, classifier)
 
         classifier_fn = adult_fc_net
@@ -285,15 +200,9 @@ def run_baseline(cfg: Config) -> None:
     )
     classifier.to(device)
 
-    if args.method == BaselineM.kamiran:
-        train_fn = TrainKamiran()
-    else:
-        train_fn = TrainNaive()
-
-    train_fn(
-        classifier,
-        train_loader=train_loader,
-        test_loader=test_loader,
+    classifier.fit(
+        train_data=train_loader,
+        test_data=test_loader,
         epochs=args.epochs,
         device=device,
         pred_s=False,

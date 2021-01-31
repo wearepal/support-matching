@@ -1,7 +1,6 @@
 import torch
 
-from fdm.optimisation.train import _get_multipliers_and_group_size
-from shared.utils import label_to_class_id
+from fdm.optimisation.utils import _get_multipliers_and_group_size
 
 
 def test_binary_s_and_y() -> None:

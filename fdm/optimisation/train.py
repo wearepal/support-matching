@@ -7,7 +7,6 @@ from pathlib import Path
 import time
 from typing import NamedTuple, cast
 
-import git
 from hydra.utils import to_absolute_path
 import numpy as np
 import torch
@@ -15,7 +14,7 @@ from torch import Tensor
 from torch.cuda.amp.grad_scaler import GradScaler
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from typing_extensions import Literal
 import wandb
 import yaml
@@ -66,7 +65,13 @@ from shared.utils import (
 from .build import build_ae
 from .evaluation import baseline_metrics, log_metrics
 from .loss import MixedLoss, PixelCrossEntropy
-from .utils import get_stratified_sampler, log_images, restore_model, save_model
+from .utils import (
+    build_weighted_sampler_from_dataset,
+    get_stratified_sampler,
+    log_images,
+    restore_model,
+    save_model,
+)
 
 __all__ = ["main"]
 
@@ -350,12 +355,6 @@ class Experiment(ExperimentBase):
             prefix=prefix,
             caption=caption,
         )
-
-        # log_images(self.cfg, x[:64], "original_x", step=itr, prefix=prefix)
-        # log_images(self.cfg, recon.all, "reconstruction_all", step=itr, prefix=prefix)
-        # log_images(self.cfg, recon.rand_s, "reconstruction_rand_s", step=itr, prefix=prefix)
-        # log_images(self.cfg, recon.zero_s, "reconstruction_zero_s", step=itr, prefix=prefix)
-        # log_images(self.cfg, recon.just_s, "reconstruction_just_s", step=itr, prefix=prefix)
 
 
 def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
@@ -723,67 +722,3 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
         run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
 
     return generator
-
-
-def build_weighted_sampler_from_dataset(
-    dataset: Dataset,
-    s_count: int,
-    oversample: bool,
-    test_batch_size: int,
-    batch_size: int,
-    num_workers: int,
-    balance_hierarchical: bool,
-) -> StratifiedSampler:
-    #  Extract the s and y labels in a dataset-agnostic way (by iterating)
-    data_loader = DataLoader(
-        dataset=dataset, drop_last=False, batch_size=test_batch_size, num_workers=num_workers
-    )
-    s_all, y_all = [], []
-    for _, s, y in data_loader:
-        s_all.append(s)
-        y_all.append(y)
-    s_all = torch.cat(s_all, dim=0)
-    y_all = torch.cat(y_all, dim=0)
-    # Balance the batches of the training set via weighted sampling
-    class_ids = label_to_class_id(s=s_all, y=y_all, s_count=s_count).view(-1)
-    if balance_hierarchical:
-        # Here we make sure that in a batch, y is balanced and within the y subsets, s is balanced.
-        # So, if, for y=1, there are only samples with s=1, but for y=0, there's s=0 and s=1,
-        # then the samples with y=1/s=1 get a multiplier of 2.
-        multipliers, group_sizes = _get_multipliers_and_group_size(class_ids, s_count)
-        return StratifiedSampler(
-            group_ids=class_ids.tolist(),
-            num_samples_per_group=max(group_sizes) if oversample else min(group_sizes),
-            replacement=oversample,
-            multipliers=multipliers,
-        )
-    else:
-        return get_stratified_sampler(
-            group_ids=class_ids, oversample=oversample, batch_size=batch_size
-        )
-
-
-def _get_multipliers_and_group_size(
-    class_ids: Tensor, s_count: int
-) -> tuple[dict[int, int], list[int]]:
-    """This is a standalone function only because then we can have a unit test for it."""
-    unique_classes, counts = torch.unique(class_ids, sorted=False, return_counts=True)
-    class_ids_and_counts = [(int(i), int(c)) for i, c in zip(unique_classes, counts)]
-
-    # first, count how many subgroups there are for each y
-    num_subgroups_per_y: defaultdict[int, int] = defaultdict(int)
-    for class_id, count in class_ids_and_counts:
-        corresponding_y = class_id_to_label(class_id, s_count, "y")
-        num_subgroups_per_y[corresponding_y] += 1
-
-    # To make all subgroups effectively the same size, we first scale everything by the least common
-    # multiplier and then we divide by the number of subgroups to get the final multiplier.
-    largest_multiplier = lcm(num_subgroups_per_y.values())
-    multipliers = {}
-    group_sizes = []
-    for class_id, count in class_ids_and_counts:
-        num_subgroups = num_subgroups_per_y[class_id_to_label(class_id, s_count, "y")]
-        multiplier = largest_multiplier // num_subgroups
-        multipliers[class_id] = multiplier
-        group_sizes.append(count // multiplier)  # for book keeping, groups need to be smaller
-    return multipliers, group_sizes
