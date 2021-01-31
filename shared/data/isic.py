@@ -211,16 +211,15 @@ class IsicDataset(Dataset):
 
         self._processed_dir.mkdir(exist_ok=True)
         image_zips = tuple((self._raw_dir / "images").glob("**/*.zip"))
-        images = []
         with tqdm(total=len(image_zips), desc="Unzipping images", colour=self._pbar_col) as pbar:
-            for image_path in image_zips:
-                pbar.set_postfix(filename=image_path.stem)
-                with zipfile.ZipFile(image_path, "r") as zip_ref:
+            for file in image_zips:
+                pbar.set_postfix(file_index=file.stem)
+                with zipfile.ZipFile(file, "r") as zip_ref:
                     zip_ref.extractall(self._processed_dir)
                     pbar.update()
         images = []
         for ext in ("jpg", "jpeg", "png"):
-            images.extend(self._processed_dir.glob("**/*.{ext}"))
+            images.extend(self._processed_dir.glob(f"**/*.{ext}"))
         with tqdm(total=len(images), desc="Processing images", colour=self._pbar_col) as pbar:
             for image_path in images:
                 pbar.set_postfix(image_name=image_path.stem)
