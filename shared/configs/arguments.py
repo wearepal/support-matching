@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import ClassVar, Dict, List, Optional, Type, TypeVar
+from typing import Dict, List, Optional, Type, TypeVar
 
 from hydra.core.config_store import ConfigStore
 from hydra.utils import instantiate
@@ -15,7 +15,6 @@ from .enums import (
     DiscriminatorLoss,
     DiscriminatorMethod,
     EncoderType,
-    FdmDataset,
     IsicAttrs,
     MMDKernel,
     PlMethod,
@@ -47,7 +46,7 @@ class DatasetConfig:
     """General data set settings."""
 
     _target_: str = "shared.configs.DatasetConfig"
-    dataset: ClassVar[FdmDataset] = MISSING  # this cannot be set from outside
+    log_name: str = MISSING  # don't rely on this to check which dataset is loaded
 
     data_pcnt: float = 1.0  # data pcnt should be a real value > 0, and up to 1
     context_pcnt: float = 0.4
@@ -61,7 +60,7 @@ class AdultConfig(DatasetConfig):
     """Settings specific to the Adult dataset."""
 
     _target_: str = "shared.configs.AdultConfig"
-    dataset: ClassVar[FdmDataset] = FdmDataset.adult
+    log_name: str = "adult"
 
     # Adult data set feature settings
     drop_native: bool = True
@@ -84,7 +83,7 @@ class CmnistConfig(ImageDatasetConfig):
     """Settings specific to the cMNIST dataset."""
 
     _target_: str = "shared.configs.CmnistConfig"
-    dataset: ClassVar[FdmDataset] = FdmDataset.cmnist
+    log_name: str = "cmnist"
 
     # Colored MNIST settings
     scale: float = 0.0
@@ -105,7 +104,7 @@ class CelebaConfig(ImageDatasetConfig):
     """Settings specific to the CelebA dataset."""
 
     _target_: str = "shared.configs.CelebaConfig"
-    dataset: ClassVar[FdmDataset] = FdmDataset.celeba
+    log_name: str = "celeba"
 
     # CelebA settings
     celeba_sens_attr: CelebaAttributes = CelebaAttributes.Male
@@ -117,7 +116,7 @@ class IsicConfig(ImageDatasetConfig):
     """Settings specific to the ISIC dataset."""
 
     _target_: str = "shared.configs.IsicConfig"
-    dataset: ClassVar[FdmDataset] = FdmDataset.isic
+    log_name: str = "isic"
 
     # ISIC settings
     isic_sens_attr: IsicAttrs = IsicAttrs.histo

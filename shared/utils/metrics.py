@@ -92,7 +92,7 @@ def compute_metrics(
             save_to_csv.mkdir(exist_ok=True, parents=True)
             results = {**metrics, **external}
 
-            results_path = save_to_csv / f"{cfg.data.dataset.name}_{model_name}_{results_csv}"
+            results_path = save_to_csv / f"{cfg.data.log_name}_{model_name}_{results_csv}"
             values = ",".join(list(manual_entries.values()) + [str(v) for v in results.values()])
             if not results_path.is_file():
                 with results_path.open("w") as f:

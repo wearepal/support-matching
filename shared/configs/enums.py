@@ -8,22 +8,12 @@ __all__ = [
     "DiscriminatorLoss",
     "DiscriminatorMethod",
     "EncoderType",
-    "FdmDataset",
     "MMDKernel",
     "PlMethod",
     "QuantizationLevel",
     "ReconstructionLoss",
     "VaeStd",
 ]
-
-
-class FdmDataset(Enum):
-    """Choice of dataset"""
-
-    adult = auto()
-    cmnist = auto()
-    celeba = auto()
-    isic = auto()
 
 
 class ClusteringLabel(Enum):
