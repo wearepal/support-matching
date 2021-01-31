@@ -306,7 +306,7 @@ def run_baseline(cfg: Config) -> None:
     elif isinstance(cfg.data, CelebaConfig):
         sens_name = cfg.data.celeba_sens_attr.name
     elif isinstance(cfg.data, IsicConfig):
-        sens_name = cfg.data.sens_attr.name
+        sens_name = cfg.data.isic_sens_attr.name
     elif isinstance(cfg.data, AdultConfig):
         sens_name = str(adult.SENS_ATTRS[0])
     else:
@@ -322,8 +322,8 @@ def run_baseline(cfg: Config) -> None:
         full_name += f"_{str(cfg.data.celeba_sens_attr.name)}"
         full_name += f"_{cfg.data.celeba_target_attr.name}"
     elif isinstance(cfg.data, IsicConfig):
-        full_name += f"_{str(cfg.data.sens_attr.name)}"
-        full_name += f"_{cfg.data.target_attr.name}"
+        full_name += f"_{str(cfg.data.isic_sens_attr.name)}"
+        full_name += f"_{cfg.data.isic_target_attr.name}"
     full_name += f"_{str(args.epochs)}epochs.csv"
 
     compute_metrics(
