@@ -228,7 +228,7 @@ class IsicDataset(Dataset):
                 image = image.resize((224, 224))  # Resize the images to be of size 224 x 224
                 if image.mode in ("RGBA", "P"):
                     image = image.convert("RGB")
-                image.save(image_path, format="jpg")
+                image.save(image_path.rename(image_path.with_suffix(".jpg")))
                 pbar.update()
 
     @staticmethod
