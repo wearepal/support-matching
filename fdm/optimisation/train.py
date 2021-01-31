@@ -722,5 +722,3 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
         run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
 
     return generator
-
-
