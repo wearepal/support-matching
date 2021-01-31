@@ -218,7 +218,9 @@ class IsicDataset(Dataset):
                 with zipfile.ZipFile(image_path, "r") as zip_ref:
                     zip_ref.extractall(self._processed_dir)
                     pbar.update()
-        images = tuple(self._processed_dir.glob("**/*.jpg"))
+        images = []
+        for ext in ("jpg", "jpeg", "png"):
+            images.extend(self._processed_dir.glob("**/*.{ext}"))
         with tqdm(total=len(images), desc="Processing images", colour=self._pbar_col) as pbar:
             for image_path in images:
                 pbar.set_postfix(image_name=image_path.stem)
@@ -226,7 +228,7 @@ class IsicDataset(Dataset):
                 image = image.resize((224, 224))  # Resize the images to be of size 224 x 224
                 if image.mode in ("RGBA", "P"):
                     image = image.convert("RGB")
-                image.save(image_path)
+                image.save(image_path, format="jpg")
                 pbar.update()
 
     @staticmethod
