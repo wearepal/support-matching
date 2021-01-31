@@ -284,7 +284,7 @@ class IsicDataset(Dataset):
         self._preprocess_isic_metadata()
         LOGGER.info(
             f"Preprocessing images (transforming to 3-channel RGB, resizing to 224x224) and saving "
-            f"into  {str(self._processed_dir / 'images')}..."
+            f"into{str(self._processed_dir / 'ISIC-images')}..."
         )
         self._preprocess_isic_images()
 
