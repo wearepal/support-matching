@@ -15,6 +15,7 @@ import pandas as pd
 import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
+from torch.utils.data.dataset import ConcatDataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
 from tqdm import trange
@@ -51,6 +52,9 @@ class BaselineArgs:
 
     # General data set settings
     greyscale: bool = False
+    labelled_context_set: bool = (
+        False  # Whether to train the baseline on the context set with labels
+    )
 
     # Optimization settings
     epochs: int = 60
@@ -123,6 +127,8 @@ def run_baseline(cfg: Config) -> None:
     datasets = load_dataset(cfg)
 
     train_data = datasets.train
+    if args.labelled_context_set:
+        train_data = ConcatDataset([train_data, datasets.context])
     test_data = datasets.test
 
     train_sampler = build_weighted_sampler_from_dataset(
