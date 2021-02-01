@@ -122,7 +122,7 @@ def fit_classifier(
     clf_fn: ModelFn
 
     if train_on_recon:
-        if not isinstance(cfg.data, AdultConfig):
+        if isinstance(cfg.data, ImageDatasetConfig):
             if isinstance(cfg.data, CmnistConfig):
                 clf_fn = Mp32x23Net(batch_norm=True)
             elif isinstance(cfg.data, CelebaConfig):
