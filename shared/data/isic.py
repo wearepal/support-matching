@@ -77,9 +77,9 @@ class IsicDataset(Dataset):
         self.metadata = pd.read_csv(self._processed_dir / "labels.csv")
         # Divide up the dataframe into it's constituent arrays because indexing with pandas is
         # considerably slower than indexing with numpy/torch
-        self.image_fps = self.metadata["path"].values
-        self.sens_data = torch.as_tensor(self.metadata[sens_attr.name], dtype=torch.int32)
-        self.target_data = torch.as_tensor(self.metadata[target_attr.name], dtype=torch.int32)
+        self.x = self.metadata["path"].values
+        self.s = torch.as_tensor(self.metadata[sens_attr.name], dtype=torch.int32)
+        self.y = torch.as_tensor(self.metadata[target_attr.name], dtype=torch.int32)
 
         self.transform = transform
         self.target_transform = target_transform
@@ -289,13 +289,13 @@ class IsicDataset(Dataset):
         self._preprocess_isic_images()
 
     def __len__(self) -> int:
-        return len(self.image_fps)
+        return len(self.x)
 
     def __getitem__(self, index: int) -> Sample:
-        image = Image.open(self.image_fps[index])
+        image = Image.open(self.x[index])
         if self.transform is not None:
             image = self.transform(image)
-        target = self.target_data[index]
+        target = self.y[index]
         if self.target_transform is not None:
             target = self.target_transform(target)
-        return Sample(x=image, s=self.sens_data[index], y=target)
+        return Sample(x=image, s=self.s[index], y=target)
