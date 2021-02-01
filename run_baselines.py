@@ -132,11 +132,9 @@ def run_baseline(cfg: Config) -> None:
     test_data = datasets.test
 
     train_sampler = build_weighted_sampler_from_dataset(
-        dataset=datasets.train,
+        dataset=datasets.train,  # type: ignore
         s_count=max(datasets.s_dim, 2),
-        test_batch_size=args.test_batch_size,
         batch_size=args.batch_size,
-        num_workers=cfg.misc.num_workers,
         oversample=args.oversample,
         balance_hierarchical=False,
     )

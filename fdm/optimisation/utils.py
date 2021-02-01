@@ -2,16 +2,19 @@ from __future__ import annotations
 from collections import defaultdict
 import logging
 from pathlib import Path
-from typing import Sequence
+from typing import Sequence, cast
 
+from ethicml.vision.data.image_dataset import TorchImageDataset
 import torch
 from torch import Tensor, nn
 from torch.utils.data.dataloader import DataLoader
-from torch.utils.data.dataset import Dataset
+from torch.utils.data.dataset import Dataset, Subset
 import torchvision
 import wandb
 
 from shared.configs import CelebaConfig, Config, IsicConfig, ReconstructionLoss
+from shared.data.dataset_wrappers import DataTupleDataset, TensorDataTupleDataset
+from shared.data.isic import IsicDataset
 from shared.utils import StratifiedSampler, as_pretty_dict, flatten_dict, wandb_log
 from shared.utils.utils import class_id_to_label, label_to_class_id, lcm
 
@@ -128,24 +131,23 @@ def get_stratified_sampler(
 
 
 def build_weighted_sampler_from_dataset(
-    dataset: Dataset,
+    dataset: TensorDataTupleDataset | DataTupleDataset | Subset[TorchImageDataset | IsicDataset],
     s_count: int,
     oversample: bool,
-    test_batch_size: int,
     batch_size: int,
-    num_workers: int,
     balance_hierarchical: bool,
 ) -> StratifiedSampler:
     #  Extract the s and y labels in a dataset-agnostic way (by iterating)
-    data_loader = DataLoader(
-        dataset=dataset, drop_last=False, batch_size=test_batch_size, num_workers=num_workers
-    )
-    s_all, y_all = [], []
-    for _, s, y in data_loader:
-        s_all.append(s)
-        y_all.append(y)
-    s_all = torch.cat(s_all, dim=0)
-    y_all = torch.cat(y_all, dim=0)
+    if isinstance(dataset, Subset):
+        s_all = cast(Tensor, dataset.dataset.s[dataset.indices])  # type: ignore
+        y_all = cast(Tensor, dataset.dataset.y[dataset.indices])  # type: ignore
+    elif isinstance(dataset, DataTupleDataset):
+        s_all = torch.as_tensor(dataset.s)
+        y_all = torch.as_tensor(dataset.y)
+    else:
+        s_all = dataset.s
+        y_all = dataset.y
+
     # Balance the batches of the training set via weighted sampling
     class_ids = label_to_class_id(s=s_all, y=y_all, s_count=s_count).view(-1)
     if balance_hierarchical:
