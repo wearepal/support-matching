@@ -48,7 +48,7 @@ class IsicDataset(Dataset):
         self,
         root: str | Path,
         download: bool = True,
-        max_samples: int = 23906,  # default is the number of samples used for the NSLB paper
+        max_samples: int = 25_000,  # default is the number of samples used for the NSLB paper
         sens_attr: IsicAttrs = IsicAttrs.histo,
         target_attr: IsicAttrs = IsicAttrs.malignant,
         transform: Transform | None = ToTensor(),
