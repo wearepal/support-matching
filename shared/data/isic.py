@@ -238,7 +238,9 @@ class IsicDataset(Dataset):
         malignant_mask = labels_df["meta.clinical.benign_malignant"] == "malignant"
         labels_df["malignant"] = malignant_mask.astype(np.uint8)
 
-        labels_df["meta.clinical.diagnosis_confirm_type"].fillna(value="non-histopathology")
+        labels_df["meta.clinical.diagnosis_confirm_type"].fillna(
+            value="non-histopathology", inplace=True
+        )
         histopathology_mask = labels_df["meta.clinical.diagnosis_confirm_type"] == "histopathology"
         labels_df["histo"] = histopathology_mask.astype(np.uint8)
 
