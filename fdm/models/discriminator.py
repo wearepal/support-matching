@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, cast
+from typing import Any
 
 from torch import Tensor, nn
 import torch.nn.functional as F
@@ -14,10 +14,12 @@ class Discriminator(ModelBase):
     def __init__(
         self,
         model: nn.Module,
+        double_adv_loss: bool,
         criterion: DiscriminatorLoss = DiscriminatorLoss.logistic,
         optimizer_kwargs: dict[str, Any] | None = None,
     ):
         super().__init__(model, optimizer_kwargs=optimizer_kwargs)
+        self.double_adv_loss = double_adv_loss
         self.criterion = criterion
 
     def discriminator_loss(self, fake: Tensor, real: Tensor) -> Tensor:
@@ -34,10 +36,10 @@ class Discriminator(ModelBase):
         else:  # WGAN Loss is just the difference between the mean scores for the real and fake data
             return real_scores.mean() - fake_scores.mean()
 
-    def encoder_loss(self, fake: Tensor, real: Tensor, use_real: bool) -> Tensor:
+    def encoder_loss(self, fake: Tensor, real: Tensor) -> Tensor:
         fake_scores = self.model(fake)
         real_scores: Tensor | None = None
-        if use_real:
+        if self.double_adv_loss:
             real_scores = self.model(real)
         loss = fake_scores.new_zeros(())
         if self.criterion is DiscriminatorLoss.logistic:
