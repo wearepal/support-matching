@@ -255,7 +255,7 @@ class Experiment(ExperimentBase):
                     for discriminator in self.disc_ensemble:
                         discriminator = cast(Discriminator, discriminator)
                         disc_loss += discriminator.encoder_loss(
-                            fake=disc_input_t, real=disc_input_c
+                            fake=disc_input_t, real=disc_input_c, use_real=True
                         )
 
                     disc_loss /= len(self.disc_ensemble)

@@ -300,6 +300,9 @@ class FdmConfig:
 
     # Discriminator settings
     disc_loss: DiscriminatorLoss = DiscriminatorLoss.logistic_ns
+    double_adv_loss: bool = (
+        True  # Whether to use the context set when computing the encoder's adversarial loss
+    )
     disc_method: DiscriminatorMethod = DiscriminatorMethod.nn
     mmd_kernel: MMDKernel = MMDKernel.rq
     mmd_scales: List[float] = field(default_factory=list)
