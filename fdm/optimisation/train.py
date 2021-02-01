@@ -385,7 +385,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
 
     run = None
     if misc.use_wandb:
-        project_suffix = f"-{data.dataset.name}" if not isinstance(data, CmnistConfig) else ""
+        project_suffix = f"-{data.log_name}" if not isinstance(data, CmnistConfig) else ""
         group = ""
         if misc.log_method:
             group += misc.log_method

@@ -47,8 +47,8 @@ def load_results(cfg: BaseConfig, check: bool = True) -> ClusterResults:
     if check:
         saved_cfg = data["args"]
         assert (
-            saved_cfg["data.dataset"] == cfg.data.dataset.name
-        ), f'{saved_cfg["data.dataset"]} != {cfg.data.dataset.name}'
+            saved_cfg["data.log_name"] == cfg.data.log_name
+        ), f'{saved_cfg["data.log_name"]} != {cfg.data.log_name}'
         assert (
             saved_cfg["data.data_pcnt"] == cfg.data.data_pcnt
         ), f'{saved_cfg["data.data_pcnt"]} != {cfg.data.data_pcnt}'
