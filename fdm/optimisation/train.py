@@ -443,11 +443,9 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
         dataloader_kwargs = dict(sampler=context_sampler)
     elif args.balanced_context:
         context_sampler = build_weighted_sampler_from_dataset(
-            dataset=datasets.context,
+            dataset=datasets.context, # type: ignore
             s_count=s_count,
-            test_batch_size=args.test_batch_size,
             batch_size=args.eff_batch_size,
-            num_workers=0,  # can easily get stuck with more workers
             oversample=args.oversample,
             balance_hierarchical=False,
         )
@@ -465,11 +463,9 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
     )
 
     train_sampler = build_weighted_sampler_from_dataset(
-        dataset=datasets.train,
+        dataset=datasets.train, # type: ignore
         s_count=s_count,
-        test_batch_size=args.test_batch_size,
         batch_size=args.eff_batch_size,
-        num_workers=0,  # can easily get stuck with more workers
         oversample=args.oversample,
         balance_hierarchical=True,
     )
