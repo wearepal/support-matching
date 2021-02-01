@@ -343,7 +343,7 @@ class Experiment(ExperimentBase):
         ncols = len(to_log)
 
         interleaved = torch.stack(to_log, dim=1).view(
-            ncols * num_blocks * rows_per_block, sample.size(1), sample.size(2), sample.size(3)
+            ncols * num_blocks * rows_per_block, *sample.shape[1:]
         )
         log_images(
             self.cfg,
