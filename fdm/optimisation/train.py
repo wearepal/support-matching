@@ -590,6 +590,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
     for k in range(args.num_discs):
         disc = Discriminator(
             model=disc_fn(disc_input_shape, 1),  # type: ignore
+            double_adv_loss=args.double_adv_loss,
             optimizer_kwargs=disc_optimizer_kwargs,
             criterion=args.disc_loss,
         )
