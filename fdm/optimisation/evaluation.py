@@ -204,9 +204,9 @@ def evaluate(
         if isinstance(cfg.data, CmnistConfig):
             sens_name = "colour"
         elif isinstance(cfg.data, CelebaConfig):
-            sens_name = cfg.data.celeba_sens_attr
+            sens_name = cfg.data.celeba_sens_attr.name
         elif isinstance(cfg.data, IsicConfig):
-            sens_name = cfg.data.sens_attr
+            sens_name = cfg.data.isic_sens_attr.name
         else:
             sens_name = "sens_Label"
         sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=[sens_name])
