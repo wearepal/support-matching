@@ -218,7 +218,7 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
             all_data = emvi.TorchImageDataset(
                 data=dataset.load(), root=base_dir, transform=transform, target_transform=None
             )
-            s_dim = max(2, all_data.s_dim)
+            s_dim = all_data.s_dim
         else:
             all_data = IsicDataset(
                 root=data_root,
