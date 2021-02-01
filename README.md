@@ -47,5 +47,5 @@ bash scripts/compare.sh data=cmnist/2dig bias=cmnist/2dig/mildly_subs_miss_s enc
 
 ### 3 digits
 ```
-bash scripts/compare.sh data=cmnist/3dig bias=cmnist/3dig/4miss enc=mnist fdm=cmnist/fallen_sun clust=vague_spaceship_improved fdm.iters=12000 fdm.zs_frac=0.04
+bash scripts/compare.sh data=cmnist/3dig bias=cmnist/3dig/4miss enc=mnist fdm=cmnist/fallen_sun clust=vague_spaceship_improved fdm.iters=12000 fdm.zs_dim=5
 ```

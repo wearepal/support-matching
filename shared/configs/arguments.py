@@ -288,7 +288,7 @@ class FdmConfig:
     # Encoder settings
     use_pretrained_enc: bool = True
     snorm: bool = False
-    zs_frac: float = 0.1
+    zs_dim: int = 1
 
     vgg_weight: float = 0
     vae: bool = False

@@ -530,7 +530,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
     else:
         raise ValueError(f"{enc.recon_loss} is an invalid reconstruction gen_loss")
 
-    zs_dim = round(args.zs_frac * enc_shape[0])
+    zs_dim = args.zs_dim
     zy_dim = enc_shape[0] - zs_dim
     encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim)
     generator = build_ae(

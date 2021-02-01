@@ -17,4 +17,4 @@ val_freq: 500
 validate: true
 warmup_steps: 0
 weight_decay: 0
-zs_frac: 0.05714
+zs_dim: 2

@@ -16,4 +16,4 @@ validate: true
 # should be 100 if train_on_recon=True
 warmup_steps: 0
 weight_decay: 0
-zs_frac: 0.05714
+zs_dim: 2
