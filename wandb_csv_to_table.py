@@ -25,6 +25,7 @@ class Cell:
 
 def generate_table(
     df: pd.DataFrame,
+    base_cols: list[str],
     metrics: list[str],
     metrics_renames: dict[str, str] | None = None,
     round_to: int = 2,
@@ -32,40 +33,49 @@ def generate_table(
     col_renames = {"data": "type", "method": "classifier"}
     if metrics_renames is not None:
         col_renames.update(metrics_renames)
-    base_cols = ["misc.log_method"]
     df = df[base_cols + metrics]
     df = df.rename(columns=col_renames, inplace=False)
-    return df.groupby(base_cols, sort=False).agg(Cell(round_to=round_to))
+    return (
+        df.groupby(base_cols, sort=False)
+        .agg(Cell(round_to=round_to))
+        .reset_index(level=base_cols, inplace=False)
+    )
 
 
 class Metrics(Enum):
-    accuray = "accuracy"
-    ar_ratio = "ar_ratio"
-    tpr_ratio = "tpr_ratio"
-    tnr_ratio = "tnr_ratio"
-    clust_accuracy = "clust_accuracy"
+    acc = "accuracy"
+    # ratios
+    ar = "ar"
+    tpr = "tpr"
+    tnr = "tnr"
+    # cluster metrics
+    clust_acc = "clust_acc"
+    clust_ari = "clust_ari"
+    clust_nmi = "clust_nmi"
 
 
 METRICS_COL_NAMES: Final = {
-    Metrics.accuray: lambda s, cl: f"Accuracy ({cl})",
-    Metrics.ar_ratio: lambda s, cl: f"prob_pos_{s}_0.0÷{s}_1.0 ({cl})",
-    Metrics.tpr_ratio: lambda s, cl: f"TPR_{s}_0.0÷{s}_1.0 ({cl})",
-    Metrics.tnr_ratio: lambda s, cl: f"TNR_{s}_0.0÷{s}_1.0 ({cl})",
-    Metrics.clust_accuracy: lambda s, cl: f"cluster_context_acc ({cl})",
+    Metrics.acc: lambda s, cl: f"Accuracy ({cl})",
+    Metrics.ar: lambda s, cl: f"prob_pos_{s}_0.0÷{s}_1.0 ({cl})",
+    Metrics.tpr: lambda s, cl: f"TPR_{s}_0.0÷{s}_1.0 ({cl})",
+    Metrics.tnr: lambda s, cl: f"TNR_{s}_0.0÷{s}_1.0 ({cl})",
+    Metrics.clust_acc: lambda s, cl: f"Clust/Context Accuracy",
+    Metrics.clust_ari: lambda s, cl: f"Clust/Context ARI",
+    Metrics.clust_nmi: lambda s, cl: f"Clust/Context NMI",
 }
 METRICS_RENAMES: Final = {
-    Metrics.clust_accuracy: "Cluster. Acc. $\\uparrow$",
-    Metrics.accuray: "Acc. $\\uparrow$",
-    Metrics.ar_ratio: "AR ratio $\\rightarrow 1.0 \\leftarrow$",
-    Metrics.tpr_ratio: "TPR ratio $\\rightarrow 1.0 \\leftarrow$",
-    Metrics.tnr_ratio: "TNR ratio $\\rightarrow 1.0 \\leftarrow$",
+    Metrics.clust_acc: "Cluster. Acc. $\\uparrow$",
+    Metrics.acc: "Acc. $\\uparrow$",
+    Metrics.ar: "AR ratio $\\rightarrow 1.0 \\leftarrow$",
+    Metrics.tpr: "TPR ratio $\\rightarrow 1.0 \\leftarrow$",
+    Metrics.tnr: "TNR ratio $\\rightarrow 1.0 \\leftarrow$",
 }
 DEFAULT_METRICS: Final = [
-    # Metrics.clust_accuracy.value,
-    Metrics.accuray.value,
-    Metrics.ar_ratio.value,
-    Metrics.tpr_ratio.value,
-    Metrics.tnr_ratio.value,
+    Metrics.clust_acc.value,
+    Metrics.acc.value,
+    Metrics.ar.value,
+    Metrics.tpr.value,
+    Metrics.tnr.value,
 ]
 
 
@@ -84,14 +94,12 @@ def main(
     # print("------------------------------")
     tab = generate_table(
         df=df,
+        base_cols=["misc.log_method"],  # first columns in the table
         metrics=metrics_str,
         metrics_renames=metrics_renames,
     )
-    print(
-        tab.reset_index(level=0, drop=True, inplace=False).to_latex(
-            escape=False, column_format="lccccc", index=False
-        )
-    )
+
+    print(tab.to_latex(escape=False, index=False))
 
 
 if __name__ == "__main__":
