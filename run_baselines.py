@@ -38,6 +38,7 @@ from shared.utils import (
     compute_metrics,
     get_data_dim,
     random_seed,
+    write_results_to_csv,
 )
 from shared.utils.sampler import StratifiedSampler
 
@@ -233,7 +234,7 @@ def run_baseline(cfg: Config) -> None:
         full_name += f"_{cfg.data.isic_target_attr.name}"
     full_name += f"_{str(args.epochs)}epochs.csv"
 
-    compute_metrics(
+    metrics = compute_metrics(
         cfg=cfg,
         predictions=preds,
         actual=actual,
@@ -241,11 +242,18 @@ def run_baseline(cfg: Config) -> None:
         model_name=args.method.name,
         step=0,
         s_dim=datasets.s_dim,
-        save_to_csv=Path(to_absolute_path(cfg.misc.save_dir)) if cfg.misc.save_dir else None,
-        results_csv=full_name,
         use_wandb=False,
-        additional_entries={"eta": args.eta} if args.method == BaselineM.dro else None,
     )
+    if args.method == BaselineM.dro:
+        metrics.update({"eta": args.eta})
+    if cfg.misc.save_dir:
+        cfg.misc.log_method = "baseline"
+        write_results_to_csv(
+            cfg,
+            results=metrics,
+            csv_dir=Path(to_absolute_path(cfg.misc.save_dir)),
+            csv_file=full_name,
+        )
 
 
 cs = ConfigStore.instance()

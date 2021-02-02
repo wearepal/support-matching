@@ -8,7 +8,7 @@ from omegaconf import DictConfig
 
 from shared.configs import AdultConfig, BaseConfig, register_configs
 from shared.data import DatasetTriplet, get_data_tuples, load_dataset
-from shared.utils import compute_metrics, make_tuple_from_data
+from shared.utils import compute_metrics, make_tuple_from_data, write_results_to_csv
 
 cs = ConfigStore.instance()
 cs.store(name="logistic_regression_schema", node=BaseConfig)
@@ -27,6 +27,7 @@ def baseline_metrics(hydra_config: DictConfig) -> None:
 
     train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=False)
 
+    all_metrics = {}
     for clf in [
         em.SVM(kernel="linear"),
         em.SVM(),
@@ -37,17 +38,23 @@ def baseline_metrics(hydra_config: DictConfig) -> None:
     ]:
         preds = clf.run(train_data, test_data)
 
-        compute_metrics(
+        metrics = compute_metrics(
             cfg=cfg,
             predictions=preds,
             actual=test_data,
-            exp_name="baseline",
             model_name=clf.name,
             step=0,
             s_dim=data.s_dim,
-            save_to_csv=Path(to_absolute_path(cfg.misc.save_dir)),
-            results_csv=cfg.misc.results_csv,
         )
+        all_metrics.update(metrics)
+
+    cfg.misc.log_method = "baseline"
+    write_results_to_csv(
+        cfg,
+        results=all_metrics,
+        csv_dir=Path(to_absolute_path(cfg.misc.save_dir)),
+        csv_file="baseline_" + cfg.misc.results_csv,
+    )
 
 
 if __name__ == "__main__":

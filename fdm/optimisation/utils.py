@@ -7,7 +7,8 @@ from typing import Sequence, cast
 from ethicml.vision.data.image_dataset import TorchImageDataset
 import torch
 from torch import Tensor, nn
-from torch.utils.data.dataset import Subset
+from torch.utils.data.dataset import ConcatDataset, Subset
+
 import torchvision
 import wandb
 
@@ -173,22 +174,43 @@ def get_stratified_sampler(
 
 
 def build_weighted_sampler_from_dataset(
-    dataset: TensorDataTupleDataset | DataTupleDataset | Subset[TorchImageDataset | IsicDataset],
+    dataset: ConcatDataset
+    | TensorDataTupleDataset
+    | DataTupleDataset
+    | Subset[TorchImageDataset | IsicDataset],
     s_count: int,
     oversample: bool,
     batch_size: int,
     balance_hierarchical: bool,
 ) -> StratifiedSampler:
     #  Extract the s and y labels in a dataset-agnostic way (by iterating)
-    if isinstance(dataset, Subset):
-        s_all = cast(Tensor, dataset.dataset.s[dataset.indices])  # type: ignore
-        y_all = cast(Tensor, dataset.dataset.y[dataset.indices])  # type: ignore
-    elif isinstance(dataset, DataTupleDataset):
-        s_all = torch.as_tensor(dataset.s)
-        y_all = torch.as_tensor(dataset.y)
+
+    def _extract_labels(
+        dataset: TensorDataTupleDataset
+        | DataTupleDataset
+        | Subset[TorchImageDataset | IsicDataset],
+    ):
+        if isinstance(dataset, Subset):
+            _s = cast(Tensor, dataset.dataset.s[dataset.indices])  # type: ignore
+            _y = cast(Tensor, dataset.dataset.y[dataset.indices])  # type: ignore
+        elif isinstance(dataset, DataTupleDataset):
+            _s = torch.as_tensor(dataset.s)
+            _y = torch.as_tensor(dataset.y)
+        else:
+            _s = dataset.s
+            _y = dataset.y
+        return _s, _y
+
+    if isinstance(dataset, ConcatDataset):
+        s_all_ls, y_all_ls = [], []
+        for _dataset in dataset.datasets:
+            s, y = _extract_labels(_dataset)  # type: ignore
+            s_all_ls.append(s)
+            y_all_ls.append(y)
+        s_all = torch.cat(s_all_ls, dim=0)
+        y_all = torch.cat(y_all_ls, dim=0)
     else:
-        s_all = dataset.s
-        y_all = dataset.y
+        s_all, y_all = _extract_labels(dataset)  # type: ignore
 
     # Balance the batches of the training set via weighted sampling
     class_ids = label_to_class_id(s=s_all, y=y_all, s_count=s_count).view(-1)

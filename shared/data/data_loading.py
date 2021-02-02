@@ -103,13 +103,9 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
         train_len = len(train_data) - context_len
         split_sizes = (context_len, train_len)
         shuffle_inds = torch.randperm(len(train_data))
-        context_data, train_data = tuple(
-            zip(
-                *(
-                    train_data.data[shuffle_inds].split(split_sizes),
-                    train_data.targets[shuffle_inds].split(split_sizes),
-                )
-            )
+        context_data, train_data = zip(
+            train_data.data[shuffle_inds].split(split_sizes),
+            train_data.targets[shuffle_inds].split(split_sizes),
         )
 
         def _colorize_subset(
@@ -149,6 +145,9 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
                 target_s = _class_id % num_colors
                 _indexes = (_y == int(target_y)) & (_s == int(target_s))
                 _n_matches = len(_indexes.nonzero(as_tuple=False))
+                if _n_matches == 0:
+                    assert _prop == 0, f"no samples for this: {target_y}, {target_s} (_class_id)"
+                    continue
                 _num_to_keep = round(_prop * (_n_matches - 1))
                 _to_keep = torch.randperm(_n_matches) < _num_to_keep
                 _indexes[_indexes.nonzero(as_tuple=False)[_to_keep]] = False
@@ -166,9 +165,13 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
 
         if cfg.bias.subsample_train:
             if cfg.bias.missing_s:
-                raise RuntimeError("Don't use subsample_train and missing_s together!")
-            # when we manually subsample the training set, we ignore color correlation
-            train_data_t = _colorize_subset(train_data, _correlation=0, _decorr_op="random")
+                LOGGER.info("bias.missing_s & bias.subsample_train. hope ya know what you're doing")
+                # when bias.missing_s is set, then `_colorize_subset()` uses a different path, when
+                # we set `_decorr_op` to "shift"
+                train_data_t = _colorize_subset(train_data, _correlation=0, _decorr_op="shift")
+            else:
+                # when we manually subsample the training set, we ignore color correlation
+                train_data_t = _colorize_subset(train_data, _correlation=0, _decorr_op="random")
             LOGGER.info("Subsampling training set...")
             train_data_t = _subsample_by_s_and_y(train_data_t, cfg.bias.subsample_train)
         else:
