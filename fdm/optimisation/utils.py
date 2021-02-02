@@ -7,8 +7,7 @@ from typing import Sequence, cast
 from ethicml.vision.data.image_dataset import TorchImageDataset
 import torch
 from torch import Tensor, nn
-from torch.utils.data.dataloader import DataLoader
-from torch.utils.data.dataset import Dataset, Subset
+from torch.utils.data.dataset import Subset
 import torchvision
 import wandb
 
@@ -19,12 +18,13 @@ from shared.utils import StratifiedSampler, as_pretty_dict, flatten_dict, wandb_
 from shared.utils.utils import class_id_to_label, label_to_class_id, lcm
 
 __all__ = [
+    "build_weighted_sampler_from_dataset",
     "get_stratified_sampler",
+    "get_stratified_sampler",
+    "log_attention",
     "log_images",
     "restore_model",
     "save_model",
-    "get_stratified_sampler",
-    "build_weighted_sampler_from_dataset",
 ]
 
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
@@ -32,9 +32,9 @@ LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 def log_images(
     cfg: Config,
-    images,
-    name,
-    step,
+    images: Tensor,
+    name: str,
+    step: int,
     nsamples: int | Sequence[int] = 64,
     ncols: int = 8,
     monochrome: bool = False,
@@ -69,6 +69,48 @@ def log_images(
     ]
     shw = [
         wandb.Image(torchvision.transforms.functional.to_pil_image(i), caption=caption) for i in shw
+    ]
+    wandb_log(cfg.misc, {prefix + name: shw}, step=step)
+
+
+def log_attention(
+    cfg: Config,
+    images: Tensor,
+    attention_weights: Tensor,
+    name: str,
+    step: int,
+    nsamples: int = 4,
+    border_width: int = 3,
+    ncols: int = 8,
+    prefix: str | None = None,
+):
+    """Make a grid of the given images, save them in a file and log them with W&B"""
+    prefix = "train_" if prefix is None else f"{prefix}_"
+
+    if cfg.enc.recon_loss == ReconstructionLoss.ce:
+        images = images.argmax(dim=1).float() / 255
+    else:
+        if isinstance(cfg.data, (CelebaConfig, IsicConfig)):
+            images = 0.5 * images + 0.5
+
+    images = images.view(*attention_weights.shape, *images.shape[1:])
+    images = images[:nsamples]
+    attention_weights = attention_weights[:nsamples]
+    padding = attention_weights.view(nsamples, -1, 1, 1, 1)
+
+    w_padding = padding.expand(-1, -1, 3, border_width, images.size(-1))
+    # breakpoint()
+    images = torch.cat([w_padding, images, w_padding], dim=-2)
+    h_padding = padding.expand(-1, -1, 3, images.size(-2), border_width)
+    images = torch.cat([h_padding, images, h_padding], dim=-1)
+
+    shw = [
+        torchvision.utils.make_grid(block, nrow=ncols, pad_value=1.0).clamp(0, 1).cpu()
+        for block in images.unbind(dim=0)
+    ]
+    shw = [
+        wandb.Image(torchvision.transforms.functional.to_pil_image(image), caption=f"bag_{i}")
+        for i, image in enumerate(shw)
     ]
     wandb_log(cfg.misc, {prefix + name: shw}, step=step)
 
