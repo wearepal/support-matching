@@ -281,14 +281,15 @@ class Experiment(ExperimentBase):
                 total_loss += pred_y_loss
             if self.args.pred_s_weight > 0:
                 pred_s_loss, pred_s_acc = self.predictor_s.routine(zs, tr.s)
+
+                # ensure that zs for the context set is always positive
+                zs_c, _ = self.generator.split_encoding(encoding_c)
+                pred_s_loss += torch.relu(-zs_c).mean()
+
                 pred_s_loss *= self.args.pred_s_weight
                 logging_dict["Loss Predictor s"] = pred_s_loss.item()
                 logging_dict["Accuracy Predictor s"] = pred_s_acc
                 total_loss += pred_s_loss
-
-                # ensure that zs for the context set is always positive
-                zs_c, _ = self.generator.split_encoding(encoding_c)
-                total_loss += torch.relu(-zs_c).mean()
 
         logging_dict["Loss Total"] = total_loss
 
