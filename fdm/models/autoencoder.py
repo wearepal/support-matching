@@ -11,7 +11,7 @@ from tqdm import tqdm
 from typing_extensions import Literal
 
 from shared.configs import VaeStd
-from shared.utils import sample_concrete, to_discrete
+from shared.utils import RoundSTE, sample_concrete, to_discrete
 
 from .base import EncodingSize, ModelBase, Reconstructions, SplitEncoding
 
@@ -72,9 +72,10 @@ class AutoEncoder(nn.Module):
         rand_s, rand_y = self.mask(z, random=True)
         zero_s, zero_y = self.mask(z)
         zs, zy = self.split_encoding(z)
+        all_z = torch.cat([zs, zy], dim=1)
         just_s = torch.cat([zs, torch.zeros_like(zy)], dim=1)
         return Reconstructions(
-            all=self.decode(z, mode=mode),
+            all=self.decode(all_z, mode=mode),
             rand_s=self.decode(rand_s, mode=mode),
             rand_y=self.decode(rand_y, mode=mode),
             zero_s=self.decode(zero_s, mode=mode),
@@ -96,6 +97,7 @@ class AutoEncoder(nn.Module):
     def split_encoding(self, z: Tensor) -> SplitEncoding:
         assert self.encoding_size is not None
         zs, zy = z.split((self.encoding_size.zs, self.encoding_size.zy), dim=1)
+        zs = RoundSTE.apply(torch.sigmoid(zs))
         return SplitEncoding(zs=zs, zy=zy)
 
     def mask(self, z: Tensor, random: bool = False) -> Tuple[Tensor, Tensor]:
@@ -133,11 +135,12 @@ class AutoEncoder(nn.Module):
         self, x: Tensor, recon_loss_fn, kl_weight: float
     ) -> Tuple[Tensor, Tensor, Dict[str, float]]:
         encoding = self.encode(x)
+        z = self.split_encoding(encoding)  # split so that zs can be discretized
 
-        recon_all = self.decode(encoding)
+        recon_all = self.decode(torch.cat([z.zs, z.zy], dim=1))
         recon_loss = recon_loss_fn(recon_all, x)
         recon_loss /= x.nelement()
-        prior_loss = kl_weight * encoding.norm(dim=1).mean()
+        prior_loss = kl_weight * z.zy.norm(dim=1).mean()
         loss = recon_loss + prior_loss
         return encoding, loss, {"Loss reconstruction": recon_loss.item(), "Prior Loss": prior_loss}
 
