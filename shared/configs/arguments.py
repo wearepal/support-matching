@@ -129,7 +129,7 @@ class BiasConfig:
     _target_: str = "shared.configs.BiasConfig"
 
     # Dataset manipulation
-    missing_s: List[int] = MISSING
+    missing_s: List[int] = field(default_factory=list)
     mixing_factor: float = 0  # How much of context should be mixed into training?
     adult_biased_train: bool = True  # if True, make the training set biased, based on mixing factor
     # the subsample flags work like this: you give it a class id and a fraction in the form of a
