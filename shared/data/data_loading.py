@@ -28,7 +28,7 @@ from .adult import load_adult_data
 from .dataset_wrappers import TensorDataTupleDataset
 from .isic import IsicDataset
 from .misc import shrink_dataset
-from .transforms import NoisyDequantize, Quantize
+from .transforms import NoisyDequantize, Quantize, Rotate
 
 __all__ = ["DatasetTriplet", "load_dataset"]
 
@@ -65,6 +65,8 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
             augs.append(Quantize(args.quant_level.value))
         if args.input_noise:
             augs.append(NoisyDequantize(args.quant_level.value))
+        if args.rotate_data:
+            augs.append(Rotate())
 
         train_data = MNIST(root=data_root, download=True, train=True)
         test_data: Union[Tuple, Dataset]

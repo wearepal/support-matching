@@ -1,6 +1,12 @@
-import torch
+from __future__ import annotations
+from typing import ClassVar, Sequence
 
-__all__ = ["NoisyDequantize", "Quantize"]
+import torch
+from torch.tensor import Tensor
+
+from kornia.geometry import rotate
+
+__all__ = ["NoisyDequantize", "Quantize", "Rotate"]
 
 
 class Augmentation:
@@ -50,3 +56,15 @@ class Quantize(Augmentation):
             # re-normalize to between 0 and 1
             x = x / self.n_bins
         return x
+
+
+class Rotate(Augmentation):
+    ...
+    _pos_angles: ClassVar[Tensor] = torch.as_tensor([[0.0], [90.0], [180.0], [270.0]])
+    _pos_labels: ClassVar[Tensor] = torch.as_tensor([[0], [1], [2], [3]])
+    target_dim = 4
+
+    def _augment(self, data: Tensor) -> Tensor:
+        index = torch.randint(size=(data.size(0),), low=0, high=4)
+        angles = self._pos_angles[index].squeeze(-1)
+        return rotate(data, angles)
