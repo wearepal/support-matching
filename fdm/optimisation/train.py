@@ -361,7 +361,7 @@ class Experiment(ExperimentBase):
         if self.args.aggregator_type is AggregatorType.gated:
             with torch.no_grad():
                 self.disc_ensemble[0](self.generator.mask(encoding)[1])
-                assert isinstance(self.disc_ensemble[0].model[-1], Aggregator) # type: ignore
+                assert isinstance(self.disc_ensemble[0].model[-1], Aggregator)  # type: ignore
                 attention_weights = self.disc_ensemble[0].model[-1].attention_weights  # type: ignore
             log_attention(
                 self.cfg,
