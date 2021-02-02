@@ -335,12 +335,19 @@ class Experiment(ExperimentBase):
         sample = x[: num_blocks * rows_per_block]
         encoding = self.generator.encode(sample, stochastic=False)
         recon = self.generator.all_recons(encoding, mode="hard")
+        recons = [recon.all, recon.zero_s, recon.just_s]
 
-        to_log: tuple[Tensor, ...] = (sample, recon.all, recon.zero_s, recon.just_s)
         caption = "original | all | zero_s | just_s"
         if self.args.train_on_recon:
-            to_log += (recon.rand_s,)
+            recons.append(recon.rand_s)
             caption += " | rand_s"
+
+        to_log: list[Tensor] = [sample]
+        for recon_ in recons:
+            if self.enc.recon_loss is ReconstructionLoss.ce:
+                to_log.append(recon_.argmax(dim=1).float() / 255)
+            else:
+                to_log.append(recon_)
         ncols = len(to_log)
 
         interleaved = torch.stack(to_log, dim=1).view(

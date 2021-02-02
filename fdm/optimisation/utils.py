@@ -45,11 +45,10 @@ def log_images(
     """Make a grid of the given images, save them in a file and log them with W&B"""
     prefix = "train_" if prefix is None else f"{prefix}_"
 
-    if cfg.enc.recon_loss == ReconstructionLoss.ce:
-        images = images.argmax(dim=1).float() / 255
-    else:
-        if isinstance(cfg.data, (CelebaConfig, IsicConfig)):
-            images = 0.5 * images + 0.5
+    if cfg.enc.recon_loss is not ReconstructionLoss.ce and isinstance(
+        cfg.data, (CelebaConfig, IsicConfig)
+    ):
+        images = 0.5 * images + 0.5
 
     if monochrome:
         images = images.mean(dim=1, keepdim=True)
