@@ -71,7 +71,7 @@ METRICS_RENAMES: Final = {
     Metrics.tnr: "TNR ratio $\\rightarrow 1.0 \\leftarrow$",
 }
 DEFAULT_METRICS: Final = [
-    Metrics.clust_acc.value,
+    # Metrics.clust_acc.value,
     Metrics.acc.value,
     Metrics.ar.value,
     Metrics.tpr.value,
@@ -81,23 +81,29 @@ DEFAULT_METRICS: Final = [
 
 def main(
     csv_file: Path,
-    metrics: List[Metrics] = typer.Option(default=DEFAULT_METRICS),
-    sens_attr: str = typer.Option(default="colour"),
-    classifier: str = typer.Option(default="pytorch_classifier"),
+    metrics: List[Metrics] = typer.Option(DEFAULT_METRICS, "--metrics", "-m"),
+    sens_attr: str = typer.Option("colour", "--sens-attr", "-s"),
+    classifiers: List[str] = typer.Option(["pytorch_classifier"], "--classifiers", "-c"),
+    groupby: str = typer.Option("misc.log_method", "--groupby", "-g"),
 ):
     df = pd.read_csv(csv_file)
-    metrics_str = [METRICS_COL_NAMES[metric](sens_attr, classifier) for metric in metrics]
-    metrics_renames = {
-        metric_str: METRICS_RENAMES[metric] for metric_str, metric in zip(metrics_str, metrics)
-    }
-    # print(f"Using metrics: {metrics_str}")
-    # print("------------------------------")
-    tab = generate_table(
-        df=df,
-        base_cols=["misc.log_method"],  # first columns in the table
-        metrics=metrics_str,
-        metrics_renames=metrics_renames,
-    )
+    rows = []
+    for classifier in classifiers:
+        metrics_str = [METRICS_COL_NAMES[metric](sens_attr, classifier) for metric in metrics]
+        metrics_renames = {
+            metric_str: METRICS_RENAMES[metric] for metric_str, metric in zip(metrics_str, metrics)
+        }
+        # print(f"Using metrics: {metrics_str}")
+        # print("------------------------------")
+        row = generate_table(
+            df=df,
+            base_cols=[groupby],  # first columns in the table
+            metrics=metrics_str,
+            metrics_renames=metrics_renames,
+        )
+        rows.append(row)
+    tab = pd.concat(rows, axis="index", sort=False, ignore_index=True)
+    tab = tab.reset_index(drop=True, inplace=False)
 
     print(tab.to_latex(escape=False, index=False))
 

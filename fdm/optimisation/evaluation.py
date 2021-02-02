@@ -1,6 +1,5 @@
 from __future__ import annotations
 import logging
-from pathlib import Path
 from typing import Dict, Optional, Sequence, Tuple
 
 import ethicml as em
@@ -45,7 +44,7 @@ def log_metrics(
     model,
     data: DatasetTriplet,
     step: int,
-    save_to_csv: Optional[Path] = None,
+    save_summary: bool = False,
     cluster_test_metrics: Optional[Dict[str, float]] = None,
     cluster_context_metrics: Optional[Dict[str, float]] = None,
 ) -> None:
@@ -73,13 +72,13 @@ def log_metrics(
         name="x_zero_s",
         eval_on_recon=cfg.fdm.eval_on_recon,
         pred_s=False,
-        save_to_csv=save_to_csv,
+        save_summary=save_summary,
         cluster_test_metrics=cluster_test_metrics,
         cluster_context_metrics=cluster_context_metrics,
     )
 
 
-def baseline_metrics(cfg: Config, data: DatasetTriplet, save_to_csv: Optional[Path]) -> None:
+def baseline_metrics(cfg: Config, data: DatasetTriplet) -> None:
     if isinstance(cfg.data, AdultConfig):
         LOGGER.info("Baselines...")
         train_data = data.train
@@ -105,8 +104,6 @@ def baseline_metrics(cfg: Config, data: DatasetTriplet, save_to_csv: Optional[Pa
                 exp_name="original_data",
                 model_name=clf.name,
                 step=0,
-                save_to_csv=save_to_csv,
-                results_csv=cfg.misc.results_csv,
                 use_wandb=False,
             )
 
@@ -167,7 +164,7 @@ def evaluate(
     name: str,
     eval_on_recon: bool = True,
     pred_s: bool = False,
-    save_to_csv: Optional[Path] = None,
+    save_summary: bool = False,
     cluster_test_metrics: Optional[Dict[str, float]] = None,
     cluster_context_metrics: Optional[Dict[str, float]] = None,
 ):
@@ -217,11 +214,10 @@ def evaluate(
             preds,
             actual,
             name,
-            "pytorch_classifier",
+            exp_name="pytorch_classifier",
             step=step,
             s_dim=s_dim,
-            save_to_csv=save_to_csv,
-            results_csv=cfg.misc.results_csv,
+            save_summary=save_summary,
             use_wandb=cfg.misc.use_wandb,
             additional_entries=additional_entries,
         )
@@ -240,8 +236,7 @@ def evaluate(
                 model_name=eth_clf.name,
                 s_dim=s_dim,
                 step=step,
-                save_to_csv=save_to_csv,
-                results_csv=cfg.misc.results_csv,
+                save_summary=save_summary,
                 use_wandb=cfg.misc.use_wandb,
                 additional_entries=additional_entries,
             )
