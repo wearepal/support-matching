@@ -64,6 +64,10 @@ class Classifier(ModelBase):
                 if targets.dtype != torch.long:
                     targets = targets.long()
                 return F.cross_entropy(logits, targets, reduction="none")
+            elif self.criterion == "l2":
+                if targets.dtype != torch.float32:
+                    targets = targets.float()
+                return F.mse_loss(logits, targets.flatten(start_dim=1), reduction="none")
             else:
                 raise NotImplementedError("Only 'bce' and 'ce' losses are implemented using str.")
         elif isinstance(self.criterion, DROLoss):

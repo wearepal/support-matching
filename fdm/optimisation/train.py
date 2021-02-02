@@ -47,14 +47,10 @@ from shared.utils import (
     AverageMeter,
     ExperimentBase,
     ModelFn,
-    StratifiedSampler,
     as_pretty_dict,
-    class_id_to_label,
     count_parameters,
     flatten_dict,
     inf_generator,
-    label_to_class_id,
-    lcm,
     load_results,
     prod,
     random_seed,
@@ -275,20 +271,24 @@ class Experiment(ExperimentBase):
                 logging_dict["Loss Discriminator"] = disc_loss
 
             # this is a pretty cheap masking operation, so it's okay if it's not used
-            enc_no_s, enc_no_y = self.generator.mask(encoding_t, random=False)
+            zs, zy = self.generator.split_encoding(encoding_t)
             if self.args.pred_y_weight > 0:
                 # predictor is on encodings; predict y from the part that is invariant to s
-                pred_y_loss, pred_y_acc = self.predictor_y.routine(enc_no_s, tr.y)
+                pred_y_loss, pred_y_acc = self.predictor_y.routine(zy, tr.y)
                 pred_y_loss *= self.args.pred_y_weight
                 logging_dict["Loss Predictor y"] = pred_y_loss.item()
                 logging_dict["Accuracy Predictor y"] = pred_y_acc
                 total_loss += pred_y_loss
             if self.args.pred_s_weight > 0:
-                pred_s_loss, pred_s_acc = self.predictor_s.routine(enc_no_y, tr.s)
+                pred_s_loss, pred_s_acc = self.predictor_s.routine(zs, tr.s)
                 pred_s_loss *= self.args.pred_s_weight
                 logging_dict["Loss Predictor s"] = pred_s_loss.item()
                 logging_dict["Accuracy Predictor s"] = pred_s_acc
                 total_loss += pred_s_loss
+
+                # ensure that zs for the context set is always positive
+                zs_c, _ = self.generator.split_encoding(encoding_c)
+                total_loss += torch.relu(-zs_c).mean()
 
         logging_dict["Loss Total"] = total_loss
 
@@ -491,7 +491,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
             input_shape[0] * 256 if enc.recon_loss is ReconstructionLoss.ce else input_shape[0]
         )
         decoder_out_act = None
-        encoder, decoder, enc_shape = conv_autoencoder(
+        encoder, decoder, enc_dim = conv_autoencoder(
             input_shape,
             enc.init_chans,
             encoding_dim=enc.out_dim,
@@ -501,7 +501,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
             variational=args.vae,
         )
     else:
-        encoder, decoder, enc_shape = fc_autoencoder(
+        encoder, decoder, enc_dim = fc_autoencoder(
             input_shape,
             enc.init_chans,
             encoding_dim=enc.out_dim,
@@ -527,7 +527,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
         raise ValueError(f"{enc.recon_loss} is an invalid reconstruction gen_loss")
 
     zs_dim = args.zs_dim
-    zy_dim = enc_shape[0] - zs_dim
+    zy_dim = enc_dim - zs_dim
     encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim)
     generator = build_ae(
         cfg=cfg,
@@ -545,12 +545,12 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
             assert args_encoder["encoder_type"] == "vae" if args.vae else "ae"
             assert args_encoder["levels"] == enc.levels
 
-    LOGGER.info(f"Encoding shape: {enc_shape}, {encoding_size}")
+    LOGGER.info(f"Encoding dim: {enc_dim}, {encoding_size}")
 
     # ================================== Initialise Discriminator =================================
 
     disc_optimizer_kwargs = {"lr": args.disc_lr}
-    disc_input_shape: tuple[int, ...] = input_shape if args.train_on_recon else enc_shape
+    disc_input_shape: tuple[int, ...] = input_shape if args.train_on_recon else (enc_dim,)
     disc_fn: ModelFn
     if is_image_data and args.train_on_recon:
         if isinstance(data, CmnistConfig):
@@ -598,7 +598,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
     disc_ensemble.to(device)
 
     predictor_y = build_classifier(
-        input_shape=(prod(enc_shape),),  # this is always trained on encodings
+        input_shape=(encoding_size.zy,),  # this is always trained on encodings
         target_dim=datasets.y_dim,
         model_fn=FcNet(hidden_dims=None),  # no hidden layers
         optimizer_kwargs=disc_optimizer_kwargs,
@@ -606,10 +606,12 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
     predictor_y.to(device)
 
     predictor_s = build_classifier(
-        input_shape=(prod(enc_shape),),  # this is always trained on encodings
+        input_shape=(encoding_size.zs,),  # this is always trained on encodings
         target_dim=datasets.s_dim,
-        model_fn=FcNet(hidden_dims=None),  # no hidden layers
+        model_fn=lambda input_dim, target_dim: nn.Flatten(),  # use zs directly as output
+        # model_fn=FcNet(hidden_dims=None),  # no hidden layers
         optimizer_kwargs=disc_optimizer_kwargs,
+        criterion="l2",
     )
     predictor_s.to(device)
 

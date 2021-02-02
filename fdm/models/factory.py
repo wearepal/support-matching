@@ -1,4 +1,7 @@
+from __future__ import annotations
 from typing import Optional, Tuple
+
+from torch.nn.modules.loss import _Loss
 
 from fdm.models import Classifier
 from shared.utils import ModelFn
@@ -11,6 +14,7 @@ def build_classifier(
     target_dim: int,
     model_fn: ModelFn,
     optimizer_kwargs: Optional[dict] = None,
+    criterion: str | _Loss | None = None,
 ) -> Classifier:
     in_dim = input_shape[0]
 
@@ -19,4 +23,5 @@ def build_classifier(
         model_fn(in_dim, target_dim),
         num_classes=num_classes,
         optimizer_kwargs=optimizer_kwargs,
+        criterion=criterion,
     )
