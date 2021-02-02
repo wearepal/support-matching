@@ -238,7 +238,6 @@ def run_baseline(cfg: Config) -> None:
         cfg=cfg,
         predictions=preds,
         actual=actual,
-        exp_name="baseline",
         model_name=args.method.name,
         step=0,
         s_dim=datasets.s_dim,
