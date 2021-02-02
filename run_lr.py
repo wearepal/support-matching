@@ -47,6 +47,8 @@ def baseline_metrics(hydra_config: DictConfig) -> None:
             s_dim=data.s_dim,
         )
         all_metrics.update(metrics)
+
+    cfg.misc.log_method = "baseline"
     write_results_to_csv(
         cfg,
         results=all_metrics,

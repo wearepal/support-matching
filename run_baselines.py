@@ -247,6 +247,7 @@ def run_baseline(cfg: Config) -> None:
     if args.method == BaselineM.dro:
         metrics.update({"eta": args.eta})
     if cfg.misc.save_dir:
+        cfg.misc.log_method = "baseline"
         write_results_to_csv(
             cfg,
             results=metrics,
