@@ -270,7 +270,6 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
 
         context_data = Subset(all_data, context_inds.tolist())
         train_data = Subset(all_data, train_inds.tolist())
-        breakpoint()
         test_data = Subset(all_data, test_inds)
 
     elif isinstance(args, AdultConfig):
