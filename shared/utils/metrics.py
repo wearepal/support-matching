@@ -1,22 +1,24 @@
+from __future__ import annotations
+from collections.abc import Mapping
 import logging
 from pathlib import Path
-from typing import Dict, Mapping, Optional, Tuple, Union
 
 import ethicml as em
+import pandas as pd
 import wandb
 
 from shared.configs import BaseConfig
 
-from .utils import wandb_log
+from .utils import as_pretty_dict, flatten_dict, wandb_log
 
-__all__ = ["compute_metrics", "make_tuple_from_data", "print_metrics"]
+__all__ = ["compute_metrics", "make_tuple_from_data", "print_metrics", "write_results_to_csv"]
 
 log = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 def make_tuple_from_data(
     train: em.DataTuple, test: em.DataTuple, pred_s: bool
-) -> Tuple[em.DataTuple, em.DataTuple]:
+) -> tuple[em.DataTuple, em.DataTuple]:
     train_x = train.x
     test_x = test.x
 
@@ -34,26 +36,27 @@ def compute_metrics(
     cfg: BaseConfig,
     predictions: em.Prediction,
     actual: em.DataTuple,
-    exp_name: str,
     model_name: str,
     step: int,
     s_dim: int,
-    save_to_csv: Optional[Path] = None,
-    results_csv: str = "",
+    exp_name: str | None = None,
+    save_summary: bool = False,
     use_wandb: bool = False,
-    additional_entries: Optional[Mapping[str, float]] = None,
-) -> Dict[str, float]:
+    additional_entries: Mapping[str, float] | None = None,
+) -> dict[str, float]:
     """Compute accuracy and fairness metrics and log them.
 
     Args:
         args: args object
         predictions: predictions in a format that is compatible with EthicML
         actual: labels for the predictions
-        exp_name: name of the experiment
         model_name: name of the model used
         step: step of training (needed for logging to W&B)
-        save_to_csv: if a path is given, the results are saved to a CSV file
-        results_csv: name of the CSV file
+        s_dim: dimension of s
+        exp_name: name of the experiment
+        save_summary: if True, a summary will be saved to wandb
+        use_wandb: whether to use wandb at all
+        additional_entries: entries that should go with in the summary
     Returns:
         dictionary with the computed metrics
     """
@@ -68,55 +71,49 @@ def compute_metrics(
     )
     # replace the slash; it's causing problems
     metrics = {k.replace("/", "÷"): v for k, v in metrics.items()}
+    metrics = {f"{k} ({model_name})": v for k, v in metrics.items()}
 
     if use_wandb:
-        wandb_log(cfg.misc, {f"{k} ({model_name})": v for k, v in metrics.items()}, step=step)
+        wandb_log(cfg.misc, metrics, step=step)
 
-    if save_to_csv is not None:
-        # full_name = f"{args.dataset}_{exp_name}"
-        # exp_name += "_s" if pred_s else "_y"
-        # if hasattr(args, "eval_on_recon"):
-        #     exp_name += "_on_recons" if args.eval_on_recon else "_on_encodings"
+        if save_summary:
+            external = additional_entries or {}
 
-        manual_entries = {
-            "seed": str(getattr(cfg.misc, "seed", cfg.misc.data_split_seed)),
-            "data": exp_name,
-            "method": f'"{model_name}"',
-            "wandb_url": str(wandb.run.get_url()) if use_wandb and cfg.misc.use_wandb else "(None)",
-        }
-
-        external = additional_entries or {}
-
-        if results_csv:
-            assert isinstance(save_to_csv, Path)
-            save_to_csv.mkdir(exist_ok=True, parents=True)
-            results = {**metrics, **external}
-
-            results_path = save_to_csv / f"{cfg.data.log_name}_{model_name}_{results_csv}"
-            values = ",".join(list(manual_entries.values()) + [str(v) for v in results.values()])
-            if not results_path.is_file():
-                with results_path.open("w") as f:
-                    # ========= header =========
-                    f.write(",".join(list(manual_entries) + [str(k) for k in results]) + "\n")
-                    f.write(values + "\n")
-            else:
-                with results_path.open("a") as f:  # append to existing file
-                    f.write(values + "\n")
-            log.info(f"Results have been written to {results_path.resolve()}")
-        if use_wandb:
             for metric_name, value in metrics.items():
-                wandb.run.summary[f"{model_name}_{metric_name}"] = value
-            # external metrics are without prefix
+                wandb.run.summary[metric_name] = value
             for metric_name, value in external.items():
                 wandb.run.summary[metric_name] = value
 
-    log.info(f"Results for {exp_name} ({model_name}):")
+    log.info(f"Results for {exp_name or ''} ({model_name}):")
     print_metrics(metrics)
     return metrics
 
 
-def print_metrics(metrics: Mapping[str, Union[int, float, str]]) -> None:
+def print_metrics(metrics: Mapping[str, int | float | str]) -> None:
     """Print metrics such that they don't clutter everything too much."""
     for key, value in metrics.items():
         log.info(f"    {key}: {value:.3g}")
     log.info("---")
+
+
+def write_results_to_csv(
+    cfg: BaseConfig, results: Mapping[str, int | float | str], csv_dir: Path, csv_file: str
+):
+    to_log = {}
+    to_log.update(flatten_dict(as_pretty_dict(cfg)))
+    to_log.update(results)
+    # I don't know why it has to be done in 2 steps, but it that's how it is
+    results_df = pd.DataFrame(columns=list(to_log))
+    results_df = results_df.append(to_log, ignore_index=True, sort=False)
+
+    csv_dir.mkdir(exist_ok=True, parents=True)
+
+    results_path = csv_dir / f"{cfg.data.log_name}_{csv_file}"
+    if results_path.exists():
+        # load previous results and append new results
+        previous_results = pd.read_csv(results_path)
+        results_df = pd.concat(
+            [previous_results, results_df], sort=False, ignore_index=True, axis="index"
+        )
+    results_df.reset_index(drop=True).to_csv(results_path, index=False)
+    log.info(f"Results have been written to {results_path.resolve()}")

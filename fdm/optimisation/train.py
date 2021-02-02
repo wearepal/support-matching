@@ -639,8 +639,8 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
                 cfg,
                 generator,
                 datasets,
-                0,
-                save_to_csv=Path(to_absolute_path(misc.save_dir)),
+                step=0,
+                save_summary=True,
                 cluster_test_metrics=cluster_test_metrics,
                 cluster_context_metrics=cluster_context_metrics,
             )
@@ -693,7 +693,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
 
         if args.validate and itr % args.val_freq == 0:
             if itr == args.val_freq:  # first validation
-                baseline_metrics(cfg, datasets, save_to_csv=Path(to_absolute_path(misc.save_dir)))
+                baseline_metrics(cfg, datasets)
             log_metrics(cfg, model=generator, data=datasets, step=itr)
             save_model(cfg, save_dir, model=generator, itr=itr, sha=sha)
 
@@ -710,7 +710,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
         cfg,
         model=generator,
         data=datasets,
-        save_to_csv=Path(to_absolute_path(misc.save_dir)),
+        save_summary=True,
         step=itr,
         cluster_test_metrics=cluster_test_metrics,
         cluster_context_metrics=cluster_context_metrics,
