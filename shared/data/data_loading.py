@@ -2,18 +2,11 @@ import logging
 import platform
 from typing import Dict, NamedTuple, Optional, Tuple, Union
 
+from typing_extensions import Literal
+
 import ethicml as em
 import ethicml.vision as emvi
 from hydra.utils import to_absolute_path
-import torch
-from torch import Tensor
-import torch.nn as nn
-from torch.utils.data import Dataset, Subset
-from torch.utils.data.dataset import ConcatDataset
-from torchvision import transforms as TF
-from torchvision.datasets import MNIST
-from typing_extensions import Literal
-
 from shared.configs import (
     AdultConfig,
     AdultDatasetSplit,
@@ -23,6 +16,13 @@ from shared.configs import (
     IsicConfig,
     QuantizationLevel,
 )
+import torch
+from torch import Tensor
+import torch.nn as nn
+from torch.utils.data import Dataset, Subset
+from torch.utils.data.dataset import ConcatDataset
+from torchvision import transforms as TF
+from torchvision.datasets import MNIST
 
 from .adult import load_adult_data
 from .dataset_wrappers import TensorDataTupleDataset
@@ -244,13 +244,15 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
             _data: Dataset, _subset_inds: Tensor, _target_props: Dict[str, float]
         ) -> Tensor:
 
+            card_y = max(y_dim, 2)
+            card_s = max(s_dim, 2)
             for _class_id, _prop in _target_props.items():
                 _class_id = int(_class_id)  # hydra doesn't allow ints as keys, so we have to cast
                 assert 0 <= _prop <= 1, "proportions should be between 0 and 1"
                 _s = _data.s[_subset_inds]
                 _y = _data.y[_subset_inds]
-                target_y = _class_id // y_dim
-                target_s = _class_id % s_dim
+                target_y = _class_id // card_y
+                target_s = _class_id % card_s
                 _indexes = (_y == int(target_y)) & (_s == int(target_s))
                 _n_matches = len(_indexes.nonzero(as_tuple=False))
                 _to_keep = torch.randperm(_n_matches) < (round(_prop * (_n_matches - 1)))
@@ -268,6 +270,7 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
 
         context_data = Subset(all_data, context_inds.tolist())
         train_data = Subset(all_data, train_inds.tolist())
+        breakpoint()
         test_data = Subset(all_data, test_inds)
 
     elif isinstance(args, AdultConfig):
