@@ -2,11 +2,18 @@ import logging
 import platform
 from typing import Dict, NamedTuple, Optional, Tuple, Union
 
-from typing_extensions import Literal
-
 import ethicml as em
 import ethicml.vision as emvi
 from hydra.utils import to_absolute_path
+import torch
+from torch import Tensor
+import torch.nn as nn
+from torch.utils.data import Dataset, Subset
+from torch.utils.data.dataset import ConcatDataset
+from torchvision import transforms as TF
+from torchvision.datasets import MNIST
+from typing_extensions import Literal
+
 from shared.configs import (
     AdultConfig,
     AdultDatasetSplit,
@@ -16,13 +23,6 @@ from shared.configs import (
     IsicConfig,
     QuantizationLevel,
 )
-import torch
-from torch import Tensor
-import torch.nn as nn
-from torch.utils.data import Dataset, Subset
-from torch.utils.data.dataset import ConcatDataset
-from torchvision import transforms as TF
-from torchvision.datasets import MNIST
 
 from .adult import load_adult_data
 from .dataset_wrappers import TensorDataTupleDataset
