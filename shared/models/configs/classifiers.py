@@ -123,4 +123,4 @@ class ModelAggregatorWrapper:
 
     def __call__(self, input_dim: int, target_dim: int) -> nn.Module:
         assert target_dim == self.aggregator.output_dim
-        return nn.Sequential(self.model_fn(input_dim, self.input_dim), nn.SELU(), self.aggregator)
+        return nn.Sequential(self.model_fn(input_dim, self.input_dim), nn.GELU(), self.aggregator)

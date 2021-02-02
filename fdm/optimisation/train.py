@@ -68,6 +68,7 @@ from .loss import MixedLoss, PixelCrossEntropy
 from .utils import (
     build_weighted_sampler_from_dataset,
     get_stratified_sampler,
+    log_attention,
     log_images,
     restore_model,
     save_model,
@@ -345,6 +346,7 @@ class Experiment(ExperimentBase):
         interleaved = torch.stack(to_log, dim=1).view(
             ncols * num_blocks * rows_per_block, *sample.shape[1:]
         )
+
         log_images(
             self.cfg,
             interleaved,
@@ -355,6 +357,22 @@ class Experiment(ExperimentBase):
             prefix=prefix,
             caption=caption,
         )
+
+        if self.args.aggregator_type is AggregatorType.gated:
+            with torch.no_grad():
+                self.disc_ensemble[0](self.generator.mask(encoding)[1])
+                assert isinstance(self.disc_ensemble[0].model[-1], Aggregator)  # type: ignore
+                attention_weights = self.disc_ensemble[0].model[-1].attention_weights  # type: ignore
+            log_attention(
+                self.cfg,
+                images=x,
+                attention_weights=attention_weights,  # type: ignore
+                name="attention Weights",
+                step=itr,
+                nsamples=num_blocks,
+                ncols=ncols,
+                prefix=prefix,
+            )
 
 
 def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
