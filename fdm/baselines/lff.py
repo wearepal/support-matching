@@ -33,11 +33,11 @@ class IndexDataset(Dataset):
 
 
 class EMA:
-    def __init__(self, labels, alpha=0.9):
-        self.label = labels
+    def __init__(self, labels: Tensor, device: torch.device, alpha=0.9):
+        self.labels = labels.to(device)
         self.alpha = alpha
-        self.parameter = torch.zeros(labels.size(0))
-        self.updated = torch.zeros(labels.size(0))
+        self.parameter = torch.zeros(labels.size(0), device=device)
+        self.updated = torch.zeros(labels.size(0), device=device)
 
     def update(self, data, index):
         self.parameter[index] = (
@@ -45,8 +45,8 @@ class EMA:
         )
         self.updated[index] = 1
 
-    def max_loss(self, label):
-        label_index = np.where(self.label == label)[0]
+    def max_loss(self, label: int) -> Tensor:
+        label_index = self.labels == label
         return self.parameter[label_index].max()
 
 
@@ -99,8 +99,8 @@ class LfF(Classifier):
                 num_workers=train_loader.num_workers,
             )
 
-        sample_loss_ema_b = EMA(torch.LongTensor(y), alpha=0.7)
-        sample_loss_ema_d = EMA(torch.LongTensor(y), alpha=0.7)
+        sample_loss_ema_b = EMA(torch.LongTensor(y), alpha=0.7, device=device)
+        sample_loss_ema_d = EMA(torch.LongTensor(y), alpha=0.7, device=device)
 
         LOGGER.info("Training classifier...")
         pbar = trange(epochs)
