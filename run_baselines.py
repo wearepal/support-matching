@@ -18,6 +18,8 @@ from torch.utils.data import DataLoader, Dataset, TensorDataset
 from torch.utils.data.dataset import ConcatDataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
+import wandb
+import yaml
 
 from fdm.baselines import GDRO, LfF
 from fdm.models import Classifier
@@ -37,7 +39,6 @@ from shared.utils import (
     as_pretty_dict,
     compute_metrics,
     flatten_dict,
-    get_data_dim,
     random_seed,
     write_results_to_csv,
 )
@@ -118,8 +119,34 @@ def run_baseline(cfg: Config) -> None:
     use_gpu = torch.cuda.is_available() and not cfg.misc.gpu < 0  # type: ignore
     random_seed(cfg.misc.seed, use_gpu)
 
+    LOGGER.info(
+        yaml.dump(as_pretty_dict(cfg), default_flow_style=False, allow_unicode=True, sort_keys=True)
+    )
     device = torch.device(f"cuda:{cfg.misc.gpu}" if use_gpu else "cpu")
     LOGGER.info(f"Running on {device}")
+
+    # Set up wandb logging
+    run = None
+    if cfg.misc.use_wandb:
+        project_suffix = f"-{cfg.data.log_name}" if not isinstance(cfg.data, CmnistConfig) else ""
+        group = ""
+        if cfg.misc.log_method:
+            group += cfg.misc.log_method
+        if cfg.misc.exp_group:
+            group += "." + cfg.misc.exp_group
+        if cfg.bias.log_dataset:
+            group += "." + cfg.bias.log_dataset
+        local_dir = Path(".", "local_logging")
+        local_dir.mkdir(exist_ok=True)
+        run = wandb.init(
+            entity="predictive-analytics-lab",
+            project="fdm-hydra-baselines" + project_suffix,
+            dir=str(local_dir),
+            config=flatten_dict(as_pretty_dict(cfg)),
+            group=group if group else None,
+            reinit=True,
+        )
+        run.__enter__()  # call the context manager dunders manually to avoid excessive indentation
 
     #  Load the datasets and wrap with dataloaders
     datasets = load_dataset(cfg)
@@ -203,6 +230,7 @@ def run_baseline(cfg: Config) -> None:
         # **train_loader_kwargs,
     )
 
+    # Generate predictions with the trained model
     preds, labels, sens = classifier.predict_dataset(test_data, device=device)
     preds = em.Prediction(pd.Series(preds))
     if isinstance(cfg.data, CmnistConfig):
@@ -232,6 +260,7 @@ def run_baseline(cfg: Config) -> None:
         full_name += f"_eta_{args.eta}"
     full_name += f"_{str(args.epochs)}epochs.csv"
 
+    # Compute accuracy + fairness metrics using EthicML
     metrics = compute_metrics(
         cfg=cfg,
         predictions=preds,
@@ -239,7 +268,7 @@ def run_baseline(cfg: Config) -> None:
         model_name=args.method.name,
         step=0,
         s_dim=datasets.s_dim,
-        use_wandb=False,
+        use_wandb=True,
     )
     if args.method == BaselineM.dro:
         metrics.update({"eta": args.eta})
