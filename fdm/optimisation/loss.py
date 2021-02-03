@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional, Sequence, Tuple
 
+import numpy as np
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -11,6 +12,7 @@ from typing_extensions import Literal
 from . import mmd
 
 __all__ = [
+    "GeneralizedCELoss",
     "GradReverse",
     "MixedLoss",
     "PixelCrossEntropy",
@@ -164,3 +166,21 @@ class MixedLoss(nn.Module):
             input[:, self.cont_start :], target[:, self.cont_start :], reduction=self.reduction
         )
         return self.disc_loss_factor * disc_loss + cont_loss
+
+
+class GeneralizedCELoss(nn.Module):
+    def __init__(self, q=0.7):
+        super(GeneralizedCELoss, self).__init__()
+        self.q = q
+
+    def forward(self, logits, targets):
+        p = F.softmax(logits, dim=1)
+        if torch.isnan(p.mean()):
+            raise NameError("GCE_p")
+        Yg = torch.gather(p, 1, torch.unsqueeze(targets, 1))
+        # modify gradient of cross entropy
+        loss_weight = (Yg.squeeze().detach() ** self.q) * self.q
+        if torch.isnan(Yg.mean()):
+            raise NameError("GCE_Yg")
+
+        return F.cross_entropy(logits, targets, reduction="none") * loss_weight

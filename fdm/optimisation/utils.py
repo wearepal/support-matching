@@ -8,7 +8,6 @@ from ethicml.vision.data.image_dataset import TorchImageDataset
 import torch
 from torch import Tensor, nn
 from torch.utils.data.dataset import ConcatDataset, Subset
-
 import torchvision
 import wandb
 

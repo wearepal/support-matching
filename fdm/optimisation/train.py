@@ -372,7 +372,7 @@ class Experiment(ExperimentBase):
                 attention_weights = self.disc_ensemble[0].model[-1].attention_weights  # type: ignore
             log_attention(
                 self.cfg,
-                images=x,
+                images=sample,
                 attention_weights=attention_weights,  # type: ignore
                 name="attention Weights",
                 step=itr,
