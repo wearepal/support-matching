@@ -234,6 +234,8 @@ def run_baseline(cfg: Config) -> None:
     elif isinstance(cfg.data, IsicConfig):
         full_name += f"_{str(cfg.data.isic_sens_attr.name)}"
         full_name += f"_{cfg.data.isic_target_attr.name}"
+    if args.method is BaselineM.dro:
+        full_name += f"_eta_{args.eta}"
     full_name += f"_{str(args.epochs)}epochs.csv"
 
     metrics = compute_metrics(
