@@ -16,7 +16,6 @@ from fdm.models.base import ModelBase
 from fdm.optimisation.loss import GeneralizedCELoss
 from fdm.optimisation.utils import ExtractableDataset, extract_labels_from_dataset
 
-
 __all__ = ["LfF"]
 
 LOGGER = logging.getLogger(__name__)
