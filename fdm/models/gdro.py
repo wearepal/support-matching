@@ -25,6 +25,7 @@ class GDRO:
         batch_size: int = 256,
         test_batch_size: int = 1000,
         lr_milestones: dict | None = None,
+        c_param: int = 1,
     ):
         if not isinstance(train_data, DataLoader):
             train_data = DataLoader(
@@ -59,7 +60,9 @@ class GDRO:
                 classifier.optimizer.zero_grad()
                 loss = []
                 for _s in train_data.dataset.s.unique():
-                    _loss, _acc = self.routine(classifier, x[s == _s], target[s == _s])
+                    _loss, _acc = self.routine(
+                        classifier, x[s == _s], target[s == _s], c_param=c_param
+                    )
                     loss.append(_loss)
 
                 # loss, acc = self.routine(classifier, x, target)
@@ -103,6 +106,7 @@ class GDRO:
         data: Tensor,
         targets: Tensor,
         instance_weights: Tensor | None = None,
+        c_param: int = 1,
     ) -> tuple[Tensor, float]:
         """Classifier routine.
 
@@ -118,7 +122,7 @@ class GDRO:
         if instance_weights is not None:
             loss = loss.view(-1) * instance_weights.view(-1)
         loss = loss.mean()
-        loss += 1 / torch.sqrt(torch.ones_like(loss) * data.shape[0])
+        loss += c_param / torch.sqrt(torch.ones_like(loss) * data.shape[0])
         acc = classifier.compute_accuracy(outputs, targets)
 
         return loss, acc

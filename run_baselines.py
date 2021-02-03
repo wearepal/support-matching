@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 import logging
@@ -13,15 +12,13 @@ import numpy as np
 from omegaconf import DictConfig, MISSING
 import pandas as pd
 import torch
-from torch import Tensor, nn
+from torch import nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from torch.utils.data.dataset import ConcatDataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
-from tqdm import trange
 
-import gdro
-from fdm.models import Classifier
+from fdm.models import Classifier, gdro
 from fdm.optimisation.utils import build_weighted_sampler_from_dataset
 from shared.configs import (
     AdultConfig,
@@ -41,7 +38,6 @@ from shared.utils import (
     random_seed,
     write_results_to_csv,
 )
-from shared.utils.sampler import StratifiedSampler
 
 LOGGER = logging.getLogger("BASELINE")
 
@@ -65,6 +61,7 @@ class BaselineArgs:
     lr: float = 1e-3
     weight_decay: float = 1e-8
     eta: float = 0.5
+    c_param: float = 0.0
 
     # Misc settings
     method: BaselineM = BaselineM.cnn
@@ -208,6 +205,7 @@ def run_baseline(cfg: Config) -> None:
             epochs=args.epochs,
             device=device,
             pred_s=False,
+            c_param=args.c_param,
         )
     else:
         classifier.fit(
