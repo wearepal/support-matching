@@ -1,5 +1,5 @@
 log_dataset: subsampled_miss_s
-missing_s: []
+missing_s: [0]
 subsample_context:
     "0": 0.7
     "1": 0.4
