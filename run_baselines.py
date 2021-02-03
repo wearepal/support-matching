@@ -140,7 +140,7 @@ def run_baseline(cfg: Config) -> None:
         local_dir.mkdir(exist_ok=True)
         run = wandb.init(
             entity="predictive-analytics-lab",
-            project="fdm-hydra-baselines" + project_suffix,
+            project="fdm-baselines" + project_suffix,
             dir=str(local_dir),
             config=flatten_dict(as_pretty_dict(cfg)),
             group=group if group else None,
