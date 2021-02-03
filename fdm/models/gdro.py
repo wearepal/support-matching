@@ -63,7 +63,6 @@ class GDRO(Classifier):
                     _loss, _acc = self._routine(x[s == _s], target[s == _s], c_param=c_param)
                     loss.append(_loss)
 
-                # loss, acc = self.routine(classifier, x, target)
                 max(loss).backward()
                 self.step()
 
