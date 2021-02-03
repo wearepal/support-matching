@@ -1,5 +1,6 @@
+from __future__ import annotations
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, auto
 import logging
 from pathlib import Path
 
@@ -18,8 +19,8 @@ from torch.utils.data.dataset import ConcatDataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
 
-from fdm.models import Classifier, gdro
-from fdm.models.gdro import GDRO
+from fdm.baselines import GDRO, LfF
+from fdm.models import Classifier
 from fdm.optimisation.utils import build_weighted_sampler_from_dataset
 from shared.configs import (
     AdultConfig,
@@ -35,6 +36,7 @@ from shared.utils import (
     ModelFn,
     as_pretty_dict,
     compute_metrics,
+    flatten_dict,
     get_data_dim,
     random_seed,
     write_results_to_csv,
@@ -42,7 +44,12 @@ from shared.utils import (
 
 LOGGER = logging.getLogger("BASELINE")
 
-BaselineM = Enum("BaselineM", "cnn dro kamiran gdro")
+
+class BaselineM(Enum):
+    cnn = auto()
+    dro = auto()
+    gdro = auto()
+    lff = auto()
 
 
 @dataclass
@@ -66,7 +73,6 @@ class BaselineArgs:
 
     # Misc settings
     method: BaselineM = BaselineM.cnn
-    pred_s: bool = False
     oversample: bool = True
 
 
@@ -96,27 +102,19 @@ def get_instance_weights(dataset: Dataset, batch_size: int) -> TensorDataset:
 
 
 def run_baseline(cfg: Config) -> None:
+    cfg_dict = {}
     for name, settings in [
         ("bias", cfg.bias),
         ("baselines", cfg.baselines),
         ("data", cfg.data),
         ("misc", cfg.misc),
     ]:
-        as_list = sorted(f"{k}: {v}" for k, v in as_pretty_dict(settings).items())
+        as_dict = as_pretty_dict(settings)
+        cfg_dict[name] = as_dict
+        as_list = sorted(f"{k}: {v}" for k, v in as_dict.items())
         LOGGER.info(f"{name}: " + "{" + ", ".join(as_list) + "}")
+    cfg_dict = flatten_dict(cfg_dict)
     args = cfg.baselines
-    if args.method == BaselineM.kamiran:
-        if isinstance(cfg.data, CmnistConfig):
-            raise ValueError(
-                "Kamiran & Calders reweighting scheme can only be used with binary sensitive "
-                "and target attributes."
-            )
-        elif cfg.bias.mixing_factor % 1 == 0:
-            raise ValueError(
-                "Kamiran & Calders reweighting scheme can only be used when there is at least one "
-                "sample available for each sensitive/target attribute combination."
-            )
-
     use_gpu = torch.cuda.is_available() and not cfg.misc.gpu < 0  # type: ignore
     random_seed(cfg.misc.seed, use_gpu)
 
@@ -138,23 +136,13 @@ def run_baseline(cfg: Config) -> None:
         oversample=args.oversample,
         balance_hierarchical=False,
     )
-    train_loader = DataLoader(
-        train_data,
-        batch_size=args.batch_size,
-        pin_memory=True,
-        shuffle=args.method == BaselineM.kamiran,
-        num_workers=cfg.misc.num_workers,
-        sampler=train_sampler,
-    )
-    test_loader = DataLoader(
-        test_data,
-        batch_size=args.test_batch_size,
-        pin_memory=True,
-        shuffle=False,
-        num_workers=cfg.misc.num_workers,
-    )
+    train_loader_kwargs = {
+        "sampler": train_sampler,
+        "pin_memory": True,
+        "num_workers": cfg.misc.num_workers,
+    }
 
-    input_shape = get_data_dim(train_loader)
+    input_shape = train_data[0][0].shape
 
     #  Construct the network
     classifier_fn: ModelFn
@@ -181,37 +169,38 @@ def run_baseline(cfg: Config) -> None:
     else:
         raise NotImplementedError()
 
-    target_dim = datasets.s_dim if args.pred_s else datasets.y_dim
+    target_dim = datasets.y_dim
+    num_classes = max(target_dim, 2)
 
-    criterion = None
-    if args.method == BaselineM.dro:
-        if target_dim == 1:
-            criterion = implementations.dro_modules.DROLoss(nn.BCEWithLogitsLoss, eta=args.eta)
-        else:
-            criterion = implementations.dro_modules.DROLoss(nn.CrossEntropyLoss, eta=args.eta)
-
-    if args.method == BaselineM.gdro:
-        classifier: Classifier = GDRO(
-            classifier_fn(input_shape[0], target_dim),
-            num_classes=2 if target_dim == 1 else target_dim,
-            optimizer_kwargs={"lr": args.lr, "weight_decay": args.weight_decay},
-            criterion=criterion,  # type: ignore
-        )
+    classifier_cls: type[Classifier] | type[LfF]
+    classifier_kwargs = {}
+    if args.method is BaselineM.lff:
+        classifier_cls = LfF
+    elif args.method is BaselineM.gdro:
+        classifier_cls = GDRO
     else:
-        classifier: Classifier = Classifier(
-            classifier_fn(input_shape[0], target_dim),
-            num_classes=2 if target_dim == 1 else target_dim,
-            optimizer_kwargs={"lr": args.lr, "weight_decay": args.weight_decay},
-            criterion=criterion,  # type: ignore
-        )
-    classifier.to(device)
+        if args.method is BaselineM.dro:
+            criterion = implementations.dro_modules.DROLoss(nn.CrossEntropyLoss, eta=args.eta)
+        else:
+            criterion = "ce"
+        classifier_cls = Classifier
+        classifier_kwargs["criterion"] = criterion
 
+    classifier = classifier_cls(
+        classifier_fn(input_shape[0], num_classes),  # type: ignore
+        num_classes=max(target_dim, 2),
+        optimizer_kwargs={"lr": args.lr, "weight_decay": args.weight_decay},
+        **classifier_kwargs,
+    )
+    classifier.to(device)
     classifier.fit(
-        train_data=train_loader,
-        test_data=test_loader,
+        train_data=train_data,  # type: ignore
+        test_data=test_data,
         epochs=args.epochs,
         device=device,
-        pred_s=False,
+        batch_size=args.batch_size,
+        test_batch_size=args.test_batch_size,
+        # **train_loader_kwargs,
     )
 
     preds, labels, sens = classifier.predict_dataset(test_data, device=device)
@@ -230,7 +219,7 @@ def run_baseline(cfg: Config) -> None:
     labels_pd = pd.DataFrame(labels, columns=["labels"])
     actual = em.DataTuple(x=sens_pd, s=sens_pd, y=labels_pd)
 
-    full_name = "baseline"
+    full_name = f"baseline_{args.method.name}"
     if isinstance(cfg.data, CmnistConfig):
         full_name += "_greyscale" if args.greyscale else "_color"
     elif isinstance(cfg.data, CelebaConfig):
@@ -239,6 +228,8 @@ def run_baseline(cfg: Config) -> None:
     elif isinstance(cfg.data, IsicConfig):
         full_name += f"_{str(cfg.data.isic_sens_attr.name)}"
         full_name += f"_{cfg.data.isic_target_attr.name}"
+    if args.method is BaselineM.dro:
+        full_name += f"_eta_{args.eta}"
     full_name += f"_{str(args.epochs)}epochs.csv"
 
     metrics = compute_metrics(
@@ -253,12 +244,15 @@ def run_baseline(cfg: Config) -> None:
     if args.method == BaselineM.dro:
         metrics.update({"eta": args.eta})
     if cfg.misc.save_dir:
-        cfg.misc.log_method = "baseline"
+        cfg.misc.log_method = f"baseline_{args.method.name}"
+
+        results = {}
+        results.update(cfg_dict)
+        results.update(metrics)
         write_results_to_csv(
-            cfg,
-            results=metrics,
+            results=results,
             csv_dir=Path(to_absolute_path(cfg.misc.save_dir)),
-            csv_file=full_name,
+            csv_file=f"{cfg.data.log_name}_{full_name}",
         )
 
 

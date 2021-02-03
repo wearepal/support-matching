@@ -1,11 +1,10 @@
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional
 
 import numpy as np
 import torch
 from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.modules.module import Module
 import torchvision
 from typing_extensions import Literal
 
@@ -169,18 +168,15 @@ class MixedLoss(nn.Module):
 
 
 class GeneralizedCELoss(nn.Module):
-    def __init__(self, q=0.7):
+    def __init__(self, q: float = 0.7):
         super(GeneralizedCELoss, self).__init__()
         self.q = q
 
-    def forward(self, logits, targets):
+    def forward(self, logits: Tensor, targets: Tensor) -> Tensor:
         p = F.softmax(logits, dim=1)
-        if torch.isnan(p.mean()):
+        if np.isnan(p.mean().item()):
             raise NameError("GCE_p")
         Yg = torch.gather(p, 1, torch.unsqueeze(targets, 1))
         # modify gradient of cross entropy
         loss_weight = (Yg.squeeze().detach() ** self.q) * self.q
-        if torch.isnan(Yg.mean()):
-            raise NameError("GCE_Yg")
-
         return F.cross_entropy(logits, targets, reduction="none") * loss_weight

@@ -8,7 +8,13 @@ from omegaconf import DictConfig
 
 from shared.configs import AdultConfig, BaseConfig, register_configs
 from shared.data import DatasetTriplet, get_data_tuples, load_dataset
-from shared.utils import compute_metrics, make_tuple_from_data, write_results_to_csv
+from shared.utils import (
+    as_pretty_dict,
+    compute_metrics,
+    flatten_dict,
+    make_tuple_from_data,
+    write_results_to_csv,
+)
 
 cs = ConfigStore.instance()
 cs.store(name="logistic_regression_schema", node=BaseConfig)
@@ -18,6 +24,7 @@ register_configs()
 @hydra.main(config_path="conf", config_name="logistic_regression")
 def baseline_metrics(hydra_config: DictConfig) -> None:
     cfg = BaseConfig.from_hydra(hydra_config)
+    cfg_dict = flatten_dict(as_pretty_dict(cfg))
     assert isinstance(cfg.data, AdultConfig), "This script is only for the adult dataset."
     data: DatasetTriplet = load_dataset(cfg)
     train_data = data.train
@@ -48,12 +55,14 @@ def baseline_metrics(hydra_config: DictConfig) -> None:
         )
         all_metrics.update(metrics)
 
-    cfg.misc.log_method = "baseline"
+    cfg.misc.log_method = "ethicml"
+    results = {}
+    results.update(cfg_dict)
+    results.update(all_metrics)
     write_results_to_csv(
-        cfg,
-        results=all_metrics,
+        results=results,
         csv_dir=Path(to_absolute_path(cfg.misc.save_dir)),
-        csv_file="baseline_" + cfg.misc.results_csv,
+        csv_file=cfg.data.log_name + "_baseline_" + cfg.misc.results_csv,
     )
 
 

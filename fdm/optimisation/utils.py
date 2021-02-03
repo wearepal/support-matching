@@ -2,7 +2,7 @@ from __future__ import annotations
 from collections import defaultdict
 import logging
 from pathlib import Path
-from typing import Sequence, cast
+from typing import Sequence, Union, cast
 
 from ethicml.vision.data.image_dataset import TorchImageDataset
 import torch
@@ -19,6 +19,7 @@ from shared.utils.utils import class_id_to_label, label_to_class_id, lcm
 
 __all__ = [
     "build_weighted_sampler_from_dataset",
+    "extract_labels_from_dataset",
     "get_stratified_sampler",
     "get_stratified_sampler",
     "log_attention",
@@ -170,23 +171,14 @@ def get_stratified_sampler(
     )
 
 
-def build_weighted_sampler_from_dataset(
-    dataset: ConcatDataset
-    | TensorDataTupleDataset
-    | DataTupleDataset
-    | Subset[TorchImageDataset | IsicDataset],
-    s_count: int,
-    oversample: bool,
-    batch_size: int,
-    balance_hierarchical: bool,
-) -> StratifiedSampler:
-    #  Extract the s and y labels in a dataset-agnostic way (by iterating)
+_Dataset = Union[
+    TensorDataTupleDataset, DataTupleDataset, Subset[Union[TorchImageDataset, IsicDataset]]
+]
+ExtractableDataset = Union[ConcatDataset[_Dataset], _Dataset]
 
-    def _extract_labels(
-        dataset: TensorDataTupleDataset
-        | DataTupleDataset
-        | Subset[TorchImageDataset | IsicDataset],
-    ):
+
+def extract_labels_from_dataset(dataset: ExtractableDataset) -> tuple[Tensor, Tensor]:
+    def _extract(dataset: _Dataset):
         if isinstance(dataset, Subset):
             _s = cast(Tensor, dataset.dataset.s[dataset.indices])  # type: ignore
             _y = cast(Tensor, dataset.dataset.y[dataset.indices])  # type: ignore
@@ -201,13 +193,26 @@ def build_weighted_sampler_from_dataset(
     if isinstance(dataset, ConcatDataset):
         s_all_ls, y_all_ls = [], []
         for _dataset in dataset.datasets:
-            s, y = _extract_labels(_dataset)  # type: ignore
+            s, y = _extract(_dataset)  # type: ignore
             s_all_ls.append(s)
             y_all_ls.append(y)
         s_all = torch.cat(s_all_ls, dim=0)
         y_all = torch.cat(y_all_ls, dim=0)
     else:
-        s_all, y_all = _extract_labels(dataset)  # type: ignore
+        s_all, y_all = _extract(dataset)  # type: ignore
+    return s_all, y_all
+
+
+def build_weighted_sampler_from_dataset(
+    dataset: ExtractableDataset,
+    s_count: int,
+    oversample: bool,
+    batch_size: int,
+    balance_hierarchical: bool,
+) -> StratifiedSampler:
+    #  Extract the s and y labels in a dataset-agnostic way (by iterating)
+
+    s_all, y_all = extract_labels_from_dataset(dataset=dataset)
 
     # Balance the batches of the training set via weighted sampling
     class_ids = label_to_class_id(s=s_all, y=y_all, s_count=s_count).view(-1)
