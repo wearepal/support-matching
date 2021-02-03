@@ -68,27 +68,6 @@ class LfF(Classifier):
         self.biased_model = ModelBase(copy.deepcopy(self.model), optimizer_kwargs=optimizer_kwargs)
         self.biased_criterion = GeneralizedCELoss(q=q)
 
-    def routine(
-        self, data: Tensor, targets: Tensor, instance_weights: Tensor | None = None
-    ) -> tuple[Tensor, float]:
-        """Classifier routine.
-
-        Args:
-            data: Tensor. Input data to the classifier.
-            targets: Tensor. Prediction targets.
-
-        Returns:
-            Tuple of classification loss (Tensor) and accuracy (float)
-        """
-        outputs = super().__call__(data)
-        loss = self.apply_criterion(outputs, targets)
-        if instance_weights is not None:
-            loss = loss.view(-1) * instance_weights.view(-1)
-        loss = loss.mean()
-        acc = self.compute_accuracy(outputs, targets)
-
-        return loss, acc
-
     def fit(
         self,
         train_data: ExtractableDataset,
