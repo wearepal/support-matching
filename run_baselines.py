@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 import logging
@@ -13,12 +12,11 @@ import numpy as np
 from omegaconf import DictConfig, MISSING
 import pandas as pd
 import torch
-from torch import Tensor, nn
+from torch import nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from torch.utils.data.dataset import ConcatDataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
-from tqdm import trange
 
 from fdm.models import Classifier
 from fdm.optimisation.utils import build_weighted_sampler_from_dataset
@@ -37,10 +35,10 @@ from shared.utils import (
     as_pretty_dict,
     compute_metrics,
     get_data_dim,
+    flatten_dict,
     random_seed,
     write_results_to_csv,
 )
-from shared.utils.sampler import StratifiedSampler
 
 LOGGER = logging.getLogger("BASELINE")
 
@@ -97,14 +95,18 @@ def get_instance_weights(dataset: Dataset, batch_size: int) -> TensorDataset:
 
 
 def run_baseline(cfg: Config) -> None:
+    cfg_dict = {}
     for name, settings in [
         ("bias", cfg.bias),
         ("baselines", cfg.baselines),
         ("data", cfg.data),
         ("misc", cfg.misc),
     ]:
-        as_list = sorted(f"{k}: {v}" for k, v in as_pretty_dict(settings).items())
+        as_dict = as_pretty_dict(settings)
+        cfg_dict[name] = as_dict
+        as_list = sorted(f"{k}: {v}" for k, v in as_dict.items())
         LOGGER.info(f"{name}: " + "{" + ", ".join(as_list) + "}")
+    cfg_dict = flatten_dict(cfg_dict)
     args = cfg.baselines
     if args.method == BaselineM.kamiran:
         if isinstance(cfg.data, CmnistConfig):
@@ -246,12 +248,15 @@ def run_baseline(cfg: Config) -> None:
     if args.method == BaselineM.dro:
         metrics.update({"eta": args.eta})
     if cfg.misc.save_dir:
-        cfg.misc.log_method = "baseline"
+        cfg.misc.log_method = f"baseline_{args.method.name}"
+
+        results = {}
+        results.update(cfg_dict)
+        results.update(metrics)
         write_results_to_csv(
-            cfg,
-            results=metrics,
+            results=results,
             csv_dir=Path(to_absolute_path(cfg.misc.save_dir)),
-            csv_file=full_name,
+            csv_file=f"{cfg.data.log_name}_{full_name}",
         )
 
 

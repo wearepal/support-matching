@@ -97,10 +97,10 @@ def print_metrics(metrics: Mapping[str, int | float | str]) -> None:
 
 
 def write_results_to_csv(
-    cfg: BaseConfig, results: Mapping[str, int | float | str], csv_dir: Path, csv_file: str
+    results: Mapping[str, int | float | str], csv_dir: Path, csv_file: str
 ):
     to_log = {}
-    to_log.update(flatten_dict(as_pretty_dict(cfg)))
+    # to_log.update(flatten_dict(as_pretty_dict(cfg)))
     to_log.update(results)
     # I don't know why it has to be done in 2 steps, but it that's how it is
     results_df = pd.DataFrame(columns=list(to_log))
@@ -108,7 +108,7 @@ def write_results_to_csv(
 
     csv_dir.mkdir(exist_ok=True, parents=True)
 
-    results_path = csv_dir / f"{cfg.data.log_name}_{csv_file}"
+    results_path = csv_dir / csv_file
     if results_path.exists():
         # load previous results and append new results
         previous_results = pd.read_csv(results_path)
