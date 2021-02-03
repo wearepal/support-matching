@@ -93,18 +93,18 @@ def log_attention(
             images = 0.5 * images + 0.5
 
     images = images.view(*attention_weights.shape, *images.shape[1:])
-    images = images[:nsamples]
+    images = images[:nsamples].cpu()
     attention_weights = attention_weights[:nsamples]
     padding = attention_weights.view(nsamples, -1, 1, 1, 1)
 
-    w_padding = padding.expand(-1, -1, 3, border_width, images.size(-1))
+    w_padding = padding.expand(-1, -1, 3, border_width, images.size(-1)).cpu()
     # breakpoint()
     images = torch.cat([w_padding, images, w_padding], dim=-2)
-    h_padding = padding.expand(-1, -1, 3, images.size(-2), border_width)
+    h_padding = padding.expand(-1, -1, 3, images.size(-2), border_width).cpu()
     images = torch.cat([h_padding, images, h_padding], dim=-1)
 
     shw = [
-        torchvision.utils.make_grid(block, nrow=ncols, pad_value=1.0).clamp(0, 1).cpu()
+        torchvision.utils.make_grid(block, nrow=ncols, pad_value=1.0).clamp(0, 1)
         for block in images.unbind(dim=0)
     ]
     shw = [
