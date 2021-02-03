@@ -13,10 +13,9 @@ from fdm.models import Classifier
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
-class GDRO:
+class GDRO(Classifier):
     def fit(
         self,
-        classifier: Classifier,
         train_data: Dataset | DataLoader,
         epochs: int,
         device: torch.device,
@@ -42,9 +41,10 @@ class GDRO:
             scheduler = MultiStepLR(optimizer=self.optimizer, **lr_milestones)
 
         LOGGER.info("Training classifier...")
+        unique_s = train_data.dataset.s.unique()
         pbar = trange(epochs)
         for epoch in pbar:
-            classifier.model.train()
+            self.model.train()
 
             for x, s, y in train_data:
 
@@ -57,21 +57,19 @@ class GDRO:
                 x = x.to(device, non_blocking=True)
                 target = target.to(device, non_blocking=True)
 
-                classifier.optimizer.zero_grad()
+                self.optimizer.zero_grad()
                 loss = []
-                for _s in train_data.dataset.s.unique():
-                    _loss, _acc = self.routine(
-                        classifier, x[s == _s], target[s == _s], c_param=c_param
-                    )
+                for _s in unique_s:
+                    _loss, _acc = self._routine(x[s == _s], target[s == _s], c_param=c_param)
                     loss.append(_loss)
 
                 # loss, acc = self.routine(classifier, x, target)
                 max(loss).backward()
-                classifier.step()
+                self.step()
 
             if test_data is not None:
 
-                classifier.eval()
+                self.eval()
                 avg_test_acc = 0.0
 
                 with torch.set_grad_enabled(False):
@@ -85,7 +83,7 @@ class GDRO:
                         x = x.to(device)
                         target = target.to(device)
 
-                        loss, acc = classifier.routine(x, target)
+                        loss, acc = self.routine(x, target)
                         avg_test_acc += acc
 
                 avg_test_acc /= len(test_data)
@@ -98,11 +96,8 @@ class GDRO:
                 scheduler.step(epoch)
         pbar.close()
 
-        return classifier
-
-    def routine(
+    def _routine(
         self,
-        classifier: Classifier,
         data: Tensor,
         targets: Tensor,
         instance_weights: Tensor | None = None,
@@ -117,12 +112,12 @@ class GDRO:
         Returns:
             Tuple of classification loss (Tensor) and accuracy (float)
         """
-        outputs = classifier(data)
-        loss = classifier.apply_criterion(outputs, targets)
+        outputs = self(data)
+        loss = self.apply_criterion(outputs, targets)
         if instance_weights is not None:
             loss = loss.view(-1) * instance_weights.view(-1)
         loss = loss.mean()
         loss += c_param / torch.sqrt(torch.ones_like(loss) * data.shape[0])
-        acc = classifier.compute_accuracy(outputs, targets)
+        acc = self.compute_accuracy(outputs, targets)
 
         return loss, acc

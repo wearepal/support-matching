@@ -19,6 +19,7 @@ from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
 
 from fdm.models import Classifier, gdro
+from fdm.models.gdro import GDRO
 from fdm.optimisation.utils import build_weighted_sampler_from_dataset
 from shared.configs import (
     AdultConfig,
@@ -189,32 +190,29 @@ def run_baseline(cfg: Config) -> None:
         else:
             criterion = implementations.dro_modules.DROLoss(nn.CrossEntropyLoss, eta=args.eta)
 
-    classifier: Classifier = Classifier(
-        classifier_fn(input_shape[0], target_dim),
-        num_classes=2 if target_dim == 1 else target_dim,
-        optimizer_kwargs={"lr": args.lr, "weight_decay": args.weight_decay},
-        criterion=criterion,  # type: ignore
-    )
-    classifier.to(device)
-
     if args.method == BaselineM.gdro:
-        classifier = gdro.GDRO().fit(
-            classifier,
-            train_data=train_loader,
-            test_data=test_loader,
-            epochs=args.epochs,
-            device=device,
-            pred_s=False,
-            c_param=args.c,
+        classifier: Classifier = GDRO(
+            classifier_fn(input_shape[0], target_dim),
+            num_classes=2 if target_dim == 1 else target_dim,
+            optimizer_kwargs={"lr": args.lr, "weight_decay": args.weight_decay},
+            criterion=criterion,  # type: ignore
         )
     else:
-        classifier.fit(
-            train_data=train_loader,
-            test_data=test_loader,
-            epochs=args.epochs,
-            device=device,
-            pred_s=False,
+        classifier: Classifier = Classifier(
+            classifier_fn(input_shape[0], target_dim),
+            num_classes=2 if target_dim == 1 else target_dim,
+            optimizer_kwargs={"lr": args.lr, "weight_decay": args.weight_decay},
+            criterion=criterion,  # type: ignore
         )
+    classifier.to(device)
+
+    classifier.fit(
+        train_data=train_loader,
+        test_data=test_loader,
+        epochs=args.epochs,
+        device=device,
+        pred_s=False,
+    )
 
     preds, labels, sens = classifier.predict_dataset(test_data, device=device)
     preds = em.Prediction(pd.Series(preds))
