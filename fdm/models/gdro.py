@@ -25,7 +25,7 @@ class GDRO:
         batch_size: int = 256,
         test_batch_size: int = 1000,
         lr_milestones: dict | None = None,
-        c_param: int = 1,
+        c_param: float = 1.0,
     ):
         if not isinstance(train_data, DataLoader):
             train_data = DataLoader(
@@ -106,7 +106,7 @@ class GDRO:
         data: Tensor,
         targets: Tensor,
         instance_weights: Tensor | None = None,
-        c_param: int = 1,
+        c_param: float = 1.0,
     ) -> tuple[Tensor, float]:
         """Classifier routine.
 

@@ -1,0 +1,3 @@
+method: dro
+epochs: 60
+c: 1.0

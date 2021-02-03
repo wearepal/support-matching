@@ -61,7 +61,7 @@ class BaselineArgs:
     lr: float = 1e-3
     weight_decay: float = 1e-8
     eta: float = 0.5
-    c_param: float = 0.0
+    c: float = 0.0
 
     # Misc settings
     method: BaselineM = BaselineM.cnn
@@ -205,7 +205,7 @@ def run_baseline(cfg: Config) -> None:
             epochs=args.epochs,
             device=device,
             pred_s=False,
-            c_param=args.c_param,
+            c_param=args.c,
         )
     else:
         classifier.fit(
