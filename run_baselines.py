@@ -283,6 +283,8 @@ def run_baseline(cfg: Config) -> None:
             csv_dir=Path(to_absolute_path(cfg.misc.save_dir)),
             csv_file=f"{cfg.data.log_name}_{full_name}",
         )
+    if run is not None:
+        run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
 
 
 cs = ConfigStore.instance()
