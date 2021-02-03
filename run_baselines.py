@@ -36,11 +36,11 @@ from shared.utils import (
     ModelFn,
     as_pretty_dict,
     compute_metrics,
+    flatten_dict,
     get_data_dim,
     random_seed,
     write_results_to_csv,
 )
-from shared.utils.sampler import StratifiedSampler
 
 LOGGER = logging.getLogger("BASELINE")
 
@@ -97,14 +97,18 @@ def get_instance_weights(dataset: Dataset, batch_size: int) -> TensorDataset:
 
 
 def run_baseline(cfg: Config) -> None:
+    cfg_dict = {}
     for name, settings in [
         ("bias", cfg.bias),
         ("baselines", cfg.baselines),
         ("data", cfg.data),
         ("misc", cfg.misc),
     ]:
-        as_list = sorted(f"{k}: {v}" for k, v in as_pretty_dict(settings).items())
+        as_dict = as_pretty_dict(settings)
+        cfg_dict[name] = as_dict
+        as_list = sorted(f"{k}: {v}" for k, v in as_dict.items())
         LOGGER.info(f"{name}: " + "{" + ", ".join(as_list) + "}")
+    cfg_dict = flatten_dict(cfg_dict)
     args = cfg.baselines
     use_gpu = torch.cuda.is_available() and not cfg.misc.gpu < 0  # type: ignore
     random_seed(cfg.misc.seed, use_gpu)
@@ -232,12 +236,15 @@ def run_baseline(cfg: Config) -> None:
     if args.method == BaselineM.dro:
         metrics.update({"eta": args.eta})
     if cfg.misc.save_dir:
-        cfg.misc.log_method = "baseline"
+        cfg.misc.log_method = f"baseline_{args.method.name}"
+
+        results = {}
+        results.update(cfg_dict)
+        results.update(metrics)
         write_results_to_csv(
-            cfg,
-            results=metrics,
+            results=results,
             csv_dir=Path(to_absolute_path(cfg.misc.save_dir)),
-            csv_file=full_name,
+            csv_file=f"{cfg.data.log_name}_{full_name}",
         )
 
 
