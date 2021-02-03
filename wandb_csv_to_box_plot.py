@@ -13,8 +13,8 @@ from wandb_csv_to_table import METRICS_COL_NAMES, Metrics
 
 
 METRICS_RENAMES: Final = {
-    Metrics.clust_acc: "Cluster. Acc. $\\uparrow$",
-    Metrics.acc: "Accuracy $\\uparrow$",
+    Metrics.clust_acc: "Cluster. Acc. $\\rightarrow$",
+    Metrics.acc: "Accuracy $\\rightarrow$",
     Metrics.ar: "AR ratio $\\rightarrow 1.0 \\leftarrow$",
     Metrics.tpr: "TPR ratio $\\rightarrow 1.0 \\leftarrow$",
     Metrics.tnr: "TNR ratio $\\rightarrow 1.0 \\leftarrow$",
@@ -35,7 +35,8 @@ def main(
     file_format: str = typer.Option("png", "--file-format", "-f"),
     file_prefix: str = typer.Option("", "--file_prefix", "-p"),
     fig_dim: Tuple[float, float] = typer.Option((4.0, 6.0), "--fig-dim", "-d"),
-    y_limits: Tuple[float, float] = typer.Option((None, None), "--y-limits", "-y"),
+    y_limits: Tuple[float, float] = typer.Option((float("nan"), float("nan")), "--y-limits", "-y"),
+    x_limits: Tuple[float, float] = typer.Option((float("nan"), float("nan")), "--x-limits", "-x"),
 ) -> None:
     print("---------------------------------------")
     print("Settings:")
@@ -83,17 +84,21 @@ def main(
             filename = f"{file_prefix}_{filename}"
         # sns.set_style("whitegrid")
         fig, plot = plt.subplots(figsize=fig_dim, dpi=300)
-        sns.boxplot(x="Method", y=col_renames[metric_str], data=df, ax=plot, whis=3.0)
+        sns.boxplot(y="Method", x=col_renames[metric_str], data=df, ax=plot, whis=3.0)
         hatches = ["/", "\\", ".", "x", "/", "\\", ".", "x"]
         for hatch, patch in zip(hatches, plot.artists):
-            patch.set_hatch(hatch)
+            # patch.set_hatch(hatch)
             patch.set_edgecolor('black')
-            patch.set_facecolor('white')
+            patch.set_facecolor('lightgrey')
 
         # if you only want to set one ylim, then pass "nan" on the commendline for the other value
         plot.set_ylim(
             ymin=y_limits[0] if not math.isnan(y_limits[0]) else None,
             ymax=y_limits[1] if not math.isnan(y_limits[1]) else None,
+        )
+        plot.set_xlim(
+            xmin=x_limits[0] if not math.isnan(x_limits[0]) else None,
+            xmax=x_limits[1] if not math.isnan(x_limits[1]) else None,
         )
         # plot.grid(axis="y")
         fig.savefig(output_dir / filename, bbox_inches="tight")
