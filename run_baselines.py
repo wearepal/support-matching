@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, auto
 import logging
 from pathlib import Path
 
@@ -19,7 +19,7 @@ from torch.utils.data.dataset import ConcatDataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
 
-from fdm.baselines.lff import LfF
+from fdm.baselines import GDRO, LfF
 from fdm.models import Classifier
 from fdm.optimisation.utils import build_weighted_sampler_from_dataset
 from shared.configs import (
@@ -44,7 +44,12 @@ from shared.utils import (
 
 LOGGER = logging.getLogger("BASELINE")
 
-BaselineM = Enum("BaselineM", "cnn dro lff")
+
+class BaselineM(Enum):
+    cnn = auto()
+    dro = auto()
+    gdro = auto()
+    lff = auto()
 
 
 @dataclass
@@ -64,10 +69,10 @@ class BaselineArgs:
     lr: float = 1e-3
     weight_decay: float = 1e-8
     eta: float = 0.5
+    c: float = 0.0
 
     # Misc settings
     method: BaselineM = BaselineM.cnn
-    pred_s: bool = False
     oversample: bool = True
 
 
@@ -164,27 +169,28 @@ def run_baseline(cfg: Config) -> None:
     else:
         raise NotImplementedError()
 
-    target_dim = datasets.s_dim if args.pred_s else datasets.y_dim
+    target_dim = datasets.y_dim
     num_classes = max(target_dim, 2)
 
     classifier_cls: type[Classifier] | type[LfF]
+    classifier_kwargs = {}
     if args.method is BaselineM.lff:
         classifier_cls = LfF
-        out_dim = num_classes
+    elif args.method is BaselineM.gdro:
+        classifier_cls = GDRO
     else:
-        criterion = None
         if args.method is BaselineM.dro:
-            if target_dim == 1:
-                criterion = implementations.dro_modules.DROLoss(nn.BCEWithLogitsLoss, eta=args.eta)
-            else:
-                criterion = implementations.dro_modules.DROLoss(nn.CrossEntropyLoss, eta=args.eta)
+            criterion = implementations.dro_modules.DROLoss(nn.CrossEntropyLoss, eta=args.eta)
+        else:
+            criterion = "ce"
         classifier_cls = Classifier
-        out_dim = target_dim
+        classifier_kwargs["criterion"] = criterion
 
     classifier = classifier_cls(
-        classifier_fn(input_shape[0], out_dim),  # type: ignore
+        classifier_fn(input_shape[0], num_classes),  # type: ignore
         num_classes=max(target_dim, 2),
         optimizer_kwargs={"lr": args.lr, "weight_decay": args.weight_decay},
+        **classifier_kwargs,
     )
     classifier.to(device)
     classifier.fit(

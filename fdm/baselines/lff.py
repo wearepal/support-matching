@@ -18,7 +18,7 @@ from fdm.optimisation.utils import ExtractableDataset, extract_labels_from_datas
 
 __all__ = ["LfF"]
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 class IndexDataset(Dataset):
@@ -107,8 +107,7 @@ class LfF(Classifier):
         for epoch in pbar:
             self.model.train()
 
-            for index, x, s, y in train_loader:
-
+            for index, x, _, y in train_loader:
                 x = x.to(device, non_blocking=True)
                 y = y.to(device, non_blocking=True)
 
@@ -152,7 +151,7 @@ class LfF(Classifier):
                 self.model.eval()
                 avg_test_acc = 0.0
                 with torch.no_grad():
-                    for x, s, y in test_loader:
+                    for x, _, y in test_loader:
                         x = x.to(device)
                         y = y.to(device)
 

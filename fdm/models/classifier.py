@@ -7,7 +7,6 @@ import torch
 from torch import Tensor, nn
 import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
-from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader, Dataset
 from tqdm import trange
 
