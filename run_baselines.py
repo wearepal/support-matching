@@ -34,8 +34,8 @@ from shared.utils import (
     ModelFn,
     as_pretty_dict,
     compute_metrics,
-    get_data_dim,
     flatten_dict,
+    get_data_dim,
     random_seed,
     write_results_to_csv,
 )

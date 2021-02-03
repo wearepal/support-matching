@@ -96,9 +96,7 @@ def print_metrics(metrics: Mapping[str, int | float | str]) -> None:
     log.info("---")
 
 
-def write_results_to_csv(
-    results: Mapping[str, int | float | str], csv_dir: Path, csv_file: str
-):
+def write_results_to_csv(results: Mapping[str, int | float | str], csv_dir: Path, csv_file: str):
     to_log = {}
     # to_log.update(flatten_dict(as_pretty_dict(cfg)))
     to_log.update(results)
