@@ -225,7 +225,7 @@ def run_baseline(cfg: Config) -> None:
     labels_pd = pd.DataFrame(labels, columns=["labels"])
     actual = em.DataTuple(x=sens_pd, s=sens_pd, y=labels_pd)
 
-    full_name = "baseline"
+    full_name = f"baseline_{args.method.name}"
     if isinstance(cfg.data, CmnistConfig):
         full_name += "_greyscale" if args.greyscale else "_color"
     elif isinstance(cfg.data, CelebaConfig):
