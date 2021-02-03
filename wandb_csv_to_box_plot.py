@@ -7,7 +7,7 @@ import pandas as pd
 import seaborn as sns
 import typer
 
-from wandb_csv_to_table import Metrics, METRICS_COL_NAMES, METRICS_RENAMES
+from wandb_csv_to_table import METRICS_COL_NAMES, METRICS_RENAMES, Metrics
 
 
 def main(
