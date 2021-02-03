@@ -20,6 +20,7 @@ from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
 from tqdm import trange
 
+import gdro
 from fdm.models import Classifier
 from fdm.optimisation.utils import build_weighted_sampler_from_dataset
 from shared.configs import (
@@ -44,7 +45,7 @@ from shared.utils.sampler import StratifiedSampler
 
 LOGGER = logging.getLogger("BASELINE")
 
-BaselineM = Enum("BaselineM", "cnn dro kamiran")
+BaselineM = Enum("BaselineM", "cnn dro kamiran gdro")
 
 
 @dataclass
@@ -199,13 +200,23 @@ def run_baseline(cfg: Config) -> None:
     )
     classifier.to(device)
 
-    classifier.fit(
-        train_data=train_loader,
-        test_data=test_loader,
-        epochs=args.epochs,
-        device=device,
-        pred_s=False,
-    )
+    if args.method == BaselineM.gdro:
+        classifier = gdro.GDRO().fit(
+            classifier,
+            train_data=train_loader,
+            test_data=test_loader,
+            epochs=args.epochs,
+            device=device,
+            pred_s=False,
+        )
+    else:
+        classifier.fit(
+            train_data=train_loader,
+            test_data=test_loader,
+            epochs=args.epochs,
+            device=device,
+            pred_s=False,
+        )
 
     preds, labels, sens = classifier.predict_dataset(test_data, device=device)
     preds = em.Prediction(pd.Series(preds))
