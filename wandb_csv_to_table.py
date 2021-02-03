@@ -10,7 +10,7 @@ import typer
 from typing_extensions import Final
 
 
-class Cell:
+class MeanStd:
     def __init__(self, round_to: int):
         self.round_to = round_to
 
@@ -23,13 +23,36 @@ class Cell:
         return f"{round(mean, round_level)} $\\pm$ {round(std, round_level)}"
 
 
+class MedianIQR:
+    def __init__(self, round_to: int):
+        self.round_to = round_to
+
+    def __call__(self, data: np.ndarray):
+        q1, median, q3 = np.quantile(data, [0.25, 0.5, 0.75])
+        iqr = q3 - q1
+        if math.isnan(median):
+            return "N/A"
+        # round_level = self.round_to if std > 2 * pow(10, -self.round_to) else self.round_to + 1
+        return f"{round(median, self.round_to)} $\\pm$ {round(iqr, self.round_to)}"
+
+
+class Aggregation(Enum):
+    mean = "mean"
+    median = "median"
+
+
+AGGREGATION_LOOKUP: Final = {Aggregation.mean: MeanStd, Aggregation.median: MedianIQR}
+
+
 def generate_table(
     df: pd.DataFrame,
     base_cols: list[str],
     metrics: list[str],
+    aggregation: Aggregation,
+    round_to: int,
     metrics_renames: dict[str, str] | None = None,
-    round_to: int = 2,
 ) -> pd.DataFrame:
+    AggClass = AGGREGATION_LOOKUP[aggregation]
     col_renames = {"data": "type", "method": "classifier"}
     if metrics_renames is not None:
         col_renames.update(metrics_renames)
@@ -37,13 +60,13 @@ def generate_table(
     df = df.rename(columns=col_renames, inplace=False)
     return (
         df.groupby(base_cols, sort=False)
-        .agg(Cell(round_to=round_to))
+        .agg(AggClass(round_to=round_to))
         .reset_index(level=base_cols, inplace=False)
     )
 
 
 class Metrics(Enum):
-    acc = "accuracy"
+    acc = "acc"
     # ratios
     ar = "ar"
     tpr = "tpr"
@@ -85,7 +108,18 @@ def main(
     sens_attr: str = typer.Option("colour", "--sens-attr", "-s"),
     classifiers: List[str] = typer.Option(["pytorch_classifier"], "--classifiers", "-c"),
     groupby: str = typer.Option("misc.log_method", "--groupby", "-g"),
+    aggregation: Aggregation = typer.Option(Aggregation.mean.value, "--aggregation", "-a"),
+    round_to: int = typer.Option(2, "--round-to", "-r"),
 ):
+    print("---------------------------------------")
+    print("Settings:")
+    print(f"    aggregation (-a):  {aggregation.value}")
+    print(f"    classifiers (-c):  {list(classifiers)}")
+    print(f"    groupby (-g)    :  \"{groupby}\"")
+    print(f"    metrics (-m)    :  [{', '.join(metric.value for metric in metrics)}]")
+    print(f"    round_to (-r)   :  {round_to}")
+    print(f"    sens_attr (-s)  :  \"{sens_attr}\"")
+    print("---------------------------------------\n")
     df = pd.read_csv(csv_file)
     rows = []
     for classifier in classifiers:
@@ -99,6 +133,8 @@ def main(
             df=df,
             base_cols=[groupby],  # first columns in the table
             metrics=metrics_str,
+            aggregation=aggregation,
+            round_to=round_to,
             metrics_renames=metrics_renames,
         )
         rows.append(row)
