@@ -205,6 +205,7 @@ def run_baseline(cfg: Config) -> None:
         classifier_cls = LfF
     elif args.method is BaselineM.gdro:
         classifier_cls = GDRO
+        classifier_kwargs["c"] = args.c
     else:
         if args.method is BaselineM.dro:
             criterion = implementations.dro_modules.DROLoss(nn.CrossEntropyLoss, eta=args.eta)

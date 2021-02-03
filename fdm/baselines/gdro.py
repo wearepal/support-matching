@@ -23,8 +23,10 @@ class GDRO(Classifier):
         model: nn.Module,
         num_classes: int,
         optimizer_kwargs: dict[str, Any] | None,
+        c_param: float = 1.0,
     ):
         super().__init__(model, num_classes, optimizer_kwargs=optimizer_kwargs, criterion="ce")
+        self.c_param = c_param
 
     def fit(
         self,
@@ -34,7 +36,6 @@ class GDRO(Classifier):
         test_data: Dataset | None = None,
         batch_size: int = 256,
         test_batch_size: int = 1000,
-        c_param: float = 1.0,
         **train_loader_kwargs: dict[str, Any],
     ):
         # Default settings for train-loader
@@ -69,7 +70,7 @@ class GDRO(Classifier):
                 self.optimizer.zero_grad()
                 loss = []
                 for _s in unique_s:
-                    _loss, _acc = self._routine(x[s == _s], y[s == _s], c_param=c_param)
+                    _loss, _acc = self._routine(x[s == _s], y[s == _s])
                     loss.append(_loss)
 
                 max(loss).backward()
@@ -100,7 +101,6 @@ class GDRO(Classifier):
         data: Tensor,
         targets: Tensor,
         instance_weights: Tensor | None = None,
-        c_param: float = 1.0,
     ) -> tuple[Tensor, float]:
         """Classifier routine.
 
@@ -116,7 +116,7 @@ class GDRO(Classifier):
         if instance_weights is not None:
             loss = loss.view(-1) * instance_weights.view(-1)
         loss = loss.mean()
-        loss += c_param / torch.sqrt(torch.ones_like(loss) * data.shape[0])
+        loss += self.c_param / torch.sqrt(torch.ones_like(loss) * data.shape[0])
         acc = self.compute_accuracy(outputs, targets)
 
         return loss, acc
