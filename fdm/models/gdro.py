@@ -1,8 +1,8 @@
 from __future__ import annotations
 import logging
 
-import torch
 from ethicml import Dataset
+import torch
 from torch import Tensor
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
