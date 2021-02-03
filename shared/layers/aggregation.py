@@ -99,7 +99,7 @@ class GatedAttentionAggregator(Aggregator):
         logits = torch.tanh(inputs @ self.V.t()) * torch.sigmoid(inputs @ self.U.t()) @ self.w.t()
         logits_batched = self.bag_batch(logits)
         weights = logits_batched.softmax(dim=1)
-        self.attention_weights = weights.squeeze(-1).detach().cpu()
+        self.attention_weights = weights.squeeze(-1).detach()
         inputs_batched = self.bag_batch(inputs)
         weighted = torch.sum(weights * inputs_batched, dim=1, keepdim=False)
         return self.final_proj(weighted)
