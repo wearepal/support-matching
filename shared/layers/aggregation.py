@@ -93,11 +93,13 @@ class GatedAttentionAggregator(Aggregator):
         else:
             self.final_proj = nn.Linear(in_dim, output_dim)
         self.output_dim = output_dim
+        self.attention_weights: Tensor
 
     def forward(self, inputs: Tensor) -> Tensor:
         logits = torch.tanh(inputs @ self.V.t()) * torch.sigmoid(inputs @ self.U.t()) @ self.w.t()
         logits_batched = self.bag_batch(logits)
         weights = logits_batched.softmax(dim=1)
+        self.attention_weights = weights.squeeze(-1).detach().cpu()
         inputs_batched = self.bag_batch(inputs)
         weighted = torch.sum(weights * inputs_batched, dim=1, keepdim=False)
         return self.final_proj(weighted)

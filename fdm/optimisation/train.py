@@ -68,6 +68,7 @@ from .loss import MixedLoss, PixelCrossEntropy
 from .utils import (
     build_weighted_sampler_from_dataset,
     get_stratified_sampler,
+    log_attention,
     log_images,
     restore_model,
     save_model,
@@ -334,17 +335,25 @@ class Experiment(ExperimentBase):
         sample = x[: num_blocks * rows_per_block]
         encoding = self.generator.encode(sample, stochastic=False)
         recon = self.generator.all_recons(encoding, mode="hard")
+        recons = [recon.all, recon.zero_s, recon.just_s]
 
-        to_log: tuple[Tensor, ...] = (sample, recon.all, recon.zero_s, recon.just_s)
         caption = "original | all | zero_s | just_s"
         if self.args.train_on_recon:
-            to_log += (recon.rand_s,)
+            recons.append(recon.rand_s)
             caption += " | rand_s"
+
+        to_log: list[Tensor] = [sample]
+        for recon_ in recons:
+            if self.enc.recon_loss is ReconstructionLoss.ce:
+                to_log.append(recon_.argmax(dim=1).float() / 255)
+            else:
+                to_log.append(recon_)
         ncols = len(to_log)
 
         interleaved = torch.stack(to_log, dim=1).view(
             ncols * num_blocks * rows_per_block, *sample.shape[1:]
         )
+
         log_images(
             self.cfg,
             interleaved,
@@ -355,6 +364,22 @@ class Experiment(ExperimentBase):
             prefix=prefix,
             caption=caption,
         )
+
+        if self.args.aggregator_type is AggregatorType.gated:
+            with torch.no_grad():
+                self.disc_ensemble[0](self.generator.mask(encoding)[1])
+                assert isinstance(self.disc_ensemble[0].model[-1], Aggregator)  # type: ignore
+                attention_weights = self.disc_ensemble[0].model[-1].attention_weights  # type: ignore
+            log_attention(
+                self.cfg,
+                images=sample,
+                attention_weights=attention_weights,  # type: ignore
+                name="attention Weights",
+                step=itr,
+                nsamples=num_blocks,
+                ncols=ncols,
+                prefix=prefix,
+            )
 
 
 def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:

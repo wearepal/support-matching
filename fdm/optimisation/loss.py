@@ -179,7 +179,4 @@ class GeneralizedCELoss(nn.Module):
         Yg = torch.gather(p, 1, torch.unsqueeze(targets, 1))
         # modify gradient of cross entropy
         loss_weight = (Yg.squeeze().detach() ** self.q) * self.q
-        if np.isnan(Yg.mean().item()):
-            raise NameError("GCE_Yg")
-
         return F.cross_entropy(logits, targets, reduction="none") * loss_weight
