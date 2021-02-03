@@ -115,10 +115,10 @@ def main(
     print("Settings:")
     print(f"    aggregation (-a):  {aggregation.value}")
     print(f"    classifiers (-c):  {list(classifiers)}")
-    print(f"    groupby (-g)    :  \"{groupby}\"")
+    print(f'    groupby (-g)    :  "{groupby}"')
     print(f"    metrics (-m)    :  [{', '.join(metric.value for metric in metrics)}]")
     print(f"    round_to (-r)   :  {round_to}")
-    print(f"    sens_attr (-s)  :  \"{sens_attr}\"")
+    print(f'    sens_attr (-s)  :  "{sens_attr}"')
     print("---------------------------------------\n")
     df = pd.read_csv(csv_file)
     rows = []
