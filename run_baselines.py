@@ -244,7 +244,7 @@ def run_baseline(cfg: Config) -> None:
     if args.method == BaselineM.dro:
         metrics.update({"eta": args.eta})
     if cfg.misc.save_dir:
-        cfg.misc.log_method = f"baseline_{args.method.name}"
+        cfg_dict["misc.log_method"] = f"baseline_{args.method.name}"
 
         results = {}
         results.update(cfg_dict)
