@@ -86,7 +86,7 @@ def log_attention(
     """Make a grid of the given images, save them in a file and log them with W&B"""
     prefix = "train_" if prefix is None else f"{prefix}_"
 
-    if cfg.enc.recon_loss == ReconstructionLoss.ce:
+    if cfg.enc.recon_loss == ReconstructionLoss.ce and images.ndim == 5:
         images = images.argmax(dim=1).float() / 255
     else:
         if isinstance(cfg.data, (CelebaConfig, IsicConfig)):
@@ -98,7 +98,6 @@ def log_attention(
     padding = attention_weights.view(nsamples, -1, 1, 1, 1)
 
     w_padding = padding.expand(-1, -1, 3, border_width, images.size(-1)).cpu()
-    # breakpoint()
     images = torch.cat([w_padding, images, w_padding], dim=-2)
     h_padding = padding.expand(-1, -1, 3, images.size(-2), border_width).cpu()
     images = torch.cat([h_padding, images, h_padding], dim=-1)
