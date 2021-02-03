@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 import logging
@@ -13,13 +13,13 @@ import numpy as np
 from omegaconf import DictConfig, MISSING
 import pandas as pd
 import torch
-from torch import Tensor, nn
+from torch import nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from torch.utils.data.dataset import ConcatDataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
-from tqdm import trange
 
+from fdm.baselines.lff import LfF
 from fdm.models import Classifier
 from fdm.optimisation.utils import build_weighted_sampler_from_dataset
 from shared.configs import (
@@ -44,7 +44,7 @@ from shared.utils.sampler import StratifiedSampler
 
 LOGGER = logging.getLogger("BASELINE")
 
-BaselineM = Enum("BaselineM", "cnn dro kamiran")
+BaselineM = Enum("BaselineM", "cnn dro lff")
 
 
 @dataclass
@@ -106,18 +106,6 @@ def run_baseline(cfg: Config) -> None:
         as_list = sorted(f"{k}: {v}" for k, v in as_pretty_dict(settings).items())
         LOGGER.info(f"{name}: " + "{" + ", ".join(as_list) + "}")
     args = cfg.baselines
-    if args.method == BaselineM.kamiran:
-        if isinstance(cfg.data, CmnistConfig):
-            raise ValueError(
-                "Kamiran & Calders reweighting scheme can only be used with binary sensitive "
-                "and target attributes."
-            )
-        elif cfg.bias.mixing_factor % 1 == 0:
-            raise ValueError(
-                "Kamiran & Calders reweighting scheme can only be used when there is at least one "
-                "sample available for each sensitive/target attribute combination."
-            )
-
     use_gpu = torch.cuda.is_available() and not cfg.misc.gpu < 0  # type: ignore
     random_seed(cfg.misc.seed, use_gpu)
 
@@ -139,23 +127,13 @@ def run_baseline(cfg: Config) -> None:
         oversample=args.oversample,
         balance_hierarchical=False,
     )
-    train_loader = DataLoader(
-        train_data,
-        batch_size=args.batch_size,
-        pin_memory=True,
-        shuffle=args.method == BaselineM.kamiran,
-        num_workers=cfg.misc.num_workers,
-        sampler=train_sampler,
-    )
-    test_loader = DataLoader(
-        test_data,
-        batch_size=args.test_batch_size,
-        pin_memory=True,
-        shuffle=False,
-        num_workers=cfg.misc.num_workers,
-    )
+    train_loader_kwargs = {
+        "sampler": train_sampler,
+        "pin_memory": True,
+        "num_workers": cfg.misc.num_workers,
+    }
 
-    input_shape = get_data_dim(train_loader)
+    input_shape = train_data[0][0].shape
 
     #  Construct the network
     classifier_fn: ModelFn
@@ -183,28 +161,36 @@ def run_baseline(cfg: Config) -> None:
         raise NotImplementedError()
 
     target_dim = datasets.s_dim if args.pred_s else datasets.y_dim
+    num_classes = max(target_dim, 2)
 
-    criterion = None
-    if args.method == BaselineM.dro:
-        if target_dim == 1:
-            criterion = implementations.dro_modules.DROLoss(nn.BCEWithLogitsLoss, eta=args.eta)
-        else:
-            criterion = implementations.dro_modules.DROLoss(nn.CrossEntropyLoss, eta=args.eta)
+    classifier_cls: type[Classifier] | type[LfF]
+    if args.method is BaselineM.lff:
+        classifier_cls = LfF
+        out_dim = num_classes
+    else:
+        criterion = None
+        if args.method is BaselineM.dro:
+            if target_dim == 1:
+                criterion = implementations.dro_modules.DROLoss(nn.BCEWithLogitsLoss, eta=args.eta)
+            else:
+                criterion = implementations.dro_modules.DROLoss(nn.CrossEntropyLoss, eta=args.eta)
+        classifier_cls = Classifier
+        out_dim = target_dim
 
-    classifier: Classifier = Classifier(
-        classifier_fn(input_shape[0], target_dim),
-        num_classes=2 if target_dim == 1 else target_dim,
+    classifier = classifier_cls(
+        classifier_fn(input_shape[0], out_dim),  # type: ignore
+        num_classes=max(target_dim, 2),
         optimizer_kwargs={"lr": args.lr, "weight_decay": args.weight_decay},
-        criterion=criterion,  # type: ignore
     )
     classifier.to(device)
-
     classifier.fit(
-        train_data=train_loader,
-        test_data=test_loader,
+        train_data=train_data,  # type: ignore
+        test_data=test_data,
         epochs=args.epochs,
         device=device,
-        pred_s=False,
+        batch_size=args.batch_size,
+        test_batch_size=args.test_batch_size,
+        # **train_loader_kwargs,
     )
 
     preds, labels, sens = classifier.predict_dataset(test_data, device=device)

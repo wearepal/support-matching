@@ -1,6 +1,6 @@
 from __future__ import annotations
 import logging
-from typing import Any
+from typing import Any, Dict
 
 from ethicml.implementations.dro_modules import DROLoss
 import torch
@@ -50,6 +50,7 @@ class Classifier(ModelBase):
                 self.criterion = "ce"
         else:
             self.criterion = criterion
+        self.num_classes = num_classes
 
     def apply_criterion(self, logits: Tensor, targets: Tensor) -> Tensor:
         if isinstance(self.criterion, str):
@@ -182,22 +183,28 @@ class Classifier(ModelBase):
         pred_s: bool = False,
         batch_size: int = 256,
         test_batch_size: int = 1000,
-        lr_milestones: dict | None = None,
+        **train_loader_kwargs: Dict[str, Any],
     ):
 
         if not isinstance(train_data, DataLoader):
+            # Default settings for train-loader
+            train_loader_kwargs.setdefault("pin_memory", True)  # type: ignore
+            train_loader_kwargs.setdefault("shuffle", True)  # type: ignore
+
             train_data = DataLoader(
-                train_data, batch_size=batch_size, shuffle=True, pin_memory=True
+                train_data,
+                batch_size=batch_size,
+                **train_loader_kwargs,
             )
         if test_data is not None:
             if not isinstance(test_data, DataLoader):
                 test_data = DataLoader(
-                    test_data, batch_size=test_batch_size, shuffle=False, pin_memory=True
+                    test_data,
+                    batch_size=test_batch_size,
+                    shuffle=False,
+                    pin_memory=train_data.pin_memory,
+                    num_workers=train_data.num_workers,
                 )
-
-        scheduler = None
-        if lr_milestones is not None:
-            scheduler = MultiStepLR(optimizer=self.optimizer, **lr_milestones)
 
         LOGGER.info("Training classifier...")
         pbar = trange(epochs)
@@ -223,8 +230,7 @@ class Classifier(ModelBase):
 
                 self.model.eval()
                 avg_test_acc = 0.0
-
-                with torch.set_grad_enabled(False):
+                with torch.no_grad():
                     for x, s, y in test_data:
 
                         if pred_s:
@@ -244,8 +250,6 @@ class Classifier(ModelBase):
             else:
                 pbar.set_postfix(epoch=epoch + 1)
 
-            if scheduler is not None:
-                scheduler.step(epoch)
         pbar.close()
 
 
