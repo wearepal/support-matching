@@ -1,6 +1,6 @@
 from __future__ import annotations
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from ethicml.implementations.dro_modules import DROLoss
 import torch
@@ -183,7 +183,7 @@ class Classifier(ModelBase):
         pred_s: bool = False,
         batch_size: int = 256,
         test_batch_size: int = 1000,
-        **train_loader_kwargs: Dict[str, Any],
+        **train_loader_kwargs: dict[str, Any],
     ):
 
         if not isinstance(train_data, DataLoader):
