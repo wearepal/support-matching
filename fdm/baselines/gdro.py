@@ -73,7 +73,7 @@ class GDRO(Classifier):
                     try:
                         _loss, _acc = self._routine(x[s == _s], y[s == _s])
                     except RuntimeError:
-                        _loss = -torch.tensor(float("inf"))
+                        _loss = -torch.tensor(float("inf")).to(x.device)
                     loss.append(_loss)
 
                 max(loss).backward()
