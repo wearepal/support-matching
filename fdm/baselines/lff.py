@@ -3,7 +3,6 @@ import copy
 import logging
 from typing import Any
 
-import numpy as np
 import torch
 import torch.nn as nn
 from torch.tensor import Tensor
@@ -34,7 +33,7 @@ class IndexDataset(Dataset):
 
 class EMA:
     def __init__(self, labels: Tensor, device: torch.device, alpha=0.9):
-        self.labels = labels.to(device)
+        self.labels = labels.view(-1).to(device)
         self.alpha = alpha
         self.parameter = torch.zeros(labels.size(0), device=device)
         self.updated = torch.zeros(labels.size(0), device=device)
@@ -106,18 +105,14 @@ class LfF(Classifier):
         pbar = trange(epochs)
         for epoch in pbar:
             self.model.train()
-
             for index, x, _, y in train_loader:
                 x = x.to(device, non_blocking=True)
-                y = y.to(device, non_blocking=True)
+                y = y.to(device, non_blocking=True).view(-1)
 
                 logit_b = self.biased_model(x)
                 logit_d = self.model(x)
                 loss_b = self.apply_criterion(logit_b, y).detach()
                 loss_d = self.apply_criterion(logit_d, y).detach()
-
-                loss_per_sample_b = loss_b
-                loss_per_sample_d = loss_d
 
                 # EMA sample loss
                 sample_loss_ema_b.update(loss_b.view(-1), index)
@@ -147,14 +142,12 @@ class LfF(Classifier):
                 self.biased_model.step()
 
             if test_loader is not None:
-
                 self.model.eval()
                 avg_test_acc = 0.0
                 with torch.no_grad():
                     for x, _, y in test_loader:
                         x = x.to(device)
-                        y = y.to(device)
-
+                        y = y.to(device).view(-1)
                         _, acc = self.routine(x, y)
                         avg_test_acc += acc
 
