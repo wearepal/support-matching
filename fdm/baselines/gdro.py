@@ -70,7 +70,10 @@ class GDRO(Classifier):
                 self.optimizer.zero_grad()
                 loss = []
                 for _s in unique_s:
-                    _loss, _acc = self._routine(x[s == _s], y[s == _s])
+                    try:
+                        _loss, _acc = self._routine(x[s == _s], y[s == _s])
+                    except RuntimeError:
+                        _loss = -torch.tensor(float("inf"))
                     loss.append(_loss)
 
                 max(loss).backward()
