@@ -6,9 +6,9 @@ import ethicml as em
 import numpy as np
 import pandas as pd
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset, TensorDataset
+from torch.utils.data import DataLoader, Dataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
 from tqdm import tqdm
@@ -24,11 +24,11 @@ from shared.configs import (
     ImageDatasetConfig,
     IsicConfig,
 )
-from shared.data import DatasetTriplet, get_data_tuples
+from shared.data import DatasetTriplet, TensorDataTupleDataset, adult, get_data_tuples
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import ModelFn, compute_metrics, make_tuple_from_data, prod
 
-from .utils import log_images
+from .utils import ExtractableDataset, build_weighted_sampler_from_dataset, log_images
 
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
@@ -118,21 +118,32 @@ def fit_classifier(
     test_data: Optional[DataLoader] = None,
 ) -> Classifier:
     input_dim = input_shape[0]
+    optimizer_kwargs = {"lr": cfg.fdm.eval_lr}
     clf_fn: ModelFn
 
-    if not isinstance(cfg.data, AdultConfig) and train_on_recon:
-        if isinstance(cfg.data, CmnistConfig):
-            clf_fn = Mp32x23Net(batch_norm=True)
-        elif isinstance(cfg.data, CelebaConfig):
-            clf_fn = Mp64x64Net(batch_norm=True)
-        else:  # ISIC dataset
+    if train_on_recon:
+        if isinstance(cfg.data, ImageDatasetConfig):
+            if isinstance(cfg.data, CmnistConfig):
+                clf_fn = Mp32x23Net(batch_norm=True)
+            elif isinstance(cfg.data, CelebaConfig):
+                clf_fn = Mp64x64Net(batch_norm=True)
+            else:  # ISIC dataset
 
-            def resnet50_ft(input_dim: int, target_dim: int) -> ResNet:
-                classifier = resnet50(pretrained=True)
-                classifier.fc = nn.Linear(classifier.fc.in_features, target_dim)
-                return classifier
+                def resnet50_ft(input_dim: int, target_dim: int) -> ResNet:
+                    classifier = resnet50(pretrained=True)
+                    classifier.fc = nn.Linear(classifier.fc.in_features, target_dim)
+                    return classifier
 
-            clf_fn = resnet50_ft
+                clf_fn = resnet50_ft
+        else:
+
+            def _adult_fc_net(input_dim: int, target_dim: int) -> nn.Sequential:
+                encoder = FcNet(hidden_dims=[35])(input_dim=input_dim, target_dim=35)
+                classifier = nn.Linear(35, target_dim)
+                return nn.Sequential(encoder, classifier)
+
+            optimizer_kwargs["weight_decay"] = 1e-8
+            clf_fn = _adult_fc_net
     else:
         clf_fn = FcNet(hidden_dims=None)
         input_dim = prod(input_shape)
@@ -140,9 +151,9 @@ def fit_classifier(
 
     num_classes = max(2, target_dim)
     clf: Classifier = Classifier(
-        clf_base, num_classes=num_classes, optimizer_kwargs={"lr": cfg.fdm.eval_lr}
+        clf_base, num_classes=num_classes, optimizer_kwargs=optimizer_kwargs
     )
-    clf.to(cfg.misc.device)
+    clf.to(torch.device(cfg.misc.device))
     clf.fit(
         train_data,
         test_data=test_data,
@@ -157,7 +168,7 @@ def fit_classifier(
 def evaluate(
     cfg: Config,
     step: int,
-    train_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
+    train_data: ExtractableDataset,
     test_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
     y_dim: int,
     s_dim: int,
@@ -177,61 +188,80 @@ def evaluate(
             {f"Clust/Context {k}": v for k, v in cluster_context_metrics.items()}
         )
 
-    if isinstance(cfg.data, ImageDatasetConfig):
-
-        train_loader = DataLoader(
-            train_data, batch_size=cfg.fdm.eff_batch_size, shuffle=True, pin_memory=True
+    train_loader_kwargs = {}
+    if cfg.fdm.balanced_eval:
+        train_loader_kwargs["sampler"] = build_weighted_sampler_from_dataset(
+            dataset=train_data,
+            s_count=max(s_dim, 2),
+            batch_size=cfg.fdm.eval_batch_size,
+            oversample=cfg.fdm.oversample,
+            balance_hierarchical=False,
         )
-        test_loader = DataLoader(
-            test_data, batch_size=cfg.fdm.test_batch_size, shuffle=False, pin_memory=True
-        )
-
-        clf: Classifier = fit_classifier(
-            cfg,
-            input_shape,
-            train_data=train_loader,
-            train_on_recon=eval_on_recon,
-            pred_s=pred_s,
-            test_data=test_loader,
-            target_dim=s_dim if pred_s else y_dim,
-        )
-
-        preds, labels, sens = clf.predict_dataset(test_loader, device=torch.device(cfg.misc.device))
-        preds = em.Prediction(hard=pd.Series(preds))
-        if isinstance(cfg.data, CmnistConfig):
-            sens_name = "colour"
-        elif isinstance(cfg.data, CelebaConfig):
-            sens_name = cfg.data.celeba_sens_attr.name
-        elif isinstance(cfg.data, IsicConfig):
-            sens_name = cfg.data.isic_sens_attr.name
-        else:
-            sens_name = "sens_Label"
-        sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=[sens_name])
-        labels_pd = pd.DataFrame(labels, columns=["labels"])
-        actual = em.DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels_pd)
-        compute_metrics(
-            cfg,
-            preds,
-            actual,
-            exp_name=name,
-            model_name="pytorch_classifier",
-            step=step,
-            s_dim=s_dim,
-            save_summary=save_summary,
-            use_wandb=cfg.misc.use_wandb,
-            additional_entries=additional_entries,
-        )
+        train_loader_kwargs["shuffle"] = False  # the sampler shuffles for us
     else:
-        if not isinstance(train_data, em.DataTuple):
-            train_data, test_data = get_data_tuples(train_data, test_data)
+        train_loader_kwargs["shuffle"] = True
 
-        train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=pred_s)
+    train_loader = DataLoader(
+        train_data,
+        batch_size=cfg.fdm.eval_batch_size,
+        pin_memory=True,
+        **train_loader_kwargs,
+    )
+    test_loader = DataLoader(
+        test_data, batch_size=cfg.fdm.test_batch_size, shuffle=False, pin_memory=True
+    )
+
+    clf: Classifier = fit_classifier(
+        cfg,
+        input_shape,
+        train_data=train_loader,
+        train_on_recon=eval_on_recon,
+        pred_s=pred_s,
+        test_data=test_loader,
+        target_dim=s_dim if pred_s else y_dim,
+    )
+
+    preds, labels, sens = clf.predict_dataset(test_loader, device=torch.device(cfg.misc.device))
+    del train_loader  # try to prevent lock ups of the workers
+    del test_loader
+    preds = em.Prediction(hard=pd.Series(preds))
+    if isinstance(cfg.data, CmnistConfig):
+        sens_name = "colour"
+    elif isinstance(cfg.data, CelebaConfig):
+        sens_name = cfg.data.celeba_sens_attr.name
+    elif isinstance(cfg.data, IsicConfig):
+        sens_name = cfg.data.isic_sens_attr.name
+    elif isinstance(cfg.data, AdultConfig):
+        sens_name = str(adult.SENS_ATTRS[0])
+    else:
+        sens_name = "sens_Label"
+    sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=[sens_name])
+    labels_pd = pd.DataFrame(labels, columns=["labels"])
+    actual = em.DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels_pd)
+    compute_metrics(
+        cfg=cfg,
+        predictions=preds,
+        actual=actual,
+        exp_name=name,
+        model_name="pytorch_classifier",
+        step=step,
+        s_dim=s_dim,
+        save_summary=save_summary,
+        use_wandb=cfg.misc.use_wandb,
+        additional_entries=additional_entries,
+    )
+    if isinstance(cfg.data, AdultConfig):
+        train_data_tup, test_data_tup = get_data_tuples(train_data, test_data)
+
+        train_data_tup, test_data_tup = make_tuple_from_data(
+            train_data_tup, test_data_tup, pred_s=pred_s
+        )
         for eth_clf in [em.LR(), em.LRCV()]:  # , em.LRCV(), em.SVM(kernel="linear")]:
-            preds = eth_clf.run(train_data, test_data)
+            preds = eth_clf.run(train_data_tup, test_data_tup)
             compute_metrics(
                 cfg=cfg,
                 predictions=preds,
-                actual=test_data,
+                actual=test_data_tup,
                 exp_name=name,
                 model_name=eth_clf.name,
                 s_dim=s_dim,
@@ -248,7 +278,7 @@ def encode_dataset(
     generator: AutoEncoder,
     recons: bool,
     invariant_to: Literal["s", "y"] = "s",
-) -> "TensorDataset":
+) -> TensorDataTupleDataset:
     LOGGER.info("Encoding dataset...")
     all_x_m = []
     all_s = []
@@ -293,7 +323,7 @@ def encode_dataset(
     all_s = torch.cat(all_s, dim=0)
     all_y = torch.cat(all_y, dim=0)
 
-    encoded_dataset = TensorDataset(all_x_m, all_s, all_y)
+    encoded_dataset = TensorDataTupleDataset(x=all_x_m, s=all_s, y=all_y)
     LOGGER.info("Done.")
 
     return encoded_dataset

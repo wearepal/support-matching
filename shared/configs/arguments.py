@@ -278,7 +278,9 @@ class FdmConfig:
     # Evaluation settings
     eval_epochs: int = 40
     eval_lr: float = 1e-3
+    eval_batch_size: int = 256
     encode_batch_size: int = 1000
+    balanced_eval: bool = False  # Whether to balance the training set during evaluation
 
     # Misc
     validate: bool = True
