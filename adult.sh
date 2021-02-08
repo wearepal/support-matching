@@ -11,4 +11,6 @@ python run_dis.py -m \
     fdm.eval_epochs=60 \
     fdm.balanced_eval=True \
     fdm.zs_transform=round_ste \
+    misc.seed="range(0,30)" \
+    # hydra/launcher=ray_1gpu \
     "$@"
