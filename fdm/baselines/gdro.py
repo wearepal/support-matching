@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+from math import inf
 from typing import Any
 
 import torch
@@ -70,10 +71,10 @@ class GDRO(Classifier):
                 self.optimizer.zero_grad()
                 loss = []
                 for _s in unique_s:
-                    try:
-                        _loss, _acc = self._routine(x[s == _s], y[s == _s])
-                    except RuntimeError:
-                        _loss = -torch.tensor(float("inf")).to(x.device)
+                    if (s == _s).sum().gt(0).item():
+                        _loss, _ = self._routine(x[s == _s], y[s == _s])
+                    else:
+                        _loss = -torch.tensor(inf).to(x.device)
                     loss.append(_loss)
 
                 max(loss).backward()
