@@ -8,7 +8,7 @@ import pandas as pd
 import torch
 from torch import Tensor, nn
 import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset, TensorDataset
+from torch.utils.data import DataLoader, Dataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
 from tqdm import tqdm
@@ -24,11 +24,11 @@ from shared.configs import (
     ImageDatasetConfig,
     IsicConfig,
 )
-from shared.data import DatasetTriplet, adult, get_data_tuples
+from shared.data import DatasetTriplet, TensorDataTupleDataset, adult, get_data_tuples
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import ModelFn, compute_metrics, make_tuple_from_data, prod
 
-from .utils import build_weighted_sampler_from_dataset, log_images
+from .utils import ExtractableDataset, build_weighted_sampler_from_dataset, log_images
 
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
@@ -142,7 +142,7 @@ def fit_classifier(
                 classifier = nn.Linear(35, target_dim)
                 return nn.Sequential(encoder, classifier)
 
-            optimizer_kwargs = {"lr": 1e-3, "weight_decay": 1e-8}
+            optimizer_kwargs["weight_decay"] = 1e-8
             clf_fn = _adult_fc_net
     else:
         clf_fn = FcNet(hidden_dims=None)
@@ -168,7 +168,7 @@ def fit_classifier(
 def evaluate(
     cfg: Config,
     step: int,
-    train_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
+    train_data: ExtractableDataset,
     test_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
     y_dim: int,
     s_dim: int,
@@ -193,7 +193,7 @@ def evaluate(
         train_loader_kwargs["sampler"] = build_weighted_sampler_from_dataset(
             dataset=train_data,
             s_count=max(s_dim, 2),
-            batch_size=cfg.fdm.batch_size,
+            batch_size=cfg.fdm.eval_batch_size,
             oversample=cfg.fdm.oversample,
             balance_hierarchical=False,
         )
@@ -203,7 +203,7 @@ def evaluate(
 
     train_loader = DataLoader(
         train_data,
-        batch_size=cfg.fdm.eff_batch_size,
+        batch_size=cfg.fdm.eval_batch_size,
         pin_memory=True,
         **train_loader_kwargs,
     )
@@ -278,7 +278,7 @@ def encode_dataset(
     generator: AutoEncoder,
     recons: bool,
     invariant_to: Literal["s", "y"] = "s",
-) -> "TensorDataset":
+) -> TensorDataTupleDataset:
     LOGGER.info("Encoding dataset...")
     all_x_m = []
     all_s = []
@@ -323,7 +323,7 @@ def encode_dataset(
     all_s = torch.cat(all_s, dim=0)
     all_y = torch.cat(all_y, dim=0)
 
-    encoded_dataset = TensorDataset(all_x_m, all_s, all_y)
+    encoded_dataset = TensorDataTupleDataset(x=all_x_m, s=all_s, y=all_y)
     LOGGER.info("Done.")
 
     return encoded_dataset
