@@ -347,21 +347,21 @@ class Experiment(ExperimentBase):
             caption=caption,
         )
 
-        if self.args.aggregator_type is AggregatorType.gated:
-            with torch.no_grad():
-                self.disc_ensemble[0](self.get_disc_input(encoding))
-                assert isinstance(self.disc_ensemble[0].model[-1], Aggregator)  # type: ignore
-                attention_weights = self.disc_ensemble[0].model[-1].attention_weights  # type: ignore
-            log_attention(
-                self.cfg,
-                images=sample,
-                attention_weights=attention_weights,  # type: ignore
-                name="attention Weights",
-                step=itr,
-                nsamples=num_blocks,
-                ncols=ncols,
-                prefix=prefix,
-            )
+        # if self.args.aggregator_type is AggregatorType.gated:
+        #     with torch.no_grad():
+        #         self.disc_ensemble[0](self.get_disc_input(encoding))
+        #         assert isinstance(self.disc_ensemble[0].model[-1], Aggregator)  # type: ignore
+        #         attention_weights = self.disc_ensemble[0].model[-1].attention_weights  # type: ignore
+        #     log_attention(
+        #         self.cfg,
+        #         images=sample,
+        #         attention_weights=attention_weights,  # type: ignore
+        #         name="attention Weights",
+        #         step=itr,
+        #         nsamples=num_blocks,
+        #         ncols=ncols,
+        #         prefix=prefix,
+        #     )
 
 
 def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:

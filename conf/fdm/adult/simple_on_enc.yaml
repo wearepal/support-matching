@@ -1,5 +1,5 @@
-bag_size: 100
-batch_size: 10
+bag_size: 128
+batch_size: 8
 aggregator_type: gated
 disc_hidden_dims: [32]
 eval_on_recon: false
