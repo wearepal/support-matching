@@ -21,6 +21,7 @@ from .enums import (
     QuantizationLevel,
     ReconstructionLoss,
     VaeStd,
+    ZsTransform,
 )
 
 __all__ = [
@@ -289,6 +290,7 @@ class FdmConfig:
     use_pretrained_enc: bool = True
     snorm: bool = False
     zs_dim: int = 1
+    zs_transform: ZsTransform = ZsTransform.none
 
     vgg_weight: float = 0
     vae: bool = False

@@ -19,6 +19,7 @@ import wandb
 import yaml
 
 from fdm.models import AutoEncoder, Classifier, EncodingSize, build_classifier
+from fdm.models.base import SplitEncoding
 from fdm.models.configs import Residual64x64Net
 from fdm.models.configs.classifiers import Strided28x28Net
 from fdm.models.discriminator import Discriminator
@@ -245,7 +246,7 @@ class Experiment(ExperimentBase):
                     disc_loss /= len(self.disc_ensemble)
                 else:
                     x = disc_input_t
-                    y = self.get_disc_input(encoding_c.detach())
+                    y = self.get_disc_input(encoding_c, detach=True)
                     disc_loss = mmd2(
                         x=x,
                         y=y,
@@ -258,17 +259,15 @@ class Experiment(ExperimentBase):
                 total_loss += disc_loss
                 logging_dict["Loss Discriminator"] = disc_loss
 
-            # this is a pretty cheap splitting operation, so it's okay if it's not used
-            zs_t, zy_t = self.generator.split_encoding(encoding_t)
             if self.args.pred_y_weight > 0:
                 # predictor is on encodings; predict y from the part that is invariant to s
-                pred_y_loss, pred_y_acc = self.predictor_y.routine(zy_t, tr.y)
+                pred_y_loss, pred_y_acc = self.predictor_y.routine(encoding_t.zy, tr.y)
                 pred_y_loss *= self.args.pred_y_weight
                 logging_dict["Loss Predictor y"] = pred_y_loss.item()
                 logging_dict["Accuracy Predictor y"] = pred_y_acc
                 total_loss += pred_y_loss
             if self.args.pred_s_weight > 0:
-                pred_s_loss, pred_s_acc = self.predictor_s.routine(zs_t, tr.s)
+                pred_s_loss, pred_s_acc = self.predictor_s.routine(encoding_t.zs, tr.s)
                 pred_s_loss *= self.args.pred_s_weight
                 logging_dict["Loss Predictor s"] = pred_s_loss.item()
                 logging_dict["Accuracy Predictor s"] = pred_s_acc
@@ -297,10 +296,10 @@ class Experiment(ExperimentBase):
 
         return total_loss, logging_dict
 
-    def get_disc_input(self, encoding: Tensor) -> Tensor:
+    def get_disc_input(self, encoding: SplitEncoding, detach: bool = False) -> Tensor:
         """Construct the input that the discriminator expects; either zy or reconstructed zy."""
         if self.args.train_on_recon:
-            zs_m, _ = self.generator.mask(encoding, random=True)
+            zs_m, _ = self.generator.mask(encoding, random=True, detach=detach)
             recon = self.generator.decode(zs_m, mode="relaxed")
             if self.enc.recon_loss is ReconstructionLoss.ce:
                 recon = recon.argmax(dim=1).float() / 255
@@ -308,8 +307,8 @@ class Experiment(ExperimentBase):
                     recon = recon * 2 - 1
             return recon
         else:
-            zs_m, _ = self.generator.mask(encoding)
-            return zs_m
+            zs_m, _ = self.generator.mask(encoding, detach=detach)
+            return self.generator.unsplit_encoding(zs_m)
 
     def log_recons(self, x: Tensor, itr: int, prefix: str | None = None) -> None:
         """Log reconstructed images."""
