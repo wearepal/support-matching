@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from __future__ import annotations
 
 from fdm.models import AutoEncoder, EncodingSize, Vae
 from shared.configs import Config
@@ -10,8 +10,8 @@ def build_ae(
     cfg: Config,
     encoder,
     decoder,
-    encoding_size: Optional[EncodingSize],
-    feature_group_slices: Optional[Dict[str, List[slice]]],
+    encoding_size: EncodingSize | None,
+    feature_group_slices: dict[str, list[slice]] | None,
 ) -> AutoEncoder:
     optimizer_args = {"lr": cfg.fdm.lr, "weight_decay": cfg.fdm.weight_decay}
     model: AutoEncoder

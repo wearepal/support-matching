@@ -17,10 +17,10 @@ def build_ae(
     cfg: Config,
     input_shape: Tuple[int, ...],
     feature_group_slices: Optional[Dict[str, List[slice]]],
-) -> Tuple[AutoEncoder, Tuple[int, ...]]:
+) -> Tuple[AutoEncoder, int]:
     is_image_data = len(input_shape) > 2
     variational = cfg.clust.encoder == EncoderType.vae
-    enc_shape: Tuple[int, ...]
+    enc_dim: int
     if is_image_data:
         decoding_dim = (
             input_shape[0] * 256 if cfg.enc.recon_loss == ReconstructionLoss.ce else input_shape[0]
@@ -29,7 +29,7 @@ def build_ae(
         decoder_out_act = None
         # else:
         #     decoder_out_act = nn.Sigmoid() if cfg.enc.dataset == "cmnist" else nn.Tanh()
-        encoder, decoder, enc_shape = conv_autoencoder(
+        encoder, decoder, enc_dim = conv_autoencoder(
             input_shape,
             cfg.enc.init_chans,
             encoding_dim=cfg.enc.out_dim,
@@ -39,7 +39,7 @@ def build_ae(
             variational=variational,
         )
     else:
-        encoder, decoder, enc_shape = fc_autoencoder(
+        encoder, decoder, enc_dim = fc_autoencoder(
             input_shape,
             cfg.enc.init_chans,
             encoding_dim=cfg.enc.out_dim,
@@ -95,4 +95,4 @@ def build_ae(
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_args,
         )
-    return generator, enc_shape
+    return generator, enc_dim
