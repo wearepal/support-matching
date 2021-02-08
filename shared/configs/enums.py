@@ -13,6 +13,7 @@ __all__ = [
     "QuantizationLevel",
     "ReconstructionLoss",
     "VaeStd",
+    "ZsTransform",
 ]
 
 
@@ -95,6 +96,13 @@ class DiscriminatorLoss(Enum):
     wasserstein = auto()
     logistic_ns = auto()
     logistic = auto()
+
+
+class ZsTransform(Enum):
+    """How to transform the z_s partition."""
+
+    none = auto()
+    round_ste = auto()
 
 
 class QuantizationLevel(Enum):

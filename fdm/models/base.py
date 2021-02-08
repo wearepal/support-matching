@@ -2,10 +2,11 @@ from typing import Any, Dict, NamedTuple, Optional
 
 from torch import Tensor
 from torch.cuda.amp.grad_scaler import GradScaler
+import torch.distributions as td
 import torch.nn as nn
 from torch.optim import Adam
 
-__all__ = ["ModelBase", "EncodingSize", "SplitEncoding", "Reconstructions"]
+__all__ = ["ModelBase", "EncodingSize", "SplitDistributions", "SplitEncoding", "Reconstructions"]
 
 
 class EncodingSize(NamedTuple):
@@ -16,6 +17,11 @@ class EncodingSize(NamedTuple):
 class SplitEncoding(NamedTuple):
     zs: Tensor
     zy: Tensor
+
+
+class SplitDistributions(NamedTuple):
+    zs: td.Distribution
+    zy: td.Distribution
 
 
 class Reconstructions(NamedTuple):

@@ -29,6 +29,7 @@ def build_ae(
             encoder=encoder,
             decoder=decoder,
             encoding_size=encoding_size,
+            zs_transform=cfg.fdm.zs_transform,
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_args,
         )
