@@ -258,17 +258,17 @@ class Experiment(ExperimentBase):
                 total_loss += disc_loss
                 logging_dict["Loss Discriminator"] = disc_loss
 
-            # this is a pretty cheap masking operation, so it's okay if it's not used
-            enc_no_s, enc_no_y = self.generator.mask(encoding_t, random=False)
+            # this is a pretty cheap splitting operation, so it's okay if it's not used
+            zs_t, zy_t = self.generator.split_encoding(encoding_t)
             if self.args.pred_y_weight > 0:
                 # predictor is on encodings; predict y from the part that is invariant to s
-                pred_y_loss, pred_y_acc = self.predictor_y.routine(enc_no_s, tr.y)
+                pred_y_loss, pred_y_acc = self.predictor_y.routine(zy_t, tr.y)
                 pred_y_loss *= self.args.pred_y_weight
                 logging_dict["Loss Predictor y"] = pred_y_loss.item()
                 logging_dict["Accuracy Predictor y"] = pred_y_acc
                 total_loss += pred_y_loss
             if self.args.pred_s_weight > 0:
-                pred_s_loss, pred_s_acc = self.predictor_s.routine(enc_no_y, tr.s)
+                pred_s_loss, pred_s_acc = self.predictor_s.routine(zs_t, tr.s)
                 pred_s_loss *= self.args.pred_s_weight
                 logging_dict["Loss Predictor s"] = pred_s_loss.item()
                 logging_dict["Accuracy Predictor s"] = pred_s_acc
