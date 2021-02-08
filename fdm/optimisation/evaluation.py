@@ -147,7 +147,7 @@ def fit_classifier(
         train_data,
         test_data=test_data,
         epochs=cfg.fdm.eval_epochs,
-        device=cfg.misc.device,
+        device=torch.device(cfg.misc.device),
         pred_s=pred_s,
     )
 
@@ -257,11 +257,12 @@ def encode_dataset(
     data_loader = DataLoader(
         data, batch_size=cfg.fdm.encode_batch_size, pin_memory=True, shuffle=False, num_workers=0
     )
+    device = torch.device(cfg.misc.device)
 
     with torch.set_grad_enabled(False):
         for x, s, y in tqdm(data_loader):
 
-            x = x.to(cfg.misc.device, non_blocking=True)
+            x = x.to(device, non_blocking=True)
             all_s.append(s)
             all_y.append(y)
 
@@ -283,7 +284,8 @@ def encode_dataset(
             else:
                 zs_m, zy_m = generator.mask(enc)
                 # `zs_m` has zs zeroed out
-                x_m = zs_m if invariant_to == "s" else zy_m
+                z_m = zs_m if invariant_to == "s" else zy_m
+                x_m = generator.unsplit_encoding(z_m)
 
             all_x_m.append(x_m.detach().cpu())
 
