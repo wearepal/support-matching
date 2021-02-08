@@ -38,7 +38,7 @@ def conv_autoencoder(
     decoding_dim,
     variational: bool,
     decoder_out_act: Optional[nn.Module] = None,
-) -> Tuple[nn.Sequential, nn.Sequential, Tuple[int, ...]]:
+) -> Tuple[nn.Sequential, nn.Sequential, int]:
     encoder: List[nn.Module] = []
     decoder: List[nn.Module] = []
     c_in, height, width = input_shape
@@ -84,9 +84,7 @@ def conv_autoencoder(
     encoder = nn.Sequential(*encoder)
     decoder = nn.Sequential(*decoder)
 
-    enc_shape = (encoder_out_dim,)
-
-    return encoder, decoder, enc_shape
+    return encoder, decoder, encoder_out_dim
 
 
 def _linear_block(in_channels: int, out_channels: int) -> nn.Sequential:
@@ -99,7 +97,7 @@ def fc_autoencoder(
     levels: int,
     encoding_dim: int,
     variational: bool,
-) -> Tuple[nn.Sequential, nn.Sequential, Tuple[int]]:
+) -> Tuple[nn.Sequential, nn.Sequential, int]:
     encoder = []
     decoder = []
 
@@ -124,6 +122,4 @@ def fc_autoencoder(
     encoder = nn.Sequential(*encoder)
     decoder = nn.Sequential(*decoder)
 
-    enc_shape = (encoding_dim,)
-
-    return encoder, decoder, enc_shape
+    return encoder, decoder, encoding_dim

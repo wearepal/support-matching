@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Optional, Tuple, Union, overload
+from __future__ import annotations
+from typing import Any, overload
 
 import torch
 from torch import Tensor
@@ -23,10 +24,9 @@ class AutoEncoder(nn.Module):
         self,
         encoder: nn.Module,
         decoder: nn.Module,
-        encoding_size: Optional[EncodingSize],
-        use_amp: bool = True,
-        feature_group_slices: Optional[Dict[str, List[slice]]] = None,
-        optimizer_kwargs: Optional[Dict[str, Any]] = None,
+        encoding_size: EncodingSize | None,
+        feature_group_slices: dict[str, list[slice]] | None = None,
+        optimizer_kwargs: dict[str, Any] | None = None,
     ):
         super(AutoEncoder, self).__init__()
 
@@ -34,7 +34,6 @@ class AutoEncoder(nn.Module):
         self.decoder: ModelBase = ModelBase(decoder, optimizer_kwargs=optimizer_kwargs)
         self.encoding_size = encoding_size
         self.feature_group_slices = feature_group_slices
-        self.use_amp = use_amp
 
     def encode(self, inputs: Tensor, stochastic: bool = False) -> Tensor:
         del stochastic
@@ -89,7 +88,7 @@ class AutoEncoder(nn.Module):
         self.encoder.zero_grad()
         self.decoder.zero_grad()
 
-    def step(self, grad_scaler: Optional[GradScaler] = None):
+    def step(self, grad_scaler: GradScaler | None = None):
         self.encoder.step(grad_scaler=grad_scaler)
         self.decoder.step(grad_scaler=grad_scaler)
 
@@ -131,7 +130,7 @@ class AutoEncoder(nn.Module):
 
     def routine(
         self, x: Tensor, recon_loss_fn, kl_weight: float
-    ) -> Tuple[Tensor, Tensor, Dict[str, float]]:
+    ) -> tuple[Tensor, Tensor, dict[str, float]]:
         encoding = self.encode(x)
 
         recon_all = self.decode(encoding)
@@ -147,10 +146,10 @@ class Vae(AutoEncoder):
         self,
         encoder: nn.Module,
         decoder: nn.Module,
-        encoding_size: Optional[EncodingSize],
+        encoding_size: EncodingSize | None,
         vae_std_tform: VaeStd,
-        feature_group_slices: Optional[Dict[str, List[slice]]] = None,
-        optimizer_kwargs: Optional[Dict[str, Any]] = None,
+        feature_group_slices: dict[str, list[slice]] | None = None,
+        optimizer_kwargs: dict[str, Any] | None = None,
     ):
         super().__init__(
             encoder=encoder,

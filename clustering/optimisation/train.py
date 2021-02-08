@@ -379,9 +379,9 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
 
     # ================================= encoder =================================
     encoder: Encoder
-    enc_shape: tuple[int, ...]
+    enc_dim: int
     if args.encoder in (EncoderType.ae, EncoderType.vae):
-        encoder, enc_shape = build_ae(cfg, input_shape, feature_group_slices)
+        encoder, enc_dim = build_ae(cfg, input_shape, feature_group_slices)
     else:
         if len(input_shape) < 2:
             raise ValueError("RotNet can only be applied to image data.")
@@ -390,10 +390,10 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         net = resnet18(**enc_kwargs) if isinstance(data, CmnistConfig) else resnet50(**enc_kwargs)
 
         encoder = SelfSupervised(model=net, num_classes=4, optimizer_kwargs=enc_optimizer_kwargs)
-        enc_shape = (512,)
+        enc_dim = 512
     encoder.to(device)
 
-    LOGGER.info(f"Encoding shape: {enc_shape}")
+    LOGGER.info(f"Encoding shape: {enc_dim}")
 
     enc_path: Path
     if args.enc_path:
@@ -460,7 +460,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     # ================================= classifier =================================
     clf_optimizer_kwargs = {"lr": args.lr, "weight_decay": args.weight_decay}
     clf_fn = FcNet(hidden_dims=args.cl_hidden_dims)
-    clf_input_shape = (prod(enc_shape),)  # FcNet first flattens the input
+    clf_input_shape = (enc_dim,)  # FcNet first flattens the input
 
     classifier = build_classifier(
         input_shape=clf_input_shape,
