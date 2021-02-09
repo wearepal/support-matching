@@ -141,10 +141,10 @@ class Experiment(ExperimentBase):
         # wandb_log(self.misc, logging_dict, step=itr)
 
         # Log images
-        if itr % self.args.log_freq == 0:
-            with torch.no_grad():
-                self.log_recons(x=tr.x, itr=itr, prefix="train")
-                self.log_recons(x=x_c, itr=itr, prefix="context")
+        # if itr % self.args.log_freq == 0:
+        #     with torch.no_grad():
+        #         self.log_recons(x=tr.x, itr=itr, prefix="train")
+        #         self.log_recons(x=x_c, itr=itr, prefix="context")
         return logging_dict
 
     def update_disc(self, x_c: Tensor, x_t: Tensor) -> tuple[Tensor, dict[str, float]]:
