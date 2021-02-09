@@ -19,7 +19,8 @@ python run_dis.py -m \
     fdm.batch_size=128 \
     fdm.bag_size=4 \
     fdm.double_adv_loss=False \
-    misc.exp_group='agg-${fdm.aggregator_type}.upd-${fdm.num_disc_updates}.preds-${fdm.pred_s_weight}.zst-${fdm.zs_transform}.bs-${fdm.batch_size}.bg-${fdm.bag_size}' \
+    misc.exp_group="winner" \
     misc.seed="range(0,30)" \
     hydra/launcher=ray_0.5gpus \
     "$@"
+    # misc.exp_group='agg-${fdm.aggregator_type}.upd-${fdm.num_disc_updates}.preds-${fdm.pred_s_weight}.zst-${fdm.zs_transform}.bs-${fdm.batch_size}.bg-${fdm.bag_size}' \
