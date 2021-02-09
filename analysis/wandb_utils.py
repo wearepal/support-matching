@@ -14,6 +14,7 @@ __all__ = ["Metrics", "load_data", "plot"]
 
 class Metrics(Enum):
     acc = auto()
+    hgr = auto()  # Renyi correlation
     # ratios
     pr = auto()
     tpr = auto()
@@ -26,6 +27,7 @@ class Metrics(Enum):
 
 METRICS_COL_NAMES: Final = {
     Metrics.acc: lambda s, cl: f"Accuracy ({cl})",
+    Metrics.hgr: lambda s, cl: f"Renyi preds and s ({cl})",
     Metrics.pr: lambda s, cl: f"prob_pos_{s}_0.0÷{s}_1.0 ({cl})",
     Metrics.tpr: lambda s, cl: f"TPR_{s}_0.0÷{s}_1.0 ({cl})",
     Metrics.tnr: lambda s, cl: f"TNR_{s}_0.0÷{s}_1.0 ({cl})",
@@ -37,6 +39,7 @@ METRICS_COL_NAMES: Final = {
 METRICS_RENAMES: Final = {
     Metrics.clust_acc: "Cluster. Acc. $\\rightarrow$",
     Metrics.acc: "Accuracy $\\rightarrow$",
+    Metrics.hgr: "HGR $\\leftarrow$",
     Metrics.pr: "PR ratio $\\rightarrow 1.0 \\leftarrow$",
     Metrics.tpr: "TPR ratio $\\rightarrow 1.0 \\leftarrow$",
     Metrics.tnr: "TNR ratio $\\rightarrow 1.0 \\leftarrow$",

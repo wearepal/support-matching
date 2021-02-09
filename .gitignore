@@ -122,4 +122,5 @@ dmypy.json
 /outputs/
 /multirun/
 /experiments/
+/local_logging/
 *.pdf
