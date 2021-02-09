@@ -138,7 +138,7 @@ class Experiment(ExperimentBase):
         x_c, tr = self.get_batch(context_data_itr=context_data_itr, train_data_itr=train_data_itr)
         _, logging_dict = self.update(x_c=x_c, tr=tr, warmup=warmup)
 
-        wandb_log(self.misc, logging_dict, step=itr)
+        # wandb_log(self.misc, logging_dict, step=itr)
 
         # Log images
         if itr % self.args.log_freq == 0:

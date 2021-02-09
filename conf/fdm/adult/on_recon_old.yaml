@@ -1,6 +1,8 @@
-batch_size: 1000
 aggregator_type: none
+batch_size: 1
+bag_size: 1000
 disc_hidden_dims: [32]
+double_adv_loss: false
 eval_on_recon: true
 iters: 1000
 kl_weight: 0
