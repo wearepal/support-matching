@@ -9,7 +9,7 @@ setup(
     python_requires=">=3.7",
     package_data={"clustering": ["py.typed"], "fdm": ["py.typed"], "shared": ["py.typed"]},
     install_requires=[
-        "ethicml",
+        "EthicML == 0.2.0",
         "GitPython >= 2.1.11",
         "gitpython",
         "hydra-core == 1.1.0.dev3",
