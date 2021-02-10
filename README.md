@@ -1,4 +1,4 @@
-# Fair distribution matching
+# Learning with Perfect Bags
 
 Requires Python 3.7.
 
@@ -19,12 +19,12 @@ The `compare.sh` script runs all the variants of our method.
 
 This dataset is included in the repository.
 
-### Partial outcome
+### Subgroup bias
 ```
 bash scripts/compare.sh data=adult/gender bias=adult/partial_outcome enc=adult fdm=adult/on_recon_old clust=adult fdm.eval_epochs=60
 ```
 
-### Missing demographic
+### Missing subgroup
 ```
 bash scripts/compare.sh data=adult/gender bias=adult/missing_demo enc=adult fdm=adult/on_recon_old clust=adult fdm.eval_epochs=60
 ```
@@ -35,17 +35,26 @@ This dataset will be downloaded automatically.
 
 ### 2 digits
 
-#### Partial outcome
+#### Subgroup bias
 ```
-bash scripts/compare.sh data=cmnist/2dig bias=cmnist/2dig/mildly_subs enc=mnist fdm=cmnist/fallen_sun clust=vague_spaceship_improved
+bash scripts/compare.sh data=cmnist/2dig data.context_pcnt=0.5 bias=cmnist/2dig/subsampled enc=mnist fdm=cmnist/simplified clust=vague_spaceship_improved
 ```
 
-#### Missing demographic
+#### Missing subgroup
 ```
-bash scripts/compare.sh data=cmnist/2dig bias=cmnist/2dig/mildly_subs_miss_s enc=mnist fdm=cmnist/fallen_sun clust=vague_spaceship_improved
+bash scripts/compare.sh data=cmnist/2dig bias=cmnist/2dig/mildly_subs_miss_s enc=mnist fdm=cmnist/kvq_3discs clust=vague_spaceship_improved
 ```
 
 ### 3 digits
 ```
-bash scripts/compare.sh data=cmnist/3dig bias=cmnist/3dig/4miss enc=mnist fdm=cmnist/fallen_sun clust=vague_spaceship_improved fdm.iters=12000 fdm.zs_dim=5
+bash scripts/compare.sh data=cmnist/3dig bias=cmnist/3dig/4miss enc=mnist fdm=cmnist/kvq_3discs clust=vague_spaceship_improved fdm.iters=12000 fdm.zs_dim=2
+```
+
+## CelebA
+
+The code will try to download this, but the download quota is often saturated,
+so it might not work immediately.
+
+```
+bash scripts/compare.sh data=celeba/gender_smiling bias=celeba/no_smiling_females
 ```
