@@ -13,7 +13,7 @@ lr: 1.e-3
 num_disc_updates: 3
 num_discs: 1
 oversample: true
-pred_s_weight: 0.0
+pred_s_weight: 1.0
 pred_y_weight: 1.0
 train_on_recon: false
 vae: false
