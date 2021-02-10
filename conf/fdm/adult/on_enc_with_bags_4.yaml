@@ -1,7 +1,7 @@
-aggregator_type: kvq
-bag_size: 8
+aggregator_type: gated
+bag_size: 4
 balanced_eval: true
-batch_size: 64
+batch_size: 128
 disc_hidden_dims: [32]
 double_adv_loss: false
 eval_epochs: 60
@@ -13,8 +13,8 @@ lr: 1.e-3
 num_disc_updates: 3
 num_discs: 1
 oversample: true
-pred_s_weight: 1.0
-pred_y_weight: 1.0
+pred_s_weight: 0.0
+pred_y_weight: 0.0
 train_on_recon: false
 vae: false
 val_freq: 500
