@@ -32,6 +32,7 @@ from shared.configs import (
     DiscriminatorMethod,
     EncoderConfig,
     FdmConfig,
+    ImageDatasetConfig,
     MiscConfig,
     ReconstructionLoss,
 )
@@ -141,7 +142,7 @@ class Experiment(ExperimentBase):
         wandb_log(self.misc, logging_dict, step=itr)
 
         # Log images
-        if itr % self.args.log_freq == 0:
+        if itr % self.args.log_freq == 0 and isinstance(self.data, ImageDatasetConfig):
             with torch.no_grad():
                 self.log_recons(x=tr.x, itr=itr, prefix="train")
                 self.log_recons(x=x_c, itr=itr, prefix="context")
