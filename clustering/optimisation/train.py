@@ -260,8 +260,9 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     misc = cfg.misc
 
     # ==== current git commit ====
-    repo = git.Repo(search_parent_directories=True)
-    sha = repo.head.object.hexsha
+    # repo = git.Repo(search_parent_directories=True)
+    # sha = repo.head.object.hexsha
+    sha = ""  # this doesn't work with ray
 
     use_gpu = torch.cuda.is_available() and misc.gpu >= 0
     random_seed(misc.seed, use_gpu)
