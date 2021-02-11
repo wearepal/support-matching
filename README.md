@@ -21,12 +21,24 @@ This dataset is included in the repository.
 
 ### Subgroup bias
 ```
-bash scripts/compare.sh data=adult/gender bias=adult/partial_outcome enc=adult fdm=adult/on_recon_old clust=adult fdm.eval_epochs=60
+bash scripts/compare.sh data=adult/gender bias=adult/partial_outcome enc=adult fdm=adult/on_enc_with_bags clust=adult
+```
+
+For the "no-cluster" baseline, the bag size needs to be changed:
+
+```
+python run_dis.py fdm.balanced_context=false misc.log_method=no-cluster-fdm data=adult/gender bias=adult/partial_outcome enc=adult fdm=adult/on_enc_with_bags clust=adult fdm.bag_size=32 fdm.batch_size=16
 ```
 
 ### Missing subgroup
 ```
-bash scripts/compare.sh data=adult/gender bias=adult/missing_demo enc=adult fdm=adult/on_recon_old clust=adult fdm.eval_epochs=60
+bash scripts/compare.sh data=adult/gender bias=adult/missing_demo enc=adult fdm=adult/on_enc_with_bags clust=adult
+```
+
+For the "no-cluster" baseline, the bag size needs to be changed:
+
+```
+python run_dis.py fdm.balanced_context=false misc.log_method=no-cluster-fdm data=adult/gender bias=adult/missing_demo enc=adult fdm=adult/on_enc_with_bags clust=adult fdm.bag_size=32 fdm.batch_size=16
 ```
 
 ## Colored MNIST
