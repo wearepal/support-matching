@@ -98,8 +98,8 @@ class LfF(Classifier):
                 num_workers=train_loader.num_workers,
             )
 
-        sample_loss_ema_b = EMA(torch.LongTensor(y), alpha=0.7, device=device)
-        sample_loss_ema_d = EMA(torch.LongTensor(y), alpha=0.7, device=device)
+        sample_loss_ema_b = EMA(y.long(), alpha=0.7, device=device)
+        sample_loss_ema_d = EMA(y.long(), alpha=0.7, device=device)
 
         LOGGER.info("Training classifier...")
         pbar = trange(epochs)
@@ -131,7 +131,7 @@ class LfF(Classifier):
 
                 # re-weighting based on loss value / generalized CE for biased model
                 loss_weight = loss_b / (loss_b + loss_d + 1e-8)
-                loss_b_update = self.biased_criterion(logit_b, y)
+                loss_b_update = self.biased_criterion(logit_b, y.long())
                 loss_d_update = self.apply_criterion(logit_d, y) * loss_weight.to(device)
                 loss = loss_b_update.mean() + loss_d_update.mean()
 
