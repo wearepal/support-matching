@@ -47,7 +47,7 @@ LOGGER = logging.getLogger("BASELINE")
 
 
 class BaselineM(Enum):
-    cnn = auto()
+    erm = auto()
     dro = auto()
     gdro = auto()
     lff = auto()
@@ -73,7 +73,7 @@ class BaselineArgs:
     c: float = 0.0
 
     # Misc settings
-    method: BaselineM = BaselineM.cnn
+    method: BaselineM = BaselineM.erm
     oversample: bool = True
 
 

@@ -4,7 +4,7 @@ defaults:
   - data: cmnist/2dig
   - bias: cmnist/no_bias
   - misc: baselines
-  - baseline: cnn
+  - baseline: erm
 
   # hydra config
   - override hydra/job_logging: custom
