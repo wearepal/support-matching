@@ -97,6 +97,7 @@ def log_attention(
     images = images[:nsamples].cpu()
     attention_weights = attention_weights[:nsamples]
     padding = attention_weights.view(nsamples, -1, 1, 1, 1)
+    breakpoint()
 
     w_padding = padding.expand(-1, -1, 3, border_width, images.size(-1)).cpu()
     images = torch.cat([w_padding, images, w_padding], dim=-2)
