@@ -79,7 +79,7 @@ class BaselineArgs:
 
 @dataclass
 class Config(BaseConfig):
-    baselines: BaselineArgs = MISSING
+    baseline: BaselineArgs = MISSING
 
 
 def get_instance_weights(dataset: Dataset, batch_size: int) -> TensorDataset:
@@ -106,7 +106,7 @@ def run_baseline(cfg: Config) -> None:
     cfg_dict = {}
     for name, settings in [
         ("bias", cfg.bias),
-        ("baselines", cfg.baselines),
+        ("baseline", cfg.baseline),
         ("data", cfg.data),
         ("misc", cfg.misc),
     ]:
@@ -115,7 +115,7 @@ def run_baseline(cfg: Config) -> None:
         as_list = sorted(f"{k}: {v}" for k, v in as_dict.items())
         LOGGER.info(f"{name}: " + "{" + ", ".join(as_list) + "}")
     cfg_dict = flatten_dict(cfg_dict)
-    args = cfg.baselines
+    args = cfg.baseline
     use_gpu = torch.cuda.is_available() and not cfg.misc.gpu < 0  # type: ignore
     random_seed(cfg.misc.seed, use_gpu)
 
@@ -293,7 +293,7 @@ cs.store(name="baseline_schema", node=Config)
 register_configs()
 
 
-@hydra.main(config_path="conf", config_name="baseline")
+@hydra.main(config_path="conf", config_name="baselines")
 def main(hydra_config: DictConfig) -> None:
     cfg = Config.from_hydra(hydra_config)
     run_baseline(cfg=cfg)
