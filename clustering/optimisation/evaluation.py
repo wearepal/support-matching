@@ -34,7 +34,6 @@ def encode_dataset(
             all_s.append(s)
             all_y.append(y)
 
-            # if the following line throws an error, it's Myles' fault
             enc = generator.encode(x, stochastic=False)
             all_enc.append(enc.detach().cpu())
 
