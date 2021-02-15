@@ -194,6 +194,7 @@ class ClusterConfig:
     log_freq: int = 50
     feat_attr: bool = False
     cluster: ClusteringLabel = ClusteringLabel.both
+    num_clusters: Optional[int] = None  # this only has an effect if `cluster` is set to `manual`
     with_supervision: bool = True
 
     # Encoder settings
@@ -236,6 +237,15 @@ class ClusterConfig:
     labeler_hidden_dims: List[int] = field(default_factory=lambda: [100, 100])
     labeler_epochs: int = 100
     labeler_wandb: bool = False
+
+    def __post_init__(self) -> None:
+        if self.cluster is ClusteringLabel.manual:
+            if self.num_clusters is None:
+                raise ValueError("if 'cluster' is set to 'manual', provide number of clusters")
+            if self.use_multi_head:
+                raise ValueError("multi head does not make sense with cluster=manual")
+        elif self.num_clusters is not None:
+            raise ValueError("if 'cluster' isn't set to 'manual', don't provide number of clusters")
 
 
 @dataclass

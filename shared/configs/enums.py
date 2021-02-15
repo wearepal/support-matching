@@ -23,6 +23,7 @@ class ClusteringLabel(Enum):
     s = auto()
     y = auto()
     both = auto()
+    manual = auto()
 
 
 class EncoderType(Enum):

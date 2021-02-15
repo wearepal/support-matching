@@ -357,25 +357,32 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     input_shape = get_data_dim(context_loader)
     s_count = datasets.s_dim if datasets.s_dim > 1 else 2
     y_count = datasets.y_dim if datasets.y_dim > 1 else 2
-    if args.cluster == ClusteringLabel.s:
+    if args.cluster is ClusteringLabel.s:
         num_clusters = s_count
-    elif args.cluster == ClusteringLabel.y:
+    elif args.cluster is ClusteringLabel.y:
         num_clusters = y_count
-    else:
+    elif args.cluster is ClusteringLabel.both:
         num_clusters = s_count * y_count
-    LOGGER.info(
-        f"Number of clusters: {num_clusters}, accuracy computed with respect to {args.cluster.name}"
-    )
-    mappings: list[str] = []
-    for i in range(num_clusters):
-        if args.cluster == ClusteringLabel.s:
-            mappings.append(f"{i}: s = {i}")
-        elif args.cluster == ClusteringLabel.y:
-            mappings.append(f"{i}: y = {i}")
-        else:
-            # class_id = y * s_count + s
-            mappings.append(f"{i}: (y = {i // s_count}, s = {i % s_count})")
-    LOGGER.info("class IDs:\n\t" + "\n\t".join(mappings))
+    elif args.cluster is ClusteringLabel.manual:
+        assert args.num_clusters is not None
+        num_clusters = args.num_clusters
+    else:
+        raise ValueError("unknown clustering target")
+
+    if args.cluster is not ClusteringLabel.manual:
+        LOGGER.info(
+            f"Number of clusters: {num_clusters}, accuracy computed with respect to {args.cluster.name}"
+        )
+        mappings: list[str] = []
+        for i in range(num_clusters):
+            if args.cluster is ClusteringLabel.s:
+                mappings.append(f"{i}: s = {i}")
+            elif args.cluster is ClusteringLabel.y:
+                mappings.append(f"{i}: y = {i}")
+            else:
+                # class_id = y * s_count + s
+                mappings.append(f"{i}: (y = {i // s_count}, s = {i % s_count})")
+        LOGGER.info("class IDs:\n\t" + "\n\t".join(mappings))
     feature_group_slices = getattr(datasets.context, "feature_group_slices", None)
 
     # ================================= encoder =================================
