@@ -101,7 +101,9 @@ def cluster_metrics(
 
         conf_mat = confusion_matrix(true_class_ids, pred_class_ids, normalize="all")
         logging_dict["confusion matrix"] = f"\n{conf_mat}\n"
-        acc_per_class = confusion_matrix(true_class_ids, pred_class_ids, normalize="true").diagonal()
+        acc_per_class = confusion_matrix(
+            true_class_ids, pred_class_ids, normalize="true"
+        ).diagonal()
         assert acc_per_class.ndim == 1
         if to_cluster is ClusteringLabel.both:
             for class_id_, acc in enumerate(acc_per_class):
