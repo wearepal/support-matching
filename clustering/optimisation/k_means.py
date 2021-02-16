@@ -30,6 +30,7 @@ def train(
     context_data: Dataset,
     num_clusters: int,
     s_count: int,
+    y_count: int,
     enc_path: Path,
 ) -> ClusterResults:
     # encode the training set with the encoder
@@ -54,6 +55,7 @@ def train(
         true_class_ids=class_ids.numpy(),
         num_total=preds.size(0),
         s_count=s_count,
+        y_count=y_count,
         to_cluster=cfg.clust.cluster,
     )
     prepared = (

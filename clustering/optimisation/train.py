@@ -198,6 +198,7 @@ class Experiment(ExperimentBase):
             true_class_ids=true_class_ids,
             num_total=num_total,
             s_count=s_count,
+            y_count=y_count,
             to_cluster=to_cluster,
         )
 
@@ -439,7 +440,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     cluster_label_path = get_cluster_label_path(misc, save_dir)
     if args.method == ClusteringMethod.kmeans:
         kmeans_results = train_k_means(
-            cfg, encoder, datasets.context, num_clusters, s_count, enc_path
+            cfg, encoder, datasets.context, num_clusters, s_count, y_count, enc_path=enc_path
         )
         save_results(save_path=cluster_label_path, cluster_results=kmeans_results)
         if run is not None:
