@@ -96,9 +96,7 @@ def cluster_metrics(
     metrics["NMI"] = nmi
     ari = adjusted_rand_score(labels_true=true_class_ids, labels_pred=cluster_ids)
     metrics["ARI"] = ari
-    acc_per_class = confusion_matrix(
-        true_class_ids, pred_class_ids, normalize="true"
-    ).diagonal()
+    acc_per_class = confusion_matrix(true_class_ids, pred_class_ids, normalize="true").diagonal()
     assert acc_per_class.ndim == 1
     if to_cluster is ClusteringLabel.both:
         for class_id_, acc in enumerate(acc_per_class):
