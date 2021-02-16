@@ -4,6 +4,7 @@ from collections import defaultdict
 import logging
 from pathlib import Path
 import time
+from typing import cast
 
 import git
 from hydra.utils import to_absolute_path
@@ -170,8 +171,10 @@ class Experiment(ExperimentBase):
             num_clusters = s_count
         elif to_cluster is ClusteringLabel.y:
             num_clusters = y_count
-        else:
+        elif to_cluster is ClusteringLabel.both:
             num_clusters = s_count * y_count
+        else:
+            num_clusters = cast(int, self.args.num_clusters)
         counts = np.zeros((num_clusters, num_clusters), dtype=np.int64)
         num_total = 0
         cluster_ids: list[np.ndarray] = []
