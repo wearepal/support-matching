@@ -324,7 +324,7 @@ class Experiment(ExperimentBase):
             num_sampled_bags = ((num_blocks * rows_per_block - 1) // self.args.bag_size) + 1
             num_samples = num_sampled_bags * self.args.bag_size
 
-        sample = x[: num_samples]
+        sample = x[:num_samples]
         encoding = self.generator.encode(sample, stochastic=False)
         recon = self.generator.all_recons(encoding, mode="hard")
         recons = [recon.all, recon.zero_s, recon.just_s]

@@ -1,9 +1,11 @@
 from dataclasses import dataclass, field
+import shlex
 from typing import Dict, List, Optional, Type, TypeVar
 
 from hydra.core.config_store import ConfigStore
+from hydra.core.hydra_config import HydraConfig
 from hydra.utils import instantiate
-from omegaconf import DictConfig, MISSING
+from omegaconf import DictConfig, MISSING, OmegaConf
 import torch
 
 from .enums import (
@@ -356,6 +358,7 @@ class BaseConfig:
     """Minimum needed config to do data loading."""
 
     _target_: str = "shared.configs.BaseConfig"
+    cmd: str = ""
 
     data: DatasetConfig = MISSING
     bias: BiasConfig = MISSING
@@ -370,8 +373,15 @@ class BaseConfig:
         subconfigs = {
             k: instantiate(v, _convert_="partial")
             for k, v in hydra_config.items()
-            if k != "_target_"
+            if k not in ("_target_", "cmd")
         }
+
+        # reconstruct the python command that was used to start this program
+        internal_config = HydraConfig.get()
+        program = internal_config.job.name + ".py"
+        args = internal_config.overrides.task
+        subconfigs["cmd"] = shlex.join([program] + OmegaConf.to_container(args))
+
         return cls(**subconfigs)
 
 
