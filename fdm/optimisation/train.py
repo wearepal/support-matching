@@ -317,11 +317,12 @@ class Experiment(ExperimentBase):
         rows_per_block = 8
         num_blocks = 4
         if self.args.aggregator_type is AggregatorType.none:
+            num_sampled_bags = 0  # this is only defined here to make the linter happy
             num_samples = num_blocks * rows_per_block
         else:
             # take enough bags to have 32 samples
-            num_needed_bags = ((num_blocks * rows_per_block - 1) // self.args.bag_size) + 1
-            num_samples = num_needed_bags * self.args.bag_size
+            num_sampled_bags = ((num_blocks * rows_per_block - 1) // self.args.bag_size) + 1
+            num_samples = num_sampled_bags * self.args.bag_size
 
         sample = x[: num_samples]
         encoding = self.generator.encode(sample, stochastic=False)
@@ -365,7 +366,7 @@ class Experiment(ExperimentBase):
                 attention_weights=attention_weights,  # type: ignore
                 name="attention Weights",
                 step=itr,
-                nsamples=num_blocks,
+                nbags=num_sampled_bags,
                 ncols=ncols,
                 prefix=prefix,
             )
