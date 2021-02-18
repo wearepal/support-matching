@@ -93,9 +93,12 @@ METRICS_RENAMES: Final = {
 
 METHOD_RENAMES: Final = {
     "ranking-fdm": "Ranking",
+    "ranking-fdm-4": "Ranking",
+    "ranking-fdm-8": "Ranking (8)",
     "no-cluster-fdm": "No bal.",
     "perfect-cluster": "Perfect",
     "kmeans-fdm": "k-means",
+    "kmeans-fdm-8": "k-means (8)",
     # "baseline_cnn": "K&C",
     "baseline_cnn": "ERM",
     "baseline_erm": "ERM",
@@ -141,11 +144,15 @@ def compute_max(df: pd.DataFrame, to_aggregate: tuple[str], rename: Callable[[st
     return new_col
 
 
+def simple_concat(*dfs: pd.DataFrame) -> pd.DataFrame:
+    return pd.concat(dfs, axis="index", sort=False, ignore_index=True)
+
+
 def load_data(*csv_files: Path) -> pd.DataFrame:
     dfs = []
     for csv_file in csv_files:
         dfs.append(pd.read_csv(csv_file))
-    return pd.concat(dfs, axis="index", sort=False, ignore_index=True)
+    return simple_concat(*dfs)
 
 
 def plot(
