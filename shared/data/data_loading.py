@@ -121,7 +121,7 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
                 x = aug(x)
             if _apply_missing_s and cfg.bias.missing_s:
                 s_values = torch.tensor(
-                    [i for i in torch.arange(num_colors) if i not in cfg.bias.missing_s]
+                    [i for i in range(num_colors) if i not in cfg.bias.missing_s]
                 )
                 indexes = torch.randint_like(y, low=0, high=s_values.size(0))
                 s = s_values[indexes]
