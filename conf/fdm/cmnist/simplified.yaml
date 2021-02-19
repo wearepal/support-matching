@@ -2,9 +2,10 @@ defaults:
     # the "@_here_" is needed to move "fallen_sun" out of the "cmnist" subdir
     - cmnist/fallen_sun@_here_
 
-batch_size: 1
-bag_size: 256
-iters: 8000
 aggregator_type: gated
-num_discs: 1
+bag_size: 256
+batch_size: 1
 disc_reset_prob: 0.0
+iters: 8000
+num_discs: 1
+zs_transform: none
