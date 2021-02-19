@@ -94,10 +94,12 @@ METRICS_RENAMES: Final = {
 METHOD_RENAMES: Final = {
     "ranking-fdm": "Ranking",
     "ranking-fdm-4": "Ranking",
+    "ranking-fdm-6": "Ranking (6)",
     "ranking-fdm-8": "Ranking (8)",
     "no-cluster-fdm": "No bal.",
     "perfect-cluster": "Perfect",
     "kmeans-fdm": "k-means",
+    "kmeans-fdm-6": "k-means (6)",
     "kmeans-fdm-8": "k-means (8)",
     # "baseline_cnn": "K&C",
     "baseline_cnn": "ERM",
@@ -211,7 +213,7 @@ def plot(
             filename = f"{file_prefix}_{filename}"
         # sns.set_style("whitegrid")
         fig, plot = plt.subplots(figsize=fig_dim, dpi=300, facecolor="white")
-        sns.boxplot(y="Method", x=col_renames[column_to_plot], data=df, ax=plot, whis=3.0)
+        sns.boxplot(y="Method", x=col_renames[column_to_plot], data=df, ax=plot, whis=8.0)
         hatches = ["/", "\\", ".", "x", "/", "\\", ".", "x"]
         for hatch, patch in zip(hatches, plot.artists):
             # patch.set_hatch(hatch)
