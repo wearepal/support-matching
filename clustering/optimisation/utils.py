@@ -82,6 +82,7 @@ def cluster_metrics(
     true_class_ids: np.ndarray,
     num_total: int,
     s_count: int,
+    y_count: int,
     to_cluster: ClusteringLabel,
 ) -> tuple[float, dict[str, float], dict[str, str | float]]:
     # find best assignment for cluster to classes
@@ -90,15 +91,18 @@ def cluster_metrics(
     pred_class_ids = best_ass[cluster_ids]  # use the best assignment to get the class IDs
 
     conf_mat = confusion_matrix(true_class_ids, pred_class_ids, normalize="all")
+    if to_cluster is ClusteringLabel.manual:
+        conf_mat = conf_mat[: s_count * y_count]
     logging_dict["confusion matrix"] = f"\n{conf_mat}\n"
 
-    nmi = normalized_mutual_info_score(labels_true=true_class_ids, labels_pred=pred_class_ids)
+    nmi = normalized_mutual_info_score(labels_true=true_class_ids, labels_pred=cluster_ids)
     metrics["NMI"] = nmi
-    ari = adjusted_rand_score(labels_true=true_class_ids, labels_pred=pred_class_ids)
+    ari = adjusted_rand_score(labels_true=true_class_ids, labels_pred=cluster_ids)
     metrics["ARI"] = ari
     acc_per_class = confusion_matrix(true_class_ids, pred_class_ids, normalize="true").diagonal()
     assert acc_per_class.ndim == 1
-    if to_cluster == ClusteringLabel.both:
+    if to_cluster in (ClusteringLabel.both, ClusteringLabel.manual):
+        acc_per_class = acc_per_class[: s_count * y_count]
         for class_id_, acc in enumerate(acc_per_class):
             y_ = class_id_to_label(class_id_, s_count=s_count, label="y")
             s_ = class_id_to_label(class_id_, s_count=s_count, label="s")

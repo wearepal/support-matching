@@ -1,9 +1,11 @@
 from dataclasses import dataclass, field
+import shlex
 from typing import Dict, List, Optional, Type, TypeVar
 
 from hydra.core.config_store import ConfigStore
+from hydra.core.hydra_config import HydraConfig
 from hydra.utils import instantiate
-from omegaconf import DictConfig, MISSING
+from omegaconf import DictConfig, MISSING, OmegaConf
 import torch
 
 from .enums import (
@@ -194,6 +196,7 @@ class ClusterConfig:
     log_freq: int = 50
     feat_attr: bool = False
     cluster: ClusteringLabel = ClusteringLabel.both
+    num_clusters: Optional[int] = None  # this only has an effect if `cluster` is set to `manual`
     with_supervision: bool = True
 
     # Encoder settings
@@ -236,6 +239,15 @@ class ClusterConfig:
     labeler_hidden_dims: List[int] = field(default_factory=lambda: [100, 100])
     labeler_epochs: int = 100
     labeler_wandb: bool = False
+
+    def __post_init__(self) -> None:
+        if self.cluster is ClusteringLabel.manual:
+            if self.num_clusters is None:
+                raise ValueError("if 'cluster' is set to 'manual', provide number of clusters")
+            if self.use_multi_head:
+                raise ValueError("multi head does not make sense with cluster=manual")
+        elif self.num_clusters is not None:
+            raise ValueError("if 'cluster' isn't set to 'manual', don't provide number of clusters")
 
 
 @dataclass
@@ -346,6 +358,7 @@ class BaseConfig:
     """Minimum needed config to do data loading."""
 
     _target_: str = "shared.configs.BaseConfig"
+    cmd: str = ""
 
     data: DatasetConfig = MISSING
     bias: BiasConfig = MISSING
@@ -360,8 +373,15 @@ class BaseConfig:
         subconfigs = {
             k: instantiate(v, _convert_="partial")
             for k, v in hydra_config.items()
-            if k != "_target_"
+            if k not in ("_target_", "cmd")
         }
+
+        # reconstruct the python command that was used to start this program
+        internal_config = HydraConfig.get()
+        program = internal_config.job.name + ".py"
+        args = internal_config.overrides.task
+        subconfigs["cmd"] = shlex.join([program] + OmegaConf.to_container(args))
+
         return cls(**subconfigs)
 
 

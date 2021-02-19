@@ -313,9 +313,18 @@ class Experiment(ExperimentBase):
 
     def log_recons(self, x: Tensor, itr: int, prefix: str | None = None) -> None:
         """Log reconstructed images."""
-        rows_per_block = min(x.size(0), 8)
-        num_blocks = min(1 + (x.size(0) - 1) // 8, 4)
-        sample = x[: num_blocks * rows_per_block]
+
+        rows_per_block = 8
+        num_blocks = 4
+        if self.args.aggregator_type is AggregatorType.none:
+            num_sampled_bags = 0  # this is only defined here to make the linter happy
+            num_samples = num_blocks * rows_per_block
+        else:
+            # take enough bags to have 32 samples
+            num_sampled_bags = ((num_blocks * rows_per_block - 1) // self.args.bag_size) + 1
+            num_samples = num_sampled_bags * self.args.bag_size
+
+        sample = x[:num_samples]
         encoding = self.generator.encode(sample, stochastic=False)
         recon = self.generator.all_recons(encoding, mode="hard")
         recons = [recon.all, recon.zero_s, recon.just_s]
@@ -333,9 +342,7 @@ class Experiment(ExperimentBase):
                 to_log.append(recon_)
         ncols = len(to_log)
 
-        interleaved = torch.stack(to_log, dim=1).view(
-            ncols * num_blocks * rows_per_block, *sample.shape[1:]
-        )
+        interleaved = torch.stack(to_log, dim=1).view(ncols * num_samples, *sample.shape[1:])
 
         log_images(
             self.cfg,
@@ -359,7 +366,7 @@ class Experiment(ExperimentBase):
                 attention_weights=attention_weights,  # type: ignore
                 name="attention Weights",
                 step=itr,
-                nsamples=num_blocks,
+                nbags=num_sampled_bags,
                 ncols=ncols,
                 prefix=prefix,
             )

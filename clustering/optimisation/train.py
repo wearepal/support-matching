@@ -4,6 +4,7 @@ from collections import defaultdict
 import logging
 from pathlib import Path
 import time
+from typing import cast
 
 import git
 from hydra.utils import to_absolute_path
@@ -170,8 +171,10 @@ class Experiment(ExperimentBase):
             num_clusters = s_count
         elif to_cluster is ClusteringLabel.y:
             num_clusters = y_count
-        else:
+        elif to_cluster is ClusteringLabel.both:
             num_clusters = s_count * y_count
+        else:
+            num_clusters = cast(int, self.args.num_clusters)
         counts = np.zeros((num_clusters, num_clusters), dtype=np.int64)
         num_total = 0
         cluster_ids: list[np.ndarray] = []
@@ -195,6 +198,7 @@ class Experiment(ExperimentBase):
             true_class_ids=true_class_ids,
             num_total=num_total,
             s_count=s_count,
+            y_count=y_count,
             to_cluster=to_cluster,
         )
 
@@ -357,24 +361,34 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     input_shape = get_data_dim(context_loader)
     s_count = datasets.s_dim if datasets.s_dim > 1 else 2
     y_count = datasets.y_dim if datasets.y_dim > 1 else 2
-    if args.cluster == ClusteringLabel.s:
+    if args.cluster is ClusteringLabel.s:
         num_clusters = s_count
-    elif args.cluster == ClusteringLabel.y:
+    elif args.cluster is ClusteringLabel.y:
         num_clusters = y_count
-    else:
+    elif args.cluster is ClusteringLabel.both:
         num_clusters = s_count * y_count
+    elif args.cluster is ClusteringLabel.manual:
+        assert args.num_clusters is not None
+        if args.num_clusters < s_count * y_count:
+            raise ValueError("It is not possible to 'undercluster' right now.")
+        num_clusters = args.num_clusters
+    else:
+        raise ValueError("unknown clustering target")
+
     LOGGER.info(
         f"Number of clusters: {num_clusters}, accuracy computed with respect to {args.cluster.name}"
     )
     mappings: list[str] = []
     for i in range(num_clusters):
-        if args.cluster == ClusteringLabel.s:
+        if args.cluster is ClusteringLabel.s:
             mappings.append(f"{i}: s = {i}")
-        elif args.cluster == ClusteringLabel.y:
+        elif args.cluster is ClusteringLabel.y:
             mappings.append(f"{i}: y = {i}")
         else:
             # class_id = y * s_count + s
             mappings.append(f"{i}: (y = {i // s_count}, s = {i % s_count})")
+            if args.cluster is ClusteringLabel.manual and i + 1 == s_count * y_count:
+                break
     LOGGER.info("class IDs:\n\t" + "\n\t".join(mappings))
     feature_group_slices = getattr(datasets.context, "feature_group_slices", None)
 
@@ -429,7 +443,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     cluster_label_path = get_cluster_label_path(misc, save_dir)
     if args.method == ClusteringMethod.kmeans:
         kmeans_results = train_k_means(
-            cfg, encoder, datasets.context, num_clusters, s_count, enc_path
+            cfg, encoder, datasets.context, num_clusters, s_count, y_count, enc_path=enc_path
         )
         save_results(save_path=cluster_label_path, cluster_results=kmeans_results)
         if run is not None:

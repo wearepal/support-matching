@@ -79,7 +79,7 @@ def log_attention(
     attention_weights: Tensor,
     name: str,
     step: int,
-    nsamples: int = 4,
+    nbags: int,
     border_width: int = 3,
     ncols: int = 8,
     prefix: str | None = None,
@@ -94,9 +94,9 @@ def log_attention(
             images = 0.5 * images + 0.5
 
     images = images.view(*attention_weights.shape, *images.shape[1:])
-    images = images[:nsamples].cpu()
-    attention_weights = attention_weights[:nsamples]
-    padding = attention_weights.view(nsamples, -1, 1, 1, 1)
+    images = images[:nbags].cpu()
+    attention_weights = attention_weights[:nbags]
+    padding = attention_weights.view(nbags, -1, 1, 1, 1)
 
     w_padding = padding.expand(-1, -1, 3, border_width, images.size(-1)).cpu()
     images = torch.cat([w_padding, images, w_padding], dim=-2)
