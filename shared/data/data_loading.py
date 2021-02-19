@@ -112,24 +112,23 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
 
         def _colorize_subset(
             _subset: Tuple[Tensor, Tensor],
-            _correlation: float,
-            _decorr_op: Literal["random", "shift"],
+            _apply_missing_s: bool,
+            _correlation: float = 0.0,
         ) -> RawDataTuple:
             x, y = _subset
             x = x.unsqueeze(1).expand(-1, 3, -1, -1) / 255.0
             for aug in augs:
                 x = aug(x)
-            s = y.clone()
-            if _decorr_op == "random":  # this is for context and test set
+            if _apply_missing_s and cfg.bias.missing_s:
+                s_values = torch.tensor(
+                    [i for i in range(num_colors) if i not in cfg.bias.missing_s]
+                )
+                indexes = torch.randint_like(y, low=0, high=s_values.size(0))
+                s = s_values[indexes]
+            else:
+                s = y.clone()
                 indexes = torch.rand(s.shape) > _correlation
                 s[indexes] = torch.randint_like(s[indexes], low=0, high=num_colors)
-            elif cfg.bias.missing_s:  # this is one possibility for training set
-                s = torch.randint_like(s, low=0, high=num_colors)
-                for to_remove in cfg.bias.missing_s:
-                    s[s == to_remove] = (to_remove + 1) % num_colors
-            else:  # this is another possibility for training set
-                indexes = torch.rand(s.shape) > _correlation
-                s[indexes] = torch.fmod(s[indexes] + 1, num_colors)
             x_col = colorizer(x, s)
             return RawDataTuple(x=x_col, s=s, y=y)
 
@@ -165,23 +164,15 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
                 )
             return RawDataTuple(x=_x, s=_s, y=_y)
 
+        # if missing_s is set, the following will remove those s values
+        train_data_t = _colorize_subset(train_data, _apply_missing_s=True)
         if cfg.bias.subsample_train:
             if cfg.bias.missing_s:
                 LOGGER.info("bias.missing_s & bias.subsample_train. hope ya know what you're doing")
-                # when bias.missing_s is set, then `_colorize_subset()` uses a different path, when
-                # we set `_decorr_op` to "shift"
-                train_data_t = _colorize_subset(train_data, _correlation=0, _decorr_op="shift")
-            else:
-                # when we manually subsample the training set, we ignore color correlation
-                train_data_t = _colorize_subset(train_data, _correlation=0, _decorr_op="random")
             LOGGER.info("Subsampling training set...")
             train_data_t = _subsample_by_s_and_y(train_data_t, cfg.bias.subsample_train)
-        else:
-            train_data_t = _colorize_subset(
-                train_data, _correlation=args.color_correlation, _decorr_op="shift"
-            )
-        test_data_t = _colorize_subset(test_data, _correlation=0, _decorr_op="random")
-        context_data_t = _colorize_subset(context_data, _correlation=0, _decorr_op="random")
+        test_data_t = _colorize_subset(test_data, _apply_missing_s=False)
+        context_data_t = _colorize_subset(context_data, _apply_missing_s=False)
 
         if cfg.bias.subsample_context:
             LOGGER.info("Subsampling context set...")
