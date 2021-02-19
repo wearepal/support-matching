@@ -112,13 +112,14 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
 
         def _colorize_subset(
             _subset: Tuple[Tensor, Tensor],
+            _apply_missing_s: bool,
             _correlation: float = 0.0,
         ) -> RawDataTuple:
             x, y = _subset
             x = x.unsqueeze(1).expand(-1, 3, -1, -1) / 255.0
             for aug in augs:
                 x = aug(x)
-            if cfg.bias.missing_s:
+            if _apply_missing_s and cfg.bias.missing_s:
                 s_values = torch.tensor(
                     [i for i in torch.arange(num_colors) if i not in cfg.bias.missing_s]
                 )
@@ -164,14 +165,14 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
             return RawDataTuple(x=_x, s=_s, y=_y)
 
         # if missing_s is set, the following will remove those s values
-        train_data_t = _colorize_subset(train_data)
+        train_data_t = _colorize_subset(train_data, _apply_missing_s=True)
         if cfg.bias.subsample_train:
             if cfg.bias.missing_s:
                 LOGGER.info("bias.missing_s & bias.subsample_train. hope ya know what you're doing")
             LOGGER.info("Subsampling training set...")
             train_data_t = _subsample_by_s_and_y(train_data_t, cfg.bias.subsample_train)
-        test_data_t = _colorize_subset(test_data)
-        context_data_t = _colorize_subset(context_data)
+        test_data_t = _colorize_subset(test_data, _apply_missing_s=False)
+        context_data_t = _colorize_subset(context_data, _apply_missing_s=False)
 
         if cfg.bias.subsample_context:
             LOGGER.info("Subsampling context set...")
