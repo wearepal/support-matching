@@ -213,7 +213,7 @@ def plot(
             filename = f"{file_prefix}_{filename}"
         # sns.set_style("whitegrid")
         fig, plot = plt.subplots(figsize=fig_dim, dpi=300, facecolor="white")
-        sns.boxplot(y="Method", x=col_renames[column_to_plot], data=df, ax=plot, whis=8.0)
+        sns.boxplot(y="Method", x=col_renames[column_to_plot], data=df, ax=plot, whis=1.0)
         hatches = ["/", "\\", ".", "x", "/", "\\", ".", "x"]
         for hatch, patch in zip(hatches, plot.artists):
             # patch.set_hatch(hatch)
