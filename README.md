@@ -54,7 +54,7 @@ bash scripts/compare.sh data=cmnist/2dig bias=cmnist/2dig/subsampled enc=mnist f
 
 #### Missing subgroup
 ```
-bash scripts/compare.sh data=cmnist/2dig data.context_pcnt=0.5 bias=cmnist/2dig/mildly_subs_miss_s enc=mnist fdm=cmnist/kvq_3discs clust=vague_spaceship_improved
+bash scripts/compare.sh data=cmnist/2dig data.context_pcnt=0.5 bias=cmnist/2dig/mildly_subs_miss_s enc=mnist fdm=cmnist/gated_3discs clust=vague_spaceship_improved
 ```
 
 ### 3 digits
