@@ -59,7 +59,7 @@ bash scripts/compare.sh data=cmnist/2dig data.context_pcnt=0.5 bias=cmnist/2dig/
 
 ### 3 digits
 ```
-bash scripts/compare.sh data=cmnist/3dig bias=cmnist/3dig/4miss enc=mnist fdm=cmnist/mostly_traditional clust=vague_spaceship_improved fdm.iters=12000 fdm.zs_dim=2
+bash scripts/compare.sh data=cmnist/3dig bias=cmnist/3dig/4miss enc=mnist fdm=cmnist/mostly_traditional clust=vague_spaceship_improved fdm.iters=20000 fdm.zs_dim=2
 ```
 
 ## CelebA
