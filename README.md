@@ -54,12 +54,12 @@ bash scripts/compare.sh data=cmnist/2dig bias=cmnist/2dig/subsampled enc=mnist f
 
 #### Missing subgroup
 ```
-bash scripts/compare.sh data=cmnist/2dig data.context_pcnt=0.5 bias=cmnist/2dig/mildly_subs_miss_s enc=mnist fdm=cmnist/kvq_3discs clust=vague_spaceship_improved
+bash scripts/compare.sh data=cmnist/2dig data.context_pcnt=0.5 bias=cmnist/2dig/mildly_subs_miss_s enc=mnist fdm=cmnist/gated_3discs clust=vague_spaceship_improved
 ```
 
 ### 3 digits
 ```
-bash scripts/compare.sh data=cmnist/3dig bias=cmnist/3dig/4miss enc=mnist fdm=cmnist/mostly_traditional clust=vague_spaceship_improved fdm.iters=12000 fdm.zs_dim=2
+bash scripts/compare.sh data=cmnist/3dig bias=cmnist/3dig/4miss enc=mnist fdm=cmnist/mostly_traditional clust=vague_spaceship_improved fdm.iters=20000 fdm.zs_dim=2
 ```
 
 ## CelebA
