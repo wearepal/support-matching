@@ -14,7 +14,7 @@ from torchvision.models.resnet import ResNet
 from tqdm import tqdm
 from typing_extensions import Literal
 
-from fdm.models import AutoEncoder, SplitEncoding, Classifier
+from fdm.models import AutoEncoder, Classifier, SplitEncoding
 from shared.configs import (
     AdultConfig,
     CelebaConfig,
