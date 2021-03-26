@@ -72,6 +72,8 @@ def compute_metrics(
     # replace the slash; it's causing problems
     metrics = {k.replace("/", "÷"): v for k, v in metrics.items()}
     metrics = {f"{k} ({model_name})": v for k, v in metrics.items()}
+    if exp_name:
+        metrics = {f"{exp_name}/{k}": v for k, v in metrics.items()}
 
     if use_wandb:
         wandb_log(cfg.misc, metrics, step=step)

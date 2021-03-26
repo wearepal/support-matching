@@ -1,6 +1,6 @@
 from __future__ import annotations
 import logging
-from typing import Dict, Optional, Sequence, Tuple
+from typing import Dict, NamedTuple, Optional, Sequence, Tuple
 
 import ethicml as em
 import numpy as np
@@ -14,13 +14,13 @@ from torchvision.models.resnet import ResNet
 from tqdm import tqdm
 from typing_extensions import Literal
 
-from fdm.models import AutoEncoder
-from fdm.models.classifier import Classifier
+from fdm.models import AutoEncoder, Classifier, SplitEncoding
 from shared.configs import (
     AdultConfig,
     CelebaConfig,
     CmnistConfig,
     Config,
+    EvalTrainData,
     ImageDatasetConfig,
     IsicConfig,
 )
@@ -31,6 +31,11 @@ from shared.utils import ModelFn, compute_metrics, make_tuple_from_data, prod
 from .utils import ExtractableDataset, build_weighted_sampler_from_dataset, log_images
 
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
+
+
+class InvarianceDatasets(NamedTuple):
+    inv_y: TensorDataTupleDataset | None
+    inv_s: TensorDataTupleDataset | None
 
 
 def log_sample_images(cfg: Config, data, name, step):
@@ -50,32 +55,59 @@ def log_metrics(
 ) -> None:
     """Compute and log a variety of metrics."""
     model.eval()
+    invariant_to = "both" if cfg.fdm.eval_s_from_zs is not None else "s"
 
     LOGGER.info("Encoding training set...")
-    train_inv_s = encode_dataset(
-        cfg, data.train, model, recons=cfg.fdm.eval_on_recon, invariant_to="s"
+    train = encode_dataset(
+        cfg, data.train, model, recons=cfg.fdm.eval_on_recon, invariant_to=invariant_to
     )
+    assert train.inv_s is not None
     if cfg.fdm.eval_on_recon:
         # don't encode test dataset
         test_repr = data.test
     else:
-        test_repr = encode_dataset(cfg, data.test, model, recons=False, invariant_to="s")
+        test = encode_dataset(cfg, data.test, model, recons=False, invariant_to=invariant_to)
+        assert test.inv_s is not None
+        test_repr = test.inv_s
 
     LOGGER.info("\nComputing metrics...")
     evaluate(
         cfg=cfg,
         step=step,
-        train_data=train_inv_s,
+        train_data=train.inv_s,
         test_data=test_repr,
         y_dim=data.y_dim,
         s_dim=data.s_dim,
-        name="x_zero_s",
         eval_on_recon=cfg.fdm.eval_on_recon,
         pred_s=False,
         save_summary=save_summary,
         cluster_test_metrics=cluster_test_metrics,
         cluster_context_metrics=cluster_context_metrics,
     )
+
+    if cfg.fdm.eval_s_from_zs is not None:
+        if cfg.fdm.eval_s_from_zs is EvalTrainData.train:
+            assert train.inv_y is not None
+            train_data = train.inv_y  # the part that is invariant to y corresponds to zs
+        else:
+            context = encode_dataset(
+                cfg, data.context, model, recons=cfg.fdm.eval_on_recon, invariant_to="y"
+            )
+            assert context.inv_y is not None
+            train_data = context.inv_y
+        assert test.inv_y is not None, "if this test fails, you're evaluating on recons"
+        evaluate(
+            cfg=cfg,
+            step=step,
+            train_data=train_data,
+            test_data=test.inv_y,
+            y_dim=data.y_dim,
+            s_dim=data.s_dim,
+            name="s_from_zs",
+            eval_on_recon=cfg.fdm.eval_on_recon,
+            pred_s=True,
+            save_summary=save_summary,
+        )
 
 
 def baseline_metrics(cfg: Config, data: DatasetTriplet) -> None:
@@ -172,7 +204,7 @@ def evaluate(
     test_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
     y_dim: int,
     s_dim: int,
-    name: str,
+    name: str = "",
     eval_on_recon: bool = True,
     pred_s: bool = False,
     save_summary: bool = False,
@@ -272,15 +304,15 @@ def evaluate(
             )
 
 
+Invariance = Literal["s", "y", "both"]
+
+
 def encode_dataset(
-    cfg: Config,
-    data: Dataset,
-    generator: AutoEncoder,
-    recons: bool,
-    invariant_to: Literal["s", "y"] = "s",
-) -> TensorDataTupleDataset:
+    cfg: Config, data: Dataset, generator: AutoEncoder, recons: bool, invariant_to: Invariance = "s"
+) -> InvarianceDatasets:
     LOGGER.info("Encoding dataset...")
-    all_x_m = []
+    all_inv_s = []
+    all_inv_y = []
     all_s = []
     all_y = []
 
@@ -297,33 +329,56 @@ def encode_dataset(
             all_y.append(y)
 
             enc = generator.encode(x, stochastic=False)
-            if recons:
-                if cfg.fdm.train_on_recon:
-                    zs_m, zy_m = generator.mask(enc, random=True)
-                else:
-                    # if we didn't train with the random encodings, it probably doesn't make much
-                    # sense to evaluate with them; better to use null-sampling
-                    zs_m, zy_m = generator.mask(enc, random=False)
-                z_m = zs_m if invariant_to == "s" else zy_m
-                x_m = generator.decode(z_m, mode="hard")
 
-                if isinstance(cfg.data, (CelebaConfig, IsicConfig)):
-                    x_m = 0.5 * x_m + 0.5
-                if x.dim() > 2:
-                    x_m = x_m.clamp(min=0, max=1)
-            else:
-                zs_m, zy_m = generator.mask(enc)
-                # `zs_m` has zs zeroed out
-                z_m = zs_m if invariant_to == "s" else zy_m
-                x_m = generator.unsplit_encoding(z_m)
+            if invariant_to in ("s", "both"):
+                all_inv_s.append(_get_classifer_input(cfg, enc, generator, recons, "s"))
 
-            all_x_m.append(x_m.detach().cpu())
+            if invariant_to in ("y", "both"):
+                all_inv_y.append(_get_classifer_input(cfg, enc, generator, recons, "y"))
 
-    all_x_m = torch.cat(all_x_m, dim=0)
     all_s = torch.cat(all_s, dim=0)
     all_y = torch.cat(all_y, dim=0)
 
-    encoded_dataset = TensorDataTupleDataset(x=all_x_m, s=all_s, y=all_y)
-    LOGGER.info("Done.")
+    datasets: dict[Literal["inv_y", "inv_s"], TensorDataTupleDataset] = {}
 
-    return encoded_dataset
+    if all_inv_s:
+        inv_s = torch.cat(all_inv_s, dim=0)
+        datasets["inv_s"] = TensorDataTupleDataset(x=inv_s, s=all_s, y=all_y)
+
+    if all_inv_y:
+        inv_y = torch.cat(all_inv_y, dim=0)
+        datasets["inv_y"] = TensorDataTupleDataset(x=inv_y, s=all_s, y=all_y)
+
+    LOGGER.info("Done.")
+    return InvarianceDatasets(inv_y=datasets.get("inv_y"), inv_s=datasets.get("inv_s"))
+
+
+def _get_classifer_input(
+    cfg: Config,
+    enc: SplitEncoding,
+    generator: AutoEncoder,
+    recons: bool,
+    invariance: Literal["s", "y"],
+) -> Tensor:
+    if recons:
+        # `zs_m` has zs zeroed out
+        if cfg.fdm.train_on_recon:
+            zs_m, zy_m = generator.mask(enc, random=True)
+        else:
+            # if we didn't train with the random encodings, it probably doesn't make much
+            # sense to evaluate with them; better to use null-sampling
+            zs_m, zy_m = generator.mask(enc, random=False)
+        z_m = zs_m if invariance == "s" else zy_m
+        x_m = generator.decode(z_m, mode="hard")
+
+        if isinstance(cfg.data, (CelebaConfig, IsicConfig)):
+            x_m = 0.5 * x_m + 0.5
+        if x_m.dim() > 2:
+            x_m = x_m.clamp(min=0, max=1)
+        classifier_input = x_m
+    else:
+        zs_m, zy_m = generator.mask(enc)
+        # `zs_m` has zs zeroed out
+        z_m = zs_m if invariance == "s" else zy_m
+        classifier_input = generator.unsplit_encoding(z_m)
+    return classifier_input.detach().cpu()

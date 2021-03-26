@@ -17,6 +17,7 @@ from .enums import (
     DiscriminatorLoss,
     DiscriminatorMethod,
     EncoderType,
+    EvalTrainData,
     IsicAttrs,
     MMDKernel,
     PlMethod,
@@ -293,6 +294,7 @@ class FdmConfig:
     eval_batch_size: int = 256
     encode_batch_size: int = 1000
     balanced_eval: bool = False  # Whether to balance the training set during evaluation
+    eval_s_from_zs: Optional[EvalTrainData] = None  # Train a classifier to predict s from zs
 
     # Misc
     validate: bool = True
