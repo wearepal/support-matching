@@ -90,7 +90,7 @@ def log_metrics(
         evaluate(
             cfg=cfg,
             step=step,
-            train_data=train.inv_y,
+            train_data=train.inv_y,  # the part that is invariant to y corresponds to zs
             test_data=test.inv_y,
             y_dim=data.y_dim,
             s_dim=data.s_dim,
