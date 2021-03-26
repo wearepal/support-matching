@@ -293,6 +293,7 @@ class FdmConfig:
     eval_batch_size: int = 256
     encode_batch_size: int = 1000
     balanced_eval: bool = False  # Whether to balance the training set during evaluation
+    eval_s_from_zs: bool = False  # Whether to train a classifier to predict s from zs
 
     # Misc
     validate: bool = True

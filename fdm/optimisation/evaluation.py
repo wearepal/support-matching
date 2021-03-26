@@ -54,15 +54,18 @@ def log_metrics(
 ) -> None:
     """Compute and log a variety of metrics."""
     model.eval()
+    invariant_to = "both" if cfg.fdm.eval_s_from_zs else "s"
 
     LOGGER.info("Encoding training set...")
-    train = encode_dataset(cfg, data.train, model, recons=cfg.fdm.eval_on_recon, invariant_to="s")
+    train = encode_dataset(
+        cfg, data.train, model, recons=cfg.fdm.eval_on_recon, invariant_to=invariant_to
+    )
     assert train.inv_s is not None
     if cfg.fdm.eval_on_recon:
         # don't encode test dataset
         test_repr = data.test
     else:
-        test = encode_dataset(cfg, data.test, model, recons=False, invariant_to="s")
+        test = encode_dataset(cfg, data.test, model, recons=False, invariant_to=invariant_to)
         assert test.inv_s is not None
         test_repr = test.inv_s
 
@@ -74,13 +77,28 @@ def log_metrics(
         test_data=test_repr,
         y_dim=data.y_dim,
         s_dim=data.s_dim,
-        name="x_zero_s",
         eval_on_recon=cfg.fdm.eval_on_recon,
         pred_s=False,
         save_summary=save_summary,
         cluster_test_metrics=cluster_test_metrics,
         cluster_context_metrics=cluster_context_metrics,
     )
+
+    if cfg.fdm.eval_s_from_zs:
+        assert train.inv_y is not None
+        assert test.inv_y is not None, "if this test fails, you're evaluating on recons"
+        evaluate(
+            cfg=cfg,
+            step=step,
+            train_data=train.inv_y,
+            test_data=test.inv_y,
+            y_dim=data.y_dim,
+            s_dim=data.s_dim,
+            name="s_from_zs",
+            eval_on_recon=cfg.fdm.eval_on_recon,
+            pred_s=True,
+            save_summary=save_summary,
+        )
 
 
 def baseline_metrics(cfg: Config, data: DatasetTriplet) -> None:
@@ -177,7 +195,7 @@ def evaluate(
     test_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
     y_dim: int,
     s_dim: int,
-    name: str,
+    name: str = "",
     eval_on_recon: bool = True,
     pred_s: bool = False,
     save_summary: bool = False,
@@ -312,18 +330,18 @@ def encode_dataset(
     all_s = torch.cat(all_s, dim=0)
     all_y = torch.cat(all_y, dim=0)
 
-    to_return: dict[Literal["inv_y", "inv_s"], TensorDataTupleDataset] = {}
+    datasets: dict[Literal["inv_y", "inv_s"], TensorDataTupleDataset] = {}
 
     if all_inv_s:
         inv_s = torch.cat(all_inv_s, dim=0)
-        to_return["inv_s"] = TensorDataTupleDataset(x=inv_s, s=all_s, y=all_y)
+        datasets["inv_s"] = TensorDataTupleDataset(x=inv_s, s=all_s, y=all_y)
 
     if all_inv_y:
         inv_y = torch.cat(all_inv_y, dim=0)
-        to_return["inv_y"] = TensorDataTupleDataset(x=inv_y, s=all_s, y=all_y)
+        datasets["inv_y"] = TensorDataTupleDataset(x=inv_y, s=all_s, y=all_y)
 
     LOGGER.info("Done.")
-    return InvarianceDatasets(inv_y=to_return.get("inv_y"), inv_s=to_return.get("inv_s"))
+    return InvarianceDatasets(inv_y=datasets.get("inv_y"), inv_s=datasets.get("inv_s"))
 
 
 def _get_classifer_input(
