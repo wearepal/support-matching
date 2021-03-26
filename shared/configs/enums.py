@@ -8,6 +8,7 @@ __all__ = [
     "DiscriminatorLoss",
     "DiscriminatorMethod",
     "EncoderType",
+    "EvalTrainData",
     "MMDKernel",
     "PlMethod",
     "QuantizationLevel",
@@ -177,3 +178,10 @@ class AdultDatasetSplit(Enum):
     Custom = auto()
     Nationality = auto()
     Education = auto()
+
+
+class EvalTrainData(Enum):
+    """Dataset to use for training during evaluation."""
+
+    train = auto()
+    context = auto()

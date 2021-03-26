@@ -20,6 +20,7 @@ from shared.configs import (
     CelebaConfig,
     CmnistConfig,
     Config,
+    EvalTrainData,
     ImageDatasetConfig,
     IsicConfig,
 )
@@ -54,7 +55,7 @@ def log_metrics(
 ) -> None:
     """Compute and log a variety of metrics."""
     model.eval()
-    invariant_to = "both" if cfg.fdm.eval_s_from_zs else "s"
+    invariant_to = "both" if cfg.fdm.eval_s_from_zs is not None else "s"
 
     LOGGER.info("Encoding training set...")
     train = encode_dataset(
@@ -84,13 +85,21 @@ def log_metrics(
         cluster_context_metrics=cluster_context_metrics,
     )
 
-    if cfg.fdm.eval_s_from_zs:
-        assert train.inv_y is not None
+    if cfg.fdm.eval_s_from_zs is not None:
+        if cfg.fdm.eval_s_from_zs is EvalTrainData.train:
+            assert train.inv_y is not None
+            train_data = train.inv_y  # the part that is invariant to y corresponds to zs
+        else:
+            context = encode_dataset(
+                cfg, data.context, model, recons=cfg.fdm.eval_on_recon, invariant_to="y"
+            )
+            assert context.inv_y is not None
+            train_data = context.inv_y
         assert test.inv_y is not None, "if this test fails, you're evaluating on recons"
         evaluate(
             cfg=cfg,
             step=step,
-            train_data=train.inv_y,  # the part that is invariant to y corresponds to zs
+            train_data=train_data,
             test_data=test.inv_y,
             y_dim=data.y_dim,
             s_dim=data.s_dim,
