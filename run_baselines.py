@@ -164,7 +164,7 @@ def run_baseline(cfg: Config) -> None:
         balance_hierarchical=not args.labelled_context_set,
     )
     train_loader_kwargs = {
-        "sampler": train_sampler,
+        # "sampler": train_sampler,
         "pin_memory": True,
         "num_workers": cfg.misc.num_workers,
     }
@@ -228,7 +228,7 @@ def run_baseline(cfg: Config) -> None:
         device=device,
         batch_size=args.batch_size,
         test_batch_size=args.test_batch_size,
-        # **train_loader_kwargs,
+        **train_loader_kwargs,
     )
 
     # Generate predictions with the trained model
