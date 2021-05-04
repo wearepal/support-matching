@@ -164,7 +164,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg, ABC):
                 self._update_adversary(x_c, tr.x)
 
         x_c, tr = self.get_batch(context_data_itr=context_data_itr, train_data_itr=train_data_itr)
-        _, logging_dict = self._update(x_c=x_c, tr=tr, warmup=warmup)
+        _, logging_dict = self._update_generator(x_c=x_c, tr=tr, warmup=warmup)
 
         wandb_log(self.misc, logging_dict, step=itr)
 
@@ -184,7 +184,9 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg, ABC):
         ...
 
     @abstractmethod
-    def _update(self, x_c: Tensor, tr: Batch, warmup: bool) -> tuple[Tensor, dict[str, float]]:
+    def _update_generator(
+        self, x_c: Tensor, tr: Batch, warmup: bool
+    ) -> tuple[Tensor, dict[str, float]]:
         ...
 
 
@@ -235,7 +237,9 @@ class SupportMatching(AdvSemiSupervisedAlg):
         return disc_loss, logging_dict
 
     @implements(AdvSemiSupervisedAlg)
-    def _update(self, x_c: Tensor, tr: Batch, warmup: bool) -> tuple[Tensor, dict[str, float]]:
+    def _update_generator(
+        self, x_c: Tensor, tr: Batch, warmup: bool
+    ) -> tuple[Tensor, dict[str, float]]:
         """Compute all losses.
 
         Args:
@@ -269,9 +273,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 disc_input_c = self._get_disc_input(encoding_c)
 
                 if self.disc_cfg.disc_method is DiscriminatorMethod.nn:
-                    disc_loss = self.adversary.encoder_loss(
-                        fake=disc_input_t, real=disc_input_c
-                    )
+                    disc_loss = self.adversary.encoder_loss(fake=disc_input_t, real=disc_input_c)
 
                 else:
                     x = disc_input_t
@@ -403,6 +405,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
 class LAFTR(AdvSemiSupervisedAlg):
     adversary: Classifier
+
     @implements(AdvSemiSupervisedAlg)
     def _update_disc(self, x_ctx: Tensor, tr_batch: Batch) -> tuple[Tensor, dict[str, float]]:
         """Train the discriminator while keeping the generator constant.
@@ -436,7 +439,9 @@ class LAFTR(AdvSemiSupervisedAlg):
         return disc_loss, logging_dict
 
     @implements(AdvSemiSupervisedAlg)
-    def _update(self, x_c: Tensor, tr: Batch, warmup: bool) -> tuple[Tensor, dict[str, float]]:
+    def _update_generator(
+        self, x_c: Tensor, tr: Batch, warmup: bool
+    ) -> tuple[Tensor, dict[str, float]]:
         """Compute all losses.
 
         Args:
