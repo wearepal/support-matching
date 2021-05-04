@@ -255,9 +255,6 @@ class SupportMatching(AdvSemiSupervisedAlg):
             )
 
             # ============================= recon loss for context set ============================
-            # we need a reconstruction loss for x_c because...
-            # ...when we train on encodings, the NN will otherwise just falsify encodings for x_c
-            # ...when we train on recons, the GAN loss has it too easy to distinguish the two
             encoding_c, gen_loss_ctx, logging_dict_ctx = self.generator.routine(
                 x_c, self.recon_loss_fn, self.disc_cfg.gen_weight
             )
