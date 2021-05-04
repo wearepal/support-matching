@@ -51,13 +51,11 @@ class ExperimentBase:
         self,
         cfg: Config,
         data: DatasetConfig,
-        enc: EncoderConfig,
         misc: MiscConfig,
         device: torch.device,
     ) -> None:
         self.cfg = cfg
         self.data = data
-        self.enc = enc
         self.misc = misc
         self.device = device
 

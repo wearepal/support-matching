@@ -4,13 +4,13 @@ import logging
 from pathlib import Path
 from typing import Sequence, Union, cast
 
-from ethicml.vision.data.image_dataset import TorchImageDataset
 import torch
 from torch import Tensor, nn
 from torch.utils.data.dataset import ConcatDataset, Subset
 import torchvision
 import wandb
 
+from ethicml.vision.data.image_dataset import TorchImageDataset
 from shared.configs import CelebaConfig, Config, IsicConfig, ReconstructionLoss
 from shared.data.dataset_wrappers import DataTupleDataset, TensorDataTupleDataset
 from shared.data.isic import IsicDataset
@@ -45,7 +45,7 @@ def log_images(
     """Make a grid of the given images, save them in a file and log them with W&B"""
     prefix = "train_" if prefix is None else f"{prefix}_"
 
-    if cfg.enc.recon_loss is not ReconstructionLoss.ce and isinstance(
+    if cfg.gen.recon_loss is not ReconstructionLoss.ce and isinstance(
         cfg.data, (CelebaConfig, IsicConfig)
     ):
         images = 0.5 * images + 0.5
@@ -87,7 +87,7 @@ def log_attention(
     """Make a grid of the given images, save them in a file and log them with W&B"""
     prefix = "train_" if prefix is None else f"{prefix}_"
 
-    if cfg.enc.recon_loss == ReconstructionLoss.ce and images.ndim == 5:
+    if cfg.gen.recon_loss == ReconstructionLoss.ce and images.ndim == 5:
         images = images.argmax(dim=1).float() / 255
     else:
         if isinstance(cfg.data, (CelebaConfig, IsicConfig)):
@@ -114,16 +114,13 @@ def log_attention(
     wandb_log(cfg.misc, {prefix + name: shw}, step=step)
 
 
-def save_model(
-    cfg: Config, save_dir: Path, model: nn.Module, itr: int, sha: str, best: bool = False
-) -> Path:
+def save_model(cfg: Config, save_dir: Path, model: nn.Module, itr: int, best: bool = False) -> Path:
     if best:
         filename = save_dir / "checkpt_best.pth"
     else:
         filename = save_dir / f"checkpt_epoch{itr}.pth"
     save_dict = {
         "args": flatten_dict(as_pretty_dict(cfg)),
-        "sha": sha,
         "model": model.state_dict(),
         "itr": itr,
     }
@@ -136,7 +133,7 @@ def save_model(
 def restore_model(cfg: Config, filename: Path, model: nn.Module) -> tuple[nn.Module, int]:
     chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
     args_chkpt = chkpt["args"]
-    assert cfg.enc.levels == args_chkpt["enc.levels"]
+    assert cfg.gen.levels == args_chkpt["enc.levels"]
 
     model.load_state_dict(chkpt["model"])
     return model, chkpt["itr"]
