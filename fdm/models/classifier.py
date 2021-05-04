@@ -2,7 +2,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from ethicml.implementations.dro_modules import DROLoss
 import torch
 from torch import Tensor, nn
 import torch.nn.functional as F
@@ -10,6 +9,7 @@ from torch.nn.modules.loss import _Loss
 from torch.utils.data import DataLoader, Dataset
 from tqdm import trange
 
+from ethicml.implementations.dro_modules import DROLoss
 from fdm.models.base import ModelBase
 
 __all__ = ["Classifier", "Regressor"]
@@ -228,7 +228,11 @@ class Classifier(ModelBase):
             if test_data is not None:
 
                 self.model.eval()
-                avg_test_acc = 0.0
+                sum_test_acc = 0.0
+                # We could just obtain this count using len(dataloader.dataset) but then
+                # the type-checker complains because a Dataset object doesn't have to implement
+                # __len__ (it makes no sense for iterable datasets, for instance)
+                num_samples = 0
                 with torch.no_grad():
                     for x, s, y in test_data:
 
@@ -241,10 +245,9 @@ class Classifier(ModelBase):
                         target = target.to(device)
 
                         loss, acc = self.routine(x, target)
-                        avg_test_acc += acc
-
-                avg_test_acc /= len(test_data)
-
+                        sum_test_acc += acc * target.size(0)  # undo the batch-wise averaging
+                        num_samples += target.size(0)
+                avg_test_acc = sum_test_acc / num_samples
                 pbar.set_postfix(epoch=epoch + 1, avg_test_acc=avg_test_acc)
             else:
                 pbar.set_postfix(epoch=epoch + 1)

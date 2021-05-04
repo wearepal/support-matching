@@ -143,15 +143,16 @@ class LfF(Classifier):
 
             if test_loader is not None:
                 self.model.eval()
-                avg_test_acc = 0.0
+                sum_test_acc = 0.0
+                num_samples = 0
                 with torch.no_grad():
                     for x, _, y in test_loader:
                         x = x.to(device)
                         y = y.to(device).view(-1)
                         _, acc = self.routine(x, y)
-                        avg_test_acc += acc
-
-                avg_test_acc /= len(test_loader)
+                        sum_test_acc += acc * y.size(0)
+                        num_samples += y.size(0)
+                avg_test_acc = sum_test_acc / num_samples
 
                 pbar.set_postfix(epoch=epoch + 1, avg_test_acc=avg_test_acc)
             else:

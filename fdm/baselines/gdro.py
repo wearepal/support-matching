@@ -79,7 +79,8 @@ class GDRO(Classifier):
 
             if test_data is not None:
                 self.eval()
-                avg_test_acc = 0.0
+                sum_test_acc = 0.0
+                num_samples = 0
 
                 with torch.set_grad_enabled(False):
                     for x, s, y in test_data:
@@ -87,9 +88,9 @@ class GDRO(Classifier):
                         y = y.to(device)
 
                         loss, acc = self.routine(x, y)
-                        avg_test_acc += acc
-
-                avg_test_acc /= len(test_data)
+                        sum_test_acc += acc * y.size(0)
+                        num_samples += y.size(0)  # undo the batch-wise averaging
+                avg_test_acc = sum_test_acc / num_samples
 
                 pbar.set_postfix(epoch=epoch + 1, avg_test_acc=avg_test_acc)
             else:
