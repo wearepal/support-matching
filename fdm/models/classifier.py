@@ -245,8 +245,8 @@ class Classifier(ModelBase):
                         target = target.to(device)
 
                         loss, acc = self.routine(x, target)
-                        sum_test_acc += acc * target.size(0)
-                        num_samples += target.size(0)  # undo the batch-wise averaging
+                        sum_test_acc += acc * target.size(0)  # undo the batch-wise averaging
+                        num_samples += target.size(0)
                 avg_test_acc = sum_test_acc / num_samples
                 pbar.set_postfix(epoch=epoch + 1, avg_test_acc=avg_test_acc)
             else:
