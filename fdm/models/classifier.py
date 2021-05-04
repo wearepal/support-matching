@@ -231,7 +231,7 @@ class Classifier(ModelBase):
                 sum_test_acc = 0.0
                 # We could just obtain this count using len(dataloader.dataset) but then
                 # the type-checker complains because a Dataset object doesn't have to implement
-                # __len__ (it makes no sense for iterable datasets, for isntance)
+                # __len__ (it makes no sense for iterable datasets, for instance)
                 num_samples = 0
                 with torch.no_grad():
                     for x, s, y in test_data:
