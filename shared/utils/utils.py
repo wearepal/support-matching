@@ -50,18 +50,16 @@ class ExperimentBase:
     def __init__(
         self,
         cfg: Config,
-        data: DatasetConfig,
-        misc: MiscConfig,
-        device: torch.device,
+        data_cfg: DatasetConfig,
+        misc_cfg: MiscConfig,
     ) -> None:
         self.cfg = cfg
-        self.data = data
-        self.misc = misc
-        self.device = device
+        self.data_cfg = data_cfg
+        self.misc_cfg = misc_cfg
 
     def to_device(self, *tensors: Tensor) -> Tensor | tuple[Tensor, ...]:
         """Place tensors on the correct device."""
-        moved = [tensor.to(self.device, non_blocking=True) for tensor in tensors]
+        moved = [tensor.to(self.misc_cfg.device, non_blocking=True) for tensor in tensors]
         return moved[0] if len(moved) == 1 else tuple(moved)
 
 

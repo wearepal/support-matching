@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+import logging
 import shlex
 from typing import Dict, List, Optional, Type, TypeVar
 
@@ -37,12 +38,15 @@ __all__ = [
     "Config",
     "DatasetConfig",
     "EncoderConfig",
-    "FdmConfig",
+    "AdvConfig",
     "ImageDatasetConfig",
     "IsicConfig",
     "MiscConfig",
     "register_configs",
 ]
+
+
+LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 @dataclass
@@ -169,8 +173,11 @@ class MiscConfig:
     use_gpu: bool = False
 
     def __post_init__(self) -> None:
+        # ==== check GPU ====
         self.use_gpu = torch.cuda.is_available() and self.gpu >= 0
         self.device = f"cuda:{self.gpu}" if self.use_gpu else "cpu"
+        LOGGER.info(f"{torch.cuda.device_count()} GPUs available. Using device '{self.device}'")
+
         if not self.use_gpu:  # If cuda is not enabled, set use_amp to False to avoid warning
             self.use_amp = False
 
@@ -261,10 +268,14 @@ class EncoderConfig:
     levels: int = 4
     init_chans: int = 32
     recon_loss: ReconstructionLoss = ReconstructionLoss.l2
+    checkpoint_path: str = ""
+    use_pretrained_enc: bool = False
+    zs_dim: int = 1
+    zs_transform: ZsTransform = ZsTransform.none
 
 
 @dataclass
-class FdmConfig:
+class AdvConfig:
     """Flags for disentangling."""
 
     _target_: str = "shared.configs.FdmConfig"
@@ -303,10 +314,6 @@ class FdmConfig:
     feat_attr: bool = False
 
     # Encoder settings
-    use_pretrained_enc: bool = True
-    snorm: bool = False
-    zs_dim: int = 1
-    zs_transform: ZsTransform = ZsTransform.none
 
     vgg_weight: float = 0
     vae: bool = False
@@ -336,8 +343,8 @@ class FdmConfig:
     # Training settings
     lr: float = 1e-3
     disc_lr: float = 3e-4
-    kl_weight: float = 0
-    elbo_weight: float = 1
+    gen_weight: float = 0
+    gen_loss_weight: float = 1
     disc_weight: float = 1
     num_disc_updates: int = 3
     distinguish_weight: float = 1
@@ -394,8 +401,8 @@ class Config(BaseConfig):
     _target_: str = "shared.configs.Config"
 
     clust: ClusterConfig = MISSING
-    enc: EncoderConfig = MISSING
-    fdm: FdmConfig = MISSING
+    gen: EncoderConfig = MISSING
+    disc: AdvConfig = MISSING
 
 
 def register_configs() -> None:

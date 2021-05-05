@@ -25,8 +25,8 @@ from clustering.models import (
     MultiHeadModel,
     PseudoLabelEnc,
     PseudoLabelEncNoNorm,
-    PseudoLabeler,
     PseudoLabelOutput,
+    PseudoLabeler,
     RankingStatistics,
     SelfSupervised,
     build_classifier,
@@ -96,7 +96,7 @@ class Experiment(ExperimentBase):
         y_dim: int,
         device: torch.device,
     ) -> None:
-        super().__init__(cfg=cfg, data=data, enc=enc, misc=misc, device=device)
+        super().__init__(cfg=cfg, data_cfg=data, enc=enc, misc_cfg=misc, device=device)
         self.args = args
         self.model = model
         self.s_dim = s_dim
@@ -146,7 +146,7 @@ class Experiment(ExperimentBase):
             time_for_batch = time.time() - end
             time_meter.update(time_for_batch)
 
-            wandb_log(self.misc, logging_dict, step=itr)
+            wandb_log(self.misc_cfg, logging_dict, step=itr)
             end = time.time()
 
         time_for_epoch = time.time() - start_epoch_time
@@ -260,7 +260,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     # ==== initialize config shorthands ====
     args = cfg.clust
     data = cfg.data
-    enc = cfg.enc
+    enc = cfg.gen
     misc = cfg.misc
 
     # ==== current git commit ====

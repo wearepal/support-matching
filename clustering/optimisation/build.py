@@ -23,7 +23,7 @@ def build_ae(
     enc_dim: int
     if is_image_data:
         decoding_dim = (
-            input_shape[0] * 256 if cfg.enc.recon_loss == ReconstructionLoss.ce else input_shape[0]
+            input_shape[0] * 256 if cfg.gen.recon_loss == ReconstructionLoss.ce else input_shape[0]
         )
         # if cfg.enc.recon_loss == "ce":
         decoder_out_act = None
@@ -31,38 +31,38 @@ def build_ae(
         #     decoder_out_act = nn.Sigmoid() if cfg.enc.dataset == "cmnist" else nn.Tanh()
         encoder, decoder, enc_dim = conv_autoencoder(
             input_shape,
-            cfg.enc.init_chans,
-            encoding_dim=cfg.enc.out_dim,
+            cfg.gen.init_chans,
+            encoding_dim=cfg.gen.out_dim,
             decoding_dim=decoding_dim,
-            levels=cfg.enc.levels,
+            levels=cfg.gen.levels,
             decoder_out_act=decoder_out_act,
             variational=variational,
         )
     else:
         encoder, decoder, enc_dim = fc_autoencoder(
             input_shape,
-            cfg.enc.init_chans,
-            encoding_dim=cfg.enc.out_dim,
-            levels=cfg.enc.levels,
+            cfg.gen.init_chans,
+            encoding_dim=cfg.gen.out_dim,
+            levels=cfg.gen.levels,
             variational=variational,
         )
 
     recon_loss_fn_: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
-    if cfg.enc.recon_loss == ReconstructionLoss.l1:
+    if cfg.gen.recon_loss == ReconstructionLoss.l1:
         recon_loss_fn_ = nn.L1Loss(reduction="sum")
-    elif cfg.enc.recon_loss == ReconstructionLoss.l2:
+    elif cfg.gen.recon_loss == ReconstructionLoss.l2:
         recon_loss_fn_ = nn.MSELoss(reduction="sum")
-    elif cfg.enc.recon_loss == ReconstructionLoss.bce:
+    elif cfg.gen.recon_loss == ReconstructionLoss.bce:
         recon_loss_fn_ = nn.BCELoss(reduction="sum")
-    elif cfg.enc.recon_loss == ReconstructionLoss.huber:
+    elif cfg.gen.recon_loss == ReconstructionLoss.huber:
         recon_loss_fn_ = lambda x, y: 0.1 * F.smooth_l1_loss(x * 10, y * 10, reduction="sum")
-    elif cfg.enc.recon_loss == ReconstructionLoss.ce:
+    elif cfg.gen.recon_loss == ReconstructionLoss.ce:
         recon_loss_fn_ = PixelCrossEntropy(reduction="sum")
-    elif cfg.enc.recon_loss == ReconstructionLoss.mixed:
+    elif cfg.gen.recon_loss == ReconstructionLoss.mixed:
         assert feature_group_slices is not None, "can only do multi gen_loss with feature groups"
         recon_loss_fn_ = MixedLoss(feature_group_slices, reduction="sum")
     else:
-        raise ValueError(f"{cfg.enc.recon_loss} is an invalid reconstruction gen_loss")
+        raise ValueError(f"{cfg.gen.recon_loss} is an invalid reconstruction gen_loss")
 
     recon_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
     if cfg.clust.vgg_weight != 0:

@@ -6,7 +6,7 @@ from collections.abc import Callable, Iterator, Sequence
 import logging
 from pathlib import Path
 import time
-from typing import NamedTuple, cast
+from typing import Literal, NamedTuple, cast
 
 from hydra.utils import to_absolute_path
 from kit import implements
@@ -27,13 +27,13 @@ from fdm.models.configs.classifiers import Strided28x28Net
 from fdm.models.discriminator import Discriminator
 from fdm.optimisation.mmd import mmd2
 from shared.configs import (
+    AdvConfig,
     AggregatorType,
     CmnistConfig,
     Config,
     DatasetConfig,
     DiscriminatorMethod,
     EncoderConfig,
-    FdmConfig,
     ImageDatasetConfig,
     MiscConfig,
     ReconstructionLoss,
@@ -60,6 +60,7 @@ from shared.utils import (
     readable_duration,
     wandb_log,
 )
+from shared.utils.loadsave import ClusterResults
 
 from .build import build_ae
 from .evaluation import baseline_metrics, log_metrics
@@ -86,28 +87,27 @@ class Batch(NamedTuple):
     y: Tensor
 
 
-class SemiSupervisedAlg(ExperimentBase, ABC):
+class SemiSupervisedAlg(ExperimentBase):
     """Experiment singleton class."""
 
     def __init__(
         self,
         cfg: Config,
-        data: DatasetConfig,
-        misc: MiscConfig,
-        device: torch.device,
+        data_cfg: DatasetConfig,
+        misc_cfg: MiscConfig,
     ) -> None:
-        super().__init__(cfg=cfg, data=data, misc=misc, device=device)
-        self.grad_scaler = GradScaler() if self.misc.use_amp else None
+        super().__init__(cfg=cfg, data_cfg=data_cfg, misc_cfg=misc_cfg)
+        self.grad_scaler = GradScaler() if self.misc_cfg.use_amp else None
 
-    def get_batch(
+    def sample_context(self, context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]]) -> Tensor:
+        return cast(Tensor, self.to_device(next(context_data_itr)[0]))
+
+    def sample_train(
         self,
-        context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
         train_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
-    ) -> tuple[Tensor, Batch]:
-        x_c = self.to_device(next(context_data_itr)[0])
-        x_c = cast(Tensor, x_c)
-        x_t, s_t, y_t = self.to_device(*next(train_data_itr))
-        return x_c, Batch(x_t, s_t, y_t)
+    ) -> Batch:
+        x_tr, s_tr, y_tr = self.to_device(*next(train_data_itr))
+        return Batch(x_tr, s_tr, y_tr)
 
     @abstractmethod
     def _train_step(
@@ -119,32 +119,140 @@ class SemiSupervisedAlg(ExperimentBase, ABC):
         ...
 
 
-class AdvSemiSupervisedAlg(SemiSupervisedAlg, ABC):
+class AdvSemiSupervisedAlg(SemiSupervisedAlg):
     """Experiment singleton class."""
+
+    _encoding_size: EncodingSize
+    optimizer_kwargs: dict
+    enerator: AutoEncoder
+    adversary: Classifier | Discriminator
+    recon_loss_fn: Callable[[Tensor, Tensor], Tensor]
+    predictor_y: Classifier
+    predictor_s: Classifier
 
     def __init__(
         self,
         cfg: Config,
         data_cfg: DatasetConfig,
         gen_cfg: EncoderConfig,
-        disc_cfg: FdmConfig,
+        adv_cfg: AdvConfig,
         misc_cfg: MiscConfig,
-        generator: AutoEncoder,
-        adversary: Classifier | Discriminator,
-        recon_loss_fn: Callable[[Tensor, Tensor], Tensor],
-        predictor_y: Classifier,
-        predictor_s: Classifier,
-        device: torch.device,
     ) -> None:
-        super().__init__(cfg=cfg, data=data_cfg, misc=misc_cfg, device=device)
+        super().__init__(cfg=cfg, data_cfg=data_cfg, misc_cfg=misc_cfg)
         self.gen_cfg = gen_cfg
-        self.disc_cfg = disc_cfg
-        self.grad_scaler = GradScaler() if self.misc.use_amp else None
-        self.generator = generator
-        self.adversary = adversary
-        self.recon_loss_fn = recon_loss_fn
-        self.predictor_y = predictor_y
-        self.predictor_s = predictor_s
+        self.adv_cfg = adv_cfg
+        self.grad_scaler = GradScaler() if self.misc_cfg.use_amp else None
+
+    def build_generator(
+        self,
+        input_shape: tuple[int, ...],
+        feature_group_slices: dict[str, list[slice]] | None = None,
+    ) -> AutoEncoder:
+        if len(input_shape) > 2:
+            decoding_dim = (
+                input_shape[0] * 256
+                if self.gen_cfg.recon_loss is ReconstructionLoss.ce
+                else input_shape[0]
+            )
+            decoder_out_act = None
+            encoder, decoder, latent_dim = conv_autoencoder(
+                input_shape,
+                self.gen_cfg.init_chans,
+                encoding_dim=self.gen_cfg.out_dim,
+                decoding_dim=decoding_dim,
+                levels=self.gen_cfg.levels,
+                decoder_out_act=decoder_out_act,
+                variational=self.adv_cfg.vae,
+            )
+        else:
+            encoder, decoder, latent_dim = fc_autoencoder(
+                input_shape,
+                self.gen_cfg.init_chans,
+                encoding_dim=self.gen_cfg.out_dim,
+                levels=self.gen_cfg.levels,
+                variational=self.adv_cfg.vae,
+            )
+
+        zs_dim = self.gen_cfg.zs_dim
+        zy_dim = latent_dim - zs_dim
+        self._encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim)
+
+        LOGGER.info(f"Encoding dim: {latent_dim}, {self._encoding_size}")
+
+        generator = build_ae(
+            cfg=self.cfg,
+            encoder=encoder,
+            decoder=decoder,
+            encoding_size=self._encoding_size,
+            feature_group_slices=feature_group_slices,
+        )
+
+        # load pretrained encoder if one is provided
+        if self.gen_cfg.checkpoint_path:
+            save_dict = torch.load(
+                self.gen_cfg.checkpoint_path, map_location=lambda storage, loc: storage
+            )
+            generator.load_state_dict(save_dict["encoder"])
+
+        return generator
+
+    @abstractmethod
+    def build_adversary(self, input_shape: tuple[int, ...]) -> Classifier | Discriminator:
+        ...
+
+    def build_predictors(
+        self, y_dim: int, s_dim: int
+    ) -> tuple[Classifier | None, Classifier | None]:
+        predictor_y = None
+        if self.adv_cfg.pred_y_weight > 0:
+            predictor_y = build_classifier(
+                input_shape=(self._encoding_size.zy,),  # this is always trained on encodings
+                target_dim=y_dim,
+                model_fn=FcNet(hidden_dims=None),  # no hidden layers
+                optimizer_kwargs=self.optimizer_kwargs["pred"],
+            )
+        predictor_s = None
+        if self.adv_cfg.pred_s_weight > 0:
+            predictor_s = build_classifier(
+                input_shape=(self._encoding_size.zs,),  # this is always trained on encodings
+                target_dim=s_dim,
+                model_fn=FcNet(hidden_dims=None),  # no hidden layers
+                optimizer_kwargs=self.optimizer_kwargs["pred"],
+            )
+        return predictor_y, predictor_s
+
+    def build(
+        self, input_shape: tuple[int, ...], y_dim: int, s_dim: int, feature_group_slices
+    ) -> None:
+        self.generator = self.build_generator(
+            input_shape=input_shape, feature_group_slices=feature_group_slices
+        )
+        self.adversary = self.build_adversary(input_shape=input_shape)
+        self.build_predictors(y_dim=y_dim, s_dim=s_dim)
+        self.recon_loss_fn = self._get_recon_loss_fn(feature_group_slices=feature_group_slices)
+
+    def _get_recon_loss_fn(
+        self, feature_group_slices: dict[str, list[slice]] | None = None
+    ) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
+        recon_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
+        if self.gen_cfg.recon_loss is ReconstructionLoss.l1:
+            recon_loss_fn = nn.L1Loss(reduction="sum")
+        elif self.gen_cfg.recon_loss is ReconstructionLoss.l2:
+            recon_loss_fn = nn.MSELoss(reduction="sum")
+        elif self.gen_cfg.recon_loss is ReconstructionLoss.bce:
+            recon_loss_fn = nn.BCELoss(reduction="sum")
+        elif self.gen_cfg.recon_loss is ReconstructionLoss.huber:
+            recon_loss_fn = lambda x, y: 0.1 * F.smooth_l1_loss(x * 10, y * 10, reduction="sum")
+        elif self.gen_cfg.recon_loss is ReconstructionLoss.ce:
+            recon_loss_fn = PixelCrossEntropy(reduction="sum")
+        elif self.gen_cfg.recon_loss is ReconstructionLoss.mixed:
+            assert (
+                feature_group_slices is not None
+            ), "can only do multi gen_loss with feature groups"
+            recon_loss_fn = MixedLoss(feature_group_slices, reduction="sum")
+        else:
+            raise ValueError(f"{self.gen_cfg.recon_loss} is an invalid reconstruction gen_loss")
+        return recon_loss_fn
 
     @implements(SemiSupervisedAlg)
     def _train_step(
@@ -154,25 +262,25 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg, ABC):
         itr: int,
     ) -> dict[str, float]:
 
-        warmup = itr < self.disc_cfg.warmup_steps
-        if (not warmup) and (self.disc_cfg.disc_method is DiscriminatorMethod.nn):
+        warmup = itr < self.adv_cfg.warmup_steps
+        if (not warmup) and (self.adv_cfg.disc_method is DiscriminatorMethod.nn):
             # Train the discriminator on its own for a number of iterations
-            for _ in range(self.disc_cfg.num_disc_updates):
-                x_c, tr = self.get_batch(
-                    context_data_itr=context_data_itr, train_data_itr=train_data_itr
+            for _ in range(self.adv_cfg.num_disc_updates):
+                self._step_adversary(
+                    train_data_itr=train_data_itr, context_data_itr=context_data_itr
                 )
-                self._update_adversary(x_c, tr.x)
 
-        x_c, tr = self.get_batch(context_data_itr=context_data_itr, train_data_itr=train_data_itr)
-        _, logging_dict = self._update_generator(x_c=x_c, tr=tr, warmup=warmup)
+        batch_tr = self.sample_train(train_data_itr=train_data_itr)
+        x_ctx = self.sample_context(context_data_itr=context_data_itr)
+        _, logging_dict = self._step_generator(x_c=x_ctx, tr=batch_tr, warmup=warmup)
 
-        wandb_log(self.misc, logging_dict, step=itr)
+        wandb_log(self.misc_cfg, logging_dict, step=itr)
 
         # Log images
-        if itr % self.disc_cfg.log_freq == 0 and isinstance(self.data, ImageDatasetConfig):
+        if itr % self.adv_cfg.log_freq == 0 and isinstance(self.data_cfg, ImageDatasetConfig):
             with torch.no_grad():
-                self._log_recons(x=tr.x, itr=itr, prefix="train")
-                self._log_recons(x=x_c, itr=itr, prefix="context")
+                self._log_recons(x=batch_tr.x, itr=itr, prefix="train")
+                self._log_recons(x=x_ctx, itr=itr, prefix="context")
         return logging_dict
 
     @abstractmethod
@@ -180,14 +288,215 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg, ABC):
         ...
 
     @abstractmethod
-    def _update_adversary(self, x_c: Tensor, x_t: Tensor) -> tuple[Tensor, dict[str, float]]:
+    def _step_adversary(
+        self,
+        train_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
+        context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
+    ) -> tuple[Tensor, dict[str, float]]:
         ...
 
     @abstractmethod
-    def _update_generator(
+    def _step_generator(
         self, x_c: Tensor, tr: Batch, warmup: bool
     ) -> tuple[Tensor, dict[str, float]]:
         ...
+
+    def _update_generator(self, loss: Tensor) -> None:
+        self.generator.zero_grad()
+        if self.adv_cfg.pred_y_weight > 0:
+            self.predictor_y.zero_grad()
+        if self.adv_cfg.pred_s_weight > 0:
+            self.predictor_s.zero_grad()
+
+        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
+            loss = self.grad_scaler.scale(loss)
+        loss.backward()
+
+        # Update the generator's parameters
+        self.generator.step(grad_scaler=self.grad_scaler)
+        if self.adv_cfg.pred_y_weight > 0:
+            self.predictor_y.step(grad_scaler=self.grad_scaler)
+        if self.adv_cfg.pred_s_weight > 0:
+            self.predictor_s.step(grad_scaler=self.grad_scaler)
+        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
+            self.grad_scaler.update()
+
+    def _update_adversary(self, loss: Tensor) -> None:
+        self.adversary.zero_grad()
+        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
+            loss = self.grad_scaler.scale(loss)
+        loss.backward()
+
+        self.adversary.step(grad_scaler=self.grad_scaler)
+        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
+            self.grad_scaler.update()
+
+    def train(self, mode: Literal["generator", "adversary"]) -> None:
+        if mode == "generator":
+            self.generator.train()
+            self.predictor_y.train()
+            self.predictor_s.train()
+            self.adversary.eval()
+        else:
+            self.generator.eval()
+            self.predictor_y.eval()
+            self.predictor_s.eval()
+            self.adversary.train()
+
+    def _get_data_iterators(
+        self, datasets: DatasetTriplet, cluster_results: ClusterResults | None = None
+    ) -> tuple[Iterator[Batch], Iterator[Batch]]:
+
+        s_count = max(datasets.s_dim, 2)
+        if cluster_results is not None:
+            context_sampler = get_stratified_sampler(
+                group_ids=cluster_results.cluster_ids,
+                oversample=self.adv_cfg.oversample,
+                batch_size=self.adv_cfg.batch_size,
+                min_size=None if self.adv_cfg.oversample else self.adv_cfg.eff_batch_size,
+            )
+            dataloader_kwargs = dict(sampler=context_sampler)
+            if self.gen_cfg.use_pretrained_enc:
+                self.gen_cfg.checkpoint_path = str(cluster_results.enc_path)
+        elif self.adv_cfg.balanced_context:
+            context_sampler = build_weighted_sampler_from_dataset(
+                dataset=datasets.context,  # type: ignore
+                s_count=s_count,
+                batch_size=self.adv_cfg.eff_batch_size,
+                oversample=self.adv_cfg.oversample,
+                balance_hierarchical=False,
+            )
+            dataloader_kwargs = dict(sampler=context_sampler, shuffle=False)
+        else:
+            dataloader_kwargs = dict(shuffle=True)
+
+        context_loader = DataLoader(
+            datasets.context,
+            batch_size=self.adv_cfg.eff_batch_size,
+            num_workers=self.misc_cfg.num_workers,
+            pin_memory=True,
+            drop_last=True,
+            **dataloader_kwargs,
+        )
+
+        train_sampler = build_weighted_sampler_from_dataset(
+            dataset=datasets.train,  # type: ignore
+            s_count=s_count,
+            batch_size=self.adv_cfg.eff_batch_size,
+            oversample=self.adv_cfg.oversample,
+            balance_hierarchical=True,
+        )
+        train_loader = DataLoader(
+            dataset=datasets.train,
+            batch_size=self.adv_cfg.eff_batch_size,
+            num_workers=self.misc_cfg.num_workers,
+            drop_last=True,
+            shuffle=False,
+            sampler=train_sampler,
+            pin_memory=True,
+        )
+        context_data_itr = inf_generator(context_loader)
+        train_data_itr = inf_generator(train_loader)
+
+        return train_data_itr, context_data_itr
+
+    def fit(self, datasets: DatasetTriplet) -> None:
+
+        cluster_results = None
+        cluster_test_metrics: dict[str, float] = {}
+        cluster_context_metrics: dict[str, float] = {}
+        if self.misc_cfg.cluster_label_file:
+            cluster_results = load_results(self.cfg)
+            cluster_test_metrics = cluster_results.test_metrics or {}
+            cluster_context_metrics = cluster_results.context_metrics or {}
+
+        train_data_itr, context_data_itr = self._get_data_iterators(
+            datasets=datasets, cluster_results=cluster_results
+        )
+        # ==== construct networks ====
+        input_shape = next(context_data_itr)[0][0].shape
+        feature_group_slices = getattr(datasets.context, "feature_group_slices", None)
+        self.build(
+            input_shape=input_shape,
+            y_dim=datasets.y_dim,
+            s_dim=datasets.s_dim,
+            feature_group_slices=feature_group_slices,
+        )
+
+
+        save_dir = Path(to_absolute_path(self.misc_cfg.save_dir)) / str(time.time())
+        save_dir.mkdir(parents=True, exist_ok=True)
+        LOGGER.info(f"Save directory: {save_dir.resolve()}")
+
+        start_itr = 1  # start at 1 so that the val_freq works correctly
+        # Resume from checkpoint
+        if self.misc_cfg.resume is not None:
+            LOGGER.info("Restoring generator from checkpoint")
+            generator, start_itr = restore_model(
+                self.cfg, Path(self.misc_cfg.resume), self.generator
+            )
+            self.generator = cast(AutoEncoder, generator)
+
+            if self.misc_cfg.evaluate:
+                log_metrics(
+                    self.cfg,
+                    generator,
+                    datasets,
+                    step=0,
+                    save_summary=True,
+                    cluster_test_metrics=cluster_test_metrics,
+                    cluster_context_metrics=cluster_context_metrics,
+                )
+
+        itr = start_itr
+        start_time = time.monotonic()
+
+        loss_meters = defaultdict(AverageMeter)
+
+        for itr in range(start_itr, self.adv_cfg.iters + 1):
+
+            logging_dict = self._train_step(
+                context_data_itr=context_data_itr,
+                train_data_itr=train_data_itr,
+                itr=itr,
+            )
+            for name, value in logging_dict.items():
+                loss_meters[name].update(value)
+
+            if itr % self.adv_cfg.log_freq == 0:
+                log_string = " | ".join(
+                    f"{name}: {loss.avg:.5g}" for name, loss in loss_meters.items()
+                )
+                elapsed = time.monotonic() - start_time
+                LOGGER.info(
+                    "[TRN] Iteration {:04d} | Elapsed: {} | Iterations/s: {:.4g} | {}".format(
+                        itr,
+                        readable_duration(elapsed),
+                        self.adv_cfg.log_freq / elapsed,
+                        log_string,
+                    )
+                )
+
+                loss_meters.clear()
+                start_time = time.monotonic()
+
+            if self.adv_cfg.validate and itr % self.adv_cfg.val_freq == 0:
+                if itr == self.adv_cfg.val_freq:  # first validation
+                    baseline_metrics(self.cfg, datasets)
+                log_metrics(self.cfg, model=self.generator, data=datasets, step=itr)
+                save_model(self.cfg, save_dir, model=self.generator, itr=itr)
+
+        LOGGER.info("Training has finished.")
+
+        log_metrics(
+            self.cfg,
+            model=self.generator,
+            data=datasets,
+            save_summary=True,
+            step=itr,
+            cluster_test_metrics=cluster_test_metrics,
+            cluster_context_metrics=cluster_context_metrics,
+        )
 
 
 class SupportMatching(AdvSemiSupervisedAlg):
@@ -195,50 +504,103 @@ class SupportMatching(AdvSemiSupervisedAlg):
     adversary: Discriminator
 
     @implements(AdvSemiSupervisedAlg)
-    def _update_adversary(self, x_c: Tensor, x_t: Tensor) -> tuple[Tensor, dict[str, float]]:
+    def _build_adversary(self, input_shape: tuple[int, ...]) -> Discriminator:
+        # TODO: Move into a 'build' method
+
+        disc_optimizer_kwargs = {"lr": self.adv_cfg.disc_lr}
+        disc_input_shape: tuple[int, ...] = (
+            input_shape if self.adv_cfg.train_on_recon else (self.gen_cfg.out_dim,)
+        )
+        disc_fn: ModelFn
+        if len(input_shape) > 2 and self.adv_cfg.train_on_recon:
+            if isinstance(self.data_cfg, CmnistConfig):
+                disc_fn = Strided28x28Net(batch_norm=False)
+            else:
+                disc_fn = Residual64x64Net(batch_norm=False)
+
+        else:
+            disc_fn = FcNet(hidden_dims=self.adv_cfg.disc_hidden_dims, activation=nn.GELU())
+            # FcNet first flattens the input
+            disc_input_shape = (
+                (prod(disc_input_shape),)
+                if isinstance(disc_input_shape, Sequence)
+                else disc_input_shape
+            )
+
+        if self.adv_cfg.aggregator_type is not AggregatorType.none:
+            final_proj = (
+                FcNet(self.adv_cfg.aggregator_hidden_dims)
+                if self.adv_cfg.aggregator_hidden_dims
+                else None
+            )
+            aggregator: Aggregator
+            if self.adv_cfg.aggregator_type is AggregatorType.kvq:
+                aggregator = KvqAttentionAggregator(
+                    latent_dim=self.adv_cfg.aggregator_input_dim,
+                    bag_size=self.adv_cfg.bag_size,
+                    final_proj=final_proj,
+                    **self.adv_cfg.aggregator_kwargs,
+                )
+            else:
+                aggregator = GatedAttentionAggregator(
+                    in_dim=self.adv_cfg.aggregator_input_dim,
+                    bag_size=self.adv_cfg.bag_size,
+                    final_proj=final_proj,
+                    **self.adv_cfg.aggregator_kwargs,
+                )
+            disc_fn = ModelAggregatorWrapper(
+                disc_fn, aggregator, input_dim=self.adv_cfg.aggregator_input_dim
+            )
+
+        return Discriminator(
+            model=disc_fn(disc_input_shape, 1),  # type: ignore
+            double_adv_loss=self.adv_cfg.double_adv_loss,
+            optimizer_kwargs=disc_optimizer_kwargs,
+            criterion=self.adv_cfg.disc_loss,
+        )
+
+    @implements(AdvSemiSupervisedAlg)
+    def _step_adversary(
+        self,
+        train_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
+        context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
+    ) -> tuple[Tensor, dict[str, float]]:
         """Train the discriminator while keeping the generator constant.
         Args:
             x_c: x from the context set
             x_t: x from the training set
+
         """
-        self.generator.eval()
-        self.predictor_y.eval()
-        self.predictor_s.eval()
-        self.adversary.train()
-        with torch.cuda.amp.autocast(enabled=self.misc.use_amp):  # type: ignore
-            encoding_t = self.generator.encode(x_t, stochastic=True)
-            if not self.disc_cfg.train_on_recon:
-                encoding_c = self.generator.encode(x_c, stochastic=True)
+        x_tr = self.sample_train(train_data_itr).x
+        x_ctx = self.sample_context(context_data_itr=context_data_itr)
 
-            if self.disc_cfg.train_on_recon:
-                disc_input_c = x_c
+        self.train("adversary")
+        with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):  # type: ignore
+            encoding_tr = self.generator.encode(x_tr, stochastic=True)
+            if not self.adv_cfg.train_on_recon:
+                encoding_ctx = self.generator.encode(x_ctx, stochastic=True)
 
-            disc_loss = x_c.new_zeros(())
+            if self.adv_cfg.train_on_recon:
+                adv_input_ctx = x_ctx
+
+            adv_loss = x_ctx.new_zeros(())
             logging_dict = {}
-            disc_input_t = self._get_disc_input(encoding_t)
-            disc_input_t = disc_input_t.detach()
+            adv_input_tr = self._get_adv_input(encoding_tr)
+            adv_input_tr = adv_input_tr.detach()
 
-            if not self.disc_cfg.train_on_recon:
-                disc_input_c = self._get_disc_input(encoding_c)  # type: ignore
-                disc_input_c = disc_input_c.detach()
+            if not self.adv_cfg.train_on_recon:
+                adv_input_ctx = self._get_adv_input(encoding_ctx)  # type: ignore
+                adv_input_ctx = adv_input_ctx.detach()
 
-            disc_loss = self.adversary.discriminator_loss(fake=disc_input_t, real=disc_input_c)  # type: ignore
+            adv_loss = self.adversary.discriminator_loss(fake=adv_input_tr, real=adv_input_ctx)  # type: ignore
 
-            self.adversary.zero_grad()
+        self._update_adversary(adv_loss)
 
-        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
-            disc_loss = self.grad_scaler.scale(disc_loss)
-        disc_loss.backward()
-
-        self.adversary.step(grad_scaler=self.grad_scaler)
-        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
-            self.grad_scaler.update()
-
-        return disc_loss, logging_dict
+        return adv_loss, logging_dict
 
     @implements(AdvSemiSupervisedAlg)
-    def _update_generator(
-        self, x_c: Tensor, tr: Batch, warmup: bool
+    def _step_generator(
+        self, x_ctx: Tensor, batch_tr: Batch, warmup: bool
     ) -> tuple[Tensor, dict[str, float]]:
         """Compute all losses.
 
@@ -246,95 +608,75 @@ class SupportMatching(AdvSemiSupervisedAlg):
             x_t: x from the training set
         """
         # Compute losses for the generator.
-        self.predictor_y.train()
-        self.predictor_s.train()
-        self.generator.train()
-        self.adversary.eval()
+        self.train("generator")
         logging_dict = {}
 
-        with torch.cuda.amp.autocast(enabled=self.misc.use_amp):
+        with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):
             # ============================= recon loss for training set ===========================
             encoding_t, gen_loss_tr, logging_dict_tr = self.generator.routine(
-                tr.x, self.recon_loss_fn, self.disc_cfg.gen_weight
+                batch_tr.x, self.recon_loss_fn, self.adv_cfg.gen_weight
             )
 
             # ============================= recon loss for context set ============================
             encoding_c, gen_loss_ctx, logging_dict_ctx = self.generator.routine(
-                x_c, self.recon_loss_fn, self.disc_cfg.gen_weight
+                x_ctx, self.recon_loss_fn, self.adv_cfg.gen_weight
             )
             logging_dict.update({k: v + logging_dict_ctx[k] for k, v in logging_dict_tr.items()})
             gen_loss_tr = 0.5 * (gen_loss_tr + gen_loss_ctx)  # take average of the two recon losses
-            gen_loss_tr *= self.disc_cfg.gen_loss_weight
+            gen_loss_tr *= self.adv_cfg.gen_loss_weight
             logging_dict["Loss Generator"] = gen_loss_tr
             total_loss = gen_loss_tr
             # ================================= adversarial losses ================================
             if not warmup:
-                disc_input_t = self._get_disc_input(encoding_t)
-                disc_input_c = self._get_disc_input(encoding_c)
+                disc_input_t = self._get_adv_input(encoding_t)
+                disc_input_c = self._get_adv_input(encoding_c)
 
-                if self.disc_cfg.disc_method is DiscriminatorMethod.nn:
+                if self.adv_cfg.disc_method is DiscriminatorMethod.nn:
                     disc_loss = self.adversary.encoder_loss(fake=disc_input_t, real=disc_input_c)
 
                 else:
                     x = disc_input_t
-                    y = self._get_disc_input(encoding_c, detach=True)
+                    y = self._get_adv_input(encoding_c, detach=True)
                     disc_loss = mmd2(
                         x=x,
                         y=y,
-                        kernel=self.disc_cfg.mmd_kernel,
-                        scales=self.disc_cfg.mmd_scales,
-                        wts=self.disc_cfg.mmd_wts,
-                        add_dot=self.disc_cfg.mmd_add_dot,
+                        kernel=self.adv_cfg.mmd_kernel,
+                        scales=self.adv_cfg.mmd_scales,
+                        wts=self.adv_cfg.mmd_wts,
+                        add_dot=self.adv_cfg.mmd_add_dot,
                     )
-                disc_loss *= self.disc_cfg.disc_weight
+                disc_loss *= self.adv_cfg.disc_weight
                 total_loss += disc_loss
                 logging_dict["Loss Discriminator"] = disc_loss
 
-            if self.disc_cfg.pred_y_weight > 0:
+            if self.adv_cfg.pred_y_weight > 0:
                 # predictor is on encodings; predict y from the part that is invariant to s
-                pred_y_loss, pred_y_acc = self.predictor_y.routine(encoding_t.zy, tr.y)
-                pred_y_loss *= self.disc_cfg.pred_y_weight
+                pred_y_loss, pred_y_acc = self.predictor_y.routine(encoding_t.zy, batch_tr.y)
+                pred_y_loss *= self.adv_cfg.pred_y_weight
                 logging_dict["Loss Predictor y"] = pred_y_loss.item()
                 logging_dict["Accuracy Predictor y"] = pred_y_acc
                 total_loss += pred_y_loss
-            if self.disc_cfg.pred_s_weight > 0:
-                pred_s_loss, pred_s_acc = self.predictor_s.routine(encoding_t.zs, tr.s)
-                pred_s_loss *= self.disc_cfg.pred_s_weight
+            if self.adv_cfg.pred_s_weight > 0:
+                pred_s_loss, pred_s_acc = self.predictor_s.routine(encoding_t.zs, batch_tr.s)
+                pred_s_loss *= self.adv_cfg.pred_s_weight
                 logging_dict["Loss Predictor s"] = pred_s_loss.item()
                 logging_dict["Accuracy Predictor s"] = pred_s_acc
                 total_loss += pred_s_loss
 
         logging_dict["Loss Total"] = total_loss
 
-        self.generator.zero_grad()
-        if self.disc_cfg.pred_y_weight > 0:
-            self.predictor_y.zero_grad()
-        if self.disc_cfg.pred_s_weight > 0:
-            self.predictor_s.zero_grad()
-
-        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
-            total_loss = self.grad_scaler.scale(total_loss)
-        total_loss.backward()
-
-        # Update the generator's parameters
-        self.generator.step(grad_scaler=self.grad_scaler)
-        if self.disc_cfg.pred_y_weight > 0:
-            self.predictor_y.step(grad_scaler=self.grad_scaler)
-        if self.disc_cfg.pred_s_weight > 0:
-            self.predictor_s.step(grad_scaler=self.grad_scaler)
-        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
-            self.grad_scaler.update()
+        self._update_generator(total_loss)
 
         return total_loss, logging_dict
 
-    def _get_disc_input(self, encoding: SplitEncoding, detach: bool = False) -> Tensor:
+    def _get_adv_input(self, encoding: SplitEncoding, detach: bool = False) -> Tensor:
         """Construct the input that the discriminator expects; either zy or reconstructed zy."""
-        if self.disc_cfg.train_on_recon:
+        if self.adv_cfg.train_on_recon:
             zs_m, _ = self.generator.mask(encoding, random=True, detach=detach)
             recon = self.generator.decode(zs_m, mode="relaxed")
             if self.gen_cfg.recon_loss is ReconstructionLoss.ce:
                 recon = recon.argmax(dim=1).float() / 255
-                if not isinstance(self.data, CmnistConfig):
+                if not isinstance(self.data_cfg, CmnistConfig):
                     recon = recon * 2 - 1
             return recon
         else:
@@ -348,13 +690,13 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
         rows_per_block = 8
         num_blocks = 4
-        if self.disc_cfg.aggregator_type is AggregatorType.none:
+        if self.adv_cfg.aggregator_type is AggregatorType.none:
             num_sampled_bags = 0  # this is only defined here to make the linter happy
             num_samples = num_blocks * rows_per_block
         else:
             # take enough bags to have 32 samples
-            num_sampled_bags = ((num_blocks * rows_per_block - 1) // self.disc_cfg.bag_size) + 1
-            num_samples = num_sampled_bags * self.disc_cfg.bag_size
+            num_sampled_bags = ((num_blocks * rows_per_block - 1) // self.adv_cfg.bag_size) + 1
+            num_samples = num_sampled_bags * self.adv_cfg.bag_size
 
         sample = x[:num_samples]
         encoding = self.generator.encode(sample, stochastic=False)
@@ -362,7 +704,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         recons = [recon.all, recon.zero_s, recon.just_s]
 
         caption = "original | all | zero_s | just_s"
-        if self.disc_cfg.train_on_recon:
+        if self.adv_cfg.train_on_recon:
             recons.append(recon.rand_s)
             caption += " | rand_s"
 
@@ -387,8 +729,8 @@ class SupportMatching(AdvSemiSupervisedAlg):
             caption=caption,
         )
 
-        if self.disc_cfg.aggregator_type is AggregatorType.gated:
-            self.adversary(self._get_disc_input(encoding))
+        if self.adv_cfg.aggregator_type is AggregatorType.gated:
+            self.adversary(self._get_adv_input(encoding))
             assert isinstance(self.adversary.model[-1], Aggregator)  # type: ignore
             attention_weights = self.adversary.model[-1].attention_weights  # type: ignore
         log_attention(
@@ -407,39 +749,63 @@ class LAFTR(AdvSemiSupervisedAlg):
     adversary: Classifier
 
     @implements(AdvSemiSupervisedAlg)
-    def _update_disc(self, x_ctx: Tensor, tr_batch: Batch) -> tuple[Tensor, dict[str, float]]:
+    def _build_adversary(self, input_shape: tuple[int, ...]) -> Classifier:
+        # TODO: Move into a 'build' method
+
+        adv_opt_kwaegs = {"lr": self.adv_cfg.disc_lr}
+        adv_input_shape: tuple[int, ...] = (
+            input_shape if self.adv_cfg.train_on_recon else (self.gen_cfg.out_dim,)
+        )
+        adv_fn: ModelFn
+        if len(input_shape) > 2 and self.adv_cfg.train_on_recon:
+            if isinstance(self.data_cfg, CmnistConfig):
+                adv_fn = Strided28x28Net(batch_norm=False)
+            else:
+                adv_fn = Residual64x64Net(batch_norm=False)
+
+        else:
+            adv_fn = FcNet(hidden_dims=self.adv_cfg.disc_hidden_dims, activation=nn.GELU())
+            # FcNet first flattens the input
+            adv_input_shape = (
+                (prod(adv_input_shape),)
+                if isinstance(adv_input_shape, Sequence)
+                else adv_input_shape
+            )
+
+        return Discriminator(
+            model=adv_fn(adv_input_shape, self.predictor_s.num_classes),  # type: ignore
+            double_adv_loss=self.adv_cfg.double_adv_loss,
+            optimizer_kwargs=adv_opt_kwaegs,
+            criterion=self.adv_cfg.disc_loss,
+        )
+
+    @implements(AdvSemiSupervisedAlg)
+    def _step_adversary(
+        self,
+        train_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
+        context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
+    ) -> tuple[Tensor, dict[str, float]]:
         """Train the discriminator while keeping the generator constant.
         Args:
             x_c: x from the context set
             x_t: x from the training set
         """
-        self.generator.eval()
-        self.predictor_y.eval()
-        self.predictor_s.eval()
-        self.adversary.train()
+        self.train("adversary")
+        tr_batch = self.sample_train(train_data_itr)
+
+        logging_dict = {}
         # Context-manager enables mixed-precision training
-        with torch.cuda.amp.autocast(enabled=self.misc.use_amp):  # type: ignore
-            encoding_t = self.generator.encode(tr_batch.x, stochastic=True)
-            disc_loss = x_ctx.new_zeros(())
-            logging_dict = {}
-            disc_input_t = self._get_disc_input(encoding_t)
-            disc_input_t = disc_input_t.detach()
-            disc_loss, _ = self.adversary.routine(encoding_t.zy, tr_batch.y)
+        with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):  # type: ignore
+            with torch.no_grad():
+                encoding_tr = self.generator.encode(tr_batch.x, stochastic=True)
+                adv_input_tr = self._get_adv_input(encoding_tr)
+            adv_loss, _ = self.adversary.routine(adv_input_tr, tr_batch.s)
 
-        self.adversary.zero_grad()
-
-        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
-            disc_loss = self.grad_scaler.scale(disc_loss)
-        disc_loss.backward()
-
-        self.adversary.step(grad_scaler=self.grad_scaler)
-        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
-            self.grad_scaler.update()
-
-        return disc_loss, logging_dict
+        self._update_adversary(adv_loss)
+        return adv_loss, logging_dict
 
     @implements(AdvSemiSupervisedAlg)
-    def _update_generator(
+    def _step_generator(
         self, x_c: Tensor, tr: Batch, warmup: bool
     ) -> tuple[Tensor, dict[str, float]]:
         """Compute all losses.
@@ -448,74 +814,54 @@ class LAFTR(AdvSemiSupervisedAlg):
             x_t: x from the training set
         """
         # Compute losses for the generator.
-        self.predictor_y.train()
-        self.predictor_s.train()
-        self.generator.train()
-        self.adversary.eval()
+        self.train("generator")
         logging_dict = {}
 
-        with torch.cuda.amp.autocast(enabled=self.misc.use_amp):
+        with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):
             # ============================= recon loss for training set ===========================
             encoding_t, gen_loss_tr, logging_dict_tr = self.generator.routine(
-                tr.x, self.recon_loss_fn, self.disc_cfg.gen_weight
+                tr.x, self.recon_loss_fn, self.adv_cfg.gen_weight
             )
 
             # ============================= recon loss for context set ============================
             _, gen_loss_ctx, logging_dict_ctx = self.generator.routine(
-                x_c, self.recon_loss_fn, self.disc_cfg.gen_weight
+                x_c, self.recon_loss_fn, self.adv_cfg.gen_weight
             )
             logging_dict.update({k: v + logging_dict_ctx[k] for k, v in logging_dict_tr.items()})
             gen_loss_tr = 0.5 * (gen_loss_tr + gen_loss_ctx)  # take average of the two recon losses
-            gen_loss_tr *= self.disc_cfg.gen_loss_weight
+            gen_loss_tr *= self.adv_cfg.gen_loss_weight
             logging_dict["Loss Generator"] = gen_loss_tr
             total_loss = gen_loss_tr
             # ================================= adversarial losses ================================
             if not warmup:
-                disc_input_t = self._get_disc_input(encoding_t)
+                disc_input_t = self._get_adv_input(encoding_t)
                 disc_loss = self.adversary.routine(data=disc_input_t, targets=tr.y)[0]
-                disc_loss *= self.disc_cfg.disc_weight
+                disc_loss *= self.adv_cfg.disc_weight
                 # Negate the discriminator's loss to obtain the adversarial loss w.r.t the generator
                 total_loss -= disc_loss
                 logging_dict["Loss Discriminator"] = disc_loss
 
-            if self.disc_cfg.pred_y_weight > 0:
+            if self.adv_cfg.pred_y_weight > 0:
                 # predictor is on encodings; predict y from the part that is invariant to s
                 pred_y_loss, pred_y_acc = self.predictor_y.routine(encoding_t.zy, tr.y)
-                pred_y_loss *= self.disc_cfg.pred_y_weight
+                pred_y_loss *= self.adv_cfg.pred_y_weight
                 logging_dict["Loss Predictor y"] = pred_y_loss.item()
                 logging_dict["Accuracy Predictor y"] = pred_y_acc
                 total_loss += pred_y_loss
-            if self.disc_cfg.pred_s_weight > 0:
+            if self.adv_cfg.pred_s_weight > 0:
                 pred_s_loss, pred_s_acc = self.predictor_s.routine(encoding_t.zs, tr.s)
-                pred_s_loss *= self.disc_cfg.pred_s_weight
+                pred_s_loss *= self.adv_cfg.pred_s_weight
                 logging_dict["Loss Predictor s"] = pred_s_loss.item()
                 logging_dict["Accuracy Predictor s"] = pred_s_acc
                 total_loss += pred_s_loss
 
         logging_dict["Loss Total"] = total_loss
 
-        self.generator.zero_grad()
-        if self.disc_cfg.pred_y_weight > 0:
-            self.predictor_y.zero_grad()
-        if self.disc_cfg.pred_s_weight > 0:
-            self.predictor_s.zero_grad()
-
-        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
-            total_loss = self.grad_scaler.scale(total_loss)
-        total_loss.backward()
-
-        # Update the generator's parameters
-        self.generator.step(grad_scaler=self.grad_scaler)
-        if self.disc_cfg.pred_y_weight > 0:
-            self.predictor_y.step(grad_scaler=self.grad_scaler)
-        if self.disc_cfg.pred_s_weight > 0:
-            self.predictor_s.step(grad_scaler=self.grad_scaler)
-        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
-            self.grad_scaler.update()
+        self._update_generator(total_loss)
 
         return total_loss, logging_dict
 
-    def _get_disc_input(self, encoding: SplitEncoding, detach: bool = False) -> Tensor:
+    def _get_adv_input(self, encoding: SplitEncoding, detach: bool = False) -> Tensor:
         """Construct the input that the discriminator expects; either zy or reconstructed zy."""
         zs_m, _ = self.generator.mask(encoding, detach=detach)
         return self.generator.unsplit_encoding(zs_m)
@@ -600,16 +946,10 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
         )
         run.__enter__()  # call the context manager dunders manually to avoid excessive indentation
 
-    save_dir = Path(to_absolute_path(misc_cfg.save_dir)) / str(time.time())
-    save_dir.mkdir(parents=True, exist_ok=True)
 
     LOGGER.info(
         yaml.dump(as_pretty_dict(cfg), default_flow_style=False, allow_unicode=True, sort_keys=True)
     )
-    LOGGER.info(f"Save directory: {save_dir.resolve()}")
-    # ==== check GPU ====
-    device = torch.device(misc_cfg.device)
-    LOGGER.info(f"{torch.cuda.device_count()} GPUs available. Using device '{device}'")
 
     # ==== construct dataset ====
     datasets: DatasetTriplet = load_dataset(cfg)
@@ -620,293 +960,18 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
             len(datasets.test),  # type: ignore
         )
     )
-    s_count = max(datasets.s_dim, 2)
-
-    cluster_results = None
-    cluster_test_metrics: dict[str, float] = {}
-    cluster_context_metrics: dict[str, float] = {}
-    if misc_cfg.cluster_label_file:
-        cluster_results = load_results(cfg)
-        cluster_test_metrics = cluster_results.test_metrics or {}
-        cluster_context_metrics = cluster_results.context_metrics or {}
-        context_sampler = get_stratified_sampler(
-            group_ids=cluster_results.cluster_ids,
-            oversample=disc_cfg.oversample,
-            batch_size=disc_cfg.batch_size,
-            min_size=None if disc_cfg.oversample else disc_cfg.eff_batch_size,
-        )
-        dataloader_kwargs = dict(sampler=context_sampler)
-    elif disc_cfg.balanced_context:
-        context_sampler = build_weighted_sampler_from_dataset(
-            dataset=datasets.context,  # type: ignore
-            s_count=s_count,
-            batch_size=disc_cfg.eff_batch_size,
-            oversample=disc_cfg.oversample,
-            balance_hierarchical=False,
-        )
-        dataloader_kwargs = dict(sampler=context_sampler, shuffle=False)
-    else:
-        dataloader_kwargs = dict(shuffle=True)
-
-    context_loader = DataLoader(
-        datasets.context,
-        batch_size=disc_cfg.eff_batch_size,
-        num_workers=misc_cfg.num_workers,
-        pin_memory=True,
-        drop_last=True,
-        **dataloader_kwargs,
-    )
-
-    train_sampler = build_weighted_sampler_from_dataset(
-        dataset=datasets.train,  # type: ignore
-        s_count=s_count,
-        batch_size=disc_cfg.eff_batch_size,
-        oversample=disc_cfg.oversample,
-        balance_hierarchical=True,
-    )
-    train_loader = DataLoader(
-        dataset=datasets.train,
-        batch_size=disc_cfg.eff_batch_size,
-        num_workers=misc_cfg.num_workers,
-        drop_last=True,
-        shuffle=False,
-        sampler=train_sampler,
-        pin_memory=True,
-    )
-    context_data_itr = inf_generator(context_loader)
-    train_data_itr = inf_generator(train_loader)
-    # ==== construct networks ====
-    input_shape = next(context_data_itr)[0][0].shape
-    is_image_data = len(input_shape) > 2
-
-    feature_group_slices = getattr(datasets.context, "feature_group_slices", None)
-
-    if is_image_data:
-        decoding_dim = (
-            input_shape[0] * 256 if gen_cfg.recon_loss is ReconstructionLoss.ce else input_shape[0]
-        )
-        decoder_out_act = None
-        encoder, decoder, enc_dim = conv_autoencoder(
-            input_shape,
-            gen_cfg.init_chans,
-            encoding_dim=gen_cfg.out_dim,
-            decoding_dim=decoding_dim,
-            levels=gen_cfg.levels,
-            decoder_out_act=decoder_out_act,
-            variational=disc_cfg.vae,
-        )
-    else:
-        encoder, decoder, enc_dim = fc_autoencoder(
-            input_shape,
-            gen_cfg.init_chans,
-            encoding_dim=gen_cfg.out_dim,
-            levels=gen_cfg.levels,
-            variational=disc_cfg.vae,
-        )
-
-    recon_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
-    if gen_cfg.recon_loss is ReconstructionLoss.l1:
-        recon_loss_fn = nn.L1Loss(reduction="sum")
-    elif gen_cfg.recon_loss is ReconstructionLoss.l2:
-        recon_loss_fn = nn.MSELoss(reduction="sum")
-    elif gen_cfg.recon_loss is ReconstructionLoss.bce:
-        recon_loss_fn = nn.BCELoss(reduction="sum")
-    elif gen_cfg.recon_loss is ReconstructionLoss.huber:
-        recon_loss_fn = lambda x, y: 0.1 * F.smooth_l1_loss(x * 10, y * 10, reduction="sum")
-    elif gen_cfg.recon_loss is ReconstructionLoss.ce:
-        recon_loss_fn = PixelCrossEntropy(reduction="sum")
-    elif gen_cfg.recon_loss is ReconstructionLoss.mixed:
-        assert feature_group_slices is not None, "can only do multi gen_loss with feature groups"
-        recon_loss_fn = MixedLoss(feature_group_slices, reduction="sum")
-    else:
-        raise ValueError(f"{gen_cfg.recon_loss} is an invalid reconstruction gen_loss")
-
-    zs_dim = disc_cfg.zs_dim
-    zy_dim = enc_dim - zs_dim
-    encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim)
-    generator = build_ae(
-        cfg=cfg,
-        encoder=encoder,
-        decoder=decoder,
-        encoding_size=encoding_size,
-        feature_group_slices=feature_group_slices,
-    )
-    # load pretrained encoder if one is provided
-    if disc_cfg.use_pretrained_enc and cluster_results is not None:
-        save_dict = torch.load(cluster_results.enc_path, map_location=lambda storage, loc: storage)
-        generator.load_state_dict(save_dict["encoder"])
-        if "args" in save_dict:
-            args_encoder = save_dict["args"]
-            assert args_encoder["encoder_type"] == "vae" if disc_cfg.vae else "ae"
-            assert args_encoder["levels"] == gen_cfg.levels
-
-    LOGGER.info(f"Encoding dim: {enc_dim}, {encoding_size}")
-
-    # ================================== Initialise Discriminator =================================
-
-    # TODO: Move into a 'build' method
-    disc_optimizer_kwargs = {"lr": disc_cfg.disc_lr}
-    disc_input_shape: tuple[int, ...] = input_shape if disc_cfg.train_on_recon else (enc_dim,)
-    disc_fn: ModelFn
-    if is_image_data and disc_cfg.train_on_recon:
-        if isinstance(data_cfg, CmnistConfig):
-            disc_fn = Strided28x28Net(batch_norm=False)
-        else:
-            disc_fn = Residual64x64Net(batch_norm=False)
-
-    else:
-        disc_fn = FcNet(hidden_dims=disc_cfg.disc_hidden_dims, activation=nn.GELU())
-        # FcNet first flattens the input
-        disc_input_shape = (
-            (prod(disc_input_shape),)
-            if isinstance(disc_input_shape, Sequence)
-            else disc_input_shape
-        )
-
-    if disc_cfg.aggregator_type is not AggregatorType.none:
-        final_proj = (
-            FcNet(disc_cfg.aggregator_hidden_dims) if disc_cfg.aggregator_hidden_dims else None
-        )
-        aggregator: Aggregator
-        if disc_cfg.aggregator_type is AggregatorType.kvq:
-            aggregator = KvqAttentionAggregator(
-                latent_dim=disc_cfg.aggregator_input_dim,
-                bag_size=disc_cfg.bag_size,
-                final_proj=final_proj,
-                **disc_cfg.aggregator_kwargs,
-            )
-        else:
-            aggregator = GatedAttentionAggregator(
-                in_dim=disc_cfg.aggregator_input_dim,
-                bag_size=disc_cfg.bag_size,
-                final_proj=final_proj,
-                **disc_cfg.aggregator_kwargs,
-            )
-        disc_fn = ModelAggregatorWrapper(
-            disc_fn, aggregator, input_dim=disc_cfg.aggregator_input_dim
-        )
-
-    adversary = Discriminator(
-        model=disc_fn(disc_input_shape, 1),  # type: ignore
-        double_adv_loss=disc_cfg.double_adv_loss,
-        optimizer_kwargs=disc_optimizer_kwargs,
-        criterion=disc_cfg.disc_loss,
-    )
-    adversary.to(device)
-
-    predictor_y = build_classifier(
-        input_shape=(encoding_size.zy,),  # this is always trained on encodings
-        target_dim=datasets.y_dim,
-        model_fn=FcNet(hidden_dims=None),  # no hidden layers
-        optimizer_kwargs=disc_optimizer_kwargs,
-    )
-    predictor_y.to(device)
-
-    predictor_s = build_classifier(
-        input_shape=(encoding_size.zs,),  # this is always trained on encodings
-        target_dim=datasets.s_dim,
-        model_fn=FcNet(hidden_dims=None),  # no hidden layers
-        optimizer_kwargs=disc_optimizer_kwargs,
-    )
-    predictor_s.to(device)
 
     # TODO: allow switching between this and LAFTR
     exp = SupportMatching(
-        disc_cfg=disc_cfg,
+        adv_cfg=disc_cfg,
         cfg=cfg,
         data_cfg=data_cfg,
         gen_cfg=gen_cfg,
         misc_cfg=misc_cfg,
-        generator=generator,
-        adversary=adversary,
-        recon_loss_fn=recon_loss_fn,
-        predictor_y=predictor_y,
-        predictor_s=predictor_s,
-        device=device,
     )
+    exp.fit(datasets=datasets)
 
-    start_itr = 1  # start at 1 so that the val_freq works correctly
-    # Resume from checkpoint
-    if misc_cfg.resume is not None:
-        LOGGER.info("Restoring generator from checkpoint")
-        generator, start_itr = restore_model(cfg, Path(misc_cfg.resume), generator)
-        generator = cast(AutoEncoder, generator)
-
-        if misc_cfg.evaluate:
-            log_metrics(
-                cfg,
-                generator,
-                datasets,
-                step=0,
-                save_summary=True,
-                cluster_test_metrics=cluster_test_metrics,
-                cluster_context_metrics=cluster_context_metrics,
-            )
-            if run is not None:
-                run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
-            return generator
-
-    if disc_cfg.snorm:
-
-        def _snorm(_module: nn.Module) -> nn.Module:
-            if isinstance(_module, nn.Conv2d):
-                return torch.nn.utils.spectral_norm(_module)
-            return _module
-
-        adversary.apply(_snorm)  # type: ignore
-
-    # Logging
-    LOGGER.info(f"Number of trainable parameters: {count_parameters(generator)}")
-
-    itr = start_itr
-    adversary: nn.Module
-    start_time = time.monotonic()
-
-    loss_meters = defaultdict(AverageMeter)
-
-    for itr in range(start_itr, disc_cfg.iters + 1):
-
-        logging_dict = exp._train_step(
-            context_data_itr=context_data_itr,
-            train_data_itr=train_data_itr,
-            itr=itr,
-        )
-        for name, value in logging_dict.items():
-            loss_meters[name].update(value)
-
-        if itr % disc_cfg.log_freq == 0:
-            log_string = " | ".join(f"{name}: {loss.avg:.5g}" for name, loss in loss_meters.items())
-            elapsed = time.monotonic() - start_time
-            LOGGER.info(
-                "[TRN] Iteration {:04d} | Elapsed: {} | Iterations/s: {:.4g} | {}".format(
-                    itr,
-                    readable_duration(elapsed),
-                    disc_cfg.log_freq / elapsed,
-                    log_string,
-                )
-            )
-
-            loss_meters.clear()
-            start_time = time.monotonic()
-
-        if disc_cfg.validate and itr % disc_cfg.val_freq == 0:
-            if itr == disc_cfg.val_freq:  # first validation
-                baseline_metrics(cfg, datasets)
-            log_metrics(cfg, model=generator, data=datasets, step=itr)
-            save_model(cfg, save_dir, model=generator, itr=itr)
-
-    LOGGER.info("Training has finished.")
-
-    log_metrics(
-        cfg,
-        model=generator,
-        data=datasets,
-        save_summary=True,
-        step=itr,
-        cluster_test_metrics=cluster_test_metrics,
-        cluster_context_metrics=cluster_context_metrics,
-    )
     if run is not None:
         run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
 
-    return generator
+    return exp.
