@@ -45,7 +45,7 @@ def log_images(
     """Make a grid of the given images, save them in a file and log them with W&B"""
     prefix = "train_" if prefix is None else f"{prefix}_"
 
-    if cfg.gen.recon_loss is not ReconstructionLoss.ce and isinstance(
+    if cfg.enc.recon_loss is not ReconstructionLoss.ce and isinstance(
         cfg.data, (CelebaConfig, IsicConfig)
     ):
         images = 0.5 * images + 0.5
@@ -87,7 +87,7 @@ def log_attention(
     """Make a grid of the given images, save them in a file and log them with W&B"""
     prefix = "train_" if prefix is None else f"{prefix}_"
 
-    if cfg.gen.recon_loss == ReconstructionLoss.ce and images.ndim == 5:
+    if cfg.enc.recon_loss == ReconstructionLoss.ce and images.ndim == 5:
         images = images.argmax(dim=1).float() / 255
     else:
         if isinstance(cfg.data, (CelebaConfig, IsicConfig)):
@@ -133,7 +133,7 @@ def save_model(cfg: Config, save_dir: Path, model: nn.Module, itr: int, best: bo
 def restore_model(cfg: Config, filename: Path, model: nn.Module) -> tuple[nn.Module, int]:
     chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
     args_chkpt = chkpt["args"]
-    assert cfg.gen.levels == args_chkpt["enc.levels"]
+    assert cfg.enc.levels == args_chkpt["enc.levels"]
 
     model.load_state_dict(chkpt["model"])
     return model, chkpt["itr"]

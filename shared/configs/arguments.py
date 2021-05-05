@@ -343,7 +343,7 @@ class AdvConfig:
     # Training settings
     lr: float = 1e-3
     disc_lr: float = 3e-4
-    gen_weight: float = 0
+    enc_loss_w: float = 0
     gen_loss_weight: float = 1
     disc_weight: float = 1
     num_disc_updates: int = 3
@@ -401,7 +401,7 @@ class Config(BaseConfig):
     _target_: str = "shared.configs.Config"
 
     clust: ClusterConfig = MISSING
-    gen: EncoderConfig = MISSING
+    enc: EncoderConfig = MISSING
     disc: AdvConfig = MISSING
 
 

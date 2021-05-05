@@ -51,7 +51,6 @@ from shared.utils import (
     ExperimentBase,
     ModelFn,
     as_pretty_dict,
-    count_parameters,
     flatten_dict,
     inf_generator,
     load_results,
@@ -134,16 +133,16 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         self,
         cfg: Config,
         data_cfg: DatasetConfig,
-        gen_cfg: EncoderConfig,
+        enc_cfg: EncoderConfig,
         adv_cfg: AdvConfig,
         misc_cfg: MiscConfig,
     ) -> None:
         super().__init__(cfg=cfg, data_cfg=data_cfg, misc_cfg=misc_cfg)
-        self.gen_cfg = gen_cfg
+        self.enc_cfg = enc_cfg
         self.adv_cfg = adv_cfg
         self.grad_scaler = GradScaler() if self.misc_cfg.use_amp else None
 
-    def build_generator(
+    def build_encoder(
         self,
         input_shape: tuple[int, ...],
         feature_group_slices: dict[str, list[slice]] | None = None,
@@ -151,35 +150,35 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         if len(input_shape) > 2:
             decoding_dim = (
                 input_shape[0] * 256
-                if self.gen_cfg.recon_loss is ReconstructionLoss.ce
+                if self.enc_cfg.recon_loss is ReconstructionLoss.ce
                 else input_shape[0]
             )
             decoder_out_act = None
             encoder, decoder, latent_dim = conv_autoencoder(
                 input_shape,
-                self.gen_cfg.init_chans,
-                encoding_dim=self.gen_cfg.out_dim,
+                self.enc_cfg.init_chans,
+                encoding_dim=self.enc_cfg.out_dim,
                 decoding_dim=decoding_dim,
-                levels=self.gen_cfg.levels,
+                levels=self.enc_cfg.levels,
                 decoder_out_act=decoder_out_act,
                 variational=self.adv_cfg.vae,
             )
         else:
             encoder, decoder, latent_dim = fc_autoencoder(
                 input_shape,
-                self.gen_cfg.init_chans,
-                encoding_dim=self.gen_cfg.out_dim,
-                levels=self.gen_cfg.levels,
+                self.enc_cfg.init_chans,
+                encoding_dim=self.enc_cfg.out_dim,
+                levels=self.enc_cfg.levels,
                 variational=self.adv_cfg.vae,
             )
 
-        zs_dim = self.gen_cfg.zs_dim
+        zs_dim = self.enc_cfg.zs_dim
         zy_dim = latent_dim - zs_dim
         self._encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim)
 
         LOGGER.info(f"Encoding dim: {latent_dim}, {self._encoding_size}")
 
-        generator = build_ae(
+        encoder = build_ae(
             cfg=self.cfg,
             encoder=encoder,
             decoder=decoder,
@@ -188,13 +187,13 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         )
 
         # load pretrained encoder if one is provided
-        if self.gen_cfg.checkpoint_path:
+        if self.enc_cfg.checkpoint_path:
             save_dict = torch.load(
-                self.gen_cfg.checkpoint_path, map_location=lambda storage, loc: storage
+                self.enc_cfg.checkpoint_path, map_location=lambda storage, loc: storage
             )
-            generator.load_state_dict(save_dict["encoder"])
+            encoder.load_state_dict(save_dict["encoder"])
 
-        return generator
+        return encoder
 
     @abstractmethod
     def build_adversary(self, input_shape: tuple[int, ...]) -> Classifier | Discriminator:
@@ -224,7 +223,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
     def build(
         self, input_shape: tuple[int, ...], y_dim: int, s_dim: int, feature_group_slices
     ) -> None:
-        self.generator = self.build_generator(
+        self.encoder = self.build_encoder(
             input_shape=input_shape, feature_group_slices=feature_group_slices
         )
         self.adversary = self.build_adversary(input_shape=input_shape)
@@ -235,23 +234,23 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         self, feature_group_slices: dict[str, list[slice]] | None = None
     ) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
         recon_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
-        if self.gen_cfg.recon_loss is ReconstructionLoss.l1:
+        if self.enc_cfg.recon_loss is ReconstructionLoss.l1:
             recon_loss_fn = nn.L1Loss(reduction="sum")
-        elif self.gen_cfg.recon_loss is ReconstructionLoss.l2:
+        elif self.enc_cfg.recon_loss is ReconstructionLoss.l2:
             recon_loss_fn = nn.MSELoss(reduction="sum")
-        elif self.gen_cfg.recon_loss is ReconstructionLoss.bce:
+        elif self.enc_cfg.recon_loss is ReconstructionLoss.bce:
             recon_loss_fn = nn.BCELoss(reduction="sum")
-        elif self.gen_cfg.recon_loss is ReconstructionLoss.huber:
+        elif self.enc_cfg.recon_loss is ReconstructionLoss.huber:
             recon_loss_fn = lambda x, y: 0.1 * F.smooth_l1_loss(x * 10, y * 10, reduction="sum")
-        elif self.gen_cfg.recon_loss is ReconstructionLoss.ce:
+        elif self.enc_cfg.recon_loss is ReconstructionLoss.ce:
             recon_loss_fn = PixelCrossEntropy(reduction="sum")
-        elif self.gen_cfg.recon_loss is ReconstructionLoss.mixed:
+        elif self.enc_cfg.recon_loss is ReconstructionLoss.mixed:
             assert (
                 feature_group_slices is not None
-            ), "can only do multi gen_loss with feature groups"
+            ), "can only do multi enc_loss with feature groups"
             recon_loss_fn = MixedLoss(feature_group_slices, reduction="sum")
         else:
-            raise ValueError(f"{self.gen_cfg.recon_loss} is an invalid reconstruction gen_loss")
+            raise ValueError(f"{self.enc_cfg.recon_loss} is an invalid reconstruction loss.")
         return recon_loss_fn
 
     @implements(SemiSupervisedAlg)
@@ -272,7 +271,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
 
         batch_tr = self.sample_train(train_data_itr=train_data_itr)
         x_ctx = self.sample_context(context_data_itr=context_data_itr)
-        _, logging_dict = self._step_generator(x_c=x_ctx, tr=batch_tr, warmup=warmup)
+        _, logging_dict = self._step_encoder(x_c=x_ctx, tr=batch_tr, warmup=warmup)
 
         wandb_log(self.misc_cfg, logging_dict, step=itr)
 
@@ -296,13 +295,13 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         ...
 
     @abstractmethod
-    def _step_generator(
+    def _step_encoder(
         self, x_c: Tensor, tr: Batch, warmup: bool
     ) -> tuple[Tensor, dict[str, float]]:
         ...
 
-    def _update_generator(self, loss: Tensor) -> None:
-        self.generator.zero_grad()
+    def _update_encoder(self, loss: Tensor) -> None:
+        self.encoder.zero_grad()
         if self.adv_cfg.pred_y_weight > 0:
             self.predictor_y.zero_grad()
         if self.adv_cfg.pred_s_weight > 0:
@@ -312,8 +311,8 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
             loss = self.grad_scaler.scale(loss)
         loss.backward()
 
-        # Update the generator's parameters
-        self.generator.step(grad_scaler=self.grad_scaler)
+        # Update the encoder's parameters
+        self.encoder.step(grad_scaler=self.grad_scaler)
         if self.adv_cfg.pred_y_weight > 0:
             self.predictor_y.step(grad_scaler=self.grad_scaler)
         if self.adv_cfg.pred_s_weight > 0:
@@ -331,14 +330,14 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
             self.grad_scaler.update()
 
-    def train(self, mode: Literal["generator", "adversary"]) -> None:
-        if mode == "generator":
-            self.generator.train()
+    def train(self, mode: Literal["encoder", "adversary"]) -> None:
+        if mode == "encoder":
+            self.encoder.train()
             self.predictor_y.train()
             self.predictor_s.train()
             self.adversary.eval()
         else:
-            self.generator.eval()
+            self.encoder.eval()
             self.predictor_y.eval()
             self.predictor_s.eval()
             self.adversary.train()
@@ -356,8 +355,8 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
                 min_size=None if self.adv_cfg.oversample else self.adv_cfg.eff_batch_size,
             )
             dataloader_kwargs = dict(sampler=context_sampler)
-            if self.gen_cfg.use_pretrained_enc:
-                self.gen_cfg.checkpoint_path = str(cluster_results.enc_path)
+            if self.enc_cfg.use_pretrained_enc:
+                self.enc_cfg.checkpoint_path = str(cluster_results.enc_path)
         elif self.adv_cfg.balanced_context:
             context_sampler = build_weighted_sampler_from_dataset(
                 dataset=datasets.context,  # type: ignore
@@ -401,7 +400,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         return train_data_itr, context_data_itr
 
     def fit(self, datasets: DatasetTriplet) -> None:
-
+        # Load cluster results
         cluster_results = None
         cluster_test_metrics: dict[str, float] = {}
         cluster_context_metrics: dict[str, float] = {}
@@ -410,6 +409,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
             cluster_test_metrics = cluster_results.test_metrics or {}
             cluster_context_metrics = cluster_results.context_metrics or {}
 
+        # Construct the data iterators
         train_data_itr, context_data_itr = self._get_data_iterators(
             datasets=datasets, cluster_results=cluster_results
         )
@@ -423,7 +423,6 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
             feature_group_slices=feature_group_slices,
         )
 
-
         save_dir = Path(to_absolute_path(self.misc_cfg.save_dir)) / str(time.time())
         save_dir.mkdir(parents=True, exist_ok=True)
         LOGGER.info(f"Save directory: {save_dir.resolve()}")
@@ -431,16 +430,14 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         start_itr = 1  # start at 1 so that the val_freq works correctly
         # Resume from checkpoint
         if self.misc_cfg.resume is not None:
-            LOGGER.info("Restoring generator from checkpoint")
-            generator, start_itr = restore_model(
-                self.cfg, Path(self.misc_cfg.resume), self.generator
-            )
-            self.generator = cast(AutoEncoder, generator)
+            LOGGER.info("Restoring encoder's weights from checkpoint")
+            encoder, start_itr = restore_model(self.cfg, Path(self.misc_cfg.resume), self.encoder)
+            self.encoder = cast(AutoEncoder, encoder)
 
             if self.misc_cfg.evaluate:
                 log_metrics(
                     self.cfg,
-                    generator,
+                    encoder,
                     datasets,
                     step=0,
                     save_summary=True,
@@ -450,7 +447,6 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
 
         itr = start_itr
         start_time = time.monotonic()
-
         loss_meters = defaultdict(AverageMeter)
 
         for itr in range(start_itr, self.adv_cfg.iters + 1):
@@ -483,14 +479,14 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
             if self.adv_cfg.validate and itr % self.adv_cfg.val_freq == 0:
                 if itr == self.adv_cfg.val_freq:  # first validation
                     baseline_metrics(self.cfg, datasets)
-                log_metrics(self.cfg, model=self.generator, data=datasets, step=itr)
-                save_model(self.cfg, save_dir, model=self.generator, itr=itr)
+                log_metrics(self.cfg, model=self.encoder, data=datasets, step=itr)
+                save_model(self.cfg, save_dir, model=self.encoder, itr=itr)
 
         LOGGER.info("Training has finished.")
 
         log_metrics(
             self.cfg,
-            model=self.generator,
+            model=self.encoder,
             data=datasets,
             save_summary=True,
             step=itr,
@@ -509,7 +505,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
         disc_optimizer_kwargs = {"lr": self.adv_cfg.disc_lr}
         disc_input_shape: tuple[int, ...] = (
-            input_shape if self.adv_cfg.train_on_recon else (self.gen_cfg.out_dim,)
+            input_shape if self.adv_cfg.train_on_recon else (self.enc_cfg.out_dim,)
         )
         disc_fn: ModelFn
         if len(input_shape) > 2 and self.adv_cfg.train_on_recon:
@@ -565,20 +561,20 @@ class SupportMatching(AdvSemiSupervisedAlg):
         train_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
         context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
     ) -> tuple[Tensor, dict[str, float]]:
-        """Train the discriminator while keeping the generator constant.
+        """Train the discriminator while keeping the encoder constant.
         Args:
             x_c: x from the context set
             x_t: x from the training set
 
         """
+        self.train("adversary")
         x_tr = self.sample_train(train_data_itr).x
         x_ctx = self.sample_context(context_data_itr=context_data_itr)
 
-        self.train("adversary")
         with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):  # type: ignore
-            encoding_tr = self.generator.encode(x_tr, stochastic=True)
+            encoding_tr = self.encoder.encode(x_tr, stochastic=True)
             if not self.adv_cfg.train_on_recon:
-                encoding_ctx = self.generator.encode(x_ctx, stochastic=True)
+                encoding_ctx = self.encoder.encode(x_ctx, stochastic=True)
 
             if self.adv_cfg.train_on_recon:
                 adv_input_ctx = x_ctx
@@ -589,8 +585,8 @@ class SupportMatching(AdvSemiSupervisedAlg):
             adv_input_tr = adv_input_tr.detach()
 
             if not self.adv_cfg.train_on_recon:
-                adv_input_ctx = self._get_adv_input(encoding_ctx)  # type: ignore
-                adv_input_ctx = adv_input_ctx.detach()
+                with torch.no_grad():
+                    adv_input_ctx = self._get_adv_input(encoding_ctx)  # type: ignore
 
             adv_loss = self.adversary.discriminator_loss(fake=adv_input_tr, real=adv_input_ctx)  # type: ignore
 
@@ -599,7 +595,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         return adv_loss, logging_dict
 
     @implements(AdvSemiSupervisedAlg)
-    def _step_generator(
+    def _step_encoder(
         self, x_ctx: Tensor, batch_tr: Batch, warmup: bool
     ) -> tuple[Tensor, dict[str, float]]:
         """Compute all losses.
@@ -607,25 +603,25 @@ class SupportMatching(AdvSemiSupervisedAlg):
         Args:
             x_t: x from the training set
         """
-        # Compute losses for the generator.
-        self.train("generator")
+        # Compute losses for the encoder.
+        self.train("encoder")
         logging_dict = {}
 
         with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):
             # ============================= recon loss for training set ===========================
-            encoding_t, gen_loss_tr, logging_dict_tr = self.generator.routine(
-                batch_tr.x, self.recon_loss_fn, self.adv_cfg.gen_weight
+            encoding_t, enc_loss_tr, logging_dict_tr = self.encoder.routine(
+                batch_tr.x, self.recon_loss_fn, self.adv_cfg.enc_loss_w
             )
 
             # ============================= recon loss for context set ============================
-            encoding_c, gen_loss_ctx, logging_dict_ctx = self.generator.routine(
-                x_ctx, self.recon_loss_fn, self.adv_cfg.gen_weight
+            encoding_c, enc_loss_ctx, logging_dict_ctx = self.encoder.routine(
+                x_ctx, self.recon_loss_fn, self.adv_cfg.enc_loss_w
             )
             logging_dict.update({k: v + logging_dict_ctx[k] for k, v in logging_dict_tr.items()})
-            gen_loss_tr = 0.5 * (gen_loss_tr + gen_loss_ctx)  # take average of the two recon losses
-            gen_loss_tr *= self.adv_cfg.gen_loss_weight
-            logging_dict["Loss Generator"] = gen_loss_tr
-            total_loss = gen_loss_tr
+            enc_loss_tr = 0.5 * (enc_loss_tr + enc_loss_ctx)  # take average of the two recon losses
+            enc_loss_tr *= self.adv_cfg.enc_loss_w
+            logging_dict["Loss Generator"] = enc_loss_tr
+            total_loss = enc_loss_tr
             # ================================= adversarial losses ================================
             if not warmup:
                 disc_input_t = self._get_adv_input(encoding_t)
@@ -665,23 +661,23 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
         logging_dict["Loss Total"] = total_loss
 
-        self._update_generator(total_loss)
+        self._update_encoder(total_loss)
 
         return total_loss, logging_dict
 
     def _get_adv_input(self, encoding: SplitEncoding, detach: bool = False) -> Tensor:
         """Construct the input that the discriminator expects; either zy or reconstructed zy."""
         if self.adv_cfg.train_on_recon:
-            zs_m, _ = self.generator.mask(encoding, random=True, detach=detach)
-            recon = self.generator.decode(zs_m, mode="relaxed")
-            if self.gen_cfg.recon_loss is ReconstructionLoss.ce:
+            zs_m, _ = self.encoder.mask(encoding, random=True, detach=detach)
+            recon = self.encoder.decode(zs_m, mode="relaxed")
+            if self.enc_cfg.recon_loss is ReconstructionLoss.ce:
                 recon = recon.argmax(dim=1).float() / 255
                 if not isinstance(self.data_cfg, CmnistConfig):
                     recon = recon * 2 - 1
             return recon
         else:
-            zs_m, _ = self.generator.mask(encoding, detach=detach)
-            return self.generator.unsplit_encoding(zs_m)
+            zs_m, _ = self.encoder.mask(encoding, detach=detach)
+            return self.encoder.unsplit_encoding(zs_m)
 
     @torch.no_grad()
     @implements(AdvSemiSupervisedAlg)
@@ -699,8 +695,8 @@ class SupportMatching(AdvSemiSupervisedAlg):
             num_samples = num_sampled_bags * self.adv_cfg.bag_size
 
         sample = x[:num_samples]
-        encoding = self.generator.encode(sample, stochastic=False)
-        recon = self.generator.all_recons(encoding, mode="hard")
+        encoding = self.encoder.encode(sample, stochastic=False)
+        recon = self.encoder.all_recons(encoding, mode="hard")
         recons = [recon.all, recon.zero_s, recon.just_s]
 
         caption = "original | all | zero_s | just_s"
@@ -710,7 +706,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
         to_log: list[Tensor] = [sample]
         for recon_ in recons:
-            if self.gen_cfg.recon_loss is ReconstructionLoss.ce:
+            if self.enc_cfg.recon_loss is ReconstructionLoss.ce:
                 to_log.append(recon_.argmax(dim=1).float() / 255)
             else:
                 to_log.append(recon_)
@@ -754,7 +750,7 @@ class LAFTR(AdvSemiSupervisedAlg):
 
         adv_opt_kwaegs = {"lr": self.adv_cfg.disc_lr}
         adv_input_shape: tuple[int, ...] = (
-            input_shape if self.adv_cfg.train_on_recon else (self.gen_cfg.out_dim,)
+            input_shape if self.adv_cfg.train_on_recon else (self.enc_cfg.out_dim,)
         )
         adv_fn: ModelFn
         if len(input_shape) > 2 and self.adv_cfg.train_on_recon:
@@ -785,7 +781,7 @@ class LAFTR(AdvSemiSupervisedAlg):
         train_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
         context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
     ) -> tuple[Tensor, dict[str, float]]:
-        """Train the discriminator while keeping the generator constant.
+        """Train the discriminator while keeping the encoder constant.
         Args:
             x_c: x from the context set
             x_t: x from the training set
@@ -797,7 +793,7 @@ class LAFTR(AdvSemiSupervisedAlg):
         # Context-manager enables mixed-precision training
         with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):  # type: ignore
             with torch.no_grad():
-                encoding_tr = self.generator.encode(tr_batch.x, stochastic=True)
+                encoding_tr = self.encoder.encode(tr_batch.x, stochastic=True)
                 adv_input_tr = self._get_adv_input(encoding_tr)
             adv_loss, _ = self.adversary.routine(adv_input_tr, tr_batch.s)
 
@@ -805,7 +801,7 @@ class LAFTR(AdvSemiSupervisedAlg):
         return adv_loss, logging_dict
 
     @implements(AdvSemiSupervisedAlg)
-    def _step_generator(
+    def _step_encoder(
         self, x_c: Tensor, tr: Batch, warmup: bool
     ) -> tuple[Tensor, dict[str, float]]:
         """Compute all losses.
@@ -813,31 +809,31 @@ class LAFTR(AdvSemiSupervisedAlg):
         Args:
             x_t: x from the training set
         """
-        # Compute losses for the generator.
-        self.train("generator")
+        # Compute losses for the encoder.
+        self.train("encoder")
         logging_dict = {}
 
         with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):
             # ============================= recon loss for training set ===========================
-            encoding_t, gen_loss_tr, logging_dict_tr = self.generator.routine(
-                tr.x, self.recon_loss_fn, self.adv_cfg.gen_weight
+            encoding_t, enc_loss_tr, logging_dict_tr = self.encoder.routine(
+                tr.x, self.recon_loss_fn, self.adv_cfg.enc_loss_w
             )
 
             # ============================= recon loss for context set ============================
-            _, gen_loss_ctx, logging_dict_ctx = self.generator.routine(
-                x_c, self.recon_loss_fn, self.adv_cfg.gen_weight
+            _, enc_loss_ctx, logging_dict_ctx = self.encoder.routine(
+                x_c, self.recon_loss_fn, self.adv_cfg.enc_loss_w
             )
             logging_dict.update({k: v + logging_dict_ctx[k] for k, v in logging_dict_tr.items()})
-            gen_loss_tr = 0.5 * (gen_loss_tr + gen_loss_ctx)  # take average of the two recon losses
-            gen_loss_tr *= self.adv_cfg.gen_loss_weight
-            logging_dict["Loss Generator"] = gen_loss_tr
-            total_loss = gen_loss_tr
+            enc_loss_tr = 0.5 * (enc_loss_tr + enc_loss_ctx)  # take average of the two recon losses
+            enc_loss_tr *= self.adv_cfg.enc_loss_w
+            logging_dict["Loss Generator"] = enc_loss_tr
+            total_loss = enc_loss_tr
             # ================================= adversarial losses ================================
             if not warmup:
                 disc_input_t = self._get_adv_input(encoding_t)
                 disc_loss = self.adversary.routine(data=disc_input_t, targets=tr.y)[0]
                 disc_loss *= self.adv_cfg.disc_weight
-                # Negate the discriminator's loss to obtain the adversarial loss w.r.t the generator
+                # Negate the discriminator's loss to obtain the adversarial loss w.r.t the encoder
                 total_loss -= disc_loss
                 logging_dict["Loss Discriminator"] = disc_loss
 
@@ -857,14 +853,14 @@ class LAFTR(AdvSemiSupervisedAlg):
 
         logging_dict["Loss Total"] = total_loss
 
-        self._update_generator(total_loss)
+        self._update_encoder(total_loss)
 
         return total_loss, logging_dict
 
     def _get_adv_input(self, encoding: SplitEncoding, detach: bool = False) -> Tensor:
         """Construct the input that the discriminator expects; either zy or reconstructed zy."""
-        zs_m, _ = self.generator.mask(encoding, detach=detach)
-        return self.generator.unsplit_encoding(zs_m)
+        zs_m, _ = self.encoder.mask(encoding, detach=detach)
+        return self.encoder.unsplit_encoding(zs_m)
 
     @torch.no_grad()
     @implements(AdvSemiSupervisedAlg)
@@ -876,13 +872,13 @@ class LAFTR(AdvSemiSupervisedAlg):
         num_samples = num_blocks * rows_per_block
 
         sample = x[:num_samples]
-        encoding = self.generator.encode(sample, stochastic=False)
-        recon = self.generator.all_recons(encoding, mode="hard")
+        encoding = self.encoder.encode(sample, stochastic=False)
+        recon = self.encoder.all_recons(encoding, mode="hard")
         recons = [recon.all, recon.zero_s, recon.just_s]
         caption = "original | all | zero_s | just_s"
         to_log: list[Tensor] = [sample]
         for recon_ in recons:
-            if self.gen_cfg.recon_loss is ReconstructionLoss.ce:
+            if self.enc_cfg.recon_loss is ReconstructionLoss.ce:
                 to_log.append(recon_.argmax(dim=1).float() / 255)
             else:
                 to_log.append(recon_)
@@ -910,11 +906,11 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
         cluster_label_file: path to a pth file with cluster IDs
 
     Returns:
-        the trained generator
+        the trained encoder
     """
     # ==== initialize config shorthands ====
     data_cfg = cfg.data
-    gen_cfg = cfg.gen
+    enc_cfg = cfg.enc
     disc_cfg = cfg.disc
     misc_cfg = cfg.misc
 
@@ -946,7 +942,6 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
         )
         run.__enter__()  # call the context manager dunders manually to avoid excessive indentation
 
-
     LOGGER.info(
         yaml.dump(as_pretty_dict(cfg), default_flow_style=False, allow_unicode=True, sort_keys=True)
     )
@@ -962,16 +957,16 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> AutoEncoder:
     )
 
     # TODO: allow switching between this and LAFTR
-    exp = SupportMatching(
+    alg = SupportMatching(
         adv_cfg=disc_cfg,
         cfg=cfg,
         data_cfg=data_cfg,
-        gen_cfg=gen_cfg,
+        enc_cfg=enc_cfg,
         misc_cfg=misc_cfg,
     )
-    exp.fit(datasets=datasets)
+    alg.fit(datasets=datasets)
 
     if run is not None:
         run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
 
-    return exp.
+    return alg.encoder

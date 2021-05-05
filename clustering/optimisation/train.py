@@ -260,7 +260,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     # ==== initialize config shorthands ====
     args = cfg.clust
     data = cfg.data
-    enc = cfg.gen
+    enc = cfg.enc
     misc = cfg.misc
 
     # ==== current git commit ====
