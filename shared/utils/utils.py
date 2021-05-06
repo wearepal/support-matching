@@ -8,13 +8,13 @@ from math import gcd
 import os
 import random
 from typing import Any, TypeVar
+from typing_extensions import Literal, Protocol
 
 import numpy as np
 from omegaconf import OmegaConf
 import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
-from typing_extensions import Literal, Protocol
 import wandb
 
 from shared.configs import Config, DatasetConfig, EncoderConfig, MiscConfig
@@ -44,7 +44,7 @@ T = TypeVar("T")
 Int = TypeVar("Int", Tensor, int)
 
 
-class ExperimentBase:
+class Experiment:
     """Experiment singleton base class."""
 
     def __init__(

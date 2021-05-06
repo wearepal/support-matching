@@ -50,9 +50,9 @@ from shared.data.dataset_wrappers import RotationPrediction
 from shared.data.misc import adaptive_collate
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import (
+    AlgBase,
     AverageMeter,
     ClusterResults,
-    ExperimentBase,
     ModelFn,
     as_pretty_dict,
     count_parameters,
@@ -81,7 +81,7 @@ __all__ = ["main"]
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
-class Experiment(ExperimentBase):
+class Experiment(AlgBase):
     """Experiment singleton class."""
 
     def __init__(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Any, overload
+from typing_extensions import Literal
 
 import torch
 from torch import Tensor
@@ -9,7 +10,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from typing_extensions import Literal
 
 from shared.configs import VaeStd, ZsTransform
 from shared.utils import RoundSTE, sample_concrete, to_discrete
@@ -151,7 +151,7 @@ class AutoEncoder(nn.Module):
                     x = x.to(device)
 
                     self.zero_grad()
-                    _, loss, _ = self.routine(x, recon_loss_fn=loss_fn, kl_weight=kl_weight)
+                    _, loss, _ = self.routine(x, recon_loss_fn=loss_fn, prior_loss_w=kl_weight)
                     # loss /= x[0].nelement()
 
                     loss.backward()
@@ -161,14 +161,14 @@ class AutoEncoder(nn.Module):
                     pbar.set_postfix(AE_loss=loss.detach().cpu().numpy())
 
     def routine(
-        self, x: Tensor, recon_loss_fn, kl_weight: float
+        self, x: Tensor, recon_loss_fn, prior_loss_w: float
     ) -> tuple[SplitEncoding, Tensor, dict[str, float]]:
         encoding = self.encode(x)
 
         recon_all = self.decode(encoding)
         recon_loss = recon_loss_fn(recon_all, x)
         recon_loss /= x.nelement()
-        prior_loss = kl_weight * encoding.zy.norm(dim=1).mean()
+        prior_loss = prior_loss_w * encoding.zy.norm(dim=1).mean()
         loss = recon_loss + prior_loss
         return encoding, loss, {"Loss reconstruction": recon_loss.item(), "Prior Loss": prior_loss}
 

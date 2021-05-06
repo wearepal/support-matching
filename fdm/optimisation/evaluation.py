@@ -1,7 +1,9 @@
 from __future__ import annotations
 import logging
 from typing import Dict, NamedTuple, Optional, Sequence, Tuple
+from typing_extensions import Literal
 
+import ethicml as em
 import numpy as np
 import pandas as pd
 import torch
@@ -11,9 +13,7 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
 from tqdm import tqdm
-from typing_extensions import Literal
 
-import ethicml as em
 from fdm.models import AutoEncoder, Classifier, SplitEncoding
 from shared.configs import (
     AdultConfig,
@@ -55,14 +55,14 @@ def log_metrics(
 ) -> None:
     """Compute and log a variety of metrics."""
     model.eval()
-    invariant_to = "both" if cfg.disc.eval_s_from_zs is not None else "s"
+    invariant_to = "both" if cfg.adv.eval_s_from_zs is not None else "s"
 
     LOGGER.info("Encoding training set...")
     train = encode_dataset(
-        cfg, data.train, model, recons=cfg.disc.eval_on_recon, invariant_to=invariant_to
+        cfg, data.train, model, recons=cfg.adv.eval_on_recon, invariant_to=invariant_to
     )
     assert train.inv_s is not None
-    if cfg.disc.eval_on_recon:
+    if cfg.adv.eval_on_recon:
         # don't encode test dataset
         test_repr = data.test
     else:
@@ -78,20 +78,20 @@ def log_metrics(
         test_data=test_repr,
         y_dim=data.y_dim,
         s_dim=data.s_dim,
-        eval_on_recon=cfg.disc.eval_on_recon,
+        eval_on_recon=cfg.adv.eval_on_recon,
         pred_s=False,
         save_summary=save_summary,
         cluster_test_metrics=cluster_test_metrics,
         cluster_context_metrics=cluster_context_metrics,
     )
 
-    if cfg.disc.eval_s_from_zs is not None:
-        if cfg.disc.eval_s_from_zs is EvalTrainData.train:
+    if cfg.adv.eval_s_from_zs is not None:
+        if cfg.adv.eval_s_from_zs is EvalTrainData.train:
             assert train.inv_y is not None
             train_data = train.inv_y  # the part that is invariant to y corresponds to zs
         else:
             context = encode_dataset(
-                cfg, data.context, model, recons=cfg.disc.eval_on_recon, invariant_to="y"
+                cfg, data.context, model, recons=cfg.adv.eval_on_recon, invariant_to="y"
             )
             assert context.inv_y is not None
             train_data = context.inv_y
@@ -104,7 +104,7 @@ def log_metrics(
             y_dim=data.y_dim,
             s_dim=data.s_dim,
             name="s_from_zs",
-            eval_on_recon=cfg.disc.eval_on_recon,
+            eval_on_recon=cfg.adv.eval_on_recon,
             pred_s=True,
             save_summary=save_summary,
         )
@@ -150,7 +150,7 @@ def fit_classifier(
     test_data: Optional[DataLoader] = None,
 ) -> Classifier:
     input_dim = input_shape[0]
-    optimizer_kwargs = {"lr": cfg.disc.eval_lr}
+    optimizer_kwargs = {"lr": cfg.adv.eval_lr}
     clf_fn: ModelFn
 
     if train_on_recon:
@@ -189,7 +189,7 @@ def fit_classifier(
     clf.fit(
         train_data,
         test_data=test_data,
-        epochs=cfg.disc.eval_epochs,
+        epochs=cfg.adv.eval_epochs,
         device=torch.device(cfg.misc.device),
         pred_s=pred_s,
     )
@@ -221,12 +221,12 @@ def evaluate(
         )
 
     train_loader_kwargs = {}
-    if cfg.disc.balanced_eval:
+    if cfg.adv.balanced_eval:
         train_loader_kwargs["sampler"] = build_weighted_sampler_from_dataset(
             dataset=train_data,
             s_count=max(s_dim, 2),
-            batch_size=cfg.disc.eval_batch_size,
-            oversample=cfg.disc.oversample,
+            batch_size=cfg.adv.eval_batch_size,
+            oversample=cfg.adv.oversample,
             balance_hierarchical=False,
         )
         train_loader_kwargs["shuffle"] = False  # the sampler shuffles for us
@@ -235,12 +235,12 @@ def evaluate(
 
     train_loader = DataLoader(
         train_data,
-        batch_size=cfg.disc.eval_batch_size,
+        batch_size=cfg.adv.eval_batch_size,
         pin_memory=True,
         **train_loader_kwargs,
     )
     test_loader = DataLoader(
-        test_data, batch_size=cfg.disc.test_batch_size, shuffle=False, pin_memory=True
+        test_data, batch_size=cfg.adv.test_batch_size, shuffle=False, pin_memory=True
     )
 
     clf: Classifier = fit_classifier(
@@ -317,7 +317,7 @@ def encode_dataset(
     all_y = []
 
     data_loader = DataLoader(
-        data, batch_size=cfg.disc.encode_batch_size, pin_memory=True, shuffle=False, num_workers=0
+        data, batch_size=cfg.adv.encode_batch_size, pin_memory=True, shuffle=False, num_workers=0
     )
     device = torch.device(cfg.misc.device)
 
@@ -362,7 +362,7 @@ def _get_classifer_input(
 ) -> Tensor:
     if recons:
         # `zs_m` has zs zeroed out
-        if cfg.disc.train_on_recon:
+        if cfg.adv.train_on_recon:
             zs_m, zy_m = generator.mask(enc, random=True)
         else:
             # if we didn't train with the random encodings, it probably doesn't make much

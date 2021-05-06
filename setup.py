@@ -22,6 +22,7 @@ setup(
         "pillow",
         "pipenv >= 2018.11.26",
         "scikit-image >= 0.14",
+        "palkit",
         "scikit_learn >= 0.20.1",
         "scipy >= 1.2.1",
         "seaborn >= 0.9.0",

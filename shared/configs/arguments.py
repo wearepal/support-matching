@@ -272,13 +272,14 @@ class EncoderConfig:
     use_pretrained_enc: bool = False
     zs_dim: int = 1
     zs_transform: ZsTransform = ZsTransform.none
+    prior_loss_w: float = 0
 
 
 @dataclass
 class AdvConfig:
     """Flags for disentangling."""
 
-    _target_: str = "shared.configs.FdmConfig"
+    _target_: str = "shared.configs.AdvConfig"
 
     # Optimization settings
     early_stopping: int = 30
@@ -364,7 +365,7 @@ T = TypeVar("T", bound="BaseConfig")
 
 @dataclass
 class BaseConfig:
-    """Minimum needed config to do data loading."""
+    """Minimum config needed to do data loading."""
 
     _target_: str = "shared.configs.BaseConfig"
     cmd: str = ""
@@ -380,7 +381,7 @@ class BaseConfig:
         This is necessary because dataclasses cannot be instantiated recursively yet.
         """
         subconfigs = {
-            k: instantiate(v, _convert_="partial")
+            k: instantiate(v)
             for k, v in hydra_config.items()
             if k not in ("_target_", "cmd")
         }
@@ -402,7 +403,7 @@ class Config(BaseConfig):
 
     clust: ClusterConfig = MISSING
     enc: EncoderConfig = MISSING
-    disc: AdvConfig = MISSING
+    adv: AdvConfig = MISSING
 
 
 def register_configs() -> None:

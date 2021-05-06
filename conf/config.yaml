@@ -4,7 +4,7 @@ defaults:
     - bias: cmnist/no_bias
     - clust: vague_spaceship_improved
     - enc: mnist
-    - fdm: cmnist/fallen_sun
+    - adv: cmnist/fallen_sun
     - misc: default
     # hydra config
     - override hydra/job_logging: custom
