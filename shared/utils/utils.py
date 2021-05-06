@@ -44,7 +44,7 @@ T = TypeVar("T")
 Int = TypeVar("Int", Tensor, int)
 
 
-class Experiment:
+class ExperimentBase:
     """Experiment singleton base class."""
 
     def __init__(

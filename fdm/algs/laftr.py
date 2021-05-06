@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 import torch.nn as nn
 
-from fdm.algs.semi_supervised import AdvSemiSupervisedAlg
+from fdm.algs.ss_base import AdvSemiSupervisedAlg
 from fdm.models.base import SplitEncoding
 from fdm.models.classifier import Classifier
 from fdm.models.configs.classifiers import Residual64x64Net, Strided28x28Net
@@ -17,12 +17,14 @@ from shared.data.utils import Batch
 from shared.models.configs.classifiers import FcNet
 from shared.utils.utils import ModelFn, prod
 
+__all__ = ["LAFTR"]
+
 
 class LAFTR(AdvSemiSupervisedAlg):
     adversary: Classifier
 
     @implements(AdvSemiSupervisedAlg)
-    def _build_adversary(self, input_shape: tuple[int, ...]) -> Classifier:
+    def _build_adversary(self, input_shape: tuple[int, ...], s_dim: int) -> Classifier:
         # TODO: Move into a 'build' method
         adv_input_shape: tuple[int, ...] = (
             input_shape if self.adv_cfg.train_on_recon else (self.enc_cfg.out_dim,)
@@ -44,9 +46,9 @@ class LAFTR(AdvSemiSupervisedAlg):
             )
 
         return Classifier(
-            model=adv_fn(adv_input_shape, self.predictor_s.num_classes),  # type: ignore
+            model=adv_fn(adv_input_shape, s_dim),  # type: ignore
             optimizer_kwargs=self.optimizer_kwargs,
-            criterion=self.adv_cfg.disc_loss,
+            num_classes=s_dim if s_dim > 1 else 2
         )
 
     @implements(AdvSemiSupervisedAlg)

@@ -65,10 +65,8 @@ class SemiSupervisedAlg(AlgBase):
     def __init__(
         self,
         cfg: Config,
-        data_cfg: DatasetConfig,
-        misc_cfg: MiscConfig,
     ) -> None:
-        super().__init__(cfg=cfg, data_cfg=data_cfg, misc_cfg=misc_cfg)
+        super().__init__(cfg=cfg)
         self.grad_scaler = GradScaler() if self.misc_cfg.use_amp else None
 
     def sample_context(self, context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]]) -> Tensor:
@@ -103,14 +101,10 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
     def __init__(
         self,
         cfg: Config,
-        data_cfg: DatasetConfig,
-        enc_cfg: EncoderConfig,
-        adv_cfg: AdvConfig,
-        misc_cfg: MiscConfig,
     ) -> None:
-        super().__init__(cfg=cfg, data_cfg=data_cfg, misc_cfg=misc_cfg)
-        self.enc_cfg = enc_cfg
-        self.adv_cfg = adv_cfg
+        super().__init__(cfg=cfg)
+        self.enc_cfg = cfg.enc
+        self.adv_cfg = cfg.adv
         self.grad_scaler = GradScaler() if self.misc_cfg.use_amp else None
         self.optimizer_kwargs = {"lr": self.adv_cfg.disc_lr}
 
@@ -198,9 +192,9 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         self.encoder = self._build_encoder(
             input_shape=input_shape, feature_group_slices=feature_group_slices
         )
-        self.adversary = self._build_adversary(input_shape=input_shape)
-        self.predictor_y, self.predictor_s = self.build_predictors(y_dim=y_dim, s_dim=s_dim)
         self.recon_loss_fn = self._get_recon_loss_fn(feature_group_slices=feature_group_slices)
+        self.adversary = self._build_adversary(input_shape=input_shape, s_dim=s_dim)
+        self.predictor_y, self.predictor_s = self.build_predictors(y_dim=y_dim, s_dim=s_dim)
 
     def _get_recon_loss_fn(
         self, feature_group_slices: dict[str, list[slice]] | None = None

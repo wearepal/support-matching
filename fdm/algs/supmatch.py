@@ -12,6 +12,7 @@ from fdm.models.configs import Residual64x64Net
 from fdm.models.configs.classifiers import Strided28x28Net
 from fdm.models.discriminator import Discriminator
 from fdm.optimisation.mmd import mmd2
+from fdm.optimisation.utils import log_attention, log_images
 from kit import implements
 from shared.configs import (
     AggregatorType,
@@ -24,7 +25,8 @@ from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggr
 from shared.models.configs import FcNet, ModelAggregatorWrapper
 from shared.utils import ModelFn, prod
 
-from .utils import log_attention, log_images
+
+__all__ = ["SupportMatching"]
 
 
 class SupportMatching(AdvSemiSupervisedAlg):
@@ -32,7 +34,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
     adversary: Discriminator
 
     @implements(AdvSemiSupervisedAlg)
-    def _build_adversary(self, input_shape: tuple[int, ...]) -> Discriminator:
+    def _build_adversary(self, input_shape: tuple[int, ...], s_dim: int) -> Discriminator:
         # TODO: Move into a 'build' method
 
         disc_input_shape: tuple[int, ...] = (
