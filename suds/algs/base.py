@@ -68,7 +68,7 @@ class AlgBase:
             local_dir.mkdir(exist_ok=True)
             run = wandb.init(
                 entity="predictive-analytics-lab",
-                project="fdm-hydra" + project_suffix,
+                project="suds-hydra" + project_suffix,
                 dir=str(local_dir),
                 config=flatten_dict(as_pretty_dict(self.cfg)),
                 group=group if group else None,

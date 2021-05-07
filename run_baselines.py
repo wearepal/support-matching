@@ -21,7 +21,6 @@ from torchvision.models.resnet import ResNet
 import wandb
 import yaml
 
-from fdm.optimisation.utils import build_weighted_sampler_from_dataset
 from shared.configs import (
     AdultConfig,
     BaseConfig,
@@ -42,6 +41,7 @@ from shared.utils import (
 )
 from suds.baselines import GDRO, LfF
 from suds.models import Classifier
+from suds.optimisation.utils import build_weighted_sampler_from_dataset
 
 LOGGER = logging.getLogger("BASELINE")
 
@@ -140,7 +140,7 @@ def run_baseline(cfg: Config) -> None:
         local_dir.mkdir(exist_ok=True)
         run = wandb.init(
             entity="predictive-analytics-lab",
-            project="fdm-baselines" + project_suffix,
+            project="suds-baselines" + project_suffix,
             dir=str(local_dir),
             config=flatten_dict(as_pretty_dict(cfg)),
             group=group if group else None,
@@ -167,6 +167,7 @@ def run_baseline(cfg: Config) -> None:
         "sampler": train_sampler,
         "pin_memory": True,
         "num_workers": cfg.data.num_workers,
+        "shuffle": False,
     }
 
     input_shape = train_data[0][0].shape

@@ -1,13 +1,13 @@
 from setuptools import find_packages, setup
 
 setup(
-    name="fdm",
+    name="suds",
     version="0.2.0",
     author="T. Kehrenberg, M. Bartlett, O. Thomas",
     packages=find_packages(),
     description="Fair distribution matching",
     python_requires=">=3.7",
-    package_data={"clustering": ["py.typed"], "fdm": ["py.typed"], "shared": ["py.typed"]},
+    package_data={"clustering": ["py.typed"], "suds": ["py.typed"], "shared": ["py.typed"]},
     install_requires=[
         "EthicML == 0.2.0",
         "GitPython >= 2.1.11",

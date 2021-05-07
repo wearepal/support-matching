@@ -1,36 +1,36 @@
 seed,data,method,wandb_url,cluster_test_acc,cluster_context_acc,Accuracy,Renyi preds and s
-888,original_data,"Logistic Regression (C=1.0)",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/1k8w4asl,0.330820770519263,0.3972580021007242,0.7278056951423786,0.13093490658043322
-888,original_data,"Majority",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/1k8w4asl,0.330820770519263,0.3972580021007242,0.5,1.0
-888,original_data,"Kamiran & Calders LR",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/1k8w4asl,0.330820770519263,0.3972580021007242,0.731574539363484,0.11476784495579123
-888,original_data,"LRCV",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/1k8w4asl,0.330820770519263,0.3972580021007242,0.7286432160804021,0.13189758261120377
-888,original_data,"SVM",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/1k8w4asl,0.330820770519263,0.3972580021007242,0.731574539363484,0.15468280571938148
-2410,original_data,"Logistic Regression (C=1.0)",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/35iq1lc0,0.33040201005025127,0.38614627674277185,0.7495812395309883,0.15994036199617034
-2410,original_data,"Majority",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/35iq1lc0,0.33040201005025127,0.38614627674277185,0.5,1.0
-2410,original_data,"Kamiran & Calders LR",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/35iq1lc0,0.33040201005025127,0.38614627674277185,0.7546063651591289,0.15793670248248295
-2410,original_data,"LRCV",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/35iq1lc0,0.33040201005025127,0.38614627674277185,0.7487437185929648,0.16095901031614496
-2410,original_data,"SVM",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/35iq1lc0,0.33040201005025127,0.38614627674277185,0.7495812395309883,0.15259530663008902
-1,original_data,"Logistic Regression (C=1.0)",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/8n2uxa33,0.3333333333333333,0.39211675603958207,0.7420435510887772,0.14038196813935963
-1,original_data,"Majority",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/8n2uxa33,0.3333333333333333,0.39211675603958207,0.5,1.0
-1,original_data,"Kamiran & Calders LR",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/8n2uxa33,0.3333333333333333,0.39211675603958207,0.7474874371859297,0.1255743808613097
-1,original_data,"LRCV",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/8n2uxa33,0.3333333333333333,0.39211675603958207,0.7428810720268006,0.14033215491354176
-1,original_data,"SVM",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/8n2uxa33,0.3333333333333333,0.39211675603958207,0.757537688442211,0.1369810369663988
-1996,original_data,"Logistic Regression (C=1.0)",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/1sn4g6ip,0.33500837520938026,0.38797058986124167,0.7374371859296482,0.12018566252246751
-1996,original_data,"Majority",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/1sn4g6ip,0.33500837520938026,0.38797058986124167,0.5,1.0
-1996,original_data,"Kamiran & Calders LR",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/1sn4g6ip,0.33500837520938026,0.38797058986124167,0.7428810720268006,0.11430300224586461
-1996,original_data,"LRCV",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/1sn4g6ip,0.33500837520938026,0.38797058986124167,0.7370184254606366,0.12032189957848549
-1996,original_data,"SVM",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/1sn4g6ip,0.33500837520938026,0.38797058986124167,0.7432998324958124,0.13798092867984493
-711,original_data,"Logistic Regression (C=1.0)",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/f8si8xxc,0.32453936348408713,0.3897949029797114,0.7311557788944724,0.15539437483704624
-711,original_data,"Majority",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/f8si8xxc,0.32453936348408713,0.3897949029797114,0.5,1.0
-711,original_data,"Kamiran & Calders LR",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/f8si8xxc,0.32453936348408713,0.3897949029797114,0.7378559463986599,0.14379392104440056
-711,original_data,"LRCV",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/f8si8xxc,0.32453936348408713,0.3897949029797114,0.7278056951423786,0.15228655090299476
-711,original_data,"SVM",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/f8si8xxc,0.32453936348408713,0.3897949029797114,0.742462311557789,0.1517932563330985
-1996,x_rand_s,"Logistic Regression (C=1.0)",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/1sn4g6ip,0.33500837520938026,0.38797058986124167,0.7361809045226131,0.11769310149003533
-1996,x_rand_s,"LRCV",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/1sn4g6ip,0.33500837520938026,0.38797058986124167,0.7353433835845896,0.11871861588420161
-888,x_rand_s,"Logistic Regression (C=1.0)",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/1k8w4asl,0.330820770519263,0.3972580021007242,0.7097989949748744,0.13820808909967722
-888,x_rand_s,"LRCV",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/1k8w4asl,0.330820770519263,0.3972580021007242,0.7102177554438861,0.13616193727551226
-2410,x_rand_s,"Logistic Regression (C=1.0)",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/35iq1lc0,0.33040201005025127,0.38614627674277185,0.7374371859296482,0.17010878942100155
-2410,x_rand_s,"LRCV",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/35iq1lc0,0.33040201005025127,0.38614627674277185,0.7395309882747069,0.1699512420107408
-1,x_rand_s,"Logistic Regression (C=1.0)",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/8n2uxa33,0.3333333333333333,0.39211675603958207,0.7412060301507538,0.14533869006604966
-1,x_rand_s,"LRCV",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/8n2uxa33,0.3333333333333333,0.39211675603958207,0.7403685092127303,0.14516217503226128
-711,x_rand_s,"Logistic Regression (C=1.0)",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/f8si8xxc,0.32453936348408713,0.3897949029797114,0.7014237855946399,0.18382322411097063
-711,x_rand_s,"LRCV",https://app.wandb.ai/predictive-analytics-lab/fdm/runs/f8si8xxc,0.32453936348408713,0.3897949029797114,0.7005862646566164,0.1805173582862703
+888,original_data,"Logistic Regression (C=1.0)",https://app.wandb.ai/predictive-analytics-lab/suds/runs/1k8w4asl,0.330820770519263,0.3972580021007242,0.7278056951423786,0.13093490658043322
+888,original_data,"Majority",https://app.wandb.ai/predictive-analytics-lab/suds/runs/1k8w4asl,0.330820770519263,0.3972580021007242,0.5,1.0
+888,original_data,"Kamiran & Calders LR",https://app.wandb.ai/predictive-analytics-lab/suds/runs/1k8w4asl,0.330820770519263,0.3972580021007242,0.731574539363484,0.11476784495579123
+888,original_data,"LRCV",https://app.wandb.ai/predictive-analytics-lab/suds/runs/1k8w4asl,0.330820770519263,0.3972580021007242,0.7286432160804021,0.13189758261120377
+888,original_data,"SVM",https://app.wandb.ai/predictive-analytics-lab/suds/runs/1k8w4asl,0.330820770519263,0.3972580021007242,0.731574539363484,0.15468280571938148
+2410,original_data,"Logistic Regression (C=1.0)",https://app.wandb.ai/predictive-analytics-lab/suds/runs/35iq1lc0,0.33040201005025127,0.38614627674277185,0.7495812395309883,0.15994036199617034
+2410,original_data,"Majority",https://app.wandb.ai/predictive-analytics-lab/suds/runs/35iq1lc0,0.33040201005025127,0.38614627674277185,0.5,1.0
+2410,original_data,"Kamiran & Calders LR",https://app.wandb.ai/predictive-analytics-lab/suds/runs/35iq1lc0,0.33040201005025127,0.38614627674277185,0.7546063651591289,0.15793670248248295
+2410,original_data,"LRCV",https://app.wandb.ai/predictive-analytics-lab/suds/runs/35iq1lc0,0.33040201005025127,0.38614627674277185,0.7487437185929648,0.16095901031614496
+2410,original_data,"SVM",https://app.wandb.ai/predictive-analytics-lab/suds/runs/35iq1lc0,0.33040201005025127,0.38614627674277185,0.7495812395309883,0.15259530663008902
+1,original_data,"Logistic Regression (C=1.0)",https://app.wandb.ai/predictive-analytics-lab/suds/runs/8n2uxa33,0.3333333333333333,0.39211675603958207,0.7420435510887772,0.14038196813935963
+1,original_data,"Majority",https://app.wandb.ai/predictive-analytics-lab/suds/runs/8n2uxa33,0.3333333333333333,0.39211675603958207,0.5,1.0
+1,original_data,"Kamiran & Calders LR",https://app.wandb.ai/predictive-analytics-lab/suds/runs/8n2uxa33,0.3333333333333333,0.39211675603958207,0.7474874371859297,0.1255743808613097
+1,original_data,"LRCV",https://app.wandb.ai/predictive-analytics-lab/suds/runs/8n2uxa33,0.3333333333333333,0.39211675603958207,0.7428810720268006,0.14033215491354176
+1,original_data,"SVM",https://app.wandb.ai/predictive-analytics-lab/suds/runs/8n2uxa33,0.3333333333333333,0.39211675603958207,0.757537688442211,0.1369810369663988
+1996,original_data,"Logistic Regression (C=1.0)",https://app.wandb.ai/predictive-analytics-lab/suds/runs/1sn4g6ip,0.33500837520938026,0.38797058986124167,0.7374371859296482,0.12018566252246751
+1996,original_data,"Majority",https://app.wandb.ai/predictive-analytics-lab/suds/runs/1sn4g6ip,0.33500837520938026,0.38797058986124167,0.5,1.0
+1996,original_data,"Kamiran & Calders LR",https://app.wandb.ai/predictive-analytics-lab/suds/runs/1sn4g6ip,0.33500837520938026,0.38797058986124167,0.7428810720268006,0.11430300224586461
+1996,original_data,"LRCV",https://app.wandb.ai/predictive-analytics-lab/suds/runs/1sn4g6ip,0.33500837520938026,0.38797058986124167,0.7370184254606366,0.12032189957848549
+1996,original_data,"SVM",https://app.wandb.ai/predictive-analytics-lab/suds/runs/1sn4g6ip,0.33500837520938026,0.38797058986124167,0.7432998324958124,0.13798092867984493
+711,original_data,"Logistic Regression (C=1.0)",https://app.wandb.ai/predictive-analytics-lab/suds/runs/f8si8xxc,0.32453936348408713,0.3897949029797114,0.7311557788944724,0.15539437483704624
+711,original_data,"Majority",https://app.wandb.ai/predictive-analytics-lab/suds/runs/f8si8xxc,0.32453936348408713,0.3897949029797114,0.5,1.0
+711,original_data,"Kamiran & Calders LR",https://app.wandb.ai/predictive-analytics-lab/suds/runs/f8si8xxc,0.32453936348408713,0.3897949029797114,0.7378559463986599,0.14379392104440056
+711,original_data,"LRCV",https://app.wandb.ai/predictive-analytics-lab/suds/runs/f8si8xxc,0.32453936348408713,0.3897949029797114,0.7278056951423786,0.15228655090299476
+711,original_data,"SVM",https://app.wandb.ai/predictive-analytics-lab/suds/runs/f8si8xxc,0.32453936348408713,0.3897949029797114,0.742462311557789,0.1517932563330985
+1996,x_rand_s,"Logistic Regression (C=1.0)",https://app.wandb.ai/predictive-analytics-lab/suds/runs/1sn4g6ip,0.33500837520938026,0.38797058986124167,0.7361809045226131,0.11769310149003533
+1996,x_rand_s,"LRCV",https://app.wandb.ai/predictive-analytics-lab/suds/runs/1sn4g6ip,0.33500837520938026,0.38797058986124167,0.7353433835845896,0.11871861588420161
+888,x_rand_s,"Logistic Regression (C=1.0)",https://app.wandb.ai/predictive-analytics-lab/suds/runs/1k8w4asl,0.330820770519263,0.3972580021007242,0.7097989949748744,0.13820808909967722
+888,x_rand_s,"LRCV",https://app.wandb.ai/predictive-analytics-lab/suds/runs/1k8w4asl,0.330820770519263,0.3972580021007242,0.7102177554438861,0.13616193727551226
+2410,x_rand_s,"Logistic Regression (C=1.0)",https://app.wandb.ai/predictive-analytics-lab/suds/runs/35iq1lc0,0.33040201005025127,0.38614627674277185,0.7374371859296482,0.17010878942100155
+2410,x_rand_s,"LRCV",https://app.wandb.ai/predictive-analytics-lab/suds/runs/35iq1lc0,0.33040201005025127,0.38614627674277185,0.7395309882747069,0.1699512420107408
+1,x_rand_s,"Logistic Regression (C=1.0)",https://app.wandb.ai/predictive-analytics-lab/suds/runs/8n2uxa33,0.3333333333333333,0.39211675603958207,0.7412060301507538,0.14533869006604966
+1,x_rand_s,"LRCV",https://app.wandb.ai/predictive-analytics-lab/suds/runs/8n2uxa33,0.3333333333333333,0.39211675603958207,0.7403685092127303,0.14516217503226128
+711,x_rand_s,"Logistic Regression (C=1.0)",https://app.wandb.ai/predictive-analytics-lab/suds/runs/f8si8xxc,0.32453936348408713,0.3897949029797114,0.7014237855946399,0.18382322411097063
+711,x_rand_s,"LRCV",https://app.wandb.ai/predictive-analytics-lab/suds/runs/f8si8xxc,0.32453936348408713,0.3897949029797114,0.7005862646566164,0.1805173582862703

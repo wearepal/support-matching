@@ -25,7 +25,7 @@ def app(hydra_config: DictConfig) -> None:
 
         cluster(cfg=cfg, cluster_label_file=clf)
 
-        from fdm.optimisation import main as disentangle
+        from suds.optimisation import main as disentangle
 
         disentangle(cfg=cfg, cluster_label_file=clf)
 
