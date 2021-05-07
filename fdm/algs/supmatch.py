@@ -1,6 +1,5 @@
 from __future__ import annotations
 from collections.abc import Iterator, Sequence
-from pathlib import Path
 
 from kit import implements
 import torch
@@ -20,6 +19,7 @@ from shared.configs import (
     DiscriminatorMethod,
     ReconstructionLoss,
 )
+from shared.configs.arguments import Config
 from shared.data.utils import Batch
 from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
 from shared.models.configs import FcNet, ModelAggregatorWrapper
@@ -32,6 +32,11 @@ __all__ = ["SupportMatching"]
 class SupportMatching(AdvSemiSupervisedAlg):
     # TODO: this is bad practice
     adversary: Discriminator
+
+    def __init__(self, cfg: Config) -> None:
+        super().__init__(cfg)
+        if self.adv_cfg.aggregator_type != AggregatorType.none:
+            self.eff_batch_size *= self.adv_cfg.bag_size
 
     @implements(AdvSemiSupervisedAlg)
     def _build_adversary(self, input_shape: tuple[int, ...], s_dim: int) -> Discriminator:
@@ -48,7 +53,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 disc_fn = Residual64x64Net(batch_norm=False)
 
         else:
-            disc_fn = FcNet(hidden_dims=self.adv_cfg.disc_hidden_dims, activation=nn.GELU())
+            disc_fn = FcNet(hidden_dims=self.adv_cfg.adv_hidden_dims, activation=nn.GELU())
             # FcNet first flattens the input
             disc_input_shape = (
                 (prod(disc_input_shape),)
@@ -85,7 +90,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
             model=disc_fn(disc_input_shape, 1),  # type: ignore
             double_adv_loss=self.adv_cfg.double_adv_loss,
             optimizer_kwargs=self.optimizer_kwargs,
-            criterion=self.adv_cfg.disc_loss,
+            criterion=self.adv_cfg.adv_loss,
         )
 
     @implements(AdvSemiSupervisedAlg)
@@ -160,7 +165,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 disc_input_tr = self._get_adv_input(encoding_t)
                 disc_input_ctx = self._get_adv_input(encoding_c)
 
-                if self.adv_cfg.disc_method is DiscriminatorMethod.nn:
+                if self.adv_cfg.adv_method is DiscriminatorMethod.nn:
                     disc_loss = self.adversary.encoder_loss(fake=disc_input_tr, real=disc_input_ctx)
 
                 else:
@@ -174,7 +179,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
                         wts=self.adv_cfg.mmd_wts,
                         add_dot=self.adv_cfg.mmd_add_dot,
                     )
-                disc_loss *= self.adv_cfg.disc_weight
+                disc_loss *= self.adv_cfg.adv_weight
                 total_loss += disc_loss
                 logging_dict["Loss Discriminator"] = disc_loss
 

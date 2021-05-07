@@ -108,8 +108,8 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         super().__init__(cfg=cfg)
         self.enc_cfg = cfg.enc
         self.adv_cfg = cfg.adv
-        self.grad_scaler = GradScaler() if self.misc_cfg.use_amp else None
-        self.optimizer_kwargs = {"lr": self.adv_cfg.disc_lr}
+        self.optimizer_kwargs = {"lr": self.adv_cfg.adv_lr}
+        self.eff_batch_size = self.adv_cfg.batch_size
 
     def _build_encoder(
         self,
@@ -231,9 +231,9 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
     ) -> dict[str, float]:
 
         warmup = itr < self.adv_cfg.warmup_steps
-        if (not warmup) and (self.adv_cfg.disc_method is DiscriminatorMethod.nn):
+        if (not warmup) and (self.adv_cfg.adv_method is DiscriminatorMethod.nn):
             # Train the discriminator on its own for a number of iterations
-            for _ in range(self.adv_cfg.num_disc_updates):
+            for _ in range(self.adv_cfg.num_adv_updates):
                 self._step_adversary(
                     train_data_itr=train_data_itr, context_data_itr=context_data_itr
                 )
@@ -322,7 +322,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
                 group_ids=cluster_results.cluster_ids,
                 oversample=self.adv_cfg.oversample,
                 batch_size=self.adv_cfg.batch_size,
-                min_size=None if self.adv_cfg.oversample else self.adv_cfg.eff_batch_size,
+                min_size=None if self.adv_cfg.oversample else self.eff_batch_size,
             )
             if self.enc_cfg.use_pretrained_enc:
                 self.enc_cfg.checkpoint_path = str(cluster_results.enc_path)
@@ -330,7 +330,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
             context_sampler = build_weighted_sampler_from_dataset(
                 dataset=datasets.context,  # type: ignore
                 s_count=s_count,
-                batch_size=self.adv_cfg.eff_batch_size,
+                batch_size=self.eff_batch_size,
                 oversample=self.adv_cfg.oversample,
                 balance_hierarchical=False,
             )
@@ -338,34 +338,34 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
             context_sampler = RandomSampler(datasets.context)  # type: ignore
         context_dl_kwargs["sampler"] = context_sampler
 
-        context_loader = DataLoader(
+        context_dataloader = DataLoader(
             datasets.context,
-            num_workers=self.misc_cfg.num_workers,
+            num_workers=self.data_cfg.num_workers,
             pin_memory=True,
-            batch_size=self.adv_cfg.eff_batch_size,
+            batch_size=self.eff_batch_size,
             **context_dl_kwargs,
         )
 
         train_sampler = build_weighted_sampler_from_dataset(
             dataset=datasets.train,  # type: ignore
             s_count=s_count,
-            batch_size=self.adv_cfg.eff_batch_size,
+            batch_size=self.eff_batch_size,
             oversample=self.adv_cfg.oversample,
             balance_hierarchical=True,
         )
-        train_loader = DataLoader(
+        train_dataloader = DataLoader(
             dataset=datasets.train,
-            num_workers=self.misc_cfg.num_workers,
+            num_workers=self.data_cfg.num_workers,
             drop_last=True,
             shuffle=False,
             sampler=train_sampler,
             pin_memory=True,
-            batch_size=self.adv_cfg.eff_batch_size,
+            batch_size=self.eff_batch_size,
         )
-        train_itr = inf_generator(train_loader)
-        context_itr = inf_generator(context_loader)
+        train_data_itr = inf_generator(train_dataloader)
+        context_data_itr = inf_generator(context_dataloader)
 
-        return train_itr, context_itr
+        return train_data_itr, context_data_itr
 
     def fit(self, datasets: DatasetTriplet) -> None:
         # Load cluster results

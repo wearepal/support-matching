@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Iterator, Sequence
 
+from kit import implements
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -10,7 +11,6 @@ from fdm.models.base import SplitEncoding
 from fdm.models.classifier import Classifier
 from fdm.models.configs.classifiers import Residual64x64Net, Strided28x28Net
 from fdm.optimisation.utils import log_images
-from kit import implements
 from shared.configs.arguments import CmnistConfig
 from shared.configs.enums import ReconstructionLoss
 from shared.data.utils import Batch
@@ -37,7 +37,7 @@ class LAFTR(AdvSemiSupervisedAlg):
                 adv_fn = Residual64x64Net(batch_norm=False)
 
         else:
-            adv_fn = FcNet(hidden_dims=self.adv_cfg.disc_hidden_dims, activation=nn.GELU())
+            adv_fn = FcNet(hidden_dims=self.adv_cfg.adv_hidden_dims, activation=nn.GELU())
             # FcNet first flattens the input
             adv_input_shape = (
                 (prod(adv_input_shape),)
@@ -108,7 +108,7 @@ class LAFTR(AdvSemiSupervisedAlg):
             if not warmup:
                 disc_input_t = self._get_adv_input(encoding_t)
                 disc_loss = self.adversary.routine(data=disc_input_t, targets=batch_tr.y)[0]
-                disc_loss *= self.adv_cfg.disc_weight
+                disc_loss *= self.adv_cfg.adv_weight
                 # Negate the discriminator's loss to obtain the adversarial loss w.r.t the encoder
                 total_loss -= disc_loss
                 logging_dict["Loss Discriminator"] = disc_loss

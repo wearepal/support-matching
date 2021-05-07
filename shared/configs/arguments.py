@@ -62,6 +62,9 @@ class DatasetConfig:
     root: str = ""
     transductive: bool = False  # whether to include the test data in the pool of unlabelled data
 
+    num_workers: int = 4
+    data_split_seed: int = 42
+
 
 @dataclass
 class AdultConfig(DatasetConfig):
@@ -160,17 +163,15 @@ class MiscConfig:
     exp_group: str = ""  # experiment group; should be unique for a specific setting
     log_method: str = ""  # arbitrary string that's appended to the experiment group name
     use_wandb: bool = True
-    gpu: int = 0  # which GPU to use (if available)
-    use_amp: bool = False  # Whether to use mixed-precision training
-    seed: int = MISSING
-    data_split_seed: int = MISSING
     save_dir: str = "experiments/finn"
     results_csv: str = ""  # name of CSV file to save results to
     resume: Optional[str] = None
     evaluate: bool = False
-    num_workers: int = 4
-    device: str = "cpu"
+    seed: int = MISSING
     use_gpu: bool = False
+    use_amp: bool = False  # Whether to use mixed-precision training
+    device: str = "cpu"
+    gpu: int = 0  # which GPU to use (if available)
 
     def __post_init__(self) -> None:
         # ==== check GPU ====
@@ -281,15 +282,14 @@ class AdvConfig:
 
     _target_: str = "shared.configs.AdvConfig"
 
-    # Optimization settings
-    early_stopping: int = 30
-    iters: int = 50_000
-    batch_size: int = 64
-    bag_size: int = 16
-    eff_batch_size: int = (
-        0  # the total number of samples to be drawn each iteration: bag_size * batch_size
-    )
+    batch_size: int = 256
     test_batch_size: Optional[int] = 256
+    iters: int = 50_000
+    bag_size: int = 16
+    balanced_context: bool = False  # Whether to balance the context set with groundtruth labels
+    oversample: bool = False  # Whether to oversample when doing weighted sampling.
+
+    early_stopping: int = 30
     weight_decay: float = 0
     warmup_steps: int = 0
     distinguish_warmup: bool = False
@@ -297,8 +297,6 @@ class AdvConfig:
     train_on_recon: bool = False  # whether to train the discriminator on recons or encodings
     recon_detach: bool = True  # Whether to apply the stop gradient operator to the reconstruction.
     eval_on_recon: bool = False
-    balanced_context: bool = False  # Whether to balance the context set with groundtruth labels
-    oversample: bool = False  # Whether to oversample when doing weighted sampling.
 
     # Evaluation settings
     eval_epochs: int = 40
@@ -322,20 +320,20 @@ class AdvConfig:
     stochastic: bool = False
 
     num_discs: int = 1
-    disc_reset_prob: float = 0.0
+    adv_reset_prob: float = 0.0
 
     # Discriminator settings
-    disc_loss: DiscriminatorLoss = DiscriminatorLoss.logistic_ns
+    adv_loss: DiscriminatorLoss = DiscriminatorLoss.logistic_ns
     double_adv_loss: bool = (
         True  # Whether to use the context set when computing the encoder's adversarial loss
     )
-    disc_method: DiscriminatorMethod = DiscriminatorMethod.nn
+    adv_method: DiscriminatorMethod = DiscriminatorMethod.nn
     mmd_kernel: MMDKernel = MMDKernel.rq
     mmd_scales: List[float] = field(default_factory=list)
     mmd_wts: List[float] = field(default_factory=list)
     mmd_add_dot: float = 0.0
 
-    disc_hidden_dims: List[int] = field(default_factory=lambda: [256])
+    adv_hidden_dims: List[int] = field(default_factory=lambda: [256])
     aggregator_type: AggregatorType = AggregatorType.none
     aggregator_input_dim: int = 32
     aggregator_hidden_dims: List[int] = field(default_factory=list)
@@ -343,21 +341,14 @@ class AdvConfig:
 
     # Training settings
     lr: float = 1e-3
-    disc_lr: float = 3e-4
+    adv_lr: float = 3e-4
     enc_loss_w: float = 0
     gen_loss_weight: float = 1
-    disc_weight: float = 1
-    num_disc_updates: int = 3
+    adv_weight: float = 1
+    num_adv_updates: int = 3
     distinguish_weight: float = 1
     pred_y_weight: float = 1
     pred_s_weight: float = 0
-
-    def __post_init__(self) -> None:
-        self.eff_batch_size = self.batch_size
-        if self.aggregator_type != AggregatorType.none:
-            self.eff_batch_size *= self.bag_size
-        if self.test_batch_size is None:
-            self.test_batch_size = self.eff_batch_size
 
 
 T = TypeVar("T", bound="BaseConfig")
