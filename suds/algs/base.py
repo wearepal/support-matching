@@ -1,12 +1,12 @@
 from __future__ import annotations
-
-import logging
 from abc import abstractmethod
+import logging
+import os
 from pathlib import Path
 
+from torch.tensor import Tensor
 import wandb
 import yaml
-from torch.tensor import Tensor
 
 from shared.configs.arguments import CmnistConfig, Config
 from shared.data.data_loading import DatasetTriplet, load_dataset
@@ -52,29 +52,28 @@ class AlgBase:
 
         random_seed(self.misc_cfg.seed, self.misc_cfg.use_gpu)
 
-        run = None
-        if self.misc_cfg.use_wandb:
-            project_suffix = (
-                f"-{self.data_cfg.log_name}" if not isinstance(self.data_cfg, CmnistConfig) else ""
-            )
-            group = ""
-            if self.misc_cfg.log_method:
-                group += self.misc_cfg.log_method
-            if self.misc_cfg.exp_group:
-                group += "." + self.misc_cfg.exp_group
-            if self.bias_cfg.log_dataset:
-                group += "." + self.bias_cfg.log_dataset
-            local_dir = Path(".", "local_logging")
-            local_dir.mkdir(exist_ok=True)
-            run = wandb.init(
-                entity="predictive-analytics-lab",
-                project="suds-hydra" + project_suffix,
-                dir=str(local_dir),
-                config=flatten_dict(as_pretty_dict(self.cfg)),
-                group=group if group else None,
-                reinit=True,
-            )
-            run.__enter__()  # call the context manager dunders manually to avoid excessive indentation
+        if not self.misc_cfg.use_wandb:
+            os.environ["WANDB_MODE"] = "dryrun"
+        project_suffix = (
+            f"-{self.data_cfg.log_name}" if not isinstance(self.data_cfg, CmnistConfig) else ""
+        )
+        group = ""
+        if self.misc_cfg.log_method:
+            group += self.misc_cfg.log_method
+        if self.misc_cfg.exp_group:
+            group += "." + self.misc_cfg.exp_group
+        if self.bias_cfg.log_dataset:
+            group += "." + self.bias_cfg.log_dataset
+        local_dir = Path(".", "local_logging")
+        local_dir.mkdir(exist_ok=True)
+        run = wandb.init(
+            entity="predictive-analytics-lab",
+            project="suds-hydra" + project_suffix,
+            dir=str(local_dir),
+            config=flatten_dict(as_pretty_dict(self.cfg)),
+            group=group if group else None,
+            reinit=True,
+        )
 
         LOGGER.info(
             yaml.dump(
@@ -94,8 +93,7 @@ class AlgBase:
                 len(datasets.test),  # type: ignore
             )
         )
-
+        # Fit the model to the data
         self._fit(datasets=datasets)
-
-        if run is not None:
-            run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
+        # finish logging for the current run
+        run.finish()

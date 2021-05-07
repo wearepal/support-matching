@@ -32,6 +32,6 @@ setup(
         "tqdm >= 4.31.1",
         "typer",
         "typing-extensions >= 3.7.2",
-        "wandb == 0.9.7",
+        "wandb",
     ],
 )
