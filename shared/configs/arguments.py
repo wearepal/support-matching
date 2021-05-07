@@ -381,9 +381,7 @@ class BaseConfig:
         This is necessary because dataclasses cannot be instantiated recursively yet.
         """
         subconfigs = {
-            k: instantiate(v)
-            for k, v in hydra_config.items()
-            if k not in ("_target_", "cmd")
+            k: instantiate(v) for k, v in hydra_config.items() if k not in ("_target_", "cmd")
         }
 
         # reconstruct the python command that was used to start this program

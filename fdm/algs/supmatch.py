@@ -2,6 +2,7 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from pathlib import Path
 
+from kit import implements
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -13,7 +14,6 @@ from fdm.models.configs.classifiers import Strided28x28Net
 from fdm.models.discriminator import Discriminator
 from fdm.optimisation.mmd import mmd2
 from fdm.optimisation.utils import log_attention, log_images
-from kit import implements
 from shared.configs import (
     AggregatorType,
     CmnistConfig,
@@ -157,14 +157,14 @@ class SupportMatching(AdvSemiSupervisedAlg):
             total_loss = enc_loss_tr
             # ================================= adversarial losses ================================
             if not warmup:
-                disc_input_t = self._get_adv_input(encoding_t)
-                disc_input_c = self._get_adv_input(encoding_c)
+                disc_input_tr = self._get_adv_input(encoding_t)
+                disc_input_ctx = self._get_adv_input(encoding_c)
 
                 if self.adv_cfg.disc_method is DiscriminatorMethod.nn:
-                    disc_loss = self.adversary.encoder_loss(fake=disc_input_t, real=disc_input_c)
+                    disc_loss = self.adversary.encoder_loss(fake=disc_input_tr, real=disc_input_ctx)
 
                 else:
-                    x = disc_input_t
+                    x = disc_input_tr
                     y = self._get_adv_input(encoding_c, detach=True)
                     disc_loss = mmd2(
                         x=x,

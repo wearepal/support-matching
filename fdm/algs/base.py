@@ -16,6 +16,7 @@ __all__ = ["AlgBase"]
 
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
+
 class AlgBase:
     """Experiment singleton base class."""
 
@@ -77,7 +78,10 @@ class AlgBase:
 
         LOGGER.info(
             yaml.dump(
-                as_pretty_dict(self.cfg), default_flow_style=False, allow_unicode=True, sort_keys=True
+                as_pretty_dict(self.cfg),
+                default_flow_style=False,
+                allow_unicode=True,
+                sort_keys=True,
             )
         )
 
@@ -95,4 +99,3 @@ class AlgBase:
 
         if run is not None:
             run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
-

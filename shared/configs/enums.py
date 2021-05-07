@@ -36,7 +36,7 @@ class EncoderType(Enum):
 
 
 class ReconstructionLoss(Enum):
-    """ Reconstruction loss."""
+    """Reconstruction loss."""
 
     l1 = auto()
     l2 = auto()

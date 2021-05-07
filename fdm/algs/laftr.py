@@ -48,7 +48,7 @@ class LAFTR(AdvSemiSupervisedAlg):
         return Classifier(
             model=adv_fn(adv_input_shape, s_dim),  # type: ignore
             optimizer_kwargs=self.optimizer_kwargs,
-            num_classes=s_dim if s_dim > 1 else 2
+            num_classes=s_dim if s_dim > 1 else 2,
         )
 
     @implements(AdvSemiSupervisedAlg)

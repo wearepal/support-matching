@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from abc import abstractmethod
 from collections import defaultdict
@@ -6,9 +5,10 @@ from collections.abc import Callable, Iterator
 import logging
 from pathlib import Path
 import time
-from typing import Iterator, Literal, cast
+from typing import Any, Iterator, Literal, cast
 
 from hydra.utils import to_absolute_path
+from kit import implements
 from torch import Tensor
 import torch
 from torch import Tensor
@@ -16,6 +16,7 @@ from torch.cuda.amp.grad_scaler import GradScaler
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+from torch.utils.data.sampler import SequentialSampler
 
 from fdm.algs.base import AlgBase
 from fdm.models import AutoEncoder, Classifier, EncodingSize, build_classifier
@@ -30,7 +31,6 @@ from fdm.optimisation.utils import (
     restore_model,
     save_model,
 )
-from kit import implements
 from shared.configs import (
     AdvConfig,
     Config,
@@ -43,6 +43,7 @@ from shared.configs import (
 )
 from shared.configs.arguments import Config, DatasetConfig, MiscConfig
 from shared.data import DatasetTriplet
+from shared.data.misc import RandomSampler
 from shared.data.utils import Batch
 from shared.models.configs import FcNet, conv_autoencoder, fc_autoencoder
 from shared.utils import (
@@ -58,6 +59,7 @@ from shared.utils.loadsave import ClusterResults
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 __all__ = ["SemiSupervisedAlg", "AdvSemiSupervisedAlg"]
+
 
 class SemiSupervisedAlg(AlgBase):
     """Experiment singleton class."""
@@ -87,6 +89,7 @@ class SemiSupervisedAlg(AlgBase):
         itr: int,
     ) -> dict[str, float]:
         ...
+
 
 class AdvSemiSupervisedAlg(SemiSupervisedAlg):
     """Experiment singleton class."""
@@ -313,6 +316,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
     ) -> tuple[Iterator[Batch], Iterator[Batch]]:
 
         s_count = max(datasets.s_dim, 2)
+        context_dl_kwargs: dict[str, Any] = dict(shuffle=False, drop_last=True)
         if cluster_results is not None:
             context_sampler = get_stratified_sampler(
                 group_ids=cluster_results.cluster_ids,
@@ -320,7 +324,6 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
                 batch_size=self.adv_cfg.batch_size,
                 min_size=None if self.adv_cfg.oversample else self.adv_cfg.eff_batch_size,
             )
-            dataloader_kwargs = dict(sampler=context_sampler)
             if self.enc_cfg.use_pretrained_enc:
                 self.enc_cfg.checkpoint_path = str(cluster_results.enc_path)
         elif self.adv_cfg.balanced_context:
@@ -331,17 +334,16 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
                 oversample=self.adv_cfg.oversample,
                 balance_hierarchical=False,
             )
-            dataloader_kwargs = dict(sampler=context_sampler, shuffle=False)
         else:
-            dataloader_kwargs = dict(shuffle=True)
+            context_sampler = RandomSampler(datasets.context)  # type: ignore
+        context_dl_kwargs["sampler"] = context_sampler
 
         context_loader = DataLoader(
             datasets.context,
-            batch_size=self.adv_cfg.eff_batch_size,
             num_workers=self.misc_cfg.num_workers,
             pin_memory=True,
-            drop_last=True,
-            **dataloader_kwargs,
+            batch_size=self.adv_cfg.eff_batch_size,
+            **context_dl_kwargs,
         )
 
         train_sampler = build_weighted_sampler_from_dataset(
@@ -353,17 +355,16 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         )
         train_loader = DataLoader(
             dataset=datasets.train,
-            batch_size=self.adv_cfg.eff_batch_size,
             num_workers=self.misc_cfg.num_workers,
             drop_last=True,
             shuffle=False,
             sampler=train_sampler,
             pin_memory=True,
         )
-        context_data_itr = inf_generator(context_loader)
-        train_data_itr = inf_generator(train_loader)
+        train_loader = inf_generator(context_loader)
+        context_loader = inf_generator(train_loader)
 
-        return train_data_itr, context_data_itr
+        return train_loader, context_loader
 
     def fit(self, datasets: DatasetTriplet) -> None:
         # Load cluster results

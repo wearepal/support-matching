@@ -76,7 +76,7 @@ def _mix_rbf_kernel(
     wts: Optional[Sequence[float]] = None,
     add_dot: float = 0.0,
 ) -> Tuple[Tensor, Tensor, Tensor, float]:
-    """"""
+    """ """
     scales = scales or (2.0, 5.0, 10.0, 20.0, 40.0, 80.0)
     wts = wts or ([1.0] * len(scales))
 
