@@ -3,13 +3,15 @@ import logging
 import shlex
 from typing import Dict, List, Optional, Type, TypeVar
 
+import torch
+
 from hydra.core.config_store import ConfigStore
 from hydra.core.hydra_config import HydraConfig
 from hydra.utils import instantiate
 from omegaconf import DictConfig, MISSING, OmegaConf
-import torch
 
 from .enums import (
+    AdaptationMethod,
     AdultDatasetSplit,
     AggregatorType,
     CelebaAttributes,
@@ -282,6 +284,7 @@ class AdvConfig:
 
     _target_: str = "shared.configs.AdvConfig"
 
+    method: AdaptationMethod = AdaptationMethod.suds
     batch_size: int = 256
     test_batch_size: Optional[int] = 256
     iters: int = 50_000

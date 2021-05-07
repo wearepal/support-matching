@@ -1,6 +1,7 @@
 from enum import Enum, auto
 
 __all__ = [
+    "AdaptationMethod",
     "AdultDatasetSplit",
     "AggregatorType",
     "ClusteringLabel",
@@ -185,3 +186,10 @@ class EvalTrainData(Enum):
 
     train = auto()
     context = auto()
+
+
+class AdaptationMethod(Enum):
+    """Quantization level."""
+
+    laftr = auto()
+    suds = auto()
