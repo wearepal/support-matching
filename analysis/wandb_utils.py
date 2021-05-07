@@ -3,11 +3,11 @@ from enum import Enum, auto
 import math
 from pathlib import Path
 from typing import Callable, List, Tuple
-from typing_extensions import Final
 
 from matplotlib import pyplot as plt
 import pandas as pd
 import seaborn as sns
+from typing_extensions import Final
 
 __all__ = ["Metrics", "load_data", "plot"]
 
@@ -92,15 +92,15 @@ METRICS_RENAMES: Final = {
 }
 
 METHOD_RENAMES: Final = {
-    "ranking-suds": "Ranking",
-    "ranking-suds-4": "Ranking",
-    "ranking-suds-6": "Ranking (6)",
-    "ranking-suds-8": "Ranking (8)",
-    "no-cluster-suds": "No bal.",
+    "ranking-fdm": "Ranking",
+    "ranking-fdm-4": "Ranking",
+    "ranking-fdm-6": "Ranking (6)",
+    "ranking-fdm-8": "Ranking (8)",
+    "no-cluster-fdm": "No bal.",
     "perfect-cluster": "Perfect",
-    "kmeans-suds": "k-means",
-    "kmeans-suds-6": "k-means (6)",
-    "kmeans-suds-8": "k-means (8)",
+    "kmeans-fdm": "k-means",
+    "kmeans-fdm-6": "k-means (6)",
+    "kmeans-fdm-8": "k-means (8)",
     # "baseline_cnn": "K&C",
     "baseline_cnn": "ERM",
     "baseline_erm": "ERM",
