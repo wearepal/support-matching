@@ -3,9 +3,9 @@ import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import DictConfig
 
-from fdm.algs.laftr import LAFTR
-from fdm.algs.supmatch import SupportMatching
 from shared.configs import Config, register_configs
+from suds.algs.laftr import LAFTR
+from suds.algs.supmatch import SupportMatching
 
 cs = ConfigStore.instance()
 cs.store(name="config_schema", node=Config)

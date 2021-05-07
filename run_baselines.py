@@ -21,8 +21,6 @@ from torchvision.models.resnet import ResNet
 import wandb
 import yaml
 
-from fdm.baselines import GDRO, LfF
-from fdm.models import Classifier
 from fdm.optimisation.utils import build_weighted_sampler_from_dataset
 from shared.configs import (
     AdultConfig,
@@ -42,6 +40,8 @@ from shared.utils import (
     random_seed,
     write_results_to_csv,
 )
+from suds.baselines import GDRO, LfF
+from suds.models import Classifier
 
 LOGGER = logging.getLogger("BASELINE")
 
@@ -164,9 +164,9 @@ def run_baseline(cfg: Config) -> None:
         balance_hierarchical=not args.labelled_context_set,
     )
     train_loader_kwargs = {
-        # "sampler": train_sampler,
+        "sampler": train_sampler,
         "pin_memory": True,
-        "num_workers": cfg.misc.num_workers,
+        "num_workers": cfg.data.num_workers,
     }
 
     input_shape = train_data[0][0].shape
