@@ -273,6 +273,7 @@ class EncoderConfig:
     recon_loss: ReconstructionLoss = ReconstructionLoss.l2
     checkpoint_path: str = ""
     use_pretrained_enc: bool = False
+    # the following should probably moved to a different config class eventually
     zs_dim: int = 1
     zs_transform: ZsTransform = ZsTransform.none
     prior_loss_w: float = 0
@@ -315,7 +316,6 @@ class AdvConfig:
     log_freq: int = 50
     feat_attr: bool = False
 
-    # Encoder settings
 
     vgg_weight: float = 0
     vae: bool = False

@@ -189,7 +189,7 @@ class EvalTrainData(Enum):
 
 
 class AdaptationMethod(Enum):
-    """Quantization level."""
+    """Method to use for adaptation."""
 
     laftr = auto()
     suds = auto()
