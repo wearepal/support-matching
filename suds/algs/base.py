@@ -18,7 +18,7 @@ LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 class AlgBase:
-    """Experiment singleton base class."""
+    """Base class for algorithms."""
 
     def __init__(
         self,
