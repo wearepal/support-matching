@@ -1,11 +1,11 @@
 from __future__ import annotations
 from typing import Iterator, Sequence
 
+from kit import implements
 import torch
 from torch import Tensor
 import torch.nn as nn
 
-from kit import implements
 from shared.configs.arguments import CmnistConfig
 from shared.configs.enums import ReconstructionLoss
 from shared.data.utils import Batch
@@ -80,18 +80,13 @@ class LAFTR(AdvSemiSupervisedAlg):
     def _step_encoder(
         self, x_ctx: Tensor, batch_tr: Batch, warmup: bool
     ) -> tuple[Tensor, dict[str, float]]:
-        """Compute all losses.
-
-        Args:
-            x_t: x from the training set
-        """
+        """Compute all losses."""
         # Compute losses for the encoder.
         self._train("encoder")
         logging_dict = {}
-
         with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):
             # ============================= recon loss for training set ===========================
-            encoding_t, enc_loss_tr, logging_dict_tr = self.encoder.routine(
+            encoding_tr, enc_loss_tr, logging_dict_tr = self.encoder.routine(
                 batch_tr.x, self.recon_loss_fn, self.enc_cfg.prior_loss_w
             )
 
@@ -106,7 +101,7 @@ class LAFTR(AdvSemiSupervisedAlg):
             total_loss = enc_loss_tr
             # ================================= adversarial losses ================================
             if not warmup:
-                disc_input_t = self._get_adv_input(encoding_t)
+                disc_input_t = self._get_adv_input(encoding_tr)
                 disc_loss = self.adversary.routine(data=disc_input_t, targets=batch_tr.y)[0]
                 disc_loss *= self.adv_cfg.adv_weight
                 # Negate the discriminator's loss to obtain the adversarial loss w.r.t the encoder
@@ -115,13 +110,13 @@ class LAFTR(AdvSemiSupervisedAlg):
 
             if self.predictor_y is not None:
                 # predictor is on encodings; predict y from the part that is invariant to s
-                pred_y_loss, pred_y_acc = self.predictor_y.routine(encoding_t.zy, batch_tr.y)
+                pred_y_loss, pred_y_acc = self.predictor_y.routine(encoding_tr.zy, batch_tr.y)
                 pred_y_loss *= self.adv_cfg.pred_y_loss_w
                 logging_dict["Loss Predictor y"] = pred_y_loss.item()
                 logging_dict["Accuracy Predictor y"] = pred_y_acc
                 total_loss += pred_y_loss
             if self.predictor_s is not None:
-                pred_s_loss, pred_s_acc = self.predictor_s.routine(encoding_t.zs, batch_tr.s)
+                pred_s_loss, pred_s_acc = self.predictor_s.routine(encoding_tr.zs, batch_tr.s)
                 pred_s_loss *= self.adv_cfg.pred_s_loss_w
                 logging_dict["Loss Predictor s"] = pred_s_loss.item()
                 logging_dict["Accuracy Predictor s"] = pred_s_acc
