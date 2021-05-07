@@ -7,8 +7,6 @@ from pathlib import Path
 import time
 from typing import Any, Iterator, Literal, cast
 
-from hydra.utils import to_absolute_path
-from kit import implements
 from torch import Tensor
 import torch
 from torch import Tensor
@@ -17,6 +15,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
+from hydra.utils import to_absolute_path
+from kit import implements
 from shared.configs import (
     Config,
     DiscriminatorMethod,
@@ -87,10 +87,10 @@ class SemiSupervisedAlg(AlgBase):
 
 
 class AdvSemiSupervisedAlg(SemiSupervisedAlg):
-    """Experiment singleton class."""
+    """Base class for adversarial semi-supervsied methods."""
 
     _encoding_size: EncodingSize
-    enerator: AutoEncoder
+    encoder: AutoEncoder
     adversary: Classifier | Discriminator
     recon_loss_fn: Callable[[Tensor, Tensor], Tensor]
     predictor_y: Classifier | None
