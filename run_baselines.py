@@ -1,25 +1,26 @@
 from __future__ import annotations
+
+import logging
 from dataclasses import dataclass
 from enum import Enum, auto
-import logging
 from pathlib import Path
 
 import ethicml as em
-from ethicml import implementations
 import hydra
-from hydra.core.config_store import ConfigStore
-from hydra.utils import to_absolute_path
 import numpy as np
-from omegaconf import DictConfig, MISSING
 import pandas as pd
 import torch
+import wandb
+import yaml
+from ethicml import implementations
+from hydra.core.config_store import ConfigStore
+from hydra.utils import to_absolute_path
+from omegaconf import MISSING, DictConfig
 from torch import nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from torch.utils.data.dataset import ConcatDataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
-import wandb
-import yaml
 
 from shared.configs import (
     AdultConfig,

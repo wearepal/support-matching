@@ -1,16 +1,16 @@
 from __future__ import annotations
-from abc import abstractmethod
+
 import logging
+from abc import abstractmethod
 from pathlib import Path
 
-from torch.tensor import Tensor
 import wandb
 import yaml
+from torch.tensor import Tensor
 
 from shared.configs.arguments import CmnistConfig, Config
 from shared.data.data_loading import DatasetTriplet, load_dataset
 from shared.utils.utils import as_pretty_dict, flatten_dict, random_seed
-from shared.utils.utils import random_seed
 
 __all__ = ["AlgBase"]
 

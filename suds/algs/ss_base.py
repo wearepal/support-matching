@@ -1,28 +1,23 @@
 from __future__ import annotations
+
+import logging
+import time
 from abc import abstractmethod
 from collections import defaultdict
 from collections.abc import Callable, Iterator
-import logging
 from pathlib import Path
-import time
 from typing import Any, Iterator, Literal, cast
 
-from torch import Tensor
 import torch
-from torch import Tensor
-from torch.cuda.amp.grad_scaler import GradScaler
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
-
 from hydra.utils import to_absolute_path
 from kit import implements
-from shared.configs import (
-    Config,
-    DiscriminatorMethod,
-    ImageDatasetConfig,
-    ReconstructionLoss,
-)
+from torch import Tensor
+from torch.cuda.amp.grad_scaler import GradScaler
+from torch.utils.data import DataLoader
+
+from shared.configs import Config, DiscriminatorMethod, ImageDatasetConfig, ReconstructionLoss
 from shared.configs.arguments import Config
 from shared.data import DatasetTriplet
 from shared.data.misc import RandomSampler

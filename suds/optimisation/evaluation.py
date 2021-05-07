@@ -1,18 +1,19 @@
 from __future__ import annotations
+
 import logging
 from typing import Dict, NamedTuple, Optional, Sequence, Tuple
-from typing_extensions import Literal
 
 import ethicml as em
 import numpy as np
 import pandas as pd
 import torch
-from torch import Tensor, nn
 import torch.nn as nn
+from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
 from tqdm import tqdm
+from typing_extensions import Literal
 
 from shared.configs import (
     AdultConfig,

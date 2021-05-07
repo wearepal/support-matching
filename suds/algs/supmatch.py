@@ -1,17 +1,13 @@
 from __future__ import annotations
+
 from collections.abc import Iterator, Sequence
 
-from kit import implements
 import torch
-from torch import Tensor
 import torch.nn as nn
+from kit import implements
+from torch import Tensor
 
-from shared.configs import (
-    AggregatorType,
-    CmnistConfig,
-    DiscriminatorMethod,
-    ReconstructionLoss,
-)
+from shared.configs import AggregatorType, CmnistConfig, DiscriminatorMethod, ReconstructionLoss
 from shared.configs.arguments import Config
 from shared.data.utils import Batch
 from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
@@ -24,7 +20,6 @@ from suds.models.configs.classifiers import Strided28x28Net
 from suds.models.discriminator import Discriminator
 from suds.optimisation.mmd import mmd2
 from suds.optimisation.utils import log_attention, log_images
-
 
 __all__ = ["SupportMatching"]
 

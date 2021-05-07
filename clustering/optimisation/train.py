@@ -1,20 +1,21 @@
 """Main training file"""
 from __future__ import annotations
-from collections import defaultdict
+
 import logging
-from pathlib import Path
 import time
+from collections import defaultdict
+from pathlib import Path
 from typing import cast
 
 import git
-from hydra.utils import to_absolute_path
 import numpy as np
 import torch
+import wandb
+import yaml
+from hydra.utils import to_absolute_path
 from torch import Tensor
 from torch.utils.data import ConcatDataset, DataLoader
 from torchvision.models import resnet18, resnet50
-import wandb
-import yaml
 
 from clustering.models import (
     Classifier,
@@ -25,8 +26,8 @@ from clustering.models import (
     MultiHeadModel,
     PseudoLabelEnc,
     PseudoLabelEncNoNorm,
-    PseudoLabelOutput,
     PseudoLabeler,
+    PseudoLabelOutput,
     RankingStatistics,
     SelfSupervised,
     build_classifier,
@@ -69,12 +70,7 @@ from shared.utils import (
 from .build import build_ae
 from .evaluation import classify_dataset
 from .k_means import train as train_k_means
-from .utils import (
-    cluster_metrics,
-    count_occurances,
-    get_class_id,
-    get_cluster_label_path,
-)
+from .utils import cluster_metrics, count_occurances, get_class_id, get_cluster_label_path
 
 __all__ = ["main"]
 

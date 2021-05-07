@@ -1,14 +1,13 @@
-from dataclasses import dataclass, field
 import logging
 import shlex
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Type, TypeVar
 
 import torch
-
 from hydra.core.config_store import ConfigStore
 from hydra.core.hydra_config import HydraConfig
 from hydra.utils import instantiate
-from omegaconf import DictConfig, MISSING, OmegaConf
+from omegaconf import MISSING, DictConfig, OmegaConf
 
 from .enums import (
     AdaptationMethod,
@@ -315,7 +314,6 @@ class AdvConfig:
     val_freq: int = 1_000  # how often to do validation
     log_freq: int = 50
     feat_attr: bool = False
-
 
     vgg_weight: float = 0
     vae: bool = False

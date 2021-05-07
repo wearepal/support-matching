@@ -1,15 +1,16 @@
 from __future__ import annotations
-from collections import defaultdict
+
 import logging
+from collections import defaultdict
 from pathlib import Path
 from typing import Sequence, Union, cast
 
-from ethicml.vision.data.image_dataset import TorchImageDataset
 import torch
-from torch import Tensor, nn
-from torch.utils.data.dataset import ConcatDataset, Subset
 import torchvision
 import wandb
+from ethicml.vision.data.image_dataset import TorchImageDataset
+from torch import Tensor, nn
+from torch.utils.data.dataset import ConcatDataset, Subset
 
 from shared.configs import CelebaConfig, Config, IsicConfig, ReconstructionLoss
 from shared.data.dataset_wrappers import DataTupleDataset, TensorDataTupleDataset
