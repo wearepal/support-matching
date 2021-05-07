@@ -57,7 +57,7 @@ __all__ = ["SemiSupervisedAlg", "AdvSemiSupervisedAlg"]
 
 
 class SemiSupervisedAlg(AlgBase):
-    """Experiment singleton class."""
+    """Base class for semi-supervised algorithms."""
 
     def __init__(
         self,
@@ -66,14 +66,14 @@ class SemiSupervisedAlg(AlgBase):
         super().__init__(cfg=cfg)
         self.grad_scaler = GradScaler() if self.misc_cfg.use_amp else None
 
-    def sample_context(self, context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]]) -> Tensor:
-        return cast(Tensor, self.to_device(next(context_data_itr)[0]))
+    def _sample_context(self, context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]]) -> Tensor:
+        return cast(Tensor, self._to_device(next(context_data_itr)[0]))
 
-    def sample_train(
+    def _sample_train(
         self,
         train_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
     ) -> Batch:
-        x_tr, s_tr, y_tr = self.to_device(*next(train_data_itr))
+        x_tr, s_tr, y_tr = self._to_device(*next(train_data_itr))
         return Batch(x_tr, s_tr, y_tr)
 
     @abstractmethod
@@ -156,6 +156,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
                 self.enc_cfg.checkpoint_path, map_location=lambda storage, loc: storage
             )
             encoder.load_state_dict(save_dict["encoder"])
+        encoder.to(self.misc_cfg.device)
 
         return encoder
 
@@ -163,7 +164,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
     def _build_adversary(self, input_shape: tuple[int, ...]) -> Classifier | Discriminator:
         ...
 
-    def build_predictors(
+    def _build_predictors(
         self, y_dim: int, s_dim: int
     ) -> tuple[Classifier | None, Classifier | None]:
         predictor_y = None
@@ -174,6 +175,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
                 model_fn=FcNet(hidden_dims=None),  # no hidden layers
                 optimizer_kwargs=self.optimizer_kwargs,
             )
+            predictor_y.to(self.misc_cfg.device)
         predictor_s = None
         if self.adv_cfg.pred_s_loss_w > 0:
             predictor_s = build_classifier(
@@ -182,9 +184,10 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
                 model_fn=FcNet(hidden_dims=None),  # no hidden layers
                 optimizer_kwargs=self.optimizer_kwargs,
             )
+            predictor_s.to(self.misc_cfg.device)
         return predictor_y, predictor_s
 
-    def build(
+    def _build(
         self, input_shape: tuple[int, ...], y_dim: int, s_dim: int, feature_group_slices
     ) -> None:
         self.encoder = self._build_encoder(
@@ -192,7 +195,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         )
         self.recon_loss_fn = self._get_recon_loss_fn(feature_group_slices=feature_group_slices)
         self.adversary = self._build_adversary(input_shape=input_shape, s_dim=s_dim)
-        self.predictor_y, self.predictor_s = self.build_predictors(y_dim=y_dim, s_dim=s_dim)
+        self.predictor_y, self.predictor_s = self._build_predictors(y_dim=y_dim, s_dim=s_dim)
 
     def _get_recon_loss_fn(
         self, feature_group_slices: dict[str, list[slice]] | None = None
@@ -233,8 +236,8 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
                     train_data_itr=train_data_itr, context_data_itr=context_data_itr
                 )
 
-        batch_tr = self.sample_train(train_data_itr=train_data_itr)
-        x_ctx = self.sample_context(context_data_itr=context_data_itr)
+        batch_tr = self._sample_train(train_data_itr=train_data_itr)
+        x_ctx = self._sample_context(context_data_itr=context_data_itr)
         _, logging_dict = self._step_encoder(x_ctx=x_ctx, batch_tr=batch_tr, warmup=warmup)
 
         wandb_log(self.misc_cfg, logging_dict, step=itr)
@@ -294,7 +297,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
             self.grad_scaler.update()
 
-    def train(self, mode: Literal["encoder", "adversary"]) -> None:
+    def _train(self, mode: Literal["encoder", "adversary"]) -> None:
         if mode == "encoder":
             self.encoder.train()
             self.predictor_y.train()
@@ -361,7 +364,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
 
         return train_data_itr, context_data_itr
 
-    def fit(self, datasets: DatasetTriplet) -> None:
+    def _fit(self, datasets: DatasetTriplet) -> None:
         # Load cluster results
         cluster_results = None
         cluster_test_metrics: dict[str, float] = {}
@@ -378,7 +381,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         # ==== construct networks ====
         input_shape = next(context_data_itr)[0][0].shape
         feature_group_slices = getattr(datasets.context, "feature_group_slices", None)
-        self.build(
+        self._build(
             input_shape=input_shape,
             y_dim=datasets.y_dim,
             s_dim=datasets.s_dim,

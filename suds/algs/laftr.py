@@ -1,11 +1,11 @@
 from __future__ import annotations
 from typing import Iterator, Sequence
 
-from kit import implements
 import torch
 from torch import Tensor
 import torch.nn as nn
 
+from kit import implements
 from shared.configs.arguments import CmnistConfig
 from shared.configs.enums import ReconstructionLoss
 from shared.data.utils import Batch
@@ -62,8 +62,8 @@ class LAFTR(AdvSemiSupervisedAlg):
             x_c: x from the context set
             x_t: x from the training set
         """
-        self.train("adversary")
-        tr_batch = self.sample_train(train_data_itr)
+        self._train("adversary")
+        tr_batch = self._sample_train(train_data_itr)
 
         logging_dict = {}
         # Context-manager enables mixed-precision training
@@ -86,7 +86,7 @@ class LAFTR(AdvSemiSupervisedAlg):
             x_t: x from the training set
         """
         # Compute losses for the encoder.
-        self.train("encoder")
+        self._train("encoder")
         logging_dict = {}
 
         with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):

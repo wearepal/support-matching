@@ -105,9 +105,9 @@ class SupportMatching(AdvSemiSupervisedAlg):
             x_t: x from the training set
 
         """
-        self.train("adversary")
-        x_tr = self.sample_train(train_data_itr).x
-        x_ctx = self.sample_context(context_data_itr=context_data_itr)
+        self._train("adversary")
+        x_tr = self._sample_train(train_data_itr).x
+        x_ctx = self._sample_context(context_data_itr=context_data_itr)
 
         with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):  # type: ignore
             encoding_tr = self.encoder.encode(x_tr, stochastic=True)
@@ -142,7 +142,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
             x_t: x from the training set
         """
         # Compute losses for the encoder.
-        self.train("encoder")
+        self._train("encoder")
         logging_dict = {}
 
         with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):

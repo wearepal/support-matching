@@ -29,14 +29,14 @@ class AlgBase:
         self.misc_cfg = cfg.misc
         self.bias_cfg = cfg.bias
 
-    def to_device(self, *tensors: Tensor) -> Tensor | tuple[Tensor, ...]:
+    def _to_device(self, *tensors: Tensor) -> Tensor | tuple[Tensor, ...]:
         """Place tensors on the correct device."""
         moved = [tensor.to(self.misc_cfg.device, non_blocking=True) for tensor in tensors]
 
         return moved[0] if len(moved) == 1 else tuple(moved)
 
     @abstractmethod
-    def fit(self, datasets: DatasetTriplet) -> AlgBase:
+    def _fit(self, datasets: DatasetTriplet) -> AlgBase:
         ...
 
     def run(self, cluster_label_file: Path | None = None) -> None:
@@ -95,7 +95,7 @@ class AlgBase:
             )
         )
 
-        self.fit(datasets=datasets)
+        self._fit(datasets=datasets)
 
         if run is not None:
             run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
