@@ -1,0 +1,8 @@
+# usage: hydra/launcher=slurm
+defaults:
+  - submitit_slurm
+
+mem_gb: 1  # required in order to have multiple jobs per node
+additional_parameters:
+  gres: "gpu:1"  # 1 GPU
+  # gres: "mps:4"  # 4 GB of GPU memory
