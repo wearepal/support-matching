@@ -13,7 +13,7 @@ setup(
         "GitPython >= 2.1.11",
         "hydra-core == 1.1.0.dev6",
         "hydra-ray-launcher",
-        "hydra-submitit-launcher",
+        "hydra-submitit-launcher == 1.1.5.dev1",
         "lapjv",
         "matplotlib >= 3.0.2, < 3.3.1",
         "numpy >= 1.15",
