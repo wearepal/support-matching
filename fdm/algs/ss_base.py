@@ -360,11 +360,12 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
             shuffle=False,
             sampler=train_sampler,
             pin_memory=True,
+            batch_size=self.adv_cfg.eff_batch_size,
         )
-        train_loader = inf_generator(context_loader)
-        context_loader = inf_generator(train_loader)
+        train_itr = inf_generator(train_loader)
+        context_itr = inf_generator(context_loader)
 
-        return train_loader, context_loader
+        return train_itr, context_itr
 
     def fit(self, datasets: DatasetTriplet) -> None:
         # Load cluster results
