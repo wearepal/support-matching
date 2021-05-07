@@ -1,11 +1,11 @@
 from __future__ import annotations
-
 from typing import Iterator, Sequence
 
-import torch
-import torch.nn as nn
 from kit import implements
+import torch
 from torch import Tensor
+import torch.distributions as td
+import torch.nn as nn
 
 from shared.configs.arguments import CmnistConfig
 from shared.configs.enums import ReconstructionLoss
@@ -52,6 +52,12 @@ class LAFTR(AdvSemiSupervisedAlg):
             num_classes=s_dim if s_dim > 1 else 2,
         )
 
+    @staticmethod
+    def mixup(x1, x2, alpha: float = 0.1) -> Tensor:
+        """Vicinal Risk Minimization reformulation of mix-up which interpolates only between xs."""
+        lambda_ = td.Beta(alpha + 1, alpha).sample((x1.size(0),)).to(x1.device)
+        return lambda_ * x1 + (1 - lambda_) * x2
+
     @implements(AdvSemiSupervisedAlg)
     def _step_adversary(
         self,
@@ -65,14 +71,18 @@ class LAFTR(AdvSemiSupervisedAlg):
         """
         self._train("adversary")
         tr_batch = self._sample_train(train_data_itr)
+        x, s = tr_batch.x, tr_batch.s
+        if self.adv_cfg.mixup:
+            x_ctx = self._sample_context(context_data_itr)
+            x = self.mixup(tr_batch.x, x_ctx)
 
         logging_dict = {}
         # Context-manager enables mixed-precision training
         with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):  # type: ignore
             with torch.no_grad():
-                encoding_tr = self.encoder.encode(tr_batch.x, stochastic=True)
+                encoding_tr = self.encoder.encode(x, stochastic=True)
                 adv_input_tr = self._get_adv_input(encoding_tr)
-            adv_loss, _ = self.adversary.routine(adv_input_tr, tr_batch.s)
+            adv_loss, _ = self.adversary.routine(adv_input_tr, s)
 
         self._update_adversary(adv_loss)
         return adv_loss, logging_dict
@@ -86,20 +96,23 @@ class LAFTR(AdvSemiSupervisedAlg):
         self._train("encoder")
         logging_dict = {}
         with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):
-            # ============================= recon loss for training set ===========================
-            encoding_tr, enc_loss_tr, logging_dict_tr = self.encoder.routine(
-                batch_tr.x, self.recon_loss_fn, self.enc_cfg.prior_loss_w
-            )
-
-            # ============================= recon loss for context set ============================
-            _, enc_loss_ctx, logging_dict_ctx = self.encoder.routine(
-                x_ctx, recon_loss_fn=self.recon_loss_fn, prior_loss_w=self.enc_cfg.prior_loss_w
-            )
-            logging_dict.update({k: v + logging_dict_ctx[k] for k, v in logging_dict_tr.items()})
-            enc_loss_tr = 0.5 * (enc_loss_tr + enc_loss_ctx)  # take average of the two recon losses
-            enc_loss_tr *= self.adv_cfg.enc_loss_w
-            logging_dict["Loss Generator"] = enc_loss_tr
-            total_loss = enc_loss_tr
+            if self.adv_cfg.mixup:
+                x = self.mixup(batch_tr.x, x_ctx)
+                encoding_tr, enc_loss, logging_dict_enc = self.encoder.routine(
+                    x, self.recon_loss_fn, self.enc_cfg.prior_loss_w
+                )
+            else:
+                x = torch.cat([batch_tr.x, x_ctx], dim=1)
+                encoding, enc_loss, logging_dict_enc = self.encoder.routine(
+                    x, self.recon_loss_fn, self.enc_cfg.prior_loss_w
+                )
+                n_tr = batch_tr.x.size(0)
+                encoding_tr = SplitEncoding(zs=encoding.zs[:n_tr], zy=encoding.zy[:n_tr])
+            logging_dict.update(logging_dict_enc)
+            # logging_dict.update({k: v + logging_dict_ctx[k] for k, v in logging_dict.items()})
+            enc_loss *= self.adv_cfg.enc_loss_w
+            logging_dict["Loss Encoder"] = enc_loss
+            total_loss = enc_loss
             # ================================= adversarial losses ================================
             if not warmup:
                 disc_input_t = self._get_adv_input(encoding_tr)
