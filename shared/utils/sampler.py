@@ -80,7 +80,7 @@ class StratifiedSampler(Sampler[int]):
                     f"Not enough samples in group {group} to sample {num_samples_per_group}."
                 )
 
-        self.groupwise_idx = tuple(groupwise_idx)
+        self.groupwise_idx = groupwise_idx
         self.num_groups_effective = num_groups_effective
 
     def __iter__(self) -> Iterator[int]:
