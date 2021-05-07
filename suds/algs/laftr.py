@@ -1,12 +1,11 @@
 from __future__ import annotations
-
 from typing import Iterator, Sequence
 
+from kit import implements
 import torch
+from torch import Tensor
 import torch.distributions as td
 import torch.nn as nn
-from kit import implements
-from torch import Tensor
 
 from shared.configs.arguments import CmnistConfig
 from shared.configs.enums import ReconstructionLoss
@@ -27,7 +26,6 @@ class LAFTR(AdvSemiSupervisedAlg):
 
     @implements(AdvSemiSupervisedAlg)
     def _build_adversary(self, input_shape: tuple[int, ...], s_dim: int) -> Classifier:
-        # TODO: Move into a 'build' method
         adv_input_shape: tuple[int, ...] = (
             input_shape if self.adv_cfg.train_on_recon else (self.enc_cfg.out_dim,)
         )
@@ -97,20 +95,23 @@ class LAFTR(AdvSemiSupervisedAlg):
         self._train("encoder")
         logging_dict = {}
         with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):
+            # ================================ reconstruction loss =================================
             if self.adv_cfg.mixup:
                 x = self.mixup(batch_tr.x, x_ctx)
                 encoding_tr, enc_loss, logging_dict_enc = self.encoder.routine(
                     x, self.recon_loss_fn, self.enc_cfg.prior_loss_w
                 )
             else:
+                # Concatenate the xs so only one forward pass of the autoencoder is required
                 x = torch.cat([batch_tr.x, x_ctx], dim=1)
                 encoding, enc_loss, logging_dict_enc = self.encoder.routine(
                     x, self.recon_loss_fn, self.enc_cfg.prior_loss_w
                 )
                 n_tr = batch_tr.x.size(0)
+                # Only the training data is labellled and can be used for computing the adversarial
+                # loss so we need to de-concatenate the embeddings
                 encoding_tr = SplitEncoding(zs=encoding.zs[:n_tr], zy=encoding.zy[:n_tr])
             logging_dict.update(logging_dict_enc)
-            # logging_dict.update({k: v + logging_dict_ctx[k] for k, v in logging_dict.items()})
             enc_loss *= self.adv_cfg.enc_loss_w
             logging_dict["Loss Encoder"] = enc_loss
             total_loss = enc_loss
@@ -121,7 +122,7 @@ class LAFTR(AdvSemiSupervisedAlg):
                 disc_loss *= self.adv_cfg.adv_weight
                 # Negate the discriminator's loss to obtain the adversarial loss w.r.t the encoder
                 total_loss -= disc_loss
-                logging_dict["Loss Discriminator"] = disc_loss
+                logging_dict["Loss Adversary"] = disc_loss
 
             if self.predictor_y is not None:
                 # predictor is on encodings; predict y from the part that is invariant to s
