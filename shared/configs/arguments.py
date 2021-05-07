@@ -347,8 +347,8 @@ class AdvConfig:
     adv_weight: float = 1
     num_adv_updates: int = 3
     distinguish_weight: float = 1
-    pred_y_weight: float = 1
-    pred_s_weight: float = 0
+    pred_y_loss_w: float = 1
+    pred_s_loss_w: float = 0
 
 
 T = TypeVar("T", bound="BaseConfig")

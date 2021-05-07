@@ -167,7 +167,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         self, y_dim: int, s_dim: int
     ) -> tuple[Classifier | None, Classifier | None]:
         predictor_y = None
-        if self.adv_cfg.pred_y_weight > 0:
+        if self.adv_cfg.pred_y_loss_w > 0:
             predictor_y = build_classifier(
                 input_shape=(self._encoding_size.zy,),  # this is always trained on encodings
                 target_dim=y_dim,
@@ -175,7 +175,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
                 optimizer_kwargs=self.optimizer_kwargs,
             )
         predictor_s = None
-        if self.adv_cfg.pred_s_weight > 0:
+        if self.adv_cfg.pred_s_loss_w > 0:
             predictor_s = build_classifier(
                 input_shape=(self._encoding_size.zs,),  # this is always trained on encodings
                 target_dim=s_dim,
@@ -266,9 +266,9 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
 
     def _update_encoder(self, loss: Tensor) -> None:
         self.encoder.zero_grad()
-        if self.adv_cfg.pred_y_weight > 0:
+        if self.predictor_y is not None:
             self.predictor_y.zero_grad()
-        if self.adv_cfg.pred_s_weight > 0:
+        if self.predictor_s is not None:
             self.predictor_s.zero_grad()
 
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
@@ -277,9 +277,9 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
 
         # Update the encoder's parameters
         self.encoder.step(grad_scaler=self.grad_scaler)
-        if self.adv_cfg.pred_y_weight > 0:
+        if self.predictor_y is not None:
             self.predictor_y.step(grad_scaler=self.grad_scaler)
-        if self.adv_cfg.pred_s_weight > 0:
+        if self.predictor_s is not None:
             self.predictor_s.step(grad_scaler=self.grad_scaler)
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
             self.grad_scaler.update()
@@ -309,7 +309,6 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
     def _get_data_iterators(
         self, datasets: DatasetTriplet, cluster_results: ClusterResults | None = None
     ) -> tuple[Iterator[Batch], Iterator[Batch]]:
-
         s_count = max(datasets.s_dim, 2)
         context_dl_kwargs: dict[str, Any] = dict(shuffle=False, drop_last=True)
         if cluster_results is not None:
