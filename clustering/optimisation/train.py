@@ -50,9 +50,9 @@ from shared.data.dataset_wrappers import RotationPrediction
 from shared.data.misc import adaptive_collate
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import (
-    AlgBase,
     AverageMeter,
     ClusterResults,
+    ExperimentBase,
     ModelFn,
     as_pretty_dict,
     count_parameters,
@@ -81,7 +81,7 @@ __all__ = ["main"]
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
-class Experiment(AlgBase):
+class Experiment(ExperimentBase):
     """Experiment singleton class."""
 
     def __init__(
@@ -320,7 +320,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         datasets.context,
         shuffle=True,
         batch_size=context_batch_size,
-        num_workers=misc.num_workers,
+        num_workers=data.num_workers,
         pin_memory=True,
     )
     enc_train_data = ConcatDataset([datasets.context, datasets.train])
@@ -329,7 +329,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
             RotationPrediction(enc_train_data, apply_all=True),
             shuffle=True,
             batch_size=args.batch_size,
-            num_workers=misc.num_workers,
+            num_workers=data.num_workers,
             pin_memory=True,
             collate_fn=adaptive_collate,
         )
@@ -338,7 +338,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
             enc_train_data,
             shuffle=True,
             batch_size=args.batch_size,
-            num_workers=misc.num_workers,
+            num_workers=data.num_workers,
             pin_memory=True,
         )
 
@@ -346,14 +346,14 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         datasets.train,
         shuffle=True,
         batch_size=args.batch_size,
-        num_workers=misc.num_workers,
+        num_workers=data.num_workers,
         pin_memory=True,
     )
     val_loader = DataLoader(
         datasets.test,
         shuffle=False,
         batch_size=args.test_batch_size,
-        num_workers=misc.num_workers,
+        num_workers=data.num_workers,
         pin_memory=True,
     )
 
