@@ -1,0 +1,34 @@
+batch_size: 256
+aggregator_hidden_dims:
+    - 256
+    - 256
+aggregator_type: kvq
+adv_hidden_dims:
+    - 256
+    - 256
+adv_lr: 0.0003
+adv_reset_prob: 0.0003
+adv_weight: 0.1
+enc_loss_w: 100.0
+encode_batch_size: 1000
+eval_epochs: 60
+eval_lr: 0.001
+eval_on_recon: false
+feat_attr: false
+gamma: 1.0
+iters: 5000
+log_freq: 150
+lr: 0.0003
+num_adv_updates: 1
+num_discs: 10
+oversample: true
+pred_s_loss_w: 1.0
+pred_y_loss_w: 1.0
+recon_detach: true
+validate: true
+val_freq: 450
+train_on_recon: false
+vae: false
+vgg_weight: 0
+warmup_steps: 0
+weight_decay: 0
