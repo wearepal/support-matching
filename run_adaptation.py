@@ -16,7 +16,7 @@ register_configs()
 @hydra.main(config_path="conf", config_name="config")
 def app(hydra_config: DictConfig):
     cfg = Config.from_hydra(hydra_config=hydra_config)
-    if cfg.adv.method == AdaptationMethod.suds:
+    if cfg.adv.method is AdaptationMethod.suds:
         alg = SupportMatching(cfg=cfg)
     else:
         alg = LAFTR(cfg=cfg)
