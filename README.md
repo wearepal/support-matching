@@ -68,5 +68,5 @@ The code will try to download this, but the download quota is often saturated,
 so it might not work immediately.
 
 ```
-bash scripts/compare.sh data=celeba/gender_smiling bias=celeba/no_smiling_females enc=mnist fdm=cmnist/fallen_sun fdm.batch_size=32 fdm.bag_size=8 fdm.iters=10000 data.context_pcnt=0.5 fdm.disc_loss=logistic_ns fdm.num_discs=1 fdm.disc_reset_prob=0 fdm.aggregator_type=gated enc.levels=5 enc.out_dim=128 enc.init_chans=32 fdm.elbo_weight=1 fdm.pred_s_weight=1
+bash scripts/compare.sh data=celeba/gender_smiling bias=celeba/no_smiling_females enc=celeba fdm=celeba/base data.context_pcnt=0.5
 ```
