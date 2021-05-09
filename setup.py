@@ -27,7 +27,7 @@ setup(
         "scipy >= 1.2.1",
         "seaborn >= 0.9.0",
         "teext",
-        "torch >= 1.2",
+        "torch >= 1.8",
         "torchvision >= 0.4.0",
         "tqdm >= 4.31.1",
         "typer",
