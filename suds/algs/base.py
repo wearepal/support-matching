@@ -59,7 +59,7 @@ class AlgBase(nn.Module):
         project_suffix = (
             f"-{self.data_cfg.log_name}" if not isinstance(self.data_cfg, CmnistConfig) else ""
         )
-        group = ""
+        group = self.__class__.__name__
         if self.misc_cfg.log_method:
             group += self.misc_cfg.log_method
         if self.misc_cfg.exp_group:
