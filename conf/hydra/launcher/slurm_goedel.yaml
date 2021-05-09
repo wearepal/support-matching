@@ -2,9 +2,9 @@
 defaults:
   - submitit_slurm
 
-mem_gb: 20  # CPU memory per task
-cpus_per_task: 3
+partition: goedel1
+cpus_per_task: 3  # on goedel, we have 3 CPUs per GPU
 
 additional_parameters:
-  gres: "gpu:1"  # 1 GPU
+  gres: "gpu:rtx_3090:1"  # 1 GPU
   # gres: "mps:4"  # 4 GB of GPU memory
