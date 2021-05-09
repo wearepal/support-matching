@@ -68,5 +68,5 @@ The code will try to download this, but the download quota is often saturated,
 so it might not work immediately.
 
 ```
-bash scripts/compare.sh data=celeba/gender_smiling bias=celeba/no_smiling_females enc=celeba fdm=celeba/base data.context_pcnt=0.5
+bash scripts/compare.sh +experiment=celeba_gender
 ```
