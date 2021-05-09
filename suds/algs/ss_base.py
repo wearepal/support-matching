@@ -1,23 +1,27 @@
 from __future__ import annotations
-
-import logging
-import time
 from abc import abstractmethod
 from collections import defaultdict
 from collections.abc import Callable, Iterator
+import logging
 from pathlib import Path
+import time
 from typing import Any, Iterator, Literal, cast
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from hydra.utils import to_absolute_path
 from kit import implements
+import torch
 from torch import Tensor
 from torch.cuda.amp.grad_scaler import GradScaler
+import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-from shared.configs import Config, DiscriminatorMethod, ImageDatasetConfig, ReconstructionLoss
+from shared.configs import (
+    Config,
+    DiscriminatorMethod,
+    ImageDatasetConfig,
+    ReconstructionLoss,
+)
 from shared.configs.arguments import Config
 from shared.data import DatasetTriplet
 from shared.data.misc import RandomSampler
@@ -151,7 +155,6 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
                 self.enc_cfg.checkpoint_path, map_location=lambda storage, loc: storage
             )
             encoder.load_state_dict(save_dict["encoder"])
-        encoder.to(self.misc_cfg.device)
 
         return encoder
 
@@ -170,7 +173,6 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
                 model_fn=FcNet(hidden_dims=None),  # no hidden layers
                 optimizer_kwargs=self.optimizer_kwargs,
             )
-            predictor_y.to(self.misc_cfg.device)
         predictor_s = None
         if self.adv_cfg.pred_s_loss_w > 0:
             predictor_s = build_classifier(
@@ -179,7 +181,6 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
                 model_fn=FcNet(hidden_dims=None),  # no hidden layers
                 optimizer_kwargs=self.optimizer_kwargs,
             )
-            predictor_s.to(self.misc_cfg.device)
         return predictor_y, predictor_s
 
     def _build(
@@ -191,6 +192,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         self.recon_loss_fn = self._get_recon_loss_fn(feature_group_slices=feature_group_slices)
         self.adversary = self._build_adversary(input_shape=input_shape, s_dim=s_dim)
         self.predictor_y, self.predictor_s = self._build_predictors(y_dim=y_dim, s_dim=s_dim)
+        self.to(self.misc_cfg.device)
 
     def _get_recon_loss_fn(
         self, feature_group_slices: dict[str, list[slice]] | None = None

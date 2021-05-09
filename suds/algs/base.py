@@ -1,13 +1,13 @@
 from __future__ import annotations
-
+from abc import abstractmethod
 import logging
 import os
-from abc import abstractmethod
 from pathlib import Path
 
+import torch.nn as nn
+from torch.tensor import Tensor
 import wandb
 import yaml
-from torch.tensor import Tensor
 
 from shared.configs.arguments import CmnistConfig, Config
 from shared.data.data_loading import DatasetTriplet, load_dataset
@@ -18,13 +18,14 @@ __all__ = ["AlgBase"]
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
-class AlgBase:
+class AlgBase(nn.Module):
     """Base class for algorithms."""
 
     def __init__(
         self,
         cfg: Config,
     ) -> None:
+        super().__init__()
         self.cfg = cfg
         self.data_cfg = cfg.data
         self.misc_cfg = cfg.misc
