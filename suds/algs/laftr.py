@@ -119,7 +119,7 @@ class LAFTR(AdvSemiSupervisedAlg):
             if not warmup:
                 disc_input_t = self._get_adv_input(encoding_tr)
                 disc_loss = self.adversary.routine(data=disc_input_t, targets=batch_tr.y)[0]
-                disc_loss *= self.adv_cfg.adv_weight
+                disc_loss *= self.adv_cfg.adv_loss_w
                 # Negate the discriminator's loss to obtain the adversarial loss w.r.t the encoder
                 total_loss -= disc_loss
                 logging_dict["Loss Adversary"] = disc_loss
