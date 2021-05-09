@@ -56,10 +56,7 @@ class AlgBase(nn.Module):
 
         if not self.misc_cfg.use_wandb:
             os.environ["WANDB_MODE"] = "dryrun"
-        project_suffix = (
-            f"-{self.data_cfg.log_name}" if not isinstance(self.data_cfg, CmnistConfig) else ""
-        )
-        group = self.__class__.__name__
+        group = f"{self.data_cfg.log_name}.{self.__class__.__name__}"
         if self.misc_cfg.log_method:
             group += self.misc_cfg.log_method
         if self.misc_cfg.exp_group:
@@ -70,7 +67,7 @@ class AlgBase(nn.Module):
         local_dir.mkdir(exist_ok=True)
         run = wandb.init(
             entity="predictive-analytics-lab",
-            project="suds-hydra" + project_suffix,
+            project="suds",
             dir=str(local_dir),
             config=flatten_dict(as_pretty_dict(self.cfg)),
             group=group if group else None,
