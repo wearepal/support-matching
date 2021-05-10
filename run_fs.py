@@ -15,7 +15,7 @@ import pandas as pd
 import torch
 from torch import nn
 from torch.tensor import Tensor
-from torch.utils.data import DataLoader, Dataset, TensorDataset
+from torch.utils.data import Dataset
 from torch.utils.data.dataset import ConcatDataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
