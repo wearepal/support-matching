@@ -26,6 +26,7 @@ class LAFTR(AdvSemiSupervisedAlg):
 
     @implements(AdvSemiSupervisedAlg)
     def _build_adversary(self, input_shape: tuple[int, ...], s_dim: int) -> Classifier:
+        """Construct the adversarial network."""
         adv_input_shape: tuple[int, ...] = (
             input_shape if self.adv_cfg.train_on_recon else (self.enc_cfg.out_dim,)
         )
@@ -65,11 +66,7 @@ class LAFTR(AdvSemiSupervisedAlg):
         train_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
         context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
     ) -> tuple[Tensor, dict[str, float]]:
-        """Train the discriminator while keeping the encoder constant.
-        Args:
-            x_c: x from the context set
-            x_t: x from the training set
-        """
+        """Train the adversary while fixing the encoder."""
         self._train("adversary")
         tr_batch = self._sample_train(train_data_itr)
         x, s = tr_batch.x, tr_batch.s
@@ -92,8 +89,7 @@ class LAFTR(AdvSemiSupervisedAlg):
     def _step_encoder(
         self, x_ctx: Tensor, batch_tr: Batch, warmup: bool
     ) -> tuple[Tensor, dict[str, float]]:
-        """Compute all losses."""
-        # Compute losses for the encoder.
+        """Compute losses for the encoder."""
         self._train("encoder")
         logging_dict = {}
         with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):
@@ -154,7 +150,7 @@ class LAFTR(AdvSemiSupervisedAlg):
     @torch.no_grad()
     @implements(AdvSemiSupervisedAlg)
     def _log_recons(self, x: Tensor, itr: int, prefix: str | None = None) -> None:
-        """Log reconstructed images."""
+        """Log the reconstructed and original images."""
 
         rows_per_block = 8
         num_blocks = 4

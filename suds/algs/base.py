@@ -9,7 +9,7 @@ from torch.tensor import Tensor
 import wandb
 import yaml
 
-from shared.configs.arguments import CmnistConfig, Config
+from shared.configs.arguments import Config
 from shared.data.data_loading import DatasetTriplet, load_dataset
 from shared.utils.utils import as_pretty_dict, flatten_dict, random_seed
 
@@ -42,15 +42,7 @@ class AlgBase(nn.Module):
         ...
 
     def run(self, cluster_label_file: Path | None = None) -> None:
-        """Main function.
-
-        Args:
-            hydra_config: configuration object from hydra
-            cluster_label_file: path to a pth file with cluster IDs
-
-        Returns:
-            the trained encoder
-        """
+        """Loads the data and fits and evaluates the model."""
 
         random_seed(self.misc_cfg.seed, self.misc_cfg.use_gpu)
 

@@ -1,13 +1,17 @@
 from __future__ import annotations
-
 from collections.abc import Iterator, Sequence
 
-import torch
-import torch.nn as nn
 from kit import implements
+import torch
 from torch import Tensor
+import torch.nn as nn
 
-from shared.configs import AggregatorType, CmnistConfig, DiscriminatorMethod, ReconstructionLoss
+from shared.configs import (
+    AggregatorType,
+    CmnistConfig,
+    DiscriminatorMethod,
+    ReconstructionLoss,
+)
 from shared.configs.arguments import Config
 from shared.data.utils import Batch
 from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
@@ -21,11 +25,11 @@ from suds.models.discriminator import Discriminator
 from suds.optimisation.mmd import mmd2
 from suds.optimisation.utils import log_attention, log_images
 
+
 __all__ = ["SupportMatching"]
 
 
 class SupportMatching(AdvSemiSupervisedAlg):
-    # TODO: this is bad practice
     adversary: Discriminator
 
     def __init__(self, cfg: Config) -> None:
@@ -35,8 +39,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
     @implements(AdvSemiSupervisedAlg)
     def _build_adversary(self, input_shape: tuple[int, ...], s_dim: int) -> Discriminator:
-        # TODO: Move into a 'build' method
-
+        """Build the adversarial network."""
         disc_input_shape: tuple[int, ...] = (
             input_shape if self.adv_cfg.train_on_recon else (self.enc_cfg.out_dim,)
         )
@@ -94,12 +97,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         train_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
         context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
     ) -> tuple[Tensor, dict[str, float]]:
-        """Train the discriminator while keeping the encoder constant.
-        Args:
-            x_c: x from the context set
-            x_t: x from the training set
-
-        """
+        """Train the discriminator while keeping the encoder fixed."""
         self._train("adversary")
         x_tr = self._sample_train(train_data_itr).x
         x_ctx = self._sample_context(context_data_itr=context_data_itr)
@@ -131,11 +129,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
     def _step_encoder(
         self, x_ctx: Tensor, batch_tr: Batch, warmup: bool
     ) -> tuple[Tensor, dict[str, float]]:
-        """Compute all losses.
-
-        Args:
-            x_t: x from the training set
-        """
+        """Compute the losses for the encoder and update its parameters."""
         # Compute losses for the encoder.
         self._train("encoder")
         logging_dict = {}
@@ -174,7 +168,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
                         wts=self.adv_cfg.mmd_wts,
                         add_dot=self.adv_cfg.mmd_add_dot,
                     )
-                disc_loss *= self.adv_cfg.adv_weight
+                disc_loss *= self.adv_cfg.adv_loss_w
                 total_loss += disc_loss
                 logging_dict["Loss Discriminator"] = disc_loss
 
@@ -215,7 +209,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
     @torch.no_grad()
     @implements(AdvSemiSupervisedAlg)
     def _log_recons(self, x: Tensor, itr: int, prefix: str | None = None) -> None:
-        """Log reconstructed images."""
+        """Log the reconstructed and original images."""
 
         rows_per_block = 8
         num_blocks = 4
