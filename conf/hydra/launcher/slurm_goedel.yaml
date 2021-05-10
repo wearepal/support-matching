@@ -5,6 +5,7 @@ defaults:
 partition: goedel1
 cpus_per_gpu: 3
 cpus_per_task: 3  # on goedel, we have 3 CPUs per GPU
+timeout_min: 99999
 
 additional_parameters:
   gres: "gpu:rtx_3090:1"  # 1 GPU
