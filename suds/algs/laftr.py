@@ -28,17 +28,17 @@ class LAFTR(AdvSemiSupervisedAlg):
     def _build_adversary(self, input_shape: tuple[int, ...], s_dim: int) -> Classifier:
         """Construct the adversarial network."""
         adv_input_shape: tuple[int, ...] = (
-            input_shape if self.adv_cfg.train_on_recon else (self.enc_cfg.out_dim,)
+            input_shape if self.adapt_cfg.train_on_recon else (self.enc_cfg.out_dim,)
         )
         adv_fn: ModelFn
-        if len(input_shape) > 2 and self.adv_cfg.train_on_recon:
+        if len(input_shape) > 2 and self.adapt_cfg.train_on_recon:
             if isinstance(self.data_cfg, CmnistConfig):
                 adv_fn = Strided28x28Net(batch_norm=False)
             else:
                 adv_fn = Residual64x64Net(batch_norm=False)
 
         else:
-            adv_fn = FcNet(hidden_dims=self.adv_cfg.adv_hidden_dims, activation=nn.GELU())
+            adv_fn = FcNet(hidden_dims=self.adapt_cfg.adv_hidden_dims, activation=nn.GELU())
             # FcNet first flattens the input
             adv_input_shape = (
                 (prod(adv_input_shape),)
@@ -70,7 +70,7 @@ class LAFTR(AdvSemiSupervisedAlg):
         self._train("adversary")
         tr_batch = self._sample_train(train_data_itr)
         x, s = tr_batch.x, tr_batch.s
-        if self.adv_cfg.mixup:
+        if self.adapt_cfg.mixup:
             x_ctx = self._sample_context(context_data_itr)
             x = self.mixup(tr_batch.x, x_ctx)
 
@@ -94,7 +94,7 @@ class LAFTR(AdvSemiSupervisedAlg):
         logging_dict = {}
         with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):
             # ================================ reconstruction loss =================================
-            if self.adv_cfg.mixup:
+            if self.adapt_cfg.mixup:
                 x = self.mixup(batch_tr.x, x_ctx)
                 encoding_tr, enc_loss, logging_dict_enc = self.encoder.routine(
                     x, self.recon_loss_fn, self.enc_cfg.prior_loss_w
@@ -110,28 +110,28 @@ class LAFTR(AdvSemiSupervisedAlg):
                 # loss so we need to de-concatenate the embeddings
                 encoding_tr = SplitEncoding(zs=encoding.zs[:n_tr], zy=encoding.zy[:n_tr])
             logging_dict.update(logging_dict_enc)
-            enc_loss *= self.adv_cfg.enc_loss_w
+            enc_loss *= self.adapt_cfg.enc_loss_w
             logging_dict["Loss Encoder"] = enc_loss
             total_loss = enc_loss
             # ================================= adversarial losses ================================
             if not warmup:
-                disc_input_t = self._get_adv_input(encoding_tr)
-                disc_loss = self.adversary.routine(data=disc_input_t, targets=batch_tr.y)[0]
-                disc_loss *= self.adv_cfg.adv_loss_w
+                adv_input_tr = self._get_adv_input(encoding_tr)
+                adv_loss = self.adversary.routine(data=adv_input_tr, targets=batch_tr.y)[0]
+                adv_loss *= self.adapt_cfg.adv_loss_w
                 # Negate the discriminator's loss to obtain the adversarial loss w.r.t the encoder
-                total_loss -= disc_loss
-                logging_dict["Loss Adversary"] = disc_loss
+                total_loss -= adv_loss
+                logging_dict["Loss Adversary"] = adv_loss
 
             if self.predictor_y is not None:
                 # predictor is on encodings; predict y from the part that is invariant to s
                 pred_y_loss, pred_y_acc = self.predictor_y.routine(encoding_tr.zy, batch_tr.y)
-                pred_y_loss *= self.adv_cfg.pred_y_loss_w
+                pred_y_loss *= self.adapt_cfg.pred_y_loss_w
                 logging_dict["Loss Predictor y"] = pred_y_loss.item()
                 logging_dict["Accuracy Predictor y"] = pred_y_acc
                 total_loss += pred_y_loss
             if self.predictor_s is not None:
                 pred_s_loss, pred_s_acc = self.predictor_s.routine(encoding_tr.zs, batch_tr.s)
-                pred_s_loss *= self.adv_cfg.pred_s_loss_w
+                pred_s_loss *= self.adapt_cfg.pred_s_loss_w
                 logging_dict["Loss Predictor s"] = pred_s_loss.item()
                 logging_dict["Accuracy Predictor s"] = pred_s_acc
                 total_loss += pred_s_loss

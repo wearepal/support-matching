@@ -394,7 +394,7 @@ class Config(BaseConfig):
 
     clust: ClusterConfig = MISSING
     enc: EncoderConfig = MISSING
-    adv: AdvConfig = MISSING
+    adapt: AdvConfig = MISSING
 
 
 def register_configs() -> None:

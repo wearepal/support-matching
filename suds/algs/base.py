@@ -41,7 +41,7 @@ class AlgBase(nn.Module):
     def _fit(self, datasets: DatasetTriplet) -> AlgBase:
         ...
 
-    def run(self, cluster_label_file: Path | None = None) -> None:
+    def run(self) -> None:
         """Loads the data and fits and evaluates the model."""
 
         random_seed(self.misc_cfg.seed, self.misc_cfg.use_gpu)

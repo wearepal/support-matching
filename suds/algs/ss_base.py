@@ -52,40 +52,10 @@ from suds.optimisation.utils import (
 
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
-__all__ = ["SemiSupervisedAlg", "AdvSemiSupervisedAlg"]
+__all__ = ["AdvSemiSupervisedAlg"]
 
 
-class SemiSupervisedAlg(AlgBase):
-    """Base class for semi-supervised algorithms."""
-
-    def __init__(
-        self,
-        cfg: Config,
-    ) -> None:
-        super().__init__(cfg=cfg)
-        self.grad_scaler = GradScaler() if self.misc_cfg.use_amp else None
-
-    def _sample_context(self, context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]]) -> Tensor:
-        return cast(Tensor, self._to_device(next(context_data_itr)[0]))
-
-    def _sample_train(
-        self,
-        train_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
-    ) -> Batch:
-        x_tr, s_tr, y_tr = self._to_device(*next(train_data_itr))
-        return Batch(x_tr, s_tr, y_tr)
-
-    @abstractmethod
-    def _train_step(
-        self,
-        context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
-        train_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
-        itr: int,
-    ) -> dict[str, float]:
-        ...
-
-
-class AdvSemiSupervisedAlg(SemiSupervisedAlg):
+class AdvSemiSupervisedAlg(AlgBase):
     """Base class for adversarial semi-supervsied methods."""
 
     _encoding_size: EncodingSize
@@ -101,9 +71,20 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
     ) -> None:
         super().__init__(cfg=cfg)
         self.enc_cfg = cfg.enc
-        self.adv_cfg = cfg.adv
-        self.optimizer_kwargs = {"lr": self.adv_cfg.adv_lr}
-        self.eff_batch_size = self.adv_cfg.batch_size
+        self.adapt_cfg = cfg.adapt
+        self.optimizer_kwargs = {"lr": self.adapt_cfg.adv_lr}
+        self.eff_batch_size = self.adapt_cfg.batch_size
+        self.grad_scaler = GradScaler() if self.misc_cfg.use_amp else None
+
+    def _sample_context(self, context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]]) -> Tensor:
+        return cast(Tensor, self._to_device(next(context_data_itr)[0]))
+
+    def _sample_train(
+        self,
+        train_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
+    ) -> Batch:
+        x_tr, s_tr, y_tr = self._to_device(*next(train_data_itr))
+        return Batch(x_tr, s_tr, y_tr)
 
     def _build_encoder(
         self,
@@ -124,7 +105,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
                 decoding_dim=decoding_dim,
                 levels=self.enc_cfg.levels,
                 decoder_out_act=decoder_out_act,
-                variational=self.adv_cfg.vae,
+                variational=self.adapt_cfg.vae,
             )
         else:
             encoder, decoder, latent_dim = fc_autoencoder(
@@ -132,7 +113,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
                 self.enc_cfg.init_chans,
                 encoding_dim=self.enc_cfg.out_dim,
                 levels=self.enc_cfg.levels,
-                variational=self.adv_cfg.vae,
+                variational=self.adapt_cfg.vae,
             )
 
         zs_dim = self.enc_cfg.zs_dim
@@ -159,14 +140,16 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         return encoder
 
     @abstractmethod
-    def _build_adversary(self, input_shape: tuple[int, ...]) -> Classifier | Discriminator:
+    def _build_adversary(
+        self, input_shape: tuple[int, ...], s_dim: int
+    ) -> Classifier | Discriminator:
         ...
 
     def _build_predictors(
         self, y_dim: int, s_dim: int
     ) -> tuple[Classifier | None, Classifier | None]:
         predictor_y = None
-        if self.adv_cfg.pred_y_loss_w > 0:
+        if self.adapt_cfg.pred_y_loss_w > 0:
             predictor_y = build_classifier(
                 input_shape=(self._encoding_size.zy,),  # this is always trained on encodings
                 target_dim=y_dim,
@@ -174,7 +157,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
                 optimizer_kwargs=self.optimizer_kwargs,
             )
         predictor_s = None
-        if self.adv_cfg.pred_s_loss_w > 0:
+        if self.adapt_cfg.pred_s_loss_w > 0:
             predictor_s = build_classifier(
                 input_shape=(self._encoding_size.zs,),  # this is always trained on encodings
                 target_dim=s_dim,
@@ -184,7 +167,11 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         return predictor_y, predictor_s
 
     def _build(
-        self, input_shape: tuple[int, ...], y_dim: int, s_dim: int, feature_group_slices
+        self,
+        input_shape: tuple[int, ...],
+        y_dim: int,
+        s_dim: int,
+        feature_group_slices: dict[str, list[slice]] | None = None,
     ) -> None:
         self.encoder = self._build_encoder(
             input_shape=input_shape, feature_group_slices=feature_group_slices
@@ -217,7 +204,6 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
             raise ValueError(f"{self.enc_cfg.recon_loss} is an invalid reconstruction loss.")
         return recon_loss_fn
 
-    @implements(SemiSupervisedAlg)
     def _train_step(
         self,
         context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
@@ -225,10 +211,10 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         itr: int,
     ) -> dict[str, float]:
 
-        warmup = itr < self.adv_cfg.warmup_steps
-        if (not warmup) and (self.adv_cfg.adv_method is DiscriminatorMethod.nn):
+        warmup = itr < self.adapt_cfg.warmup_steps
+        if (not warmup) and (self.adapt_cfg.adv_method is DiscriminatorMethod.nn):
             # Train the discriminator on its own for a number of iterations
-            for _ in range(self.adv_cfg.num_adv_updates):
+            for _ in range(self.adapt_cfg.num_adv_updates):
                 self._step_adversary(
                     train_data_itr=train_data_itr, context_data_itr=context_data_itr
                 )
@@ -240,7 +226,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         wandb_log(self.misc_cfg, logging_dict, step=itr)
 
         # Log images
-        if itr % self.adv_cfg.log_freq == 0 and isinstance(self.data_cfg, ImageDatasetConfig):
+        if itr % self.adapt_cfg.log_freq == 0 and isinstance(self.data_cfg, ImageDatasetConfig):
             with torch.no_grad():
                 self._log_recons(x=batch_tr.x, itr=itr, prefix="train")
                 self._log_recons(x=x_ctx, itr=itr, prefix="context")
@@ -314,18 +300,18 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         if cluster_results is not None:
             context_sampler = get_stratified_sampler(
                 group_ids=cluster_results.cluster_ids,
-                oversample=self.adv_cfg.oversample,
-                batch_size=self.adv_cfg.batch_size,
-                min_size=None if self.adv_cfg.oversample else self.eff_batch_size,
+                oversample=self.adapt_cfg.oversample,
+                batch_size=self.adapt_cfg.batch_size,
+                min_size=None if self.adapt_cfg.oversample else self.eff_batch_size,
             )
             if self.enc_cfg.use_pretrained_enc:
                 self.enc_cfg.checkpoint_path = str(cluster_results.enc_path)
-        elif self.adv_cfg.balanced_context:
+        elif self.adapt_cfg.balanced_context:
             context_sampler = build_weighted_sampler_from_dataset(
                 dataset=datasets.context,  # type: ignore
                 s_count=s_count,
                 batch_size=self.eff_batch_size,
-                oversample=self.adv_cfg.oversample,
+                oversample=self.adapt_cfg.oversample,
                 balance_hierarchical=False,
             )
         else:
@@ -344,7 +330,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
             dataset=datasets.train,  # type: ignore
             s_count=s_count,
             batch_size=self.eff_batch_size,
-            oversample=self.adv_cfg.oversample,
+            oversample=self.adapt_cfg.oversample,
             balance_hierarchical=True,
         )
         train_dataloader = DataLoader(
@@ -411,7 +397,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
         start_time = time.monotonic()
         loss_meters = defaultdict(AverageMeter)
 
-        for itr in range(start_itr, self.adv_cfg.iters + 1):
+        for itr in range(start_itr, self.adapt_cfg.iters + 1):
 
             logging_dict = self._train_step(
                 context_data_itr=context_data_itr,
@@ -421,7 +407,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
             for name, value in logging_dict.items():
                 loss_meters[name].update(value)
 
-            if itr % self.adv_cfg.log_freq == 0:
+            if itr % self.adapt_cfg.log_freq == 0:
                 log_string = " | ".join(
                     f"{name}: {loss.avg:.5g}" for name, loss in loss_meters.items()
                 )
@@ -430,7 +416,7 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
                     "[TRN] Iteration {:04d} | Elapsed: {} | Iterations/s: {:.4g} | {}".format(
                         itr,
                         readable_duration(elapsed),
-                        self.adv_cfg.log_freq / elapsed,
+                        self.adapt_cfg.log_freq / elapsed,
                         log_string,
                     )
                 )
@@ -438,8 +424,8 @@ class AdvSemiSupervisedAlg(SemiSupervisedAlg):
                 loss_meters.clear()
                 start_time = time.monotonic()
 
-            if self.adv_cfg.validate and itr % self.adv_cfg.val_freq == 0:
-                if itr == self.adv_cfg.val_freq:  # first validation
+            if self.adapt_cfg.validate and itr % self.adapt_cfg.val_freq == 0:
+                if itr == self.adapt_cfg.val_freq:  # first validation
                     baseline_metrics(self.cfg, datasets)
                 log_metrics(self.cfg, model=self.encoder, data=datasets, step=itr)
                 save_model(self.cfg, save_dir, model=self.encoder, itr=itr)

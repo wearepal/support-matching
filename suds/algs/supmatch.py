@@ -34,24 +34,24 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
     def __init__(self, cfg: Config) -> None:
         super().__init__(cfg)
-        if self.adv_cfg.aggregator_type != AggregatorType.none:
-            self.eff_batch_size *= self.adv_cfg.bag_size
+        if self.adapt_cfg.aggregator_type != AggregatorType.none:
+            self.eff_batch_size *= self.adapt_cfg.bag_size
 
     @implements(AdvSemiSupervisedAlg)
     def _build_adversary(self, input_shape: tuple[int, ...], s_dim: int) -> Discriminator:
         """Build the adversarial network."""
         disc_input_shape: tuple[int, ...] = (
-            input_shape if self.adv_cfg.train_on_recon else (self.enc_cfg.out_dim,)
+            input_shape if self.adapt_cfg.train_on_recon else (self.enc_cfg.out_dim,)
         )
         disc_fn: ModelFn
-        if len(input_shape) > 2 and self.adv_cfg.train_on_recon:
+        if len(input_shape) > 2 and self.adapt_cfg.train_on_recon:
             if isinstance(self.data_cfg, CmnistConfig):
                 disc_fn = Strided28x28Net(batch_norm=False)
             else:
                 disc_fn = Residual64x64Net(batch_norm=False)
 
         else:
-            disc_fn = FcNet(hidden_dims=self.adv_cfg.adv_hidden_dims, activation=nn.GELU())
+            disc_fn = FcNet(hidden_dims=self.adapt_cfg.adv_hidden_dims, activation=nn.GELU())
             # FcNet first flattens the input
             disc_input_shape = (
                 (prod(disc_input_shape),)
@@ -59,36 +59,36 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 else disc_input_shape
             )
 
-        if self.adv_cfg.aggregator_type is not AggregatorType.none:
+        if self.adapt_cfg.aggregator_type is not AggregatorType.none:
             final_proj = (
-                FcNet(self.adv_cfg.aggregator_hidden_dims)
-                if self.adv_cfg.aggregator_hidden_dims
+                FcNet(self.adapt_cfg.aggregator_hidden_dims)
+                if self.adapt_cfg.aggregator_hidden_dims
                 else None
             )
             aggregator: Aggregator
-            if self.adv_cfg.aggregator_type is AggregatorType.kvq:
+            if self.adapt_cfg.aggregator_type is AggregatorType.kvq:
                 aggregator = KvqAttentionAggregator(
-                    latent_dim=self.adv_cfg.aggregator_input_dim,
-                    bag_size=self.adv_cfg.bag_size,
+                    latent_dim=self.adapt_cfg.aggregator_input_dim,
+                    bag_size=self.adapt_cfg.bag_size,
                     final_proj=final_proj,
-                    **self.adv_cfg.aggregator_kwargs,
+                    **self.adapt_cfg.aggregator_kwargs,
                 )
             else:
                 aggregator = GatedAttentionAggregator(
-                    in_dim=self.adv_cfg.aggregator_input_dim,
-                    bag_size=self.adv_cfg.bag_size,
+                    in_dim=self.adapt_cfg.aggregator_input_dim,
+                    bag_size=self.adapt_cfg.bag_size,
                     final_proj=final_proj,
-                    **self.adv_cfg.aggregator_kwargs,
+                    **self.adapt_cfg.aggregator_kwargs,
                 )
             disc_fn = ModelAggregatorWrapper(
-                disc_fn, aggregator, input_dim=self.adv_cfg.aggregator_input_dim
+                disc_fn, aggregator, input_dim=self.adapt_cfg.aggregator_input_dim
             )
 
         return Discriminator(
             model=disc_fn(disc_input_shape, 1),  # type: ignore
-            double_adv_loss=self.adv_cfg.double_adv_loss,
+            double_adv_loss=self.adapt_cfg.double_adv_loss,
             optimizer_kwargs=self.optimizer_kwargs,
-            criterion=self.adv_cfg.adv_loss,
+            criterion=self.adapt_cfg.adv_loss,
         )
 
     @implements(AdvSemiSupervisedAlg)
@@ -104,10 +104,10 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
         with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):  # type: ignore
             encoding_tr = self.encoder.encode(x_tr, stochastic=True)
-            if not self.adv_cfg.train_on_recon:
+            if not self.adapt_cfg.train_on_recon:
                 encoding_ctx = self.encoder.encode(x_ctx, stochastic=True)
 
-            if self.adv_cfg.train_on_recon:
+            if self.adapt_cfg.train_on_recon:
                 adv_input_ctx = x_ctx
 
             adv_loss = x_ctx.new_zeros(())
@@ -115,7 +115,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
             adv_input_tr = self._get_adv_input(encoding_tr)
             adv_input_tr = adv_input_tr.detach()
 
-            if not self.adv_cfg.train_on_recon:
+            if not self.adapt_cfg.train_on_recon:
                 with torch.no_grad():
                     adv_input_ctx = self._get_adv_input(encoding_ctx)  # type: ignore
 
@@ -146,7 +146,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
             )
             logging_dict.update({k: v + logging_dict_ctx[k] for k, v in logging_dict_tr.items()})
             enc_loss_tr = 0.5 * (enc_loss_tr + enc_loss_ctx)  # take average of the two recon losses
-            enc_loss_tr *= self.adv_cfg.enc_loss_w
+            enc_loss_tr *= self.adapt_cfg.enc_loss_w
             logging_dict["Loss Generator"] = enc_loss_tr
             total_loss = enc_loss_tr
             # ================================= adversarial losses ================================
@@ -154,7 +154,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 disc_input_tr = self._get_adv_input(encoding_t)
                 disc_input_ctx = self._get_adv_input(encoding_c)
 
-                if self.adv_cfg.adv_method is DiscriminatorMethod.nn:
+                if self.adapt_cfg.adv_method is DiscriminatorMethod.nn:
                     disc_loss = self.adversary.encoder_loss(fake=disc_input_tr, real=disc_input_ctx)
 
                 else:
@@ -163,25 +163,25 @@ class SupportMatching(AdvSemiSupervisedAlg):
                     disc_loss = mmd2(
                         x=x,
                         y=y,
-                        kernel=self.adv_cfg.mmd_kernel,
-                        scales=self.adv_cfg.mmd_scales,
-                        wts=self.adv_cfg.mmd_wts,
-                        add_dot=self.adv_cfg.mmd_add_dot,
+                        kernel=self.adapt_cfg.mmd_kernel,
+                        scales=self.adapt_cfg.mmd_scales,
+                        wts=self.adapt_cfg.mmd_wts,
+                        add_dot=self.adapt_cfg.mmd_add_dot,
                     )
-                disc_loss *= self.adv_cfg.adv_loss_w
+                disc_loss *= self.adapt_cfg.adv_loss_w
                 total_loss += disc_loss
                 logging_dict["Loss Discriminator"] = disc_loss
 
             if self.predictor_y is not None:
                 # predictor is on encodings; predict y from the part that is invariant to s
                 pred_y_loss, pred_y_acc = self.predictor_y.routine(encoding_t.zy, batch_tr.y)
-                pred_y_loss *= self.adv_cfg.pred_y_loss_w
+                pred_y_loss *= self.adapt_cfg.pred_y_loss_w
                 logging_dict["Loss Predictor y"] = pred_y_loss.item()
                 logging_dict["Accuracy Predictor y"] = pred_y_acc
                 total_loss += pred_y_loss
             if self.predictor_s is not None:
                 pred_s_loss, pred_s_acc = self.predictor_s.routine(encoding_t.zs, batch_tr.s)
-                pred_s_loss *= self.adv_cfg.pred_s_loss_w
+                pred_s_loss *= self.adapt_cfg.pred_s_loss_w
                 logging_dict["Loss Predictor s"] = pred_s_loss.item()
                 logging_dict["Accuracy Predictor s"] = pred_s_acc
                 total_loss += pred_s_loss
@@ -194,7 +194,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
     def _get_adv_input(self, encoding: SplitEncoding, detach: bool = False) -> Tensor:
         """Construct the input that the discriminator expects; either zy or reconstructed zy."""
-        if self.adv_cfg.train_on_recon:
+        if self.adapt_cfg.train_on_recon:
             zs_m, _ = self.encoder.mask(encoding, random=True, detach=detach)
             recon = self.encoder.decode(zs_m, mode="relaxed")
             if self.enc_cfg.recon_loss is ReconstructionLoss.ce:
@@ -213,13 +213,13 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
         rows_per_block = 8
         num_blocks = 4
-        if self.adv_cfg.aggregator_type is AggregatorType.none:
+        if self.adapt_cfg.aggregator_type is AggregatorType.none:
             num_sampled_bags = 0  # this is only defined here to make the linter happy
             num_samples = num_blocks * rows_per_block
         else:
             # take enough bags to have 32 samples
-            num_sampled_bags = ((num_blocks * rows_per_block - 1) // self.adv_cfg.bag_size) + 1
-            num_samples = num_sampled_bags * self.adv_cfg.bag_size
+            num_sampled_bags = ((num_blocks * rows_per_block - 1) // self.adapt_cfg.bag_size) + 1
+            num_samples = num_sampled_bags * self.adapt_cfg.bag_size
 
         sample = x[:num_samples]
         encoding = self.encoder.encode(sample, stochastic=False)
@@ -227,7 +227,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         recons = [recon.all, recon.zero_s, recon.just_s]
 
         caption = "original | all | zero_s | just_s"
-        if self.adv_cfg.train_on_recon:
+        if self.adapt_cfg.train_on_recon:
             recons.append(recon.rand_s)
             caption += " | rand_s"
 
@@ -252,7 +252,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
             caption=caption,
         )
 
-        if self.adv_cfg.aggregator_type is AggregatorType.gated:
+        if self.adapt_cfg.aggregator_type is AggregatorType.gated:
             self.adversary(self._get_adv_input(encoding))
             assert isinstance(self.adversary.model[-1], Aggregator)  # type: ignore
             attention_weights = self.adversary.model[-1].attention_weights  # type: ignore
