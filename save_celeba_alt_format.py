@@ -63,7 +63,7 @@ def main(hydra_config: DictConfig) -> None:
     assert isinstance(cfg, SaveDataConfig)
 
     base_filename = (
-        f"{cfg.data.log_name}_seed={cfg.data.data_split_seed}_bias={cfg.bias.log_dataset}.csv"
+        f"{cfg.data.log_name}_seed={cfg.data.data_split_seed}_bias={cfg.bias.log_dataset}"
     )
 
     for split in ("train", "context", "test"):
@@ -74,11 +74,11 @@ def main(hydra_config: DictConfig) -> None:
         s_tr = subset.dataset.s[split_inds]
         y_tr = subset.dataset.y[split_inds]
 
-        split_filename = to_absolute_path(cfg.save_dir) / Path(f"{base_filename}_{split}")
+        split_filename = to_absolute_path(str(cfg.save_dir / Path(f"{base_filename}_{split}.txt")))
         with open(split_filename, "w") as f:
             for i, s, y in zip(img_ids_tr, s_tr, y_tr):
                 print("%s %d %d" % (i, s, y), file=f)
-        print(f"{split} data saved to {split_filename.resolve()}")
+        print(f"{split} data saved to {split_filename}")
 
 
 if __name__ == "__main__":
