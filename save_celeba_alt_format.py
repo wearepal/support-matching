@@ -59,32 +59,26 @@ def main(hydra_config: DictConfig) -> None:
         raise ValueError("Data-saving currently only works for CelebA.")
     #  Load the datasets and wrap with dataloaders
     datasets = load_dataset(cfg)
-    train_inds = datasets.train.indices
-    context_inds = datasets.context.indices
-    # train_inds = torch.cat([train_inds, context_inds], dim=0)
-    test_inds = datasets.test.indices
 
     assert isinstance(cfg, SaveDataConfig)
 
-    filename = (
+    base_filename = (
         f"{cfg.data.log_name}_seed={cfg.data.data_split_seed}_bias={cfg.bias.log_dataset}.csv"
     )
 
-    img_ids_tr = datasets.train.x[train_inds]
-    s_tr = datasets.train.s[train_inds]
-    y_tr = datasets.train.y[train_inds]
+    for split in ("train", "context", "test"):
+        subset = getattr(datasets, "split")
+        split_inds = subset.indices
 
-    with open(filename, "w") as f:
-        for i, s, y in zip(img_ids_tr.unbind(0), s_tr.unbind(0), y_tr.unbind(0)):
-            print("%s %d %d" % (i, s, y), file=f)
+        img_ids_tr = subset.dataset.x[split_inds]
+        s_tr = subset.dataset.s[split_inds]
+        y_tr = subset.dataset.y[split_inds]
 
-    # attr_file_path = Path(cfg.data.root) / "celeba" / "list_attr_celeba.txt"
-    # img = np.genfromtxt(attr_file_path, skip_header=2, dtype=str, usecols=0)
-    # attr_file = pd.read_csv(attr_file_path)
-    # # sens_male = np.genfromtxt(
-    # #     cfg.path_to_sens, skip_header=2, dtype=int, usecols=21
-    # # )  # 21 Male/Female
-    # smiling = np.genfromtxt(cfg.path_to_target, skip_header=2, dtype=int, usecols=32)
+        split_filename = Path(f"{base_filename}_{split}")
+        with open(split_filename, "w") as f:
+            for i, s, y in zip(img_ids_tr, s_tr, y_tr):
+                print("%s %d %d" % (i, s, y), file=f)
+        print(f"{split} data saved to {split_filename.resolve()}")
 
 
 if __name__ == "__main__":
