@@ -40,7 +40,9 @@ class SaveDataConfig:
 
         This is necessary because dataclasses cannot be instantiated recursively yet.
         """
-        subconfigs = {k: instantiate(v) for k, v in hydra_config.items() if k != "_target_"}
+        subconfigs = {
+            k: instantiate(v) for k, v in hydra_config.items() if k not in ("_target_", "save_dir")
+        }
 
         return cls(**subconfigs)
 
