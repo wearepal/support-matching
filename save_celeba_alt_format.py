@@ -43,6 +43,7 @@ class SaveDataConfig:
         subconfigs = {
             k: instantiate(v) for k, v in hydra_config.items() if k not in ("_target_", "save_dir")
         }
+        subconfigs["save_dir"] = hydra_config.get("save_dir", "")
 
         return cls(**subconfigs)
 
@@ -74,7 +75,9 @@ def main(hydra_config: DictConfig) -> None:
         s_tr = subset.dataset.s[split_inds]
         y_tr = subset.dataset.y[split_inds]
 
-        split_filename = to_absolute_path(str(cfg.save_dir / Path(f"{base_filename}_{split}.txt")))
+        save_dir = Path(to_absolute_path(cfg.save_dir))
+        save_dir.mkdir(exist_ok=True, parents=True)
+        split_filename = save_dir / Path(f"{base_filename}_{split}.txt")
         with open(split_filename, "w") as f:
             for i, s, y in zip(img_ids_tr, s_tr, y_tr):
                 print("%s %d %d" % (i, s, y), file=f)
