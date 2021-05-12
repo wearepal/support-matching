@@ -67,7 +67,7 @@ def main(hydra_config: DictConfig) -> None:
     )
 
     for split in ("train", "context", "test"):
-        subset = getattr(datasets, "split")
+        subset = getattr(datasets, split)
         split_inds = subset.indices
 
         img_ids_tr = subset.dataset.x[split_inds]
