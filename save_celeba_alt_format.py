@@ -4,7 +4,7 @@ from typing import Type, TypeVar
 
 import hydra
 from hydra.core.config_store import ConfigStore
-from hydra.utils import instantiate
+from hydra.utils import instantiate, to_absolute_path
 import numpy as np
 from omegaconf.dictconfig import DictConfig
 from omegaconf.omegaconf import MISSING
@@ -74,7 +74,7 @@ def main(hydra_config: DictConfig) -> None:
         s_tr = subset.dataset.s[split_inds]
         y_tr = subset.dataset.y[split_inds]
 
-        split_filename = Path(f"{base_filename}_{split}")
+        split_filename = to_absolute_path(cfg.save_dir) / Path(f"{base_filename}_{split}")
         with open(split_filename, "w") as f:
             for i, s, y in zip(img_ids_tr, s_tr, y_tr):
                 print("%s %d %d" % (i, s, y), file=f)
