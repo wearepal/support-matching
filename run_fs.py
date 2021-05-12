@@ -64,7 +64,7 @@ class ContextMode(Enum):
 
 @dataclass
 class FsArgs:
-    _target_: str = "run_baselines.FsArgs"
+    _target_: str = "run_fs.FsArgs"
 
     # General data set settings
     greyscale: bool = False
@@ -86,7 +86,7 @@ class FsArgs:
 
 @dataclass
 class FsConfig(BaseConfig):
-    args: FsArgs = MISSING
+    fs_args: FsArgs = MISSING
 
 
 class _ClusterLabelDataset(Dataset):
@@ -100,11 +100,11 @@ class _ClusterLabelDataset(Dataset):
         return self.dataset[index], self.s[index], self.y[index]
 
 
-def run_baseline(cfg: FsConfig) -> None:
+def run(cfg: FsConfig) -> None:
     cfg_dict = {}
     for name, settings in [
         ("bias", cfg.bias),
-        ("baseline", cfg.args),
+        ("baseline", cfg.fs_args),
         ("data", cfg.data),
         ("misc", cfg.misc),
     ]:
@@ -113,7 +113,7 @@ def run_baseline(cfg: FsConfig) -> None:
         as_list = sorted(f"{k}: {v}" for k, v in as_dict.items())
         LOGGER.info(f"{name}: " + "{" + ", ".join(as_list) + "}")
     cfg_dict = flatten_dict(cfg_dict)
-    args = cfg.args
+    args = cfg.fs_args
     use_gpu = torch.cuda.is_available() and not cfg.misc.gpu < 0  # type: ignore
     random_seed(cfg.misc.seed, use_gpu)
 
@@ -299,8 +299,9 @@ register_configs()
 
 @hydra.main(config_path="conf", config_name="baselines")
 def main(hydra_config: DictConfig) -> None:
+    breakpoint()
     cfg = FsConfig.from_hydra(hydra_config)
-    run_baseline(cfg=cfg)
+    run(cfg=cfg)
 
 
 if __name__ == "__main__":
