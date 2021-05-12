@@ -21,7 +21,7 @@ from shared.configs.arguments import (
 from shared.data.data_loading import load_dataset
 
 
-T = TypeVar("T", bound="BaseConfig")
+T = TypeVar("T", bound="SaveDataConfig")
 
 
 @dataclass
@@ -52,8 +52,7 @@ register_configs()
 
 @hydra.main(config_path="conf", config_name="data_gen")
 def main(hydra_config: DictConfig) -> None:
-    breakpoint()
-    cfg = BaseConfig.from_hydra(hydra_config)
+    cfg = SaveDataConfig.from_hydra(hydra_config)
     if not isinstance(cfg.data, CelebaConfig):
         raise ValueError("Data-saving currently only works for CelebA.")
     #  Load the datasets and wrap with dataloaders
