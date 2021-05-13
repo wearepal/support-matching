@@ -1,4 +1,5 @@
-# usage: hydra/launcher=slurm
+# usage: hydra/launcher=slurm_goedel
+#
 defaults:
   - submitit_slurm
 
