@@ -88,6 +88,7 @@ class FsArgs:
 class FsConfig(BaseConfig):
     fs_args: FsArgs = MISSING
 
+
 class _ClusterLabelDataset(Dataset):
     def __init__(self, dataset: Dataset, s: Tensor, y: Tensor) -> None:
         super().__init__()
