@@ -1,0 +1,10 @@
+defaults:
+  - submitit_slurm
+
+partition: goedel
+cpus_per_task: 1
+mem_gb: 10
+timeout_min: 99999  # 99999 minutes = a few months
+
+additional_parameters:
+  gres: "mps:8"  # 8 GB of GPU memory
