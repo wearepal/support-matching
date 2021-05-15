@@ -88,7 +88,6 @@ class FsArgs:
 class FsConfig(BaseConfig):
     fs_args: FsArgs = MISSING
 
-
 class _ClusterLabelDataset(Dataset):
     def __init__(self, dataset: Dataset, s: Tensor, y: Tensor) -> None:
         super().__init__()
@@ -299,7 +298,6 @@ register_configs()
 
 @hydra.main(config_path="conf", config_name="baselines")
 def main(hydra_config: DictConfig) -> None:
-    breakpoint()
     cfg = FsConfig.from_hydra(hydra_config)
     run(cfg=cfg)
 

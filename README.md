@@ -74,5 +74,5 @@ The code will try to download this, but the download quota is often saturated,
 so it might not work immediately.
 
 ```
-bash scripts/compare.sh data=celeba/gender_smiling bias=celeba/no_smiling_females enc=mnist adv=cmnist/fallen_sun adv.batch_size=32 adv.bag_size=8 adv.iters=10000 data.context_pcnt=0.5 adv.disc_loss=logistic_ns adv.num_discs=1 adv.disc_reset_prob=0 adv.aggregator_type=gated enc.levels=5 enc.out_dim=128 enc.init_chans=32 adv.enc_loss_w=1 adv.pred_s_loss_w=1
+bash scripts/compare.sh +experiment=celeba_gender
 ```
