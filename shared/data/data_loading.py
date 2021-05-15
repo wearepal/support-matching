@@ -2,9 +2,6 @@ import logging
 import platform
 from typing import Dict, NamedTuple, Optional, Tuple, Union
 
-import ethicml as em
-import ethicml.vision as emvi
-from hydra.utils import to_absolute_path
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -13,6 +10,9 @@ from torch.utils.data.dataset import ConcatDataset
 from torchvision import transforms as TF
 from torchvision.datasets import MNIST
 
+import ethicml as em
+import ethicml.vision as emvi
+from hydra.utils import to_absolute_path
 from shared.configs import (
     AdultConfig,
     AdultDatasetSplit,
@@ -188,7 +188,7 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
 
     elif isinstance(args, (CelebaConfig, IsicConfig)):
         if isinstance(args, CelebaConfig):
-            tform_ls = [TF.Resize(64), TF.CenterCrop(64)]
+            tform_ls = [TF.CenterCrop(178), TF.Resize(64)]
         else:
             tform_ls = []
         tform_ls.append(TF.ToTensor())

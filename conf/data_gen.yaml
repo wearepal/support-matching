@@ -1,0 +1,8 @@
+defaults:
+    # run config
+    - save_data_schema
+    - data: celeba/gender_smiling
+    - bias: celeba/no_smiling_females
+
+    # hydra config
+    - override hydra/job_logging: custom

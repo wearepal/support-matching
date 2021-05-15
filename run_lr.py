@@ -1,5 +1,4 @@
 from pathlib import Path
-
 import ethicml as em
 import hydra
 from hydra.core.config_store import ConfigStore
