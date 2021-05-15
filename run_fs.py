@@ -14,16 +14,14 @@ from omegaconf import DictConfig, MISSING
 import pandas as pd
 import torch
 from torch import nn
-from torch.utils.data import DataLoader, Dataset, TensorDataset
+from torch.tensor import Tensor
+from torch.utils.data import Dataset
 from torch.utils.data.dataset import ConcatDataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
 import wandb
 import yaml
 
-from fdm.baselines import GDRO, LfF
-from fdm.models import Classifier
-from fdm.optimisation.utils import build_weighted_sampler_from_dataset
 from shared.configs import (
     AdultConfig,
     BaseConfig,
@@ -42,71 +40,71 @@ from shared.utils import (
     random_seed,
     write_results_to_csv,
 )
+from shared.utils.loadsave import load_results
+from shared.utils.utils import class_id_to_label
+from suds.baselines import GDRO, LfF
+from suds.models import Classifier
+from suds.optimisation.utils import build_weighted_sampler_from_dataset
 
 LOGGER = logging.getLogger("BASELINE")
 
 
-class BaselineM(Enum):
+class Method(Enum):
     erm = auto()
     dro = auto()
     gdro = auto()
     lff = auto()
 
 
+class ContextMode(Enum):
+    ground_truth = auto()
+    cluster_labels = auto()
+    unlabelled = auto()
+
+
 @dataclass
-class BaselineArgs:
-    _target_: str = "run_baselines.BaselineArgs"
+class FsArgs:
+    _target_: str = "run_baselines.FsArgs"
 
     # General data set settings
     greyscale: bool = False
-    labelled_context_set: bool = (
-        False  # Whether to train the baseline on the context set with labels
-    )
+    context_mode: ContextMode = ContextMode.unlabelled
 
     # Optimization settings
     epochs: int = 60
     test_batch_size: int = 1000
-    batch_size: int = 64
+    batch_size: int = 100
     lr: float = 1e-3
-    weight_decay: float = 1e-8
+    weight_decay: float = 0
     eta: float = 0.5
     c: float = 0.0
 
     # Misc settings
-    method: BaselineM = BaselineM.erm
+    method: Method = Method.erm
     oversample: bool = True
 
 
 @dataclass
-class Config(BaseConfig):
-    baseline: BaselineArgs = MISSING
+class FsConfig(BaseConfig):
+    args: FsArgs = MISSING
 
 
-def get_instance_weights(dataset: Dataset, batch_size: int) -> TensorDataset:
-    s_all, y_all = [], []
-    for _, s, y in DataLoader(dataset, batch_size=batch_size):
-        s_all.append(s.numpy())
-        y_all.append(y.numpy())
+class _ClusterLabelDataset(Dataset):
+    def __init__(self, dataset: Dataset, s: Tensor, y: Tensor) -> None:
+        super().__init__()
+        self.dataset = dataset
+        self.s = s
+        self.y = y
 
-    s_all = np.concatenate(s_all, axis=0)
-    y_all = np.concatenate(y_all, axis=0)
-
-    s = pd.DataFrame(s_all, columns=["sens"])
-    y = pd.DataFrame(y_all, columns=["labels"])
-    labels = em.DataTuple(x=y, s=s, y=y)
-
-    instance_weights = em.compute_instance_weights(labels).to_numpy()
-    instance_weights = torch.as_tensor(instance_weights).view(-1)
-    instance_weights = TensorDataset(instance_weights)
-
-    return instance_weights
+    def __getitem__(self, index) -> tuple[Tensor, Tensor, Tensor]:
+        return self.dataset[index], self.s[index], self.y[index]
 
 
-def run_baseline(cfg: Config) -> None:
+def run_baseline(cfg: FsConfig) -> None:
     cfg_dict = {}
     for name, settings in [
         ("bias", cfg.bias),
-        ("baseline", cfg.baseline),
+        ("baseline", cfg.args),
         ("data", cfg.data),
         ("misc", cfg.misc),
     ]:
@@ -115,7 +113,7 @@ def run_baseline(cfg: Config) -> None:
         as_list = sorted(f"{k}: {v}" for k, v in as_dict.items())
         LOGGER.info(f"{name}: " + "{" + ", ".join(as_list) + "}")
     cfg_dict = flatten_dict(cfg_dict)
-    args = cfg.baseline
+    args = cfg.args
     use_gpu = torch.cuda.is_available() and not cfg.misc.gpu < 0  # type: ignore
     random_seed(cfg.misc.seed, use_gpu)
 
@@ -128,8 +126,7 @@ def run_baseline(cfg: Config) -> None:
     # Set up wandb logging
     run = None
     if cfg.misc.use_wandb:
-        project_suffix = f"-{cfg.data.log_name}" if not isinstance(cfg.data, CmnistConfig) else ""
-        group = ""
+        group = f"{cfg.data.log_name}.{str(args.method.name)}"
         if cfg.misc.log_method:
             group += cfg.misc.log_method
         if cfg.misc.exp_group:
@@ -140,7 +137,7 @@ def run_baseline(cfg: Config) -> None:
         local_dir.mkdir(exist_ok=True)
         run = wandb.init(
             entity="predictive-analytics-lab",
-            project="fdm-baselines" + project_suffix,
+            project="suds",
             dir=str(local_dir),
             config=flatten_dict(as_pretty_dict(cfg)),
             group=group if group else None,
@@ -152,25 +149,32 @@ def run_baseline(cfg: Config) -> None:
     datasets = load_dataset(cfg)
 
     train_data = datasets.train
-    if args.labelled_context_set:
-        train_data = ConcatDataset([train_data, datasets.context])
     test_data = datasets.test
+    s_count = max(datasets.s_dim, 2)
 
-    train_sampler = build_weighted_sampler_from_dataset(
-        dataset=train_data,  # type: ignore
-        s_count=max(datasets.s_dim, 2),
-        batch_size=args.batch_size,
-        oversample=args.oversample,
-        balance_hierarchical=not args.labelled_context_set,
-    )
-    train_loader_kwargs = {
-        # "sampler": train_sampler,
-        "pin_memory": True,
-        "num_workers": cfg.misc.num_workers,
-    }
+    train_loader_kwargs = {"pin_memory": True, "num_workers": cfg.data.num_workers, "shuffle": True}
+    if args.context_mode is ContextMode.ground_truth:
+        train_data = ConcatDataset([train_data, datasets.context])
+    elif args.context_mode is ContextMode.cluster_labels and cfg.misc.cluster_label_file:
+        cluster_results = load_results(cfg)
+        subgroup_ids = cluster_results.class_ids
+        y = class_id_to_label(subgroup_ids, s_count=s_count, label="y")
+        s = class_id_to_label(subgroup_ids, s_count=s_count, label="s")
+        context_data = _ClusterLabelDataset(datasets.context, s=s, y=y)
+        train_data = ConcatDataset([train_data, context_data])
+    else:
+        train_sampler = build_weighted_sampler_from_dataset(
+            dataset=train_data,  # type: ignore
+            s_count=max(datasets.s_dim, 2),
+            batch_size=args.batch_size,
+            oversample=args.oversample,
+            balance_hierarchical=True,
+        )
+
+        train_loader_kwargs["shuffle"] = False
+        train_loader_kwargs["sampler"] = train_sampler
 
     input_shape = train_data[0][0].shape
-
     #  Construct the network
     classifier_fn: ModelFn
     if isinstance(cfg.data, CmnistConfig):
@@ -201,13 +205,13 @@ def run_baseline(cfg: Config) -> None:
 
     classifier_cls: type[Classifier] | type[LfF]
     classifier_kwargs = {}
-    if args.method is BaselineM.lff:
+    if args.method is Method.lff:
         classifier_cls = LfF
-    elif args.method is BaselineM.gdro:
+    elif args.method is Method.gdro:
         classifier_cls = GDRO
         classifier_kwargs["c_param"] = args.c
     else:
-        if args.method is BaselineM.dro:
+        if args.method is Method.dro:
             criterion = implementations.dro_modules.DROLoss(nn.CrossEntropyLoss, eta=args.eta)
         else:
             criterion = "ce"
@@ -257,7 +261,7 @@ def run_baseline(cfg: Config) -> None:
     elif isinstance(cfg.data, IsicConfig):
         full_name += f"_{str(cfg.data.isic_sens_attr.name)}"
         full_name += f"_{cfg.data.isic_target_attr.name}"
-    if args.method is BaselineM.dro:
+    if args.method is Method.dro:
         full_name += f"_eta_{args.eta}"
     full_name += f"_{str(args.epochs)}epochs.csv"
 
@@ -271,7 +275,7 @@ def run_baseline(cfg: Config) -> None:
         s_dim=datasets.s_dim,
         use_wandb=True,
     )
-    if args.method == BaselineM.dro:
+    if args.method == Method.dro:
         metrics.update({"eta": args.eta})
     if cfg.misc.save_dir:
         cfg_dict["misc.log_method"] = f"baseline_{args.method.name}"
@@ -289,13 +293,13 @@ def run_baseline(cfg: Config) -> None:
 
 
 cs = ConfigStore.instance()
-cs.store(name="baseline_schema", node=Config)
+cs.store(name="baseline_schema", node=FsConfig)
 register_configs()
 
 
 @hydra.main(config_path="conf", config_name="baselines")
 def main(hydra_config: DictConfig) -> None:
-    cfg = Config.from_hydra(hydra_config)
+    cfg = FsConfig.from_hydra(hydra_config)
     run_baseline(cfg=cfg)
 
 

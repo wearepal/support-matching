@@ -1,16 +1,17 @@
 from __future__ import annotations
+
 import logging
 from typing import Any
 
 import torch
-from torch import Tensor, nn
 import torch.nn.functional as F
+from ethicml.implementations.dro_modules import DROLoss
+from torch import Tensor, nn
 from torch.nn.modules.loss import _Loss
 from torch.utils.data import DataLoader, Dataset
 from tqdm import trange
 
-from ethicml.implementations.dro_modules import DROLoss
-from fdm.models.base import ModelBase
+from suds.models.base import ModelBase
 
 __all__ = ["Classifier", "Regressor"]
 

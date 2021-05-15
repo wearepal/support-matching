@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import resnet50
 
-from fdm.models.resnet import ResidualNet
+from suds.models.resnet import ResidualNet
 
 __all__ = ["linear_resnet", "mp_28x28_net", "Residual64x64Net", "Strided28x28Net"]
 

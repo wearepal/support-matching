@@ -1,15 +1,16 @@
 from __future__ import annotations
-from collections import defaultdict
+
 import logging
+from collections import defaultdict
 from pathlib import Path
 from typing import Sequence, Union, cast
 
-from ethicml.vision.data.image_dataset import TorchImageDataset
 import torch
-from torch import Tensor, nn
-from torch.utils.data.dataset import ConcatDataset, Subset
 import torchvision
 import wandb
+from ethicml.vision.data.image_dataset import TorchImageDataset
+from torch import Tensor, nn
+from torch.utils.data.dataset import ConcatDataset, Subset
 
 from shared.configs import CelebaConfig, Config, IsicConfig, ReconstructionLoss
 from shared.data.dataset_wrappers import DataTupleDataset, TensorDataTupleDataset
@@ -114,16 +115,13 @@ def log_attention(
     wandb_log(cfg.misc, {prefix + name: shw}, step=step)
 
 
-def save_model(
-    cfg: Config, save_dir: Path, model: nn.Module, itr: int, sha: str, best: bool = False
-) -> Path:
+def save_model(cfg: Config, save_dir: Path, model: nn.Module, itr: int, best: bool = False) -> Path:
     if best:
         filename = save_dir / "checkpt_best.pth"
     else:
         filename = save_dir / f"checkpt_epoch{itr}.pth"
     save_dict = {
         "args": flatten_dict(as_pretty_dict(cfg)),
-        "sha": sha,
         "model": model.state_dict(),
         "itr": itr,
     }

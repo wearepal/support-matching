@@ -1,6 +1,7 @@
 from __future__ import annotations
+
 from collections.abc import Iterator, Sequence
-from typing import Tuple
+from typing import List, Tuple
 
 import torch
 from torch import Tensor
@@ -33,7 +34,7 @@ class StratifiedSampler(Sampler[int]):
         >>> list(StratifiedSampler([0, 0, 0, 0, 1, 1, 1, 2, 2], 7, replacement=False))
         [2, 6, 7, 0, 5, 8]
     """
-    groupwise_idx: Tuple[Tuple[Tensor, int]]  # use typing.Tuple here, because pytorch evals this
+    groupwise_idx: List[Tuple[Tensor, int]]  # use typing.Tuple here, because pytorch evals this
     num_groups_effective: int
     num_samples_per_group: int
     replacement: bool
@@ -66,7 +67,7 @@ class StratifiedSampler(Sampler[int]):
         groups: list[int] = group_ids_t.unique().tolist()
 
         # get the indexes for each group separately and compute the effective number of groups
-        groupwise_idx = []
+        groupwise_idx: list[tuple[Tensor, int]] = []
         num_groups_effective = 0
         for group in groups:
             idx = (group_ids_t == group).nonzero(as_tuple=False)
@@ -80,7 +81,7 @@ class StratifiedSampler(Sampler[int]):
                     f"Not enough samples in group {group} to sample {num_samples_per_group}."
                 )
 
-        self.groupwise_idx = tuple(groupwise_idx)
+        self.groupwise_idx = groupwise_idx
         self.num_groups_effective = num_groups_effective
 
     def __iter__(self) -> Iterator[int]:

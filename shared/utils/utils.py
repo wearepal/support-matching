@@ -1,21 +1,22 @@
 """Utility functions."""
 from __future__ import annotations
+
+import os
+import random
 from collections.abc import Iterable, Iterator, MutableMapping, Sequence
 from dataclasses import asdict
 from enum import Enum
 from functools import reduce
 from math import gcd
-import os
-import random
 from typing import Any, TypeVar
 
 import numpy as np
-from omegaconf import OmegaConf
 import torch
+import wandb
+from omegaconf import OmegaConf
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from typing_extensions import Literal, Protocol
-import wandb
 
 from shared.configs import Config, DatasetConfig, EncoderConfig, MiscConfig
 
@@ -50,20 +51,16 @@ class ExperimentBase:
     def __init__(
         self,
         cfg: Config,
-        data: DatasetConfig,
-        enc: EncoderConfig,
-        misc: MiscConfig,
-        device: torch.device,
+        data_cfg: DatasetConfig,
+        misc_cfg: MiscConfig,
     ) -> None:
         self.cfg = cfg
-        self.data = data
-        self.enc = enc
-        self.misc = misc
-        self.device = device
+        self.data_cfg = data_cfg
+        self.misc_cfg = misc_cfg
 
     def to_device(self, *tensors: Tensor) -> Tensor | tuple[Tensor, ...]:
         """Place tensors on the correct device."""
-        moved = [tensor.to(self.device, non_blocking=True) for tensor in tensors]
+        moved = [tensor.to(self.misc_cfg.device, non_blocking=True) for tensor in tensors]
         return moved[0] if len(moved) == 1 else tuple(moved)
 
 

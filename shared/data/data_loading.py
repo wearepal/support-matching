@@ -12,7 +12,6 @@ from torch.utils.data import Dataset, Subset
 from torch.utils.data.dataset import ConcatDataset
 from torchvision import transforms as TF
 from torchvision.datasets import MNIST
-from typing_extensions import Literal
 
 from shared.configs import (
     AdultConfig,

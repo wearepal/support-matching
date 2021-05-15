@@ -1,21 +1,11 @@
-from pathlib import Path
 import random
-from typing import (
-    TYPE_CHECKING,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Union,
-)
+from pathlib import Path
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
 
-from ethicml.utility import DataTuple
 import numpy as np
 import pandas as pd
 import torch
+from ethicml.utility import DataTuple
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms

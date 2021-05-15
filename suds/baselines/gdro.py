@@ -1,15 +1,16 @@
 from __future__ import annotations
+
 import logging
 from typing import Any
 
 import torch
-from torch import Tensor
 import torch.nn as nn
+from torch import Tensor
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 from tqdm import trange
 
-from fdm.models import Classifier
+from suds.models import Classifier
 
 __all__ = ["GDRO"]
 

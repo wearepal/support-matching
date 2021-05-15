@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import copy
 import logging
 from typing import Any
@@ -10,10 +11,10 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 from tqdm.std import trange
 
-from fdm.models import Classifier
-from fdm.models.base import ModelBase
-from fdm.optimisation.loss import GeneralizedCELoss
-from fdm.optimisation.utils import ExtractableDataset, extract_labels_from_dataset
+from suds.models import Classifier
+from suds.models.base import ModelBase
+from suds.optimisation.loss import GeneralizedCELoss
+from suds.optimisation.utils import ExtractableDataset, extract_labels_from_dataset
 
 __all__ = ["LfF"]
 

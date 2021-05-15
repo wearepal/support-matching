@@ -1,6 +1,7 @@
 from enum import Enum, auto
 
 __all__ = [
+    "AdaptationMethod",
     "AdultDatasetSplit",
     "AggregatorType",
     "ClusteringLabel",
@@ -36,7 +37,7 @@ class EncoderType(Enum):
 
 
 class ReconstructionLoss(Enum):
-    """ Reconstruction loss."""
+    """Reconstruction loss."""
 
     l1 = auto()
     l2 = auto()
@@ -185,3 +186,10 @@ class EvalTrainData(Enum):
 
     train = auto()
     context = auto()
+
+
+class AdaptationMethod(Enum):
+    """Method to use for adaptation."""
+
+    laftr = auto()
+    suds = auto()

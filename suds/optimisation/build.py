@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from fdm.models import AutoEncoder, EncodingSize, Vae
 from shared.configs import Config
+from suds.models import AutoEncoder, EncodingSize, Vae
 
 __all__ = ["build_ae"]
 
@@ -13,14 +13,14 @@ def build_ae(
     encoding_size: EncodingSize | None,
     feature_group_slices: dict[str, list[slice]] | None,
 ) -> AutoEncoder:
-    optimizer_args = {"lr": cfg.fdm.lr, "weight_decay": cfg.fdm.weight_decay}
+    optimizer_args = {"lr": cfg.adapt.lr, "weight_decay": cfg.adapt.weight_decay}
     model: AutoEncoder
-    if cfg.fdm.vae:
+    if cfg.adapt.vae:
         model = Vae(
             encoder=encoder,
             decoder=decoder,
             encoding_size=encoding_size,
-            vae_std_tform=cfg.fdm.vae_std_tform,
+            vae_std_tform=cfg.adapt.vae_std_tform,
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_args,
         )
@@ -29,7 +29,7 @@ def build_ae(
             encoder=encoder,
             decoder=decoder,
             encoding_size=encoding_size,
-            zs_transform=cfg.fdm.zs_transform,
+            zs_transform=cfg.enc.zs_transform,
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_args,
         )

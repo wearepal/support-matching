@@ -1,7 +1,7 @@
 from typing import Tuple
 
-from torch import Tensor
 import torch.nn as nn
+from torch import Tensor
 
 __all__ = ["View"]
 

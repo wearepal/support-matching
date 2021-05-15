@@ -1,5 +1,4 @@
 import torch
-
 from fdm.optimisation.utils import _get_multipliers_and_group_size
 
 

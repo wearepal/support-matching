@@ -1,20 +1,21 @@
 """Main training file"""
 from __future__ import annotations
-from collections import defaultdict
+
 import logging
-from pathlib import Path
 import time
+from collections import defaultdict
+from pathlib import Path
 from typing import cast
 
 import git
-from hydra.utils import to_absolute_path
 import numpy as np
 import torch
+import wandb
+import yaml
+from hydra.utils import to_absolute_path
 from torch import Tensor
 from torch.utils.data import ConcatDataset, DataLoader
 from torchvision.models import resnet18, resnet50
-import wandb
-import yaml
 
 from clustering.models import (
     Classifier,
@@ -69,12 +70,7 @@ from shared.utils import (
 from .build import build_ae
 from .evaluation import classify_dataset
 from .k_means import train as train_k_means
-from .utils import (
-    cluster_metrics,
-    count_occurances,
-    get_class_id,
-    get_cluster_label_path,
-)
+from .utils import cluster_metrics, count_occurances, get_class_id, get_cluster_label_path
 
 __all__ = ["main"]
 
@@ -96,7 +92,7 @@ class Experiment(ExperimentBase):
         y_dim: int,
         device: torch.device,
     ) -> None:
-        super().__init__(cfg=cfg, data=data, enc=enc, misc=misc, device=device)
+        super().__init__(cfg=cfg, data_cfg=data, enc=enc, misc_cfg=misc, device=device)
         self.args = args
         self.model = model
         self.s_dim = s_dim
@@ -146,7 +142,7 @@ class Experiment(ExperimentBase):
             time_for_batch = time.time() - end
             time_meter.update(time_for_batch)
 
-            wandb_log(self.misc, logging_dict, step=itr)
+            wandb_log(self.misc_cfg, logging_dict, step=itr)
             end = time.time()
 
         time_for_epoch = time.time() - start_epoch_time
@@ -320,7 +316,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         datasets.context,
         shuffle=True,
         batch_size=context_batch_size,
-        num_workers=misc.num_workers,
+        num_workers=data.num_workers,
         pin_memory=True,
     )
     enc_train_data = ConcatDataset([datasets.context, datasets.train])
@@ -329,7 +325,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
             RotationPrediction(enc_train_data, apply_all=True),
             shuffle=True,
             batch_size=args.batch_size,
-            num_workers=misc.num_workers,
+            num_workers=data.num_workers,
             pin_memory=True,
             collate_fn=adaptive_collate,
         )
@@ -338,7 +334,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
             enc_train_data,
             shuffle=True,
             batch_size=args.batch_size,
-            num_workers=misc.num_workers,
+            num_workers=data.num_workers,
             pin_memory=True,
         )
 
@@ -346,14 +342,14 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         datasets.train,
         shuffle=True,
         batch_size=args.batch_size,
-        num_workers=misc.num_workers,
+        num_workers=data.num_workers,
         pin_memory=True,
     )
     val_loader = DataLoader(
         datasets.test,
         shuffle=False,
         batch_size=args.test_batch_size,
-        num_workers=misc.num_workers,
+        num_workers=data.num_workers,
         pin_memory=True,
     )
 

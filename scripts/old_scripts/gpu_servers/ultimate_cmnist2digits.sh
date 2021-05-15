@@ -14,7 +14,7 @@ data_flags=flags/data_spec/cmnist_2dig_subs_miss_s.yaml
 save_dir=experiments/cmnist/2digits/2colors/2missing/strongly_subsampled
 
 encoder_flags=flags/encoder/mnist.yaml
-fdm_flags=flags/fdm/fallen_sun.yaml
+suds_flags=flags/suds/fallen_sun.yaml
 clust_flags=flags/clustering/vague_spaceship_cluster.yaml
 
 
@@ -72,16 +72,16 @@ function run_all() {
 
     # ============== run all methods ================
 
-    run_ranking @$encoder_flags @$clust_flags @$fdm_flags
+    run_ranking @$encoder_flags @$clust_flags @$suds_flags
 
-    run_ranking_no_predictors @$encoder_flags @$clust_flags @$fdm_flags \
+    run_ranking_no_predictors @$encoder_flags @$clust_flags @$suds_flags \
         --d-pred-y-weight 0 --d-pred-s-weight 0
 
-    run_k_means @$encoder_flags @$fdm_flags
+    run_k_means @$encoder_flags @$suds_flags
 
-    run_no_cluster @$encoder_flags @$fdm_flags
+    run_no_cluster @$encoder_flags @$suds_flags
 
-    run_perfect_cluster @$encoder_flags @$fdm_flags
+    run_perfect_cluster @$encoder_flags @$suds_flags
 
     run_cnn_baseline
 
@@ -95,13 +95,13 @@ run_all
 
 data_flags=flags/data_spec/cmnist_2dig_subsampled.yaml
 save_dir=experiments/cmnist/2digits/2colors/1missing/subsampled_visionary
-fdm_flags=flags/fdm/visionary_dream.yaml
+suds_flags=flags/suds/visionary_dream.yaml
 
 run_all
 
 
 data_flags=flags/data_spec/cmnist_2dig_3col_subsampled.yaml
 save_dir=experiments/cmnist/2digits/3colors/1missing/subsampled
-fdm_flags=flags/fdm/fallen_sun.yaml
+suds_flags=flags/suds/fallen_sun.yaml
 
 run_all
