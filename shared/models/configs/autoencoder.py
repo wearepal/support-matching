@@ -75,7 +75,7 @@ def conv_autoencoder(
 
     flattened_size = c_out * height * width
     encoder += [nn.Flatten()]
-    encoder += [nn.Linear(flattened_size, encoder_out_dim), UnitNormLayer(p=2, dim=1)]
+    encoder += [nn.Linear(flattened_size, encoder_out_dim)]
 
     decoder += [View((c_out, height, width))]
     decoder += [nn.Linear(encoder_out_dim, flattened_size)]
