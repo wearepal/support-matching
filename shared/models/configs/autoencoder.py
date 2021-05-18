@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import List, Optional, Tuple
 
 import torch.nn as nn
@@ -12,7 +13,8 @@ def down_conv(in_channels, out_channels, kernel_size, stride, padding):
         nn.Conv2d(
             in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding
         ),
-        nn.GELU(),
+        nn.BatchNorm2d(out_channels),
+        nn.SiLU(),
     )
 
 
@@ -26,7 +28,8 @@ def up_conv(in_channels, out_channels, kernel_size, stride, padding, output_padd
             padding=padding,
             output_padding=output_padding,
         ),
-        nn.GELU(),
+        nn.BatchNorm2d(out_channels),
+        nn.SiLU(),
     )
 
 
@@ -39,8 +42,8 @@ def conv_autoencoder(
     variational: bool,
     decoder_out_act: Optional[nn.Module] = None,
 ) -> Tuple[nn.Sequential, nn.Sequential, int]:
-    encoder: List[nn.Module] = []
-    decoder: List[nn.Module] = []
+    encoder: list[nn.Module] = []
+    decoder: list[nn.Module] = []
     c_in, height, width = input_shape
     c_out = initial_hidden_channels
 
@@ -71,7 +74,10 @@ def conv_autoencoder(
 
     flattened_size = c_out * height * width
     encoder += [nn.Flatten()]
-    encoder += [nn.Linear(flattened_size, encoder_out_dim)]
+    encoder += [
+        nn.Linear(flattened_size, encoder_out_dim),
+        nn.BatchNorm1d(encoder_out_dim, affine=False),
+    ]
 
     decoder += [View((c_out, height, width))]
     decoder += [nn.Linear(encoder_out_dim, flattened_size)]
