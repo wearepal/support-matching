@@ -34,4 +34,3 @@ vae: false
 vgg_weight: 0
 warmup_steps: 0
 weight_decay: 0
-zs_dim: 1
