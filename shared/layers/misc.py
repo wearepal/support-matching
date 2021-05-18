@@ -23,4 +23,4 @@ class UnitNormLayer(nn.Module):
         self.dim = dim
 
     def forward(self, x: Tensor) -> Tensor:
-        return x / x.norm(dim=1, keepdim=True, p=self.p)
+        return x / x.norm(dim=self.dim, keepdim=True, p=self.p)
