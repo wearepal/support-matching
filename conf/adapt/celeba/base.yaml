@@ -19,7 +19,6 @@ eval_on_recon: false
 feat_attr: false
 gamma: 1.0
 iters: 10000
-prior_loss_w: 0.01
 log_freq: 150
 lr: 0.0003
 num_adv_updates: 1
