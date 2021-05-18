@@ -4,6 +4,7 @@ from typing import List, Optional, Tuple
 import torch.nn as nn
 
 from shared.layers import View
+from shared.layers.misc import UnitNormLayer
 
 __all__ = ["conv_autoencoder", "fc_autoencoder"]
 
@@ -74,10 +75,7 @@ def conv_autoencoder(
 
     flattened_size = c_out * height * width
     encoder += [nn.Flatten()]
-    encoder += [
-        nn.Linear(flattened_size, encoder_out_dim),
-        nn.LayerNorm(encoder_out_dim, elementwise_affine=False),
-    ]
+    encoder += [nn.Linear(flattened_size, encoder_out_dim), UnitNormLayer(p=2, dim=1)]
 
     decoder += [View((c_out, height, width))]
     decoder += [nn.Linear(encoder_out_dim, flattened_size)]

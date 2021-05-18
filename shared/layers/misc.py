@@ -1,9 +1,10 @@
-from typing import Tuple
+from __future__ import annotations
+from typing import Literal, Sequence, Tuple
 
-import torch.nn as nn
 from torch import Tensor
+import torch.nn as nn
 
-__all__ = ["View"]
+__all__ = ["View", "UnitNormLayer"]
 
 
 class View(nn.Module):
@@ -13,3 +14,13 @@ class View(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         return x.view(-1, *self.shape)
+
+
+class UnitNormLayer(nn.Module):
+    def __init__(self, p: int | float | Literal["fro", "nuc"], dim: int | Sequence[int] = 1):
+        super().__init__()
+        self.p = p
+        self.dim = dim
+
+    def forward(self, x: Tensor) -> Tensor:
+        return x / x.norm(dim=1, keepdim=True, p=self.p)
