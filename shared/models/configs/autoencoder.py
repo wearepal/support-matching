@@ -28,7 +28,7 @@ def up_conv(in_channels, out_channels, kernel_size, stride, padding, output_padd
             padding=padding,
             output_padding=output_padding,
         ),
-        nn.BatchNorm2d(out_channels),
+        nn.LayerNorm(out_channels),
         nn.SiLU(),
     )
 
@@ -76,7 +76,7 @@ def conv_autoencoder(
     encoder += [nn.Flatten()]
     encoder += [
         nn.Linear(flattened_size, encoder_out_dim),
-        nn.BatchNorm1d(encoder_out_dim, affine=False),
+        nn.LayerNorm(encoder_out_dim, elementwise_affine=False),
     ]
 
     decoder += [View((c_out, height, width))]
