@@ -13,7 +13,7 @@ def down_conv(in_channels, out_channels, kernel_size, stride, padding):
         nn.Conv2d(
             in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding
         ),
-        nn.BatchNorm2d(out_channels),
+        nn.GroupNorm(num_groups=1, num_channels=out_channels),
         nn.SiLU(),
     )
 
@@ -28,7 +28,7 @@ def up_conv(in_channels, out_channels, kernel_size, stride, padding, output_padd
             padding=padding,
             output_padding=output_padding,
         ),
-        nn.LayerNorm(out_channels),
+        nn.GroupNorm(num_groups=1, num_channels=out_channels),
         nn.SiLU(),
     )
 
