@@ -5,16 +5,16 @@ from collections.abc import Callable, Iterator
 import logging
 from pathlib import Path
 import time
-from typing import Any, Iterator, Literal, cast
+from typing import Any, Iterator, cast
 
 from hydra.utils import to_absolute_path
-from kit import implements
 import torch
 from torch import Tensor
 from torch.cuda.amp.grad_scaler import GradScaler
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+from typing_extensions import Literal
 
 from shared.configs import (
     Config,
