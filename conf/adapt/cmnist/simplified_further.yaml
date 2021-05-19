@@ -2,7 +2,6 @@ aggregator_type: gated
 batch_size: 64
 bag_size: 8
 num_discs: 1
-zs_transform: none
 
 double_adv_loss: true
 aggregator_hidden_dims:
