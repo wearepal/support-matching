@@ -2,3 +2,6 @@ out_dim: 128
 levels: 5
 init_chans: 32
 recon_loss: l2
+prior_loss_w: 0.01
+use_pretrained_enc: false
+zs_dim: 1

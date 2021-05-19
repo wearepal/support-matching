@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+import random
 from typing import Type, TypeVar
 
 import hydra
@@ -12,7 +13,6 @@ import pandas as pd
 import torch
 
 from shared.configs.arguments import (
-    BaseConfig,
     BiasConfig,
     CelebaConfig,
     DatasetConfig,
@@ -30,6 +30,7 @@ class SaveDataConfig:
 
     _target_: str = "SaveDataConfig"
     save_dir: str = ""
+    seed: int = 0
 
     data: DatasetConfig = MISSING
     bias: BiasConfig = MISSING
@@ -41,7 +42,9 @@ class SaveDataConfig:
         This is necessary because dataclasses cannot be instantiated recursively yet.
         """
         subconfigs = {
-            k: instantiate(v) for k, v in hydra_config.items() if k not in ("_target_", "save_dir")
+            k: instantiate(v)
+            for k, v in hydra_config.items()
+            if k not in ("_target_", "save_dir", "seed")
         }
         subconfigs["save_dir"] = hydra_config.get("save_dir", "")
 
@@ -59,13 +62,16 @@ def main(hydra_config: DictConfig) -> None:
     if not isinstance(cfg.data, CelebaConfig):
         raise ValueError("Data-saving currently only works for CelebA.")
     #  Load the datasets and wrap with dataloaders
-    datasets = load_dataset(cfg)
+
+    np.random.seed(cfg.seed)  # cpu vars
+    torch.manual_seed(cfg.seed)  # cpu  vars
+    random.seed(cfg.seed)  # Python
+
+    datasets = load_dataset(cfg)  # type: ignore
 
     assert isinstance(cfg, SaveDataConfig)
 
-    base_filename = (
-        f"{cfg.data.log_name}_seed={cfg.data.data_split_seed}_bias={cfg.bias.log_dataset}"
-    )
+    base_filename = f"{cfg.data.log_name}_seed={cfg.seed}_bias={cfg.bias.log_dataset}"
 
     for split in ("train", "context", "test"):
         subset = getattr(datasets, split)

@@ -3,10 +3,10 @@
 # usage: +experiment=celeba_gender
 
 defaults:
-  - override /data: celeba/gender_smiling
-  - override /bias: celeba/no_smiling_females
-  - override /enc: celeba
-  - override /fdm: celeba/base
+    - override /data: celeba/gender_smiling
+    - override /bias: celeba/no_smiling_females
+    - override /enc: celeba
+    - override /adapt: celeba/base
 
 data:
-  context_pcnt: 0.5
+    context_pcnt: 0.5
