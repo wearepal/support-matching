@@ -1,3 +1,4 @@
+from functools import lru_cache
 import logging
 import platform
 from typing import Dict, NamedTuple, Optional, Tuple, Union
@@ -286,6 +287,11 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
     # Enable transductive learning (i.e. using the test data for semi-supervised learning)
     if args.transductive:
         context_data = ConcatDataset([context_data, test_data])
+
+    if args.cache:
+        context_data.__getitem__ = lru_cache(None)(context_data.__getitem__)
+        test_data.__getitem__ = lru_cache(None)(test_data.__getitem__)
+        train_data.__getitem__ = lru_cache(None)(train_data.__getitem__)
 
     return DatasetTriplet(
         context=context_data,

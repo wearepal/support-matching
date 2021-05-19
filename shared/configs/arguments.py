@@ -70,6 +70,7 @@ class DatasetConfig:
 
     num_workers: int = 4
     data_split_seed: int = 42
+    cache: bool = False  # if True, all data is cached in memory after being loaded
 
 
 @dataclass
