@@ -1,14 +1,18 @@
-batch_size: 256
+aggregator_type: gated
+batch_size: 64
+bag_size: 8
+num_discs: 1
+zs_transform: none
+
+double_adv_loss: true
 aggregator_hidden_dims:
-    - 256
-    - 256
-aggregator_type: kvq
+    - 100
 adv_hidden_dims:
-    - 256
-    - 256
+    - 100
 adv_lr: 0.0003
-adv_loss_w: 0.1
-enc_loss_w: 100.0
+adv_loss_w: 1.0
+num_adv_updates: 1
+enc_loss_w: 1.0
 encode_batch_size: 1000
 eval_epochs: 60
 eval_lr: 0.001
@@ -18,7 +22,6 @@ gamma: 1.0
 iters: 5000
 log_freq: 150
 lr: 0.0003
-num_adv_updates: 1
 oversample: true
 pred_s_loss_w: 1.0
 pred_y_loss_w: 1.0
