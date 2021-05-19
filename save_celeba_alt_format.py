@@ -71,9 +71,7 @@ def main(hydra_config: DictConfig) -> None:
 
     assert isinstance(cfg, SaveDataConfig)
 
-    base_filename = (
-        f"{cfg.data.log_name}_seed={cfg.data.data_split_seed}_bias={cfg.bias.log_dataset}"
-    )
+    base_filename = f"{cfg.data.log_name}_seed={cfg.seed}_bias={cfg.bias.log_dataset}"
 
     for split in ("train", "context", "test"):
         subset = getattr(datasets, split)
