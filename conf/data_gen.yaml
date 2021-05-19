@@ -6,3 +6,6 @@ defaults:
 
     # hydra config
     - override hydra/job_logging: custom
+
+save_dir: ""
+seed: 0
