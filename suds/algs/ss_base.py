@@ -31,7 +31,6 @@ from shared.utils import (
     AverageMeter,
     inf_generator,
     load_results,
-    prod,
     readable_duration,
     wandb_log,
 )

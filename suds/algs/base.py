@@ -50,7 +50,7 @@ class AlgBase(nn.Module):
             os.environ["WANDB_MODE"] = "dryrun"
         group = f"{self.data_cfg.log_name}.{self.__class__.__name__}"
         if self.misc_cfg.log_method:
-            group += self.misc_cfg.log_method
+            group += "." + self.misc_cfg.log_method
         if self.misc_cfg.exp_group:
             group += "." + self.misc_cfg.exp_group
         if self.bias_cfg.log_dataset:
