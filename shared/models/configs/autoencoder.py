@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from __future__ import annotations
 
 import torch.nn as nn
 
@@ -12,7 +12,8 @@ def down_conv(in_channels, out_channels, kernel_size, stride, padding):
         nn.Conv2d(
             in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding
         ),
-        nn.GELU(),
+        nn.GroupNorm(num_groups=1, num_channels=out_channels),
+        nn.SiLU(),
     )
 
 
@@ -26,7 +27,8 @@ def up_conv(in_channels, out_channels, kernel_size, stride, padding, output_padd
             padding=padding,
             output_padding=output_padding,
         ),
-        nn.GELU(),
+        nn.GroupNorm(num_groups=1, num_channels=out_channels),
+        nn.SiLU(),
     )
 
 
@@ -37,10 +39,10 @@ def conv_autoencoder(
     encoding_dim,
     decoding_dim,
     variational: bool,
-    decoder_out_act: Optional[nn.Module] = None,
-) -> Tuple[nn.Sequential, nn.Sequential, int]:
-    encoder: List[nn.Module] = []
-    decoder: List[nn.Module] = []
+    decoder_out_act: nn.Module | None = None,
+) -> tuple[nn.Sequential, nn.Sequential, int]:
+    encoder: list[nn.Module] = []
+    decoder: list[nn.Module] = []
     c_in, height, width = input_shape
     c_out = initial_hidden_channels
 
@@ -92,12 +94,12 @@ def _linear_block(in_channels: int, out_channels: int) -> nn.Sequential:
 
 
 def fc_autoencoder(
-    input_shape: Tuple[int, ...],
+    input_shape: tuple[int, ...],
     hidden_channels: int,
     levels: int,
     encoding_dim: int,
     variational: bool,
-) -> Tuple[nn.Sequential, nn.Sequential, int]:
+) -> tuple[nn.Sequential, nn.Sequential, int]:
     encoder = []
     decoder = []
 
