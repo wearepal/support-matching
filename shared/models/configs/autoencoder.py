@@ -1,10 +1,8 @@
 from __future__ import annotations
-from typing import List, Optional, Tuple
 
 import torch.nn as nn
 
 from shared.layers import View
-from shared.layers.misc import UnitNormLayer
 
 __all__ = ["conv_autoencoder", "fc_autoencoder"]
 
@@ -41,8 +39,8 @@ def conv_autoencoder(
     encoding_dim,
     decoding_dim,
     variational: bool,
-    decoder_out_act: Optional[nn.Module] = None,
-) -> Tuple[nn.Sequential, nn.Sequential, int]:
+    decoder_out_act: nn.Module | None = None,
+) -> tuple[nn.Sequential, nn.Sequential, int]:
     encoder: list[nn.Module] = []
     decoder: list[nn.Module] = []
     c_in, height, width = input_shape
@@ -96,12 +94,12 @@ def _linear_block(in_channels: int, out_channels: int) -> nn.Sequential:
 
 
 def fc_autoencoder(
-    input_shape: Tuple[int, ...],
+    input_shape: tuple[int, ...],
     hidden_channels: int,
     levels: int,
     encoding_dim: int,
     variational: bool,
-) -> Tuple[nn.Sequential, nn.Sequential, int]:
+) -> tuple[nn.Sequential, nn.Sequential, int]:
     encoder = []
     decoder = []
 
