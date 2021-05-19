@@ -29,7 +29,6 @@ recon_detach: true
 validate: true
 val_freq: 450
 train_on_recon: false
-use_pretrained_enc: false
 vae: false
 vgg_weight: 0
 warmup_steps: 0
