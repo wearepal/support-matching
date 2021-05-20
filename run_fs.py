@@ -60,7 +60,7 @@ class ContextMode(Enum):
     ground_truth = auto()
     cluster_labels = auto()
     unlabelled = auto()
-    predict = auto()
+    propagate = auto()
 
 
 @dataclass
@@ -221,8 +221,8 @@ def run(cfg: FsConfig) -> None:
         s = class_id_to_label(subgroup_ids, s_count=s_count, label="s")
         context_data = RelabelingDataset(datasets.context, s=s, y=y)
         train_data = ConcatDataset([train_data, context_data])
-    elif args.context_mode is ContextMode.predict:
-        LOGGER.info("Generating pseudo-labels for contxt set.")
+    elif args.context_mode is ContextMode.propagate:
+        LOGGER.info("Propagating labels from training set to context set.")
         classifier.fit(
             train_data=train_data,  # type: ignore
             test_data=test_data,
