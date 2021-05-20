@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 import time
 from typing import Any, Iterator, cast
+from typing_extensions import Literal
 
 from hydra.utils import to_absolute_path
 import torch
@@ -14,7 +15,6 @@ from torch.cuda.amp.grad_scaler import GradScaler
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from typing_extensions import Literal
 
 from shared.configs import (
     Config,

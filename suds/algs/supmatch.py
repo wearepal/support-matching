@@ -17,7 +17,7 @@ from shared.data.utils import Batch
 from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
 from shared.models.configs import FcNet, ModelAggregatorWrapper
 from shared.utils import ModelFn, prod
-from suds.algs.ss_base import AdvSemiSupervisedAlg
+from suds.algs.adv import AdvSemiSupervisedAlg
 from suds.models.base import SplitEncoding
 from suds.models.configs import Residual64x64Net
 from suds.models.configs.classifiers import Strided28x28Net
