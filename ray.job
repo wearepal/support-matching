@@ -1,6 +1,7 @@
 #!/bin/bash
 # --- slurm settings ---
 #SBATCH --partition=goedel
+#SBATCH --ntasks=1
 #SBATCH --gpus-per-task=3
 #SBATCH --cpus-per-task=9
 #SBATCH --mem=90G
