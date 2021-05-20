@@ -46,7 +46,7 @@ from suds.baselines import GDRO, LfF
 from suds.models import Classifier
 from suds.optimisation.utils import build_weighted_sampler_from_dataset
 
-LOGGER = logging.getLogger("BASELINE")
+LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 class Method(Enum):
@@ -60,6 +60,7 @@ class ContextMode(Enum):
     ground_truth = auto()
     cluster_labels = auto()
     unlabelled = auto()
+    predict = auto()
 
 
 @dataclass
@@ -89,7 +90,7 @@ class FsConfig(BaseConfig):
     fs_args: FsArgs = MISSING
 
 
-class _ClusterLabelDataset(Dataset):
+class RelabelingDataset(Dataset):
     def __init__(self, dataset: Dataset, s: Tensor, y: Tensor) -> None:
         super().__init__()
         self.dataset = dataset
@@ -153,26 +154,6 @@ def run(cfg: FsConfig) -> None:
     s_count = max(datasets.s_dim, 2)
 
     train_loader_kwargs = {"pin_memory": True, "num_workers": cfg.data.num_workers, "shuffle": True}
-    if args.context_mode is ContextMode.ground_truth:
-        train_data = ConcatDataset([train_data, datasets.context])
-    elif args.context_mode is ContextMode.cluster_labels and cfg.misc.cluster_label_file:
-        cluster_results = load_results(cfg)
-        subgroup_ids = cluster_results.class_ids
-        y = class_id_to_label(subgroup_ids, s_count=s_count, label="y")
-        s = class_id_to_label(subgroup_ids, s_count=s_count, label="s")
-        context_data = _ClusterLabelDataset(datasets.context, s=s, y=y)
-        train_data = ConcatDataset([train_data, context_data])
-    else:
-        train_sampler = build_weighted_sampler_from_dataset(
-            dataset=train_data,  # type: ignore
-            s_count=max(datasets.s_dim, 2),
-            batch_size=args.batch_size,
-            oversample=args.oversample,
-            balance_hierarchical=True,
-        )
-
-        train_loader_kwargs["shuffle"] = False
-        train_loader_kwargs["sampler"] = train_sampler
 
     input_shape = train_data[0][0].shape
     #  Construct the network
@@ -225,6 +206,48 @@ def run(cfg: FsConfig) -> None:
         **classifier_kwargs,
     )
     classifier.to(device)
+
+    if args.context_mode is ContextMode.ground_truth:
+        LOGGER.info("Using ground-truth labels of context set.")
+        train_data = ConcatDataset([train_data, datasets.context])
+    # Tehcnicaly this and the method invoked in the subsequent conditional are self-supervised
+    # method, however it's far easier to integrate them into this script than to create a new
+    # series of models, with the code being as it is at the moment.
+    elif args.context_mode is ContextMode.cluster_labels and cfg.misc.cluster_label_file:
+        LOGGER.info("Using cluster labels as pseudo-labels for context set.")
+        cluster_results = load_results(cfg)
+        subgroup_ids = cluster_results.class_ids
+        y = class_id_to_label(subgroup_ids, s_count=s_count, label="y")
+        s = class_id_to_label(subgroup_ids, s_count=s_count, label="s")
+        context_data = RelabelingDataset(datasets.context, s=s, y=y)
+        train_data = ConcatDataset([train_data, context_data])
+    elif args.context_mode is ContextMode.predict:
+        LOGGER.info("Generating pseudo-labels for contxt set.")
+        classifier.fit(
+            train_data=train_data,  # type: ignore
+            test_data=test_data,
+            epochs=args.epochs,
+            device=device,
+            batch_size=args.batch_size,
+            test_batch_size=args.test_batch_size,
+            **train_loader_kwargs,
+        )
+        # Generate predictions with the trained model
+        y, _, s = classifier.predict_dataset(test_data, device=device)
+        context_data = RelabelingDataset(datasets.context, s=s, y=y)
+        train_data = ConcatDataset([train_data, context_data])
+    else:
+        train_sampler = build_weighted_sampler_from_dataset(
+            dataset=train_data,  # type: ignore
+            s_count=max(datasets.s_dim, 2),
+            batch_size=args.batch_size,
+            oversample=args.oversample,
+            balance_hierarchical=True,
+        )
+
+        train_loader_kwargs["shuffle"] = False
+        train_loader_kwargs["sampler"] = train_sampler
+
     classifier.fit(
         train_data=train_data,  # type: ignore
         test_data=test_data,
@@ -234,7 +257,6 @@ def run(cfg: FsConfig) -> None:
         test_batch_size=args.test_batch_size,
         **train_loader_kwargs,
     )
-
     # Generate predictions with the trained model
     preds, labels, sens = classifier.predict_dataset(test_data, device=device)
     preds = em.Prediction(pd.Series(preds))
