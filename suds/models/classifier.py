@@ -1,12 +1,11 @@
 from __future__ import annotations
-
 import logging
 from typing import Any
 
-import torch
-import torch.nn.functional as F
 from ethicml.implementations.dro_modules import DROLoss
+import torch
 from torch import Tensor, nn
+import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
 from torch.utils.data import DataLoader, Dataset
 from tqdm import trange
@@ -51,6 +50,11 @@ class Classifier(ModelBase):
         else:
             self.criterion = criterion
         self.num_classes = num_classes
+
+    def to_device(self, *tensors: Tensor, device) -> Tensor | tuple[Tensor, ...]:
+        """Place tensors on the correct device."""
+        moved = [tensor.to(device, non_blocking=True) for tensor in tensors]
+        return moved[0] if len(moved) == 1 else tuple(moved)
 
     def apply_criterion(self, logits: Tensor, targets: Tensor) -> Tensor:
         if isinstance(self.criterion, str):
@@ -113,8 +117,7 @@ class Classifier(ModelBase):
         preds, actual, sens = [], [], []
         with torch.set_grad_enabled(False):
             for x, s, y in data:
-                x = x.to(device)
-                y = y.to(device)
+                x, y = self.to_device(x, y, device=device)
 
                 batch_preds = self.predict(x)
                 preds.append(batch_preds)
@@ -217,9 +220,7 @@ class Classifier(ModelBase):
                     target = s
                 else:
                     target = y
-
-                x = x.to(device, non_blocking=True)
-                target = target.to(device, non_blocking=True)
+                x, target = self.to_device(x, y, device=device)
 
                 self.optimizer.zero_grad()
                 loss, acc = self.routine(x, target)
@@ -242,8 +243,7 @@ class Classifier(ModelBase):
                         else:
                             target = y
 
-                        x = x.to(device)
-                        target = target.to(device)
+                        x, target = self.to_device(x, target, device=device)
 
                         loss, acc = self.routine(x, target)
                         sum_test_acc += acc * target.size(0)  # undo the batch-wise averaging
