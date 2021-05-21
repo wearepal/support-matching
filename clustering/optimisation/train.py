@@ -1,21 +1,20 @@
 """Main training file"""
 from __future__ import annotations
-
-import logging
-import time
 from collections import defaultdict
+import logging
 from pathlib import Path
+import time
 from typing import cast
 
 import git
+from hydra.utils import to_absolute_path
 import numpy as np
 import torch
-import wandb
-import yaml
-from hydra.utils import to_absolute_path
 from torch import Tensor
 from torch.utils.data import ConcatDataset, DataLoader
 from torchvision.models import resnet18, resnet50
+import wandb
+import yaml
 
 from clustering.models import (
     Classifier,
@@ -26,8 +25,8 @@ from clustering.models import (
     MultiHeadModel,
     PseudoLabelEnc,
     PseudoLabelEncNoNorm,
-    PseudoLabeler,
     PseudoLabelOutput,
+    PseudoLabeler,
     RankingStatistics,
     SelfSupervised,
     build_classifier,
@@ -70,7 +69,12 @@ from shared.utils import (
 from .build import build_ae
 from .evaluation import classify_dataset
 from .k_means import train as train_k_means
-from .utils import cluster_metrics, count_occurances, get_class_id, get_cluster_label_path
+from .utils import (
+    cluster_metrics,
+    count_occurances,
+    get_class_id,
+    get_cluster_label_path,
+)
 
 __all__ = ["main"]
 
@@ -90,11 +94,11 @@ class Experiment(ExperimentBase):
         model: Model,
         s_dim: int,
         y_dim: int,
-        device: torch.device,
     ) -> None:
-        super().__init__(cfg=cfg, data_cfg=data, enc=enc, misc_cfg=misc, device=device)
+        super().__init__(cfg=cfg, data_cfg=data, misc_cfg=misc)
         self.args = args
         self.model = model
+        self.enc_conf = enc
         self.s_dim = s_dim
         self.y_dim = y_dim
 
@@ -238,7 +242,7 @@ class Experiment(ExperimentBase):
     def restore_model(self, filename: Path) -> tuple[Model, int]:
         chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
         args_chkpt = chkpt["args"]
-        assert self.enc.levels == args_chkpt["enc.levels"]
+        assert self.enc_conf.levels == args_chkpt["enc.levels"]
         self.model.load_state_dict(chkpt["model"])
         return self.model, chkpt["epoch"]
 
@@ -536,7 +540,6 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         model=model,
         s_dim=datasets.s_dim,
         y_dim=datasets.y_dim,
-        device=device,
     )
 
     start_epoch = 1  # start at 1 so that the val_freq works correctly

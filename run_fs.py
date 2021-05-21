@@ -42,7 +42,7 @@ from shared.utils import (
 )
 from shared.utils.loadsave import load_results
 from shared.utils.utils import class_id_to_label
-from suds.baselines import GDRO, LfF
+from suds.algs import GDRO, LfF
 from suds.models import Classifier
 from suds.optimisation.utils import build_weighted_sampler_from_dataset
 
