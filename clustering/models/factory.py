@@ -15,28 +15,13 @@ def build_classifier(
     target_dim: int,
     model_fn: ModelFn,
     optimizer_kwargs: Optional[Dict[str, float]] = None,
-    num_heads: int = 1,
-) -> Union[nn.ModuleList, Classifier]:
+) -> Classifier:
     in_dim = input_shape[0]
 
     num_classes = target_dim if target_dim > 1 else 2
-    if num_heads > 1:
-        heads: List[Classifier] = []
-        for _ in range(num_heads):
-            heads.append(
-                Classifier(
-                    model_fn(in_dim, target_dim),
-                    num_classes=num_classes,
-                    optimizer_kwargs=optimizer_kwargs,
-                )
-            )
-        classifier = nn.ModuleList(heads)
-    else:
-        classifier = Classifier(
-            model_fn(in_dim, target_dim), num_classes=num_classes, optimizer_kwargs=optimizer_kwargs
-        )
-
-    return classifier
+    return Classifier(
+        model_fn(in_dim, target_dim), num_classes=num_classes, optimizer_kwargs=optimizer_kwargs
+    )
 
 
 def build_fc_inn(
