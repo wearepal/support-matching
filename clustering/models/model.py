@@ -1,5 +1,7 @@
 """Model that contains all."""
-from typing import Iterator, Optional, Tuple
+from __future__ import annotations
+from abc import abstractmethod
+from typing import Iterator, Optional
 
 import torch
 import torch.nn as nn
@@ -14,50 +16,35 @@ from .pseudo_labelers import PseudoLabeler
 __all__ = ["Model", "MultiHeadModel"]
 
 
-@final
-class Model(nn.Module):
-    """This class brings everything together into one model object."""
-
+class BaseModel(nn.Module):
     def __init__(
         self,
         encoder: Encoder,
-        classifier: Classifier,
+        classifier: nn.Module,
         method: Method,
         pseudo_labeler: PseudoLabeler,
         train_encoder: bool,
     ):
         super().__init__()
-
         self.encoder = encoder
         self.classifier = classifier
         self.method = method
         self.pseudo_labeler = pseudo_labeler
         self.train_encoder = train_encoder
 
+    @abstractmethod
     def supervised_loss(
         self, x: Tensor, class_id: Tensor, ce_weight: float = 1.0, bce_weight: float = 1.0
-    ) -> Tuple[Tensor, LoggingDict]:
-        return self.method.supervised_loss(
-            encoder=self.encoder,
-            classifier=self.classifier,
-            x=x,
-            class_id=class_id,
-            ce_weight=ce_weight,
-            bce_weight=bce_weight,
-        )
+    ) -> tuple[Tensor, LoggingDict]:
+        """Supervised loss."""
 
-    def unsupervised_loss(self, x: Tensor) -> Tuple[Tensor, LoggingDict]:
-        return self.method.unsupervised_loss(
-            encoder=self.encoder,
-            pseudo_labeler=self.pseudo_labeler,
-            classifier=self.classifier,
-            x=x,
-        )
+    @abstractmethod
+    def unsupervised_loss(self, x: Tensor) -> tuple[Tensor, LoggingDict]:
+        """Unsupervised loss."""
 
+    @abstractmethod
     def step(self, grads: Optional[Tensor] = None) -> None:
-        self.classifier.step(grads)
-        if self.train_encoder:
-            self.encoder.step(grads)
+        """Do one step of gradient descent."""
 
     def zero_grad(self) -> None:
         self.classifier.zero_grad()
@@ -74,6 +61,57 @@ class Model(nn.Module):
     def eval(self) -> None:
         self.encoder.eval()
         self.classifier.eval()
+
+    @abstractmethod
+    def forward(self, x: Tensor) -> Tensor:
+        pass
+
+
+@final
+class Model(BaseModel):
+    """This class brings everything together into one model object."""
+
+    classifier: Classifier
+
+    def __init__(
+        self,
+        encoder: Encoder,
+        classifier: Classifier,
+        method: Method,
+        pseudo_labeler: PseudoLabeler,
+        train_encoder: bool,
+    ):
+        super().__init__(
+            encoder=encoder,
+            classifier=classifier,
+            method=method,
+            pseudo_labeler=pseudo_labeler,
+            train_encoder=train_encoder,
+        )
+
+    def supervised_loss(
+        self, x: Tensor, class_id: Tensor, ce_weight: float = 1.0, bce_weight: float = 1.0
+    ) -> tuple[Tensor, LoggingDict]:
+        return self.method.supervised_loss(
+            encoder=self.encoder,
+            classifier=self.classifier,
+            x=x,
+            class_id=class_id,
+            ce_weight=ce_weight,
+            bce_weight=bce_weight,
+        )
+
+    def unsupervised_loss(self, x: Tensor) -> tuple[Tensor, LoggingDict]:
+        z = self.encoder(x)
+        raw_preds = self.classifier(z)
+        return self.method.unsupervised_loss(
+            pseudo_labeler=self.pseudo_labeler, z=z, raw_preds=raw_preds
+        )
+
+    def step(self, grads: Optional[Tensor] = None) -> None:
+        self.classifier.step(grads)
+        if self.train_encoder:
+            self.encoder.step(grads)
 
     def forward(self, x: Tensor) -> Tensor:
         return self.classifier(self.encoder(x))
@@ -104,7 +142,7 @@ class MultiHeadModel(nn.Module):
 
     def _split_by_label(
         self, x: Tensor, y: Optional[Tensor] = None
-    ) -> Iterator[Tuple[Tensor, Tensor, Tensor]]:
+    ) -> Iterator[tuple[Tensor, Tensor, Tensor]]:
         if y is None:
             with torch.no_grad():
                 y = self.labeler(x).argmax(dim=-1)
@@ -115,7 +153,7 @@ class MultiHeadModel(nn.Module):
 
     def supervised_loss(
         self, x: Tensor, class_id: Tensor, ce: bool = False
-    ) -> Tuple[Tensor, LoggingDict]:
+    ) -> tuple[Tensor, LoggingDict]:
         raise RuntimeError("this is broken")
         loss = 0
         for i, (x_i, y_i, _) in enumerate(self._split_by_label(x, class_id=class_id)):
@@ -125,7 +163,7 @@ class MultiHeadModel(nn.Module):
             loss += loss_i
         return loss, {"Loss supervised": loss.item()}
 
-    def unsupervised_loss(self, x: Tensor) -> Tuple[Tensor, LoggingDict]:
+    def unsupervised_loss(self, x: Tensor) -> tuple[Tensor, LoggingDict]:
         loss = 0
         for i, (x_i, _, _) in enumerate(self._split_by_label(x)):
             loss_i, _ = self.method.unsupervised_loss(
