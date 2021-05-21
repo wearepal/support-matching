@@ -113,11 +113,6 @@ class Model(BaseModel):
         if self.train_encoder:
             self.encoder.step(grads)
 
-    def zero_grad(self) -> None:
-        self.classifier.zero_grad()
-        if self.train_encoder:
-            self.encoder.zero_grad()
-
     def forward(self, x: Tensor) -> Tensor:
         return self.classifier(self.encoder(x))
 
