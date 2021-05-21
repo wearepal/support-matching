@@ -9,11 +9,12 @@
 #SBATCH --output=./rayjob-%j.out
 # ----------------------
 
-ray start --head --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${SLURM_GPUS_PER_TASK}"
+port=3487
+ray start --head --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${SLURM_GPUS_PER_TASK}" --port $port
 
 # We just run here whatever is passed as arguments to this job script.
 # For example:
 #
 #   sbatch ray.job run_clust.py -m misc.seed=range(0,10) hydra/launcher=ray
 
-python -u "$@"
+python -u "$@" hydra.launcher.ray.init.address="localhost:$port"
