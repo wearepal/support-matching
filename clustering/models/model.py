@@ -114,9 +114,7 @@ class FlatModel(BaseModel):
         z = self.encoder(x)
         raw_preds = self.classifier(z)
         preds = F.softmax(raw_preds, dim=-1)
-        return self.method.unsupervised_loss(
-            pseudo_labeler=self.pseudo_labeler, z=z, preds=preds
-        )
+        return self.method.unsupervised_loss(pseudo_labeler=self.pseudo_labeler, z=z, preds=preds)
 
     def step(self, grads: Optional[Tensor] = None) -> None:
         self.classifier.step(grads)
@@ -172,9 +170,7 @@ class HierarchicalModel(BaseModel):
 
     def unsupervised_loss(self, x: Tensor) -> tuple[Tensor, LoggingDict]:
         joint, _, _, z = self._get_joint_output(x)
-        return self.method.unsupervised_loss(
-            pseudo_labeler=self.pseudo_labeler, z=z, preds=joint
-        )
+        return self.method.unsupervised_loss(pseudo_labeler=self.pseudo_labeler, z=z, preds=joint)
 
     def step(self, grads: Optional[Tensor] = None) -> None:
         self.classifier["s"].step(grads)
