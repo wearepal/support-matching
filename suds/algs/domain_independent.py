@@ -73,7 +73,7 @@ class DomainIndependentClassifier(Classifier):
         Returns:
             Class predictions (tensor) for the given data samples.
         """
-        logits = super().__call__(inputs)
+        logits = self.model(inputs)
         return self._inference_sum_out(logits, top=top)
 
     def predict_dataset(
@@ -132,12 +132,12 @@ class DomainIndependentClassifier(Classifier):
         Returns:
             Tuple of classification loss (Tensor) and accuracy (float)
         """
-        outputs = super().__call__(data)
-        loss = self.apply_criterion(outputs, targets, domain_labels=domain_labels)
+        logits = self.model(data)
+        loss = self.apply_criterion(logits, targets, domain_labels=domain_labels)
         if instance_weights is not None:
             loss = loss.view(-1) * instance_weights.view(-1)
         loss = loss.mean()
-        acc = self.compute_accuracy(outputs, targets)
+        acc = self.compute_accuracy(logits, targets)
 
         return loss, acc
 
