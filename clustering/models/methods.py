@@ -74,7 +74,7 @@ class PseudoLabelEncNoNorm(Method):
 
     @staticmethod
     def unsupervised_loss(
-        self, pseudo_labeler: PseudoLabeler, z: Tensor, raw_preds: Tensor
+        pseudo_labeler: PseudoLabeler, z: Tensor, raw_preds: Tensor
     ) -> Tuple[Tensor, LoggingDict]:
         # only do softmax but no real normalization
         preds = F.softmax(raw_preds, dim=-1)
@@ -88,7 +88,7 @@ class PseudoLabelEnc(Method):
 
     @staticmethod
     def unsupervised_loss(
-        self, pseudo_labeler: PseudoLabeler, z: Tensor, raw_preds: Tensor
+        pseudo_labeler: PseudoLabeler, z: Tensor, raw_preds: Tensor
     ) -> Tuple[Tensor, LoggingDict]:
         # normalize output for cosine similarity
         preds = normalized_softmax(raw_preds)
@@ -102,7 +102,7 @@ class PseudoLabelOutput(Method):
 
     @staticmethod
     def unsupervised_loss(
-        self, pseudo_labeler: PseudoLabeler, z: Tensor, raw_preds: Tensor
+        pseudo_labeler: PseudoLabeler, z: Tensor, raw_preds: Tensor
     ) -> Tuple[Tensor, LoggingDict]:
         preds = normalized_softmax(raw_preds)
         pseudo_label, mask = pseudo_labeler(preds)  # base the pseudo labels on the predictions
