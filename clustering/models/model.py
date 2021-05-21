@@ -63,7 +63,7 @@ class BaseModel(nn.Module):
         self.classifier.eval()
 
     @abstractmethod
-    def forward(self, x: Tensor) -> tuple[Tensor, Optional[tuple[Tensor, Tensor]]]:
+    def forward(self, x: Tensor) -> Tensor:
         pass
 
 
