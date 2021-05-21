@@ -56,7 +56,7 @@ class DomainIndependentClassifier(Classifier):
         return super().apply_criterion(logits_selected, targets)
 
     def _inference_sum_out(self, logits: Tensor, top: int = 1) -> Tensor:
-        """Inference method: sum the output from two domains"""
+        """Inference method: sum the output across domains."""
         logits_summed = self._unroll_logits(logits).sum(-1)
         #
         if logits.size(1) == 1:  # Binary classification
