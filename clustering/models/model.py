@@ -173,8 +173,8 @@ class HierarchicalModel(BaseModel):
         return self.method.unsupervised_loss(pseudo_labeler=self.pseudo_labeler, z=z, preds=joint)
 
     def step(self, grads: Optional[Tensor] = None) -> None:
-        self.classifier["s"].step(grads)
-        self.classifier["y"].step(grads)
+        for classifier in self.classifier.values():
+            classifier.step(grads)
         if self.train_encoder:
             self.encoder.step(grads)
 
@@ -189,5 +189,5 @@ class HierarchicalModel(BaseModel):
         y_probs = y_logits.softmax(dim=-1)
         s_probs = s_logits.softmax(dim=-1)
         # take the outer product of s_probs and y_probs
-        joint = s_probs.unsqueeze(-1) * y_probs.unsqueeze(-2)
-        return joint.flatten(start_dim=-2), s_logits, y_logits, z
+        joint = (s_probs.unsqueeze(-1) * y_probs.unsqueeze(-2)).flatten(start_dim=-2)
+        return joint, s_logits, y_logits, z
