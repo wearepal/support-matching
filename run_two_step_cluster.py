@@ -1,6 +1,5 @@
 """Call the main functions of both parts one after the other."""
 import os
-import shlex
 import sys
 from pathlib import Path
 from subprocess import CalledProcessError, run
@@ -39,7 +38,7 @@ def main() -> None:
             run([sys.executable, str(src / "run_dis.py")] + args + clf_both_flag, check=True)
         except CalledProcessError as cpe:
             # catching the exception ourselves leads to much nicer error messages
-            print(f"\nCommand '{shlex.join(cpe.cmd)}'")
+            print(f"\nCommand '{' '.join(cpe.cmd)}'")
 
 
 if __name__ == "__main__":

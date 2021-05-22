@@ -1,6 +1,5 @@
 """Call the main functions of both parts one after the other."""
 from pathlib import Path
-import shlex
 from subprocess import CalledProcessError, run
 import sys
 from tempfile import TemporaryDirectory
@@ -17,7 +16,7 @@ def main() -> None:
             run([sys.executable, "run_ss.py"] + raw_args + clf_flag, check=True)
         except CalledProcessError as cpe:
             # catching the exception ourselves leads to much nicer error messages
-            print(f"\nCommand '{shlex.join(cpe.cmd)}'")
+            print(f"\nCommand '{' '.join(cpe.cmd)}'")
 
 
 if __name__ == "__main__":

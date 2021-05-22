@@ -35,7 +35,6 @@ from shared.utils import (
     wandb_log,
 )
 from shared.utils.loadsave import ClusterResults
-from suds.algs.base import AlgBase
 from suds.models import AutoEncoder, Classifier, EncodingSize, build_classifier
 from suds.models.base import EncodingSize
 from suds.models.discriminator import Discriminator
@@ -48,6 +47,8 @@ from suds.optimisation.utils import (
     restore_model,
     save_model,
 )
+
+from .base import AlgBase
 
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 

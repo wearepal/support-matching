@@ -31,6 +31,7 @@ from .enums import (
 
 __all__ = [
     "AdultConfig",
+    "AdvConfig",
     "BaseConfig",
     "BiasConfig",
     "CelebaConfig",
@@ -39,10 +40,10 @@ __all__ = [
     "Config",
     "DatasetConfig",
     "EncoderConfig",
-    "AdvConfig",
     "ImageDatasetConfig",
     "IsicConfig",
     "MiscConfig",
+    "join",
     "register_configs",
 ]
 
@@ -238,7 +239,7 @@ class ClusterConfig:
     cl_hidden_dims: List[int] = field(default_factory=lambda: [256])
     lr: float = 1e-3
     weight_decay: float = 0
-    use_multi_head: bool = False
+    factorized_s_y: bool = False  # P(s,y) will be factorized to P(s)P(y) with separate outputs
 
     # Method
     method: ClusteringMethod = ClusteringMethod.pl_enc_no_norm
@@ -251,13 +252,12 @@ class ClusterConfig:
     labeler_wandb: bool = False
 
     def __post_init__(self) -> None:
-        if self.cluster is ClusteringLabel.manual:
-            if self.num_clusters is None:
-                raise ValueError("if 'cluster' is set to 'manual', provide number of clusters")
-            if self.use_multi_head:
-                raise ValueError("multi head does not make sense with cluster=manual")
-        elif self.num_clusters is not None:
+        if self.cluster is ClusteringLabel.manual and self.num_clusters is None:
+            raise ValueError("if 'cluster' is set to 'manual', provide number of clusters")
+        if self.cluster is not ClusteringLabel.manual and self.num_clusters is not None:
             raise ValueError("if 'cluster' isn't set to 'manual', don't provide number of clusters")
+        if self.cluster is not ClusteringLabel.both and self.factorized_s_y:
+            raise ValueError("factorizing s and y requires both y and s")
 
 
 @dataclass
@@ -381,7 +381,7 @@ class BaseConfig:
         internal_config = HydraConfig.get()
         program = internal_config.job.name + ".py"
         args = internal_config.overrides.task
-        subconfigs["cmd"] = shlex.join([program] + OmegaConf.to_container(args))
+        subconfigs["cmd"] = join([program] + OmegaConf.to_container(args))
 
         return cls(**subconfigs)
 
@@ -403,3 +403,8 @@ def register_configs() -> None:
     cs.store(node=CmnistConfig, name="cmnist", package="data", group="data/schema")
     cs.store(node=CelebaConfig, name="celeba", package="data", group="data/schema")
     cs.store(node=IsicConfig, name="isic", package="data", group="data/schema")
+
+
+def join(split_command: List[str]) -> str:
+    """Concatenate the tokens of the list split_command and return a string."""
+    return " ".join(shlex.quote(arg) for arg in split_command)

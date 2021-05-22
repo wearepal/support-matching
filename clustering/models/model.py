@@ -1,63 +1,54 @@
 """Model that contains all."""
-from typing import Iterator, Optional, Tuple
+from __future__ import annotations
+from abc import abstractmethod
+from collections import defaultdict
+from typing import Optional, cast
 
-import torch
-import torch.nn as nn
 from torch import Tensor
-from typing_extensions import final
+import torch.nn as nn
+
+from shared.configs import ClusteringLabel
+from shared.utils import get_class_id
 
 from .base import Encoder
 from .classifier import Classifier
 from .methods import LoggingDict, Method
 from .pseudo_labelers import PseudoLabeler
 
-__all__ = ["Model", "MultiHeadModel"]
+__all__ = ["BaseModel", "FactorizedModel", "JointModel"]
 
 
-@final
-class Model(nn.Module):
+class BaseModel(nn.Module):
     """This class brings everything together into one model object."""
 
     def __init__(
         self,
         encoder: Encoder,
-        classifier: Classifier,
+        classifier: nn.Module,
         method: Method,
         pseudo_labeler: PseudoLabeler,
         train_encoder: bool,
     ):
         super().__init__()
-
         self.encoder = encoder
         self.classifier = classifier
         self.method = method
         self.pseudo_labeler = pseudo_labeler
         self.train_encoder = train_encoder
 
+    @abstractmethod
     def supervised_loss(
-        self, x: Tensor, class_id: Tensor, ce_weight: float = 1.0, bce_weight: float = 1.0
-    ) -> Tuple[Tensor, LoggingDict]:
-        return self.method.supervised_loss(
-            encoder=self.encoder,
-            classifier=self.classifier,
-            x=x,
-            class_id=class_id,
-            ce_weight=ce_weight,
-            bce_weight=bce_weight,
-        )
+        self, x: Tensor, s: Tensor, y: Tensor, ce_weight: float = 1.0, bce_weight: float = 1.0
+    ) -> tuple[Tensor, LoggingDict]:
+        """Supervised loss."""
 
-    def unsupervised_loss(self, x: Tensor) -> Tuple[Tensor, LoggingDict]:
-        return self.method.unsupervised_loss(
-            encoder=self.encoder,
-            pseudo_labeler=self.pseudo_labeler,
-            classifier=self.classifier,
-            x=x,
-        )
+    @abstractmethod
+    def unsupervised_loss(self, x: Tensor) -> tuple[Tensor, LoggingDict]:
+        """Unsupervised loss."""
 
+    @abstractmethod
     def step(self, grads: Optional[Tensor] = None) -> None:
-        self.classifier.step(grads)
-        if self.train_encoder:
-            self.encoder.step(grads)
+        """Do one step of gradient descent."""
 
     def zero_grad(self) -> None:
         self.classifier.zero_grad()
@@ -75,96 +66,127 @@ class Model(nn.Module):
         self.encoder.eval()
         self.classifier.eval()
 
-    def forward(self, x: Tensor) -> Tensor:
-        return self.classifier(self.encoder(x))
+    @abstractmethod
+    def forward(self, x: Tensor) -> tuple[Tensor, tuple[Tensor, Tensor] | None]:
+        pass
 
 
-@final
-class MultiHeadModel(nn.Module):
-    """This class brings everything together into one model object."""
+class JointModel(BaseModel):
+    """Cluster s and y jointly."""
+
+    classifier: Classifier
 
     def __init__(
         self,
         encoder: Encoder,
-        classifiers: nn.ModuleList,
+        classifier: Classifier,
         method: Method,
         pseudo_labeler: PseudoLabeler,
-        labeler: Classifier,
         train_encoder: bool,
+        to_cluster: ClusteringLabel,
+        s_count: int,
     ):
-        super().__init__()
-
-        self.encoder = encoder
-        self.pseudo_labeler = pseudo_labeler
-        self.classifiers = classifiers
-        self.method = method
-        self.labeler = labeler
-        self.pseudo_labeler = pseudo_labeler
-        self.train_encoder = train_encoder
-
-    def _split_by_label(
-        self, x: Tensor, y: Optional[Tensor] = None
-    ) -> Iterator[Tuple[Tensor, Tensor, Tensor]]:
-        if y is None:
-            with torch.no_grad():
-                y = self.labeler(x).argmax(dim=-1)
-        for i in range(len(self.classifiers)):
-            mask = y == i
-            if len(mask.nonzero()) > 0:
-                yield x[mask], y[mask], mask
+        super().__init__(
+            encoder=encoder,
+            classifier=classifier,
+            method=method,
+            pseudo_labeler=pseudo_labeler,
+            train_encoder=train_encoder,
+        )
+        self.to_cluster = to_cluster
+        self.s_count = s_count
 
     def supervised_loss(
-        self, x: Tensor, class_id: Tensor, ce: bool = False
-    ) -> Tuple[Tensor, LoggingDict]:
-        raise RuntimeError("this is broken")
-        loss = 0
-        for i, (x_i, y_i, _) in enumerate(self._split_by_label(x, class_id=class_id)):
-            loss_i, _ = self.method.supervised_loss(
-                self.encoder, self.classifiers[i], x_i, y_i, ce=ce
-            )
-            loss += loss_i
-        return loss, {"Loss supervised": loss.item()}
+        self, x: Tensor, s: Tensor, y: Tensor, ce_weight: float = 1.0, bce_weight: float = 1.0
+    ) -> tuple[Tensor, LoggingDict]:
+        class_id = get_class_id(s=s, y=y, s_count=self.s_count, to_cluster=self.to_cluster)
+        return self.method.supervised_loss(
+            encoder=self.encoder,
+            classifier=self.classifier,
+            x=x,
+            class_id=class_id,
+            ce_weight=ce_weight,
+            bce_weight=bce_weight,
+        )
 
-    def unsupervised_loss(self, x: Tensor) -> Tuple[Tensor, LoggingDict]:
-        loss = 0
-        for i, (x_i, _, _) in enumerate(self._split_by_label(x)):
-            loss_i, _ = self.method.unsupervised_loss(
-                encoder=self.encoder,
-                pseudo_labeler=self.pseudo_labeler,
-                classifier=self.classifiers[i],
-                x=x_i,
-            )
-            loss += loss_i
-        return loss, {"Loss unsupervised": loss.item()}
-
-    def zero_grad(self) -> None:
-        self.classifiers.zero_grad()
-        if self.train_encoder:
-            self.encoder.zero_grad()
+    def unsupervised_loss(self, x: Tensor) -> tuple[Tensor, LoggingDict]:
+        z = self.encoder(x)
+        raw_preds = self.classifier(z)
+        preds = raw_preds.softmax(dim=-1)
+        return self.method.unsupervised_loss(pseudo_labeler=self.pseudo_labeler, z=z, preds=preds)
 
     def step(self, grads: Optional[Tensor] = None) -> None:
-        for clf in self.classifiers:
-            clf.step(grads)
+        self.classifier.step(grads)
         if self.train_encoder:
             self.encoder.step(grads)
 
-    def train(self) -> None:
-        self.classifiers.train()
+    def forward(self, x: Tensor) -> tuple[Tensor, tuple[Tensor, Tensor] | None]:
+        return self.classifier(self.encoder(x)), None
+
+
+class FactorizedModel(BaseModel):
+    """Using separate cluster heads for s and y."""
+
+    classifier: nn.ModuleDict
+
+    def __init__(
+        self,
+        encoder: Encoder,
+        y_classifier: Classifier,
+        s_classifier: Classifier,
+        method: Method,
+        pseudo_labeler: PseudoLabeler,
+        train_encoder: bool,
+    ):
+        classifier = nn.ModuleDict({"y": y_classifier, "s": s_classifier})
+        super().__init__(
+            encoder=encoder,
+            classifier=classifier,
+            method=method,
+            pseudo_labeler=pseudo_labeler,
+            train_encoder=train_encoder,
+        )
+
+    def supervised_loss(
+        self, x: Tensor, s: Tensor, y: Tensor, ce_weight: float = 1.0, bce_weight: float = 1.0
+    ) -> tuple[Tensor, LoggingDict]:
+        total_loss = x.new_zeros(())
+        logging_dict = defaultdict(float)
+        # predict s and y separately
+        for label, classifier in [(s, self.classifier["s"]), (y, self.classifier["y"])]:
+            loss, logging = self.method.supervised_loss(
+                encoder=self.encoder,
+                classifier=cast(Classifier, classifier),
+                x=x,
+                class_id=label.view(-1),
+                ce_weight=ce_weight,
+                bce_weight=bce_weight,
+            )
+            total_loss += loss
+            for k, v in logging.items():
+                logging_dict[k] += v  # logging dict only has losses, so taking sum is fine
+        return total_loss, logging_dict
+
+    def unsupervised_loss(self, x: Tensor) -> tuple[Tensor, LoggingDict]:
+        joint, _, _, z = self._get_joint_output(x)
+        return self.method.unsupervised_loss(pseudo_labeler=self.pseudo_labeler, z=z, preds=joint)
+
+    def step(self, grads: Optional[Tensor] = None) -> None:
+        for classifier in self.classifier.values():
+            classifier.step(grads)
         if self.train_encoder:
-            self.encoder.train()
-        else:
-            self.encoder.eval()
+            self.encoder.step(grads)
 
-    def eval(self) -> None:
-        self.encoder.eval()
-        self.classifiers.eval()
+    def forward(self, x: Tensor) -> tuple[Tensor, tuple[Tensor, Tensor] | None]:
+        joint, s_logits, y_logits, _ = self._get_joint_output(x)
+        return joint, (s_logits, y_logits)
 
-    def forward(self, x: Tensor) -> Tensor:
-        y_dim, s_dim = len(self.classifiers), self.classifiers[0].num_classes
-        outputs = x.new_zeros(x.size(0), y_dim, s_dim)
-        for i, (x_i, _, mask) in enumerate(self._split_by_label(x)):
-            z_i = self.encoder(x_i)
-            outputs[mask, i, :] = self.classifiers[i](z_i)
-        outputs = outputs.view(x.size(0), -1)
-
-        return outputs
+    def _get_joint_output(self, x: Tensor) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+        z = self.encoder(x)
+        y_logits = self.classifier["y"](z)
+        s_logits = self.classifier["s"](z)
+        y_probs = y_logits.softmax(dim=-1)
+        s_probs = s_logits.softmax(dim=-1)
+        # take the outer product of s_probs and y_probs
+        joint = (s_probs.unsqueeze(-1) * y_probs.unsqueeze(-2)).flatten(start_dim=-2)
+        return joint, s_logits, y_logits, z

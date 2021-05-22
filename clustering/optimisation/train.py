@@ -6,7 +6,6 @@ from pathlib import Path
 import time
 from typing import cast
 
-import git
 from hydra.utils import to_absolute_path
 import numpy as np
 import torch
@@ -17,12 +16,12 @@ import wandb
 import yaml
 
 from clustering.models import (
-    Classifier,
+    BaseModel,
     CosineSimThreshold,
     Encoder,
+    JointModel,
+    FactorizedModel,
     Method,
-    Model,
-    MultiHeadModel,
     PseudoLabelEnc,
     PseudoLabelEncNoNorm,
     PseudoLabelOutput,
@@ -32,7 +31,6 @@ from clustering.models import (
     build_classifier,
 )
 from shared.configs import (
-    CelebaConfig,
     ClusterConfig,
     ClusteringLabel,
     ClusteringMethod,
@@ -41,25 +39,23 @@ from shared.configs import (
     DatasetConfig,
     EncoderConfig,
     EncoderType,
-    IsicConfig,
     MiscConfig,
     PlMethod,
 )
 from shared.data.data_loading import DatasetTriplet, load_dataset
 from shared.data.dataset_wrappers import RotationPrediction
 from shared.data.misc import adaptive_collate
-from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
+from shared.models.configs.classifiers import FcNet
 from shared.utils import (
     AverageMeter,
     ClusterResults,
     ExperimentBase,
-    ModelFn,
     as_pretty_dict,
     count_parameters,
     flatten_dict,
+    get_class_id,
     get_data_dim,
     print_metrics,
-    prod,
     random_seed,
     readable_duration,
     save_results,
@@ -69,12 +65,7 @@ from shared.utils import (
 from .build import build_ae
 from .evaluation import classify_dataset
 from .k_means import train as train_k_means
-from .utils import (
-    cluster_metrics,
-    count_occurances,
-    get_class_id,
-    get_cluster_label_path,
-)
+from .utils import cluster_metrics, count_occurances, get_cluster_label_path
 
 __all__ = ["main"]
 
@@ -91,7 +82,7 @@ class Experiment(ExperimentBase):
         data: DatasetConfig,
         enc: EncoderConfig,
         misc: MiscConfig,
-        model: Model,
+        model: BaseModel,
         s_dim: int,
         y_dim: int,
     ) -> None:
@@ -113,17 +104,16 @@ class Experiment(ExperimentBase):
         itr = start_itr = (epoch - 1) * epoch_len
         data_iterator = zip(context_data, train_data)
         self.model.train()
-        s_count = self.s_dim if self.s_dim > 1 else 2
 
         for itr, ((x_c, _, _), (x_t, s_t, y_t)) in enumerate(data_iterator, start=start_itr):
 
             x_c, x_t, y_t, s_t = self.to_device(x_c, x_t, y_t, s_t)
 
-            if self.args.with_supervision and not self.args.use_multi_head:
-                class_id = get_class_id(s=s_t, y=y_t, s_count=s_count, to_cluster=self.args.cluster)
+            if self.args.with_supervision:
                 loss_sup, logging_sup = self.model.supervised_loss(
-                    x_t,
-                    class_id,
+                    x=x_t,
+                    s=s_t,
+                    y=y_t,
                     ce_weight=self.args.sup_ce_weight,
                     bce_weight=self.args.sup_bce_weight,
                 )
@@ -183,7 +173,7 @@ class Experiment(ExperimentBase):
         with torch.set_grad_enabled(False):
             for (x_v, s_v, y_v) in val_data:
                 x_v = self.to_device(x_v)
-                logits = self.model(x_v)
+                logits, _ = self.model(x_v)
                 preds = logits.argmax(dim=-1).detach().cpu().numpy()
                 counts, class_id = count_occurances(counts, preds, s_v, y_v, s_count, to_cluster)
                 num_total += y_v.size(0)
@@ -239,7 +229,7 @@ class Experiment(ExperimentBase):
 
         return filename
 
-    def restore_model(self, filename: Path) -> tuple[Model, int]:
+    def restore_model(self, filename: Path) -> tuple[BaseModel, int]:
         chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
         args_chkpt = chkpt["args"]
         assert self.enc_conf.levels == args_chkpt["enc.levels"]
@@ -462,6 +452,8 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         pseudo_labeler = CosineSimThreshold(
             upper_threshold=args.upper_threshold, lower_threshold=args.lower_threshold
         )
+    else:
+        raise ValueError("Unknown pseudo labeler")
 
     # ================================= method =================================
     method: Method
@@ -471,64 +463,45 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         method = PseudoLabelOutput()
     elif args.method == ClusteringMethod.pl_enc_no_norm:
         method = PseudoLabelEncNoNorm()
+    else:
+        raise ValueError("Unknown method")
 
     # ================================= classifier =================================
     clf_optimizer_kwargs = {"lr": args.lr, "weight_decay": args.weight_decay}
     clf_fn = FcNet(hidden_dims=args.cl_hidden_dims)
     clf_input_shape = (enc_dim,)  # FcNet first flattens the input
 
-    classifier = build_classifier(
-        input_shape=clf_input_shape,
-        target_dim=s_count if args.use_multi_head else num_clusters,
-        model_fn=clf_fn,
-        optimizer_kwargs=clf_optimizer_kwargs,
-        num_heads=y_count if args.use_multi_head else 1,
-    )
-    classifier.to(device)
-
-    model: Model | MultiHeadModel
-    if args.use_multi_head:
-        labeler_fn: ModelFn
-        if isinstance(data, CmnistConfig):
-            labeler_fn = Mp32x23Net(batch_norm=True)
-        elif isinstance(data, CelebaConfig):
-            labeler_fn = Mp64x64Net(batch_norm=True)
-        elif isinstance(data, IsicConfig):
-            labeler_fn = lambda input_dim, target_dim: resnet50(num_classes=target_dim)
-        else:
-            labeler_fn = FcNet(hidden_dims=args.labeler_hidden_dims)
-
-        labeler_optimizer_kwargs = {"lr": args.labeler_lr, "weight_decay": args.labeler_wd}
-        labeler: Classifier = build_classifier(
-            input_shape=input_shape,
-            target_dim=s_count,
-            model_fn=labeler_fn,
-            optimizer_kwargs=labeler_optimizer_kwargs,
+    model: BaseModel
+    if args.factorized_s_y:
+        s_classifier = build_classifier(
+            clf_input_shape, s_count, model_fn=clf_fn, optimizer_kwargs=clf_optimizer_kwargs
         )
-        labeler.to(device)
-        LOGGER.info("Fitting the labeler to the labeled data.")
-        labeler.fit(
-            train_loader,
-            epochs=args.labeler_epochs,
-            device=device,
-            use_wandb=args.labeler_wandb,
+        s_classifier.to(device)
+        y_classifier = build_classifier(
+            clf_input_shape, y_count, model_fn=clf_fn, optimizer_kwargs=clf_optimizer_kwargs
         )
-        labeler.eval()
-        model = MultiHeadModel(
+        y_classifier.to(device)
+        model = FactorizedModel(
             encoder=encoder,
-            classifiers=classifier,
+            s_classifier=s_classifier,
+            y_classifier=y_classifier,
             method=method,
             pseudo_labeler=pseudo_labeler,
-            labeler=labeler,
             train_encoder=args.finetune_encoder,
         )
     else:
-        model = Model(
+        classifier = build_classifier(
+            clf_input_shape, num_clusters, model_fn=clf_fn, optimizer_kwargs=clf_optimizer_kwargs
+        )
+        classifier.to(device)
+        model = JointModel(
             encoder=encoder,
             classifier=classifier,
             method=method,
             pseudo_labeler=pseudo_labeler,
             train_encoder=args.finetune_encoder,
+            to_cluster=args.cluster,
+            s_count=s_count,
         )
 
     exp = Experiment(

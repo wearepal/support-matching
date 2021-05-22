@@ -59,7 +59,7 @@ class Method:
 
     @abstractmethod
     def unsupervised_loss(
-        self, encoder: Encoder, pseudo_labeler: PseudoLabeler, classifier: Classifier, x: Tensor
+        self, pseudo_labeler: PseudoLabeler, z: Tensor, preds: Tensor
     ) -> Tuple[Tensor, LoggingDict]:
         """Unsupervised loss."""
 
@@ -74,12 +74,8 @@ class PseudoLabelEncNoNorm(Method):
 
     @staticmethod
     def unsupervised_loss(
-        encoder: Encoder, pseudo_labeler: PseudoLabeler, classifier: Classifier, x: Tensor
+        pseudo_labeler: PseudoLabeler, z: Tensor, preds: Tensor
     ) -> Tuple[Tensor, LoggingDict]:
-        z = encoder(x)
-        raw_preds = classifier(z)
-        # only do softmax but no real normalization
-        preds = F.softmax(raw_preds, dim=-1)
         pseudo_label, mask = pseudo_labeler(z)  # base the pseudo labels on the encoding
         loss = _cosine_and_bce(preds, pseudo_label, mask)
         return loss, {"Loss unsupervised": loss.item()}
@@ -90,10 +86,9 @@ class PseudoLabelEnc(Method):
 
     @staticmethod
     def unsupervised_loss(
-        encoder: Encoder, pseudo_labeler: PseudoLabeler, classifier: Classifier, x: Tensor
+        pseudo_labeler: PseudoLabeler, z: Tensor, preds: Tensor
     ) -> Tuple[Tensor, LoggingDict]:
-        z = encoder(x)
-        raw_preds = classifier(z)
+        raise RuntimeError("this method needs logits, but it's getting probabilities now")
         # normalize output for cosine similarity
         preds = normalized_softmax(raw_preds)
         pseudo_label, mask = pseudo_labeler(z)  # base the pseudo labels on the encoding
@@ -106,11 +101,10 @@ class PseudoLabelOutput(Method):
 
     @staticmethod
     def unsupervised_loss(
-        encoder: Encoder, pseudo_labeler: PseudoLabeler, classifier: Classifier, x: Tensor
+        pseudo_labeler: PseudoLabeler, z: Tensor, preds: Tensor
     ) -> Tuple[Tensor, LoggingDict]:
-        z = encoder(x)
-        raw_pred = classifier(z)
-        preds = normalized_softmax(raw_pred)
+        raise RuntimeError("this method needs logits, but it's getting probabilities now")
+        preds = normalized_softmax(raw_preds)
         pseudo_label, mask = pseudo_labeler(preds)  # base the pseudo labels on the predictions
         loss = _cosine_and_bce(preds, pseudo_label, mask)
         return loss, {"Loss unsupervised": loss.item()}
