@@ -12,11 +12,12 @@ from shared.configs.enums import ReconstructionLoss
 from shared.data.utils import Batch
 from shared.models.configs.classifiers import FcNet
 from shared.utils.utils import ModelFn, prod
-from suds.algs.adv import AdvSemiSupervisedAlg
 from suds.models.base import SplitEncoding
 from suds.models.classifier import Classifier
 from suds.models.configs.classifiers import Residual64x64Net, Strided28x28Net
 from suds.optimisation.utils import log_images
+
+from .adv import AdvSemiSupervisedAlg
 
 __all__ = ["LAFTR"]
 

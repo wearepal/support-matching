@@ -16,12 +16,12 @@ import wandb
 import yaml
 
 from clustering.models import (
+    BaseModel,
     CosineSimThreshold,
     Encoder,
-    Method,
-    BaseModel,
     FlatModel,
     HierarchicalModel,
+    Method,
     PseudoLabelEnc,
     PseudoLabelEncNoNorm,
     PseudoLabelOutput,
@@ -31,7 +31,6 @@ from clustering.models import (
     build_classifier,
 )
 from shared.configs import (
-    CelebaConfig,
     ClusterConfig,
     ClusteringLabel,
     ClusteringMethod,
@@ -40,25 +39,23 @@ from shared.configs import (
     DatasetConfig,
     EncoderConfig,
     EncoderType,
-    IsicConfig,
     MiscConfig,
     PlMethod,
 )
 from shared.data.data_loading import DatasetTriplet, load_dataset
 from shared.data.dataset_wrappers import RotationPrediction
 from shared.data.misc import adaptive_collate
-from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
+from shared.models.configs.classifiers import FcNet
 from shared.utils import (
     AverageMeter,
     ClusterResults,
     ExperimentBase,
-    ModelFn,
     as_pretty_dict,
     count_parameters,
     flatten_dict,
+    get_class_id,
     get_data_dim,
     print_metrics,
-    prod,
     random_seed,
     readable_duration,
     save_results,
@@ -68,12 +65,7 @@ from shared.utils import (
 from .build import build_ae
 from .evaluation import classify_dataset
 from .k_means import train as train_k_means
-from .utils import (
-    cluster_metrics,
-    count_occurances,
-    get_class_id,
-    get_cluster_label_path,
-)
+from .utils import cluster_metrics, count_occurances, get_cluster_label_path
 
 __all__ = ["main"]
 

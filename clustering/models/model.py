@@ -6,10 +6,9 @@ from typing import Optional, cast
 
 from torch import Tensor
 import torch.nn as nn
-from torch.nn import functional as F
 
-from clustering.optimisation.utils import get_class_id
-from shared.configs.enums import ClusteringLabel
+from shared.configs import ClusteringLabel
+from shared.utils import get_class_id
 
 from .base import Encoder
 from .classifier import Classifier

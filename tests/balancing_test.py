@@ -1,5 +1,5 @@
 import torch
-from fdm.optimisation.utils import _get_multipliers_and_group_size
+from suds.optimisation.utils import _get_multipliers_and_group_size
 
 
 def test_binary_s_and_y() -> None:

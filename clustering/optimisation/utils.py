@@ -8,15 +8,9 @@ from sklearn.metrics import adjusted_rand_score, confusion_matrix, normalized_mu
 from torch import Tensor
 
 from shared.configs import ClusteringLabel, MiscConfig
-from shared.utils import class_id_to_label, label_to_class_id
+from shared.utils import class_id_to_label, get_class_id
 
-__all__ = [
-    "cluster_metrics",
-    "count_occurances",
-    "find_assignment",
-    "get_class_id",
-    "get_cluster_label_path",
-]
+__all__ = ["cluster_metrics", "count_occurances", "find_assignment", "get_cluster_label_path"]
 
 
 def count_occurances(
@@ -53,16 +47,6 @@ def find_assignment(
         "class ID -> cluster ID": ", ".join(assignment),
     }
     return best_acc, col_ind, logging_dict
-
-
-def get_class_id(*, s: Tensor, y: Tensor, s_count: int, to_cluster: ClusteringLabel) -> Tensor:
-    if to_cluster == ClusteringLabel.s:
-        class_id = s
-    elif to_cluster == ClusteringLabel.y:
-        class_id = y
-    else:
-        class_id = label_to_class_id(s=s, y=y, s_count=s_count)
-    return class_id.view(-1)
 
 
 def get_cluster_label_path(misc: MiscConfig, save_dir: Path) -> Path:
