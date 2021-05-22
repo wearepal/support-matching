@@ -34,8 +34,9 @@ class DomainIndependentClassifier(Classifier):
     ):
         """Build classifier model.
 
-        Args:).
-            n_classes: Positive integer. Number of class labels.
+        Args:
+            num_classes: Positive integer. Number of class.
+            num_domains: Positive integer. Number of domains.
             model: nn.Module. Classifier model to wrap around.
             optimizer_args: Dictionary. Arguments to pass to the optimizer.
 
@@ -46,10 +47,14 @@ class DomainIndependentClassifier(Classifier):
         self.num_domains = num_domains
 
     def _roll_logits(self, logits: Tensor) -> Tensor:
+        """
+        Rolls the logits such the domain-specific classifiers are separated along the last
+        dimension. Returns the logits reshaped to [batch_size, num_classes, num_domains].
+        """
         return logits.view(logits.size(0), -1, self.num_domains)
 
     def apply_criterion(self, logits: Tensor, targets: Tensor, domain_labels: Tensor) -> Tensor:
-        logits_rolled = self._roll_logits(logits)
+        logits_rolled = self._roll_logits(logits)  # [batch_size, num_classes, num_domains]
         logits_selected = logits_rolled.gather(
             -1, domain_labels.view(-1, 1, 1).expand(-1, logits_rolled.size(1), -1)
         ).squeeze(-1)
@@ -58,10 +63,9 @@ class DomainIndependentClassifier(Classifier):
     def _inference_sum_out(self, logits: Tensor, top: int = 1) -> Tensor:
         """Inference method: sum the output across domains."""
         logits_summed = self._roll_logits(logits).sum(-1)
-        #
         if logits.size(1) == 1:  # Binary classification
-            return logits_summed > 0
-        return logits.topk(k=top, dim=1).indices
+            return logits_summed > 0  # decision boundary is at 0 in logit-sapce
+        return logits.topk(k=top, dim=1).indices  # Multinomial classification
 
     def predict(self, inputs: Tensor, top: int = 1) -> Tensor:
         """Make prediction.
@@ -75,27 +79,6 @@ class DomainIndependentClassifier(Classifier):
         """
         logits = self.model(inputs)
         return self._inference_sum_out(logits, top=top)
-
-    def predict_dataset(
-        self, data: Dataset | DataLoader, device: torch.device, batch_size: int = 100
-    ):
-        if not isinstance(data, DataLoader):
-            data = DataLoader(data, batch_size=batch_size, shuffle=False, pin_memory=True)
-        preds, actual, sens = [], [], []
-        with torch.set_grad_enabled(False):
-            for x, s, y in data:
-                x, s, y = self.to_device(x, s, y, device=device)
-
-                batch_preds = self.predict(x)
-                preds.append(batch_preds)
-                actual.append(y)
-                sens.append(s)
-
-        preds = torch.cat(preds, dim=0).cpu().detach().view(-1)
-        actual = torch.cat(actual, dim=0).cpu().detach().view(-1)
-        sens = torch.cat(sens, dim=0).cpu().detach().view(-1)
-
-        return preds, actual, sens
 
     def compute_accuracy(self, outputs: Tensor, targets: Tensor, top: int = 1) -> float:
         """Computes the classification accuracy.
