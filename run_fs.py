@@ -43,6 +43,7 @@ from shared.utils import (
 from shared.utils.loadsave import load_results
 from shared.utils.utils import class_id_to_label
 from suds.algs import GDRO, LfF
+from suds.algs.domain_independent import DomainIndependentClassifier
 from suds.models import Classifier
 from suds.optimisation.utils import build_weighted_sampler_from_dataset
 
@@ -54,6 +55,7 @@ class Method(Enum):
     dro = auto()
     gdro = auto()
     lff = auto()
+    domind = auto()
 
 
 class ContextMode(Enum):
@@ -184,10 +186,14 @@ def run(cfg: FsConfig) -> None:
     target_dim = datasets.y_dim
     num_classes = max(target_dim, 2)
 
-    classifier_cls: type[Classifier] | type[LfF]
+    classifier_out_dim = max(target_dim, 2)
     classifier_kwargs = {}
     if args.method is Method.lff:
         classifier_cls = LfF
+    elif args.method is Method.domind:
+        classifier_cls = DomainIndependentClassifier
+        classifier_kwargs["num_domains"] = s_count
+        target_dim *= s_count
     elif args.method is Method.gdro:
         classifier_cls = GDRO
         classifier_kwargs["c_param"] = args.c
@@ -201,7 +207,7 @@ def run(cfg: FsConfig) -> None:
 
     classifier = classifier_cls(
         classifier_fn(input_shape[0], num_classes),  # type: ignore
-        num_classes=max(target_dim, 2),
+        num_classes=classifier_out_dim,
         optimizer_kwargs={"lr": args.lr, "weight_decay": args.weight_decay},
         **classifier_kwargs,
     )
