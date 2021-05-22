@@ -49,9 +49,9 @@ class DomainIndependentClassifier(Classifier):
         return logits.view(logits.size(0), -1, self.num_domains)
 
     def apply_criterion(self, logits: Tensor, targets: Tensor, domain_labels: Tensor) -> Tensor:
-        logits_unrolled = self._roll_logits(logits)
-        logits_selected = logits_unrolled.gather(
-            -1, domain_labels.view(-1, 1, 1).expand(-1, logits_unrolled.size(1), -1)
+        logits_rolled = self._roll_logits(logits)
+        logits_selected = logits_rolled.gather(
+            -1, domain_labels.view(-1, 1, 1).expand(-1, logits_rolled.size(1), -1)
         ).squeeze(-1)
         return super().apply_criterion(logits_selected, targets)
 
