@@ -19,7 +19,7 @@ from clustering.models import (
     BaseModel,
     CosineSimThreshold,
     Encoder,
-    FlatModel,
+    JointModel,
     FactorizedModel,
     Method,
     PseudoLabelEnc,
@@ -229,7 +229,7 @@ class Experiment(ExperimentBase):
 
         return filename
 
-    def restore_model(self, filename: Path) -> tuple[FlatModel, int]:
+    def restore_model(self, filename: Path) -> tuple[JointModel, int]:
         chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
         args_chkpt = chkpt["args"]
         assert self.enc_conf.levels == args_chkpt["enc.levels"]
@@ -494,7 +494,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
             clf_input_shape, num_clusters, model_fn=clf_fn, optimizer_kwargs=clf_optimizer_kwargs
         )
         classifier.to(device)
-        model = FlatModel(
+        model = JointModel(
             encoder=encoder,
             classifier=classifier,
             method=method,

@@ -15,7 +15,7 @@ from .classifier import Classifier
 from .methods import LoggingDict, Method
 from .pseudo_labelers import PseudoLabeler
 
-__all__ = ["BaseModel", "FlatModel", "FactorizedModel"]
+__all__ = ["BaseModel", "JointModel", "FactorizedModel"]
 
 
 class BaseModel(nn.Module):
@@ -71,8 +71,8 @@ class BaseModel(nn.Module):
         pass
 
 
-class FlatModel(BaseModel):
-    """Predict clusters in a flat manner."""
+class JointModel(BaseModel):
+    """Cluster s and y jointly."""
 
     classifier: Classifier
 
