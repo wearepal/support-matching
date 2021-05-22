@@ -15,7 +15,7 @@ from .classifier import Classifier
 from .methods import LoggingDict, Method
 from .pseudo_labelers import PseudoLabeler
 
-__all__ = ["BaseModel", "JointModel", "FactorizedModel"]
+__all__ = ["BaseModel", "FactorizedModel", "JointModel"]
 
 
 class BaseModel(nn.Module):
@@ -177,7 +177,7 @@ class FactorizedModel(BaseModel):
         if self.train_encoder:
             self.encoder.step(grads)
 
-    def forward(self, x: Tensor) -> tuple[Tensor, Optional[tuple[Tensor, Tensor]]]:
+    def forward(self, x: Tensor) -> tuple[Tensor, tuple[Tensor, Tensor] | None]:
         joint, s_logits, y_logits, _ = self._get_joint_output(x)
         return joint, (s_logits, y_logits)
 

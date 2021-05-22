@@ -229,7 +229,7 @@ class Experiment(ExperimentBase):
 
         return filename
 
-    def restore_model(self, filename: Path) -> tuple[JointModel, int]:
+    def restore_model(self, filename: Path) -> tuple[BaseModel, int]:
         chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
         args_chkpt = chkpt["args"]
         assert self.enc_conf.levels == args_chkpt["enc.levels"]
