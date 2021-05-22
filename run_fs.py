@@ -102,6 +102,9 @@ class RelabelingDataset(Dataset):
     def __getitem__(self, index) -> tuple[Tensor, Tensor, Tensor]:
         return self.dataset[index], self.s[index], self.y[index]
 
+    def __len__(self) -> int:
+        return len(self.dataset)  # type: ignore
+
 
 def run(cfg: FsConfig) -> None:
     cfg_dict = {}
