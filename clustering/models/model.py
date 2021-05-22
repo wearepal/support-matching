@@ -68,7 +68,7 @@ class BaseModel(nn.Module):
         self.classifier.eval()
 
     @abstractmethod
-    def forward(self, x: Tensor) -> tuple[Tensor, Optional[tuple[Tensor, Tensor]]]:
+    def forward(self, x: Tensor) -> tuple[Tensor, tuple[Tensor, Tensor] | None]:
         pass
 
 
@@ -113,7 +113,7 @@ class FlatModel(BaseModel):
     def unsupervised_loss(self, x: Tensor) -> tuple[Tensor, LoggingDict]:
         z = self.encoder(x)
         raw_preds = self.classifier(z)
-        preds = F.softmax(raw_preds, dim=-1)
+        preds = raw_preds.softmax(dim=-1)
         return self.method.unsupervised_loss(pseudo_labeler=self.pseudo_labeler, z=z, preds=preds)
 
     def step(self, grads: Optional[Tensor] = None) -> None:
@@ -121,7 +121,7 @@ class FlatModel(BaseModel):
         if self.train_encoder:
             self.encoder.step(grads)
 
-    def forward(self, x: Tensor) -> tuple[Tensor, Optional[tuple[Tensor, Tensor]]]:
+    def forward(self, x: Tensor) -> tuple[Tensor, tuple[Tensor, Tensor] | None]:
         return self.classifier(self.encoder(x)), None
 
 
@@ -186,8 +186,8 @@ class HierarchicalModel(BaseModel):
         z = self.encoder(x)
         y_logits = self.classifier["y"](z)
         s_logits = self.classifier["s"](z)
-        y_probs = F.softmax(y_logits, dim=-1)
-        s_probs = F.softmax(s_logits, dim=-1)
+        y_probs = y_logits.softmax(dim=-1)
+        s_probs = s_logits.softmax(dim=-1)
         # take the outer product of s_probs and y_probs
-        joint = s_probs[..., None] * y_probs[..., None, :]
-        return joint.view(joint.shape[:-2] + (-1,)), s_logits, y_logits, z
+        joint = s_probs.unsqueeze(-1) * y_probs.unsqueeze(-2)
+        return joint.flatten(start_dim=-2), s_logits, y_logits, z
