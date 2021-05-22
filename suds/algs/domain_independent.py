@@ -45,11 +45,11 @@ class DomainIndependentClassifier(Classifier):
         super().__init__(model, optimizer_kwargs=optimizer_kwargs, num_classes=num_classes)
         self.num_domains = num_domains
 
-    def _unroll_logits(self, logits: Tensor) -> Tensor:
+    def _roll_logits(self, logits: Tensor) -> Tensor:
         return logits.view(logits.size(0), -1, self.num_domains)
 
     def apply_criterion(self, logits: Tensor, targets: Tensor, domain_labels: Tensor) -> Tensor:
-        logits_unrolled = self._unroll_logits(logits)
+        logits_unrolled = self._roll_logits(logits)
         logits_selected = logits_unrolled.gather(
             -1, domain_labels.view(-1, 1, 1).expand(-1, logits_unrolled.size(1), -1)
         ).squeeze(-1)
@@ -57,7 +57,7 @@ class DomainIndependentClassifier(Classifier):
 
     def _inference_sum_out(self, logits: Tensor, top: int = 1) -> Tensor:
         """Inference method: sum the output across domains."""
-        logits_summed = self._unroll_logits(logits).sum(-1)
+        logits_summed = self._roll_logits(logits).sum(-1)
         #
         if logits.size(1) == 1:  # Binary classification
             return logits_summed > 0
