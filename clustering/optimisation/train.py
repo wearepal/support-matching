@@ -109,9 +109,9 @@ class Experiment(ExperimentBase):
 
             x_c, x_t, y_t, s_t = self.to_device(x_c, x_t, y_t, s_t)
 
-            if self.args.with_supervision and not self.args.use_multi_head:
+            if self.args.with_supervision:
                 loss_sup, logging_sup = self.model.supervised_loss(
-                    x_t,
+                    x=x_t,
                     s=s_t,
                     y=y_t,
                     ce_weight=self.args.sup_ce_weight,
