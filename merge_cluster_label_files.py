@@ -5,8 +5,8 @@ print("starting up...")  # print this before loading all those heavy libraries
 import typer
 from sklearn.metrics import confusion_matrix
 
-from clustering.optimisation.utils import get_class_id
-from shared.utils import ClusterResults, load_results, save_results
+from shared.utils import ClusterResults, load_results, save_results, get_class_id
+from shared.configs import ClusteringLabel
 
 
 def main(
@@ -27,10 +27,16 @@ def main(
     s_count = int(s_results.class_ids.max() + 1)
     print(f"Computed s_count={s_count}")
     cluster_ids = get_class_id(
-        s=s_results.cluster_ids, y=y_results.cluster_ids, s_count=s_count, to_cluster="both"
+        s=s_results.cluster_ids,
+        y=y_results.cluster_ids,
+        s_count=s_count,
+        to_cluster=ClusteringLabel.both,
     )
     class_ids = get_class_id(
-        s=s_results.class_ids, y=y_results.class_ids, s_count=s_count, to_cluster="both"
+        s=s_results.class_ids,
+        y=y_results.class_ids,
+        s_count=s_count,
+        to_cluster=ClusteringLabel.both,
     )
 
     accuracy = (class_ids == cluster_ids).float().mean()

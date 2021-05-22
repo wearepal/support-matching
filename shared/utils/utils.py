@@ -8,6 +8,7 @@ from dataclasses import asdict
 from enum import Enum
 from functools import reduce
 from math import gcd
+from shared.configs.enums import ClusteringLabel
 from typing import Any, TypeVar
 
 import numpy as np
@@ -18,7 +19,7 @@ from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from typing_extensions import Literal, Protocol
 
-from shared.configs import Config, DatasetConfig, EncoderConfig, MiscConfig
+from shared.configs import Config, DatasetConfig, MiscConfig
 
 __all__ = [
     "AverageMeter",
@@ -29,6 +30,7 @@ __all__ = [
     "class_id_to_label",
     "count_parameters",
     "flatten_dict",
+    "get_class_id",
     "get_data_dim",
     "inf_generator",
     "label_to_class_id",
@@ -253,3 +255,13 @@ def as_pretty_dict(data_class: object) -> dict:
 def lcm(denominators):
     """Least common multiplier."""
     return reduce(lambda a, b: a * b // gcd(a, b), denominators)
+
+
+def get_class_id(*, s: Tensor, y: Tensor, s_count: int, to_cluster: ClusteringLabel) -> Tensor:
+    if to_cluster == ClusteringLabel.s:
+        class_id = s
+    elif to_cluster == ClusteringLabel.y:
+        class_id = y
+    else:
+        class_id = label_to_class_id(s=s, y=y, s_count=s_count)
+    return class_id.view(-1)
