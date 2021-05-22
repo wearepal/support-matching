@@ -158,7 +158,7 @@ class FactorizedModel(BaseModel):
                 encoder=self.encoder,
                 classifier=cast(Classifier, classifier),
                 x=x,
-                class_id=label,
+                class_id=label.view(-1),
                 ce_weight=ce_weight,
                 bce_weight=bce_weight,
             )
