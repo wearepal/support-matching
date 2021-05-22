@@ -20,7 +20,7 @@ from clustering.models import (
     CosineSimThreshold,
     Encoder,
     FlatModel,
-    HierarchicalModel,
+    FactorizedModel,
     Method,
     PseudoLabelEnc,
     PseudoLabelEncNoNorm,
@@ -472,8 +472,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     clf_input_shape = (enc_dim,)  # FcNet first flattens the input
 
     model: BaseModel
-    if args.use_multi_head:
-        assert args.cluster is ClusteringLabel.both, "multi head only makes sense with both y and s"
+    if args.factorized_s_y:
         s_classifier = build_classifier(
             clf_input_shape, s_count, model_fn=clf_fn, optimizer_kwargs=clf_optimizer_kwargs
         )
@@ -482,7 +481,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
             clf_input_shape, y_count, model_fn=clf_fn, optimizer_kwargs=clf_optimizer_kwargs
         )
         y_classifier.to(device)
-        model = HierarchicalModel(
+        model = FactorizedModel(
             encoder=encoder,
             s_classifier=s_classifier,
             y_classifier=y_classifier,

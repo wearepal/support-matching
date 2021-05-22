@@ -146,13 +146,13 @@ def biased_split(cfg: BaseConfig, data: em.DataTuple) -> DataTupleTriplet:
             data=data,
             # mixing_factor=args.mixing_factor,
             unbiased_pcnt=cfg.data.test_pcnt + cfg.data.context_pcnt,
-            seed=cfg.misc.data_split_seed,
+            seed=cfg.data.data_split_seed,
             missing_s=cfg.bias.missing_s,
         )
     else:
         train_tuple, unbiased, _ = em.BalancedTestSplit(
             train_percentage=1 - cfg.data.test_pcnt - cfg.data.context_pcnt,
-            start_seed=cfg.misc.data_split_seed,
+            start_seed=cfg.data.data_split_seed,
         )(data)
 
     context_pcnt = cfg.data.context_pcnt / (cfg.data.test_pcnt + cfg.data.context_pcnt)
@@ -161,12 +161,12 @@ def biased_split(cfg: BaseConfig, data: em.DataTuple) -> DataTupleTriplet:
     if cfg.data.adult_balanced_test and cfg.bias.adult_biased_train:
         context_splitter = em.BalancedTestSplit(
             train_percentage=context_pcnt,
-            start_seed=cfg.misc.data_split_seed,
+            start_seed=cfg.data.data_split_seed,
             balance_type="P(s,y)=0.25" if cfg.data.balance_all_quadrants else "P(s|y)=0.5",
         )
     else:
         context_splitter = em.ProportionalSplit(
-            train_percentage=context_pcnt, start_seed=cfg.misc.data_split_seed
+            train_percentage=context_pcnt, start_seed=cfg.data.data_split_seed
         )
     context_tuple, test_tuple, _ = context_splitter(unbiased)
     return DataTupleTriplet(context=context_tuple, test=test_tuple, train=train_tuple)

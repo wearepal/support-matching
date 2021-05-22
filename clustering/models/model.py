@@ -15,7 +15,7 @@ from .classifier import Classifier
 from .methods import LoggingDict, Method
 from .pseudo_labelers import PseudoLabeler
 
-__all__ = ["BaseModel", "FlatModel", "HierarchicalModel"]
+__all__ = ["BaseModel", "FlatModel", "FactorizedModel"]
 
 
 class BaseModel(nn.Module):
@@ -124,7 +124,7 @@ class FlatModel(BaseModel):
         return self.classifier(self.encoder(x)), None
 
 
-class HierarchicalModel(BaseModel):
+class FactorizedModel(BaseModel):
     """Using separate cluster heads for s and y."""
 
     classifier: nn.ModuleDict

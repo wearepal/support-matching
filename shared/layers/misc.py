@@ -1,8 +1,9 @@
 from __future__ import annotations
-from typing import Literal, Sequence, Tuple
+from typing import Sequence, Tuple
 
 from torch import Tensor
 import torch.nn as nn
+from typing_extensions import Literal
 
 __all__ = ["View", "UnitNormLayer"]
 
