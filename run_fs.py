@@ -242,7 +242,7 @@ def run(cfg: FsConfig) -> None:
             **train_loader_kwargs,
         )
         # Generate predictions with the trained model
-        y, _, s = classifier.predict_dataset(test_data, device=device)
+        y, _, s = classifier.predict_dataset(datasets.context, device=device)
         context_data = RelabelingDataset(datasets.context, s=s, y=y)
         train_data = ConcatDataset([train_data, context_data])
     else:
