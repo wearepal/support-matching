@@ -100,7 +100,7 @@ class RelabelingDataset(Dataset):
         self.y = y
 
     def __getitem__(self, index) -> tuple[Tensor, Tensor, Tensor]:
-        return self.dataset[index], self.s[index], self.y[index]
+        return self.dataset[index][0], self.s[index], self.y[index]
 
     def __len__(self) -> int:
         return len(self.dataset)  # type: ignore
