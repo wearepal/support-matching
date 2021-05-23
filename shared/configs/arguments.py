@@ -9,8 +9,6 @@ from hydra.utils import instantiate
 from omegaconf import DictConfig, MISSING, OmegaConf
 import torch
 
-from run_fs import FsArgs
-
 from .enums import (
     AdaptationMethod,
     AdultDatasetSplit,
@@ -397,7 +395,6 @@ class Config(BaseConfig):
     clust: ClusterConfig = MISSING
     enc: EncoderConfig = MISSING
     adapt: AdvConfig = MISSING
-    fs_args: FsArgs = FsArgs()
 
 
 def register_configs() -> None:
