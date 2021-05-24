@@ -53,7 +53,7 @@ def load_results(cfg: BaseConfig, check: bool = True) -> ClusterResults:
             saved_cfg["data.data_pcnt"] == cfg.data.data_pcnt
         ), f'{saved_cfg["data.data_pcnt"]} != {cfg.data.data_pcnt}'
         assert (
-            saved_cfg["disc.data_split_seed"] == cfg.data.data_split_seed
+            saved_cfg["data.data_split_seed"] == cfg.data.data_split_seed
         ), f'{saved_cfg["misc.data_split_seed"]} != {cfg.data.data_split_seed}'
         assert (
             saved_cfg["data.context_pcnt"] == cfg.data.context_pcnt
