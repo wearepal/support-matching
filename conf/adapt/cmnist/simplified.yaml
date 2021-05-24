@@ -6,5 +6,4 @@ aggregator_type: gated
 bag_size: 256
 batch_size: 1
 iters: 8000
-num_discs: 1
 zs_transform: none

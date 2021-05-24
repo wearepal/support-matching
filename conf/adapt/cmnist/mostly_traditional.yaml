@@ -6,6 +6,6 @@ aggregator_type: gated
 bag_size: 18
 batch_size: 14
 iters: 8_000
-num_disc_updates: 3
-num_discs: 3
+num_adv_updates: 3
+# num_discs: 3
 zs_transform: round_ste

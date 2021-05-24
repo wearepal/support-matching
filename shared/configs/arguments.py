@@ -266,7 +266,7 @@ class ClusterConfig:
 
 @dataclass
 class EncoderConfig:
-    """Flags for the encoder."""
+    """Flags that are shared between "adapt" and "clustering" but which don't concern data."""
 
     _target_: str = "shared.configs.EncoderConfig"
 
@@ -275,11 +275,6 @@ class EncoderConfig:
     init_chans: int = 32
     recon_loss: ReconstructionLoss = ReconstructionLoss.l2
     checkpoint_path: str = ""
-    use_pretrained_enc: bool = False
-    # the following should probably moved to a different config class eventually
-    zs_dim: int = 1
-    zs_transform: ZsTransform = ZsTransform.none
-    prior_loss_w: float = 0
 
 
 @dataclass
@@ -325,8 +320,9 @@ class AdaptConfig:
     vae_std_tform: VaeStd = VaeStd.exp
     stochastic: bool = False
 
-    num_discs: int = 1
-    adv_reset_prob: float = 0.0
+    # adversary ensemble (RIP)
+    # num_discs: int = 1
+    # disc_reset_prob: float = 0.0
 
     # Discriminator settings
     adv_loss: DiscriminatorLoss = DiscriminatorLoss.logistic_ns
@@ -355,6 +351,12 @@ class AdaptConfig:
     distinguish_weight: float = 1
     pred_y_loss_w: float = 1
     pred_s_loss_w: float = 0
+    prior_loss_w: float = 0
+
+    # Encoder settings (that are not shared with the clustering code)
+    use_pretrained_enc: bool = False
+    zs_dim: int = 1
+    zs_transform: ZsTransform = ZsTransform.none
 
 
 T = TypeVar("T", bound="BaseConfig")

@@ -137,12 +137,14 @@ class SupportMatching(AdvSemiSupervisedAlg):
         with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):
             # ============================= recon loss for training set ===========================
             encoding_t, enc_loss_tr, logging_dict_tr = self.encoder.routine(
-                batch_tr.x, recon_loss_fn=self.recon_loss_fn, prior_loss_w=self.enc_cfg.prior_loss_w
+                batch_tr.x,
+                recon_loss_fn=self.recon_loss_fn,
+                prior_loss_w=self.adapt_cfg.prior_loss_w,
             )
 
             # ============================= recon loss for context set ============================
             encoding_c, enc_loss_ctx, logging_dict_ctx = self.encoder.routine(
-                x_ctx, self.recon_loss_fn, self.enc_cfg.prior_loss_w
+                x_ctx, self.recon_loss_fn, self.adapt_cfg.prior_loss_w
             )
             logging_dict.update({k: v + logging_dict_ctx[k] for k, v in logging_dict_tr.items()})
             enc_loss_tr = 0.5 * (enc_loss_tr + enc_loss_ctx)  # take average of the two recon losses

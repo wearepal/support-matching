@@ -2,4 +2,3 @@ out_dim: 32
 levels: 4
 init_chans: 16
 recon_loss: l2
-zs_dim: 1
