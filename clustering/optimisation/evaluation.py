@@ -6,8 +6,9 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import tqdm
 
-from clustering.models import Encoder, JointModel
+from clustering.models import BaseModel, Encoder
 from shared.configs import Config
+from shared.utils.utils import label_to_class_id
 
 __all__ = ["classify_dataset", "encode_dataset"]
 
@@ -48,7 +49,7 @@ def encode_dataset(
 
 
 def classify_dataset(
-    cfg: Config, model: JointModel, data: Dataset
+    cfg: Config, model: BaseModel, data: Dataset, s_count: int
 ) -> Tuple[Tensor, Tensor, Tensor]:
     """Determine the class of every sample in the given dataset and save them to a file."""
     model.eval()
@@ -66,8 +67,15 @@ def classify_dataset(
             x = x.to(device, non_blocking=True)
             all_s.append(s)
             all_y.append(y)
-            logits, _ = model(x)
-            preds = logits.argmax(dim=-1).detach().cpu()
+            logits, s_y_logits = model(x)
+            if s_y_logits is not None:  # factorized clustering returns s and y separately
+                s_logits, y_logits = s_y_logits
+                preds = label_to_class_id(
+                    s=s_logits.argmax(dim=-1), y=y_logits.argmax(dim=-1), s_count=s_count
+                )
+                preds = preds.detach().cpu()
+            else:
+                preds = logits.argmax(dim=-1).detach().cpu()
             cluster_ids.append(preds)
 
     return torch.cat(cluster_ids, dim=0), torch.cat(all_s, dim=0), torch.cat(all_y, dim=0)

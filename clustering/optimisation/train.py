@@ -523,7 +523,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         if misc.evaluate:
             pth_path = exp.convert_and_save_results(
                 cluster_label_path,
-                classify_dataset(cfg, model, datasets.context),
+                classify_dataset(cfg, model, datasets.context, s_count),
                 enc_path=enc_path,
                 context_metrics={},  # TODO: compute this
             )
@@ -586,7 +586,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     print_metrics({f"Context {k}": v for k, v in context_metrics.items()})
     pth_path = exp.convert_and_save_results(
         cluster_label_path=cluster_label_path,
-        results=classify_dataset(cfg, model, datasets.context),
+        results=classify_dataset(cfg, model, datasets.context, s_count),
         enc_path=enc_path,
         context_metrics=context_metrics,
         test_metrics=test_metrics,
