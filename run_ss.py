@@ -13,14 +13,18 @@ cs.store(name="config_schema", node=Config)
 register_configs()
 
 
-@hydra.main(config_path="conf", config_name="config")
-def app(hydra_config: DictConfig):
-    cfg = Config.from_hydra(hydra_config=hydra_config)
+def main(cfg: Config) -> None:
     if cfg.adapt.method is AdaptationMethod.suds:
         alg = SupportMatching(cfg=cfg)
     else:
         alg = LAFTR(cfg=cfg)
     alg.run()
+
+
+@hydra.main(config_path="conf", config_name="config")
+def app(hydra_config: DictConfig):
+    cfg = Config.from_hydra(hydra_config=hydra_config)
+    main(cfg)
 
 
 if __name__ == "__main__":

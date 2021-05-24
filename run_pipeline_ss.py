@@ -19,15 +19,16 @@ def app(hydra_config: DictConfig) -> None:
     cfg = Config.from_hydra(hydra_config=hydra_config)
 
     with TemporaryDirectory() as tmpdir:
-        clf = Path(tmpdir) / "labels.pth"
+        clf = str(Path(tmpdir) / "labels.pth")
+        cfg.misc.cluster_label_file = clf
 
         from clustering.optimisation import main as cluster
 
-        cluster(cfg=cfg, cluster_label_file=clf)
+        cluster(cfg=cfg)
 
-        from suds.optimisation import main as disentangle
+        from run_ss import main as adapt
 
-        disentangle(cfg=cfg, cluster_label_file=clf)
+        adapt(cfg=cfg)
 
 
 if __name__ == "__main__":
