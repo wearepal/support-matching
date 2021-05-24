@@ -185,8 +185,9 @@ def run(cfg: Config) -> None:
         LOGGER.info("Using cluster labels as pseudo-labels for context set.")
         cluster_results = load_results(cfg)
         subgroup_ids = cluster_results.class_ids
-        y = class_id_to_label(subgroup_ids, s_count=s_count, label="y")
-        s = class_id_to_label(subgroup_ids, s_count=s_count, label="s")
+        _, s_tr, y_tr = train_data[0]
+        y = class_id_to_label(subgroup_ids, s_count=s_count, label="y").view(-1, *s_tr.shape)
+        s = class_id_to_label(subgroup_ids, s_count=s_count, label="s").view(-1, *y_tr.shape)
         context_data = RelabelingDataset(datasets.context, s=s, y=y)
         train_data = ConcatDataset([train_data, context_data])
     elif args.context_mode is ContextMode.propagate:
