@@ -148,14 +148,14 @@ def run(cfg: Config) -> None:
     target_dim = datasets.y_dim
     num_classes = max(target_dim, 2)
 
-    classifier_out_dim = max(target_dim, 2)
+    classifier_out_dim = target_dim if target_dim > 2 else 1
     classifier_kwargs = {}
     if args.method is FsMethod.lff:
         classifier_cls = LfF
     elif args.method is FsMethod.domind:
         classifier_cls = DomainIndependentClassifier
         classifier_kwargs["num_domains"] = s_count
-        target_dim *= s_count
+        classifier_out_dim *= s_count
     elif args.method is FsMethod.gdro:
         classifier_cls = GDRO
         classifier_kwargs["c_param"] = args.c
@@ -168,8 +168,8 @@ def run(cfg: Config) -> None:
         classifier_kwargs["criterion"] = criterion
 
     classifier = classifier_cls(
-        classifier_fn(input_shape[0], num_classes),  # type: ignore
-        num_classes=classifier_out_dim,
+        classifier_fn(input_shape[0], classifier_out_dim),  # type: ignore
+        num_classes=num_classes,
         optimizer_kwargs={"lr": args.lr, "weight_decay": args.weight_decay},
         **classifier_kwargs,
     )
