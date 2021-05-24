@@ -4,8 +4,7 @@ from torch import Tensor
 from torch.nn import functional as F
 from torch.testing import assert_allclose
 
-from shared.configs import ClusteringLabel
-from shared.utils import get_class_id, get_joint_probability
+from shared.utils import get_joint_probability, label_to_class_id
 
 
 def test_compatibility_binary() -> None:
@@ -21,8 +20,8 @@ def test_compatibility_multiclass() -> None:
 
 
 def _compare(s: Tensor, y: Tensor, s_count: int, y_count: int) -> None:
-    """Check wether get_class_id() and get_joint_probability() give the same answer."""
-    class_ids = get_class_id(s=s, y=y, s_count=s_count, to_cluster=ClusteringLabel.both)
+    """Check wether label_to_class_id() and get_joint_probability() give the same answer."""
+    class_ids = label_to_class_id(s=s, y=y, s_count=s_count)
 
     s_probs: Tensor = F.one_hot(s, num_classes=s_count).float()
     y_probs: Tensor = F.one_hot(y, num_classes=y_count).float()
