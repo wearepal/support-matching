@@ -142,7 +142,7 @@ class LossComputer(nn.Module):
         self.exp_avg_initialized = (self.exp_avg_initialized > 0) + (group_count > 0)
 
     def reset_stats(self) -> None:
-        device = cast(torch.device, self.avg_group_loss.device)
+        device = cast(torch.device, self.exp_avg_loss.device)
         self.processed_data_counts = torch.zeros(self.n_groups, device=device)
         self.update_data_counts = torch.zeros(self.n_groups, device=device)
         self.update_batch_counts = torch.zeros(self.n_groups, device=device)
