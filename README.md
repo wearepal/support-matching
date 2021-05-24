@@ -23,25 +23,25 @@ This dataset is included in the repository.
 ### Subgroup bias
 
 ```
-bash scripts/compare.sh data=adult/gender bias=adult/partial_outcome enc=adult adv=adult/on_enc_with_bags clust=adult
+bash scripts/compare.sh data=adult/gender bias=adult/partial_outcome enc=adult adapt=adult/on_enc_with_bags clust=adult
 ```
 
 For the "no-cluster" baseline, the bag size needs to be changed:
 
 ```
-python run_dis.py adv.balanced_context=false misc.log_method=no-cluster-fdm data=adult/gender bias=adult/partial_outcome enc=adult adv=adult/on_enc_with_bags clust=adult adv.bag_size=32 adv.batch_size=16
+python run_ss.py adapt.balanced_context=false misc.log_method=no-cluster-fdm data=adult/gender bias=adult/partial_outcome enc=adult adapt=adult/on_enc_with_bags clust=adult adapt.bag_size=32 adapt.batch_size=16
 ```
 
 ### Missing subgroup
 
 ```
-bash scripts/compare.sh data=adult/gender bias=adult/missing_demo enc=adult adv=adult/on_enc_with_bags clust=adult
+bash scripts/compare.sh data=adult/gender bias=adult/missing_demo enc=adult adapt=adult/on_enc_with_bags clust=adult
 ```
 
 For the "no-cluster" baseline, the bag size needs to be changed:
 
 ```
-python run_dis.py adv.balanced_context=false misc.log_method=no-cluster-fdm data=adult/gender bias=adult/missing_demo enc=adult adv=adult/on_enc_with_bags clust=adult adv.bag_size=32 adv.batch_size=16
+python run_ss.py adapt.balanced_context=false misc.log_method=no-cluster-fdm data=adult/gender bias=adult/missing_demo enc=adult adapt=adult/on_enc_with_bags clust=adult adapt.bag_size=32 adapt.batch_size=16
 ```
 
 ## Colored MNIST
@@ -53,19 +53,19 @@ This dataset will be downloaded automatically.
 #### Subgroup bias
 
 ```
-bash scripts/compare.sh data=cmnist/2dig bias=cmnist/2dig/subsampled enc=mnist adv=cmnist/simplified clust=vague_spaceship_improved
+bash scripts/compare.sh data=cmnist/2dig bias=cmnist/2dig/subsampled enc=mnist adapt=cmnist/simplified clust=vague_spaceship_improved
 ```
 
 #### Missing subgroup
 
 ```
-bash scripts/compare.sh data=cmnist/2dig data.context_pcnt=0.5 bias=cmnist/2dig/mildly_subs_miss_s enc=mnist adv=cmnist/gated_3discs clust=vague_spaceship_improved
+bash scripts/compare.sh data=cmnist/2dig data.context_pcnt=0.5 bias=cmnist/2dig/mildly_subs_miss_s enc=mnist adapt=cmnist/gated_3discs clust=vague_spaceship_improved
 ```
 
 ### 3 digits
 
 ```
-bash scripts/compare.sh data=cmnist/3dig bias=cmnist/3dig/4miss enc=mnist adv=cmnist/mostly_traditional clust=vague_spaceship_improved adv.iters=20000 adv.zs_dim=2
+bash scripts/compare.sh data=cmnist/3dig bias=cmnist/3dig/4miss enc=mnist adapt=cmnist/mostly_traditional clust=vague_spaceship_improved adapt.iters=20000 adapt.zs_dim=2
 ```
 
 ## CelebA

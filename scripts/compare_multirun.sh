@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # perfect cluster
-python run_dis.py -m suds.balanced_context=true misc.log_method=perfect-cluster "$@"
+python run_ss.py -m adapt.balanced_context=true misc.log_method=perfect-cluster "$@"
 
 # no cluster
-python run_dis.py -m suds.balanced_context=false misc.log_method=no-cluster-suds "$@"
+python run_ss.py -m adapt.balanced_context=false misc.log_method=no-cluster-fdm "$@"
 
 # ranking
-python run_pipeline.py -m clust.method=pl_enc_no_norm clust.pseudo_labeler=ranking misc.log_method=ranking-suds "$@"
+python run_pipeline_ss.py -m clust.method=pl_enc_no_norm clust.pseudo_labeler=ranking misc.log_method=ranking-fdm "$@"
 
 # kmeans
-python run_pipeline.py -m clust.method=kmeans misc.log_method=kmeans-suds "$@"
+python run_pipeline_ss.py -m clust.method=kmeans misc.log_method=kmeans-fdm "$@"
