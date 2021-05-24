@@ -160,7 +160,6 @@ def run(cfg: Config) -> None:
         s_all, _ = extract_labels_from_dataset(dataset=train_data)
         group_counts = (torch.arange(s_count).unsqueeze(1) == s_all).sum(1).float()
         # process generalization adjustment stuff
-
         adjustments = args.generalization_adjustment
         if adjustments is not None:
             assert len(adjustments) in (1, s_count)
