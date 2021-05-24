@@ -2,6 +2,7 @@
 from __future__ import annotations
 from abc import abstractmethod
 from collections import defaultdict
+from shared.utils.utils import get_joint_probability
 from typing import Optional, cast
 
 from torch import Tensor
@@ -187,6 +188,5 @@ class FactorizedModel(BaseModel):
         s_logits = self.classifier["s"](z)
         y_probs = y_logits.softmax(dim=-1)
         s_probs = s_logits.softmax(dim=-1)
-        # take the outer product of s_probs and y_probs
-        joint = (s_probs.unsqueeze(-1) * y_probs.unsqueeze(-2)).flatten(start_dim=-2)
+        joint = get_joint_probability(s_probs=s_probs, y_probs=y_probs)
         return joint, s_logits, y_logits, z
