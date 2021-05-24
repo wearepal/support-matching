@@ -16,10 +16,12 @@ from .enums import (
     CelebaAttributes,
     ClusteringLabel,
     ClusteringMethod,
+    ContextMode,
     DiscriminatorLoss,
     DiscriminatorMethod,
     EncoderType,
     EvalTrainData,
+    FsMethod,
     IsicAttrs,
     MMDKernel,
     PlMethod,
@@ -30,8 +32,8 @@ from .enums import (
 )
 
 __all__ = [
+    "AdaptConfig",
     "AdultConfig",
-    "AdvConfig",
     "BaseConfig",
     "BiasConfig",
     "CelebaConfig",
@@ -40,6 +42,7 @@ __all__ = [
     "Config",
     "DatasetConfig",
     "EncoderConfig",
+    "FsConfig",
     "ImageDatasetConfig",
     "IsicConfig",
     "MiscConfig",
@@ -279,10 +282,10 @@ class EncoderConfig:
 
 
 @dataclass
-class AdvConfig:
+class AdaptConfig:
     """Flags for disentangling."""
 
-    _target_: str = "shared.configs.AdvConfig"
+    _target_: str = "shared.configs.AdaptConfig"
 
     method: AdaptationMethod = AdaptationMethod.suds
     mixup: bool = False
@@ -387,6 +390,30 @@ class BaseConfig:
 
 
 @dataclass
+class FsConfig:
+    """Arguments for models run via the run_fs script."""
+
+    _target_: str = "shared.configs.FsConfig"
+
+    # General data set settings
+    greyscale: bool = False
+    context_mode: ContextMode = ContextMode.unlabelled
+
+    # Optimization settings
+    epochs: int = 60
+    test_batch_size: int = 1000
+    batch_size: int = 100
+    lr: float = 1e-3
+    weight_decay: float = 0
+    eta: float = 0.5
+    c: float = 0.0
+
+    # Misc settings
+    method: FsMethod = FsMethod.erm
+    oversample: bool = True
+
+
+@dataclass
 class Config(BaseConfig):
     """Config used for clustering and disentangling."""
 
@@ -394,7 +421,8 @@ class Config(BaseConfig):
 
     clust: ClusterConfig = MISSING
     enc: EncoderConfig = MISSING
-    adapt: AdvConfig = MISSING
+    adapt: AdaptConfig = AdaptConfig()
+    fs_args: FsConfig = FsConfig()
 
 
 def register_configs() -> None:
