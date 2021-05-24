@@ -322,7 +322,7 @@ class AdaptConfig:
 
     # adversary ensemble (RIP)
     # num_discs: int = 1
-    # adv_reset_prob: float = 0.0
+    # disc_reset_prob: float = 0.0
 
     # Discriminator settings
     adv_loss: DiscriminatorLoss = DiscriminatorLoss.logistic_ns
