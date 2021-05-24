@@ -193,3 +193,18 @@ class AdaptationMethod(Enum):
 
     laftr = auto()
     suds = auto()
+
+
+class FsMethod(Enum):
+    erm = auto()
+    dro = auto()
+    gdro = auto()
+    lff = auto()
+    domind = auto()
+
+
+class ContextMode(Enum):
+    ground_truth = auto()
+    cluster_labels = auto()
+    unlabelled = auto()
+    propagate = auto()

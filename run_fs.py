@@ -1,6 +1,4 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from enum import Enum, auto
 import logging
 from pathlib import Path
 
@@ -10,7 +8,7 @@ import hydra
 from hydra.core.config_store import ConfigStore
 from hydra.utils import to_absolute_path
 import numpy as np
-from omegaconf import DictConfig, MISSING
+from omegaconf import DictConfig
 import pandas as pd
 import torch
 from torch import nn
@@ -24,12 +22,13 @@ import yaml
 
 from shared.configs import (
     AdultConfig,
-    BaseConfig,
     CelebaConfig,
     CmnistConfig,
     IsicConfig,
     register_configs,
 )
+from shared.configs.arguments import Config
+from shared.configs.enums import ContextMode, FsMethod
 from shared.data import adult, load_dataset
 from shared.models.configs import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import (
@@ -50,48 +49,6 @@ from suds.optimisation.utils import build_weighted_sampler_from_dataset
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
-class Method(Enum):
-    erm = auto()
-    dro = auto()
-    gdro = auto()
-    lff = auto()
-    domind = auto()
-
-
-class ContextMode(Enum):
-    ground_truth = auto()
-    cluster_labels = auto()
-    unlabelled = auto()
-    propagate = auto()
-
-
-@dataclass
-class FsArgs:
-    _target_: str = "run_fs.FsArgs"
-
-    # General data set settings
-    greyscale: bool = False
-    context_mode: ContextMode = ContextMode.unlabelled
-
-    # Optimization settings
-    epochs: int = 60
-    test_batch_size: int = 1000
-    batch_size: int = 100
-    lr: float = 1e-3
-    weight_decay: float = 0
-    eta: float = 0.5
-    c: float = 0.0
-
-    # Misc settings
-    method: Method = Method.erm
-    oversample: bool = True
-
-
-@dataclass
-class FsConfig(BaseConfig):
-    fs_args: FsArgs = MISSING
-
-
 class RelabelingDataset(Dataset):
     def __init__(self, dataset: Dataset, s: Tensor, y: Tensor) -> None:
         super().__init__()
@@ -106,7 +63,7 @@ class RelabelingDataset(Dataset):
         return len(self.dataset)  # type: ignore
 
 
-def run(cfg: FsConfig) -> None:
+def run(cfg: Config) -> None:
     cfg_dict = {}
     for name, settings in [
         ("bias", cfg.bias),
@@ -191,17 +148,17 @@ def run(cfg: FsConfig) -> None:
 
     classifier_out_dim = max(target_dim, 2)
     classifier_kwargs = {}
-    if args.method is Method.lff:
+    if args.method is FsMethod.lff:
         classifier_cls = LfF
-    elif args.method is Method.domind:
+    elif args.method is FsMethod.domind:
         classifier_cls = DomainIndependentClassifier
         classifier_kwargs["num_domains"] = s_count
         target_dim *= s_count
-    elif args.method is Method.gdro:
+    elif args.method is FsMethod.gdro:
         classifier_cls = GDRO
         classifier_kwargs["c_param"] = args.c
     else:
-        if args.method is Method.dro:
+        if args.method is FsMethod.dro:
             criterion = implementations.dro_modules.DROLoss(nn.CrossEntropyLoss, eta=args.eta)
         else:
             criterion = "ce"
@@ -292,7 +249,7 @@ def run(cfg: FsConfig) -> None:
     elif isinstance(cfg.data, IsicConfig):
         full_name += f"_{str(cfg.data.isic_sens_attr.name)}"
         full_name += f"_{cfg.data.isic_target_attr.name}"
-    if args.method is Method.dro:
+    if args.method is FsMethod.dro:
         full_name += f"_eta_{args.eta}"
     full_name += f"_{str(args.epochs)}epochs.csv"
 
@@ -306,7 +263,7 @@ def run(cfg: FsConfig) -> None:
         s_dim=datasets.s_dim,
         use_wandb=True,
     )
-    if args.method == Method.dro:
+    if args.method == FsMethod.dro:
         metrics.update({"eta": args.eta})
     if cfg.misc.save_dir:
         cfg_dict["misc.log_method"] = f"baseline_{args.method.name}"
@@ -324,13 +281,13 @@ def run(cfg: FsConfig) -> None:
 
 
 cs = ConfigStore.instance()
-cs.store(name="baseline_schema", node=FsConfig)
+cs.store(name="baseline_schema", node=Config)
 register_configs()
 
 
 @hydra.main(config_path="conf", config_name="baselines")
 def main(hydra_config: DictConfig) -> None:
-    cfg = FsConfig.from_hydra(hydra_config)
+    cfg = Config.from_hydra(hydra_config)
     run(cfg=cfg)
 
 
