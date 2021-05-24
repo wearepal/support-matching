@@ -281,7 +281,7 @@ def run(cfg: Config) -> None:
 
 
 cs = ConfigStore.instance()
-cs.store(name="config", node=Config)
+cs.store(name="config_schema", node=Config)
 register_configs()
 
 
