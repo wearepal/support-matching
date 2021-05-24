@@ -32,8 +32,8 @@ from .enums import (
 )
 
 __all__ = [
+    "AdaptConfig",
     "AdultConfig",
-    "AdvConfig",
     "BaseConfig",
     "BiasConfig",
     "CelebaConfig",
@@ -42,6 +42,7 @@ __all__ = [
     "Config",
     "DatasetConfig",
     "EncoderConfig",
+    "FsConfig",
     "ImageDatasetConfig",
     "IsicConfig",
     "MiscConfig",
@@ -284,7 +285,7 @@ class EncoderConfig:
 class AdaptConfig:
     """Flags for disentangling."""
 
-    _target_: str = "shared.configs.AdvConfig"
+    _target_: str = "shared.configs.AdaptConfig"
 
     method: AdaptationMethod = AdaptationMethod.suds
     mixup: bool = False
