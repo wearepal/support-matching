@@ -2,14 +2,13 @@
 from __future__ import annotations
 from abc import abstractmethod
 from collections import defaultdict
-from shared.utils.utils import get_joint_probability
 from typing import Optional, cast
 
 from torch import Tensor
 import torch.nn as nn
 
 from shared.configs import ClusteringLabel
-from shared.utils import get_class_id
+from shared.utils import get_class_id, get_joint_probability
 
 from .base import Encoder
 from .classifier import Classifier
