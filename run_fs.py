@@ -89,7 +89,9 @@ def run(cfg: Config) -> None:
     # Set up wandb logging
     run = None
     if cfg.misc.use_wandb:
-        group = f"{cfg.data.log_name}.{str(args.method.name)}"
+        group = (
+            f"{cfg.data.log_name}.{str(args.method.name)}.context_mode={cfg.fs_args.context_mode}"
+        )
         if cfg.misc.log_method:
             group += cfg.misc.log_method
         if cfg.misc.exp_group:
@@ -251,7 +253,8 @@ def run(cfg: Config) -> None:
         full_name += f"_{cfg.data.isic_target_attr.name}"
     if args.method is FsMethod.dro:
         full_name += f"_eta_{args.eta}"
-    full_name += f"_{str(args.epochs)}epochs.csv"
+    full_name += f"_context_mode={args.context_mode}"
+    full_name += f"_epochs={str(args.epochs)}.csv"
 
     # Compute accuracy + fairness metrics using EthicML
     metrics = compute_metrics(
