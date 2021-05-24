@@ -66,7 +66,7 @@ def classify_dataset(
             x = x.to(device, non_blocking=True)
             all_s.append(s)
             all_y.append(y)
-            logits = model(x)
+            logits, _ = model(x)
             preds = logits.argmax(dim=-1).detach().cpu()
             cluster_ids.append(preds)
 
