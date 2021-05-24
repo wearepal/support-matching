@@ -1,3 +1,5 @@
 method: gdro
 epochs: 60
-c: 1.0
+alpha: 1.0
+normalize_loss: false
+gamma: 0.1
