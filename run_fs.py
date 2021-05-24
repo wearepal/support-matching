@@ -87,9 +87,7 @@ def run(cfg: Config) -> None:
     LOGGER.info(f"Running on {device}")
 
     # Set up wandb logging
-    group = (
-        f"{cfg.data.log_name}.{str(args.method.name)}.context_mode={cfg.fs_args.context_mode}"
-    )
+    group = f"{cfg.data.log_name}.{str(args.method.name)}.context_mode={cfg.fs_args.context_mode}"
     if cfg.misc.log_method:
         group += cfg.misc.log_method
     if cfg.misc.exp_group:
