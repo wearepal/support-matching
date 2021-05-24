@@ -184,7 +184,7 @@ def run(cfg: Config) -> None:
     elif args.context_mode is ContextMode.cluster_labels and cfg.misc.cluster_label_file:
         LOGGER.info("Using cluster labels as pseudo-labels for context set.")
         cluster_results = load_results(cfg)
-        subgroup_ids = cluster_results.class_ids
+        subgroup_ids = cluster_results.cluster_ids
         _, s_tr, y_tr = train_data[0]
         y = class_id_to_label(subgroup_ids, s_count=s_count, label="y").view(-1, *s_tr.shape)
         s = class_id_to_label(subgroup_ids, s_count=s_count, label="s").view(-1, *y_tr.shape)
