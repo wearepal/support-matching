@@ -1,6 +1,5 @@
 from __future__ import annotations
 import logging
-from shared.configs.enums import WandbMode
 from typing import Dict, NamedTuple, Optional, Sequence, Tuple
 from typing_extensions import Literal
 
@@ -23,6 +22,7 @@ from shared.configs import (
     EvalTrainData,
     ImageDatasetConfig,
     IsicConfig,
+    WandbMode,
 )
 from shared.data import DatasetTriplet, TensorDataTupleDataset, adult, get_data_tuples
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net

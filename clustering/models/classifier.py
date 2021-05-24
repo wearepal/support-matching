@@ -176,7 +176,8 @@ class Classifier(ModelBase):
                 loss, acc = self.routine(x, target)
                 loss.backward()
                 self.optimizer.step()
-                wandb.log({"loss": loss.item()}, step=step)
+                if use_wandb:  # we only want to log here if this is running standalone
+                    wandb.log({"loss": loss.item()}, step=step)
                 pbar.set_postfix(epoch=epoch + 1, train_loss=loss.item(), train_acc=acc)
 
             if test_data is not None:
