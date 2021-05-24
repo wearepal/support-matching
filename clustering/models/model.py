@@ -8,7 +8,7 @@ from torch import Tensor
 import torch.nn as nn
 
 from shared.configs import ClusteringLabel
-from shared.utils import get_class_id
+from shared.utils import get_class_id, get_joint_probability
 
 from .base import Encoder
 from .classifier import Classifier
@@ -187,6 +187,5 @@ class FactorizedModel(BaseModel):
         s_logits = self.classifier["s"](z)
         y_probs = y_logits.softmax(dim=-1)
         s_probs = s_logits.softmax(dim=-1)
-        # take the outer product of s_probs and y_probs
-        joint = (s_probs.unsqueeze(-1) * y_probs.unsqueeze(-2)).flatten(start_dim=-2)
+        joint = get_joint_probability(s_probs=s_probs, y_probs=y_probs)
         return joint, s_logits, y_logits, z

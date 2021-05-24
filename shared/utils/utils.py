@@ -30,6 +30,7 @@ __all__ = [
     "flatten_dict",
     "get_class_id",
     "get_data_dim",
+    "get_joint_probability",
     "inf_generator",
     "label_to_class_id",
     "lcm",
@@ -263,3 +264,12 @@ def get_class_id(*, s: Tensor, y: Tensor, s_count: int, to_cluster: ClusteringLa
     else:
         class_id = label_to_class_id(s=s, y=y, s_count=s_count)
     return class_id.view(-1)
+
+
+def get_joint_probability(*, s_probs: Tensor, y_probs: Tensor) -> Tensor:
+    """Given probabilities for s and y, return the joint probability.
+
+    This function has been tested to be compatible with get_class_id() above.
+    """
+    # take the outer product of s_probs and y_probs
+    return (s_probs.unsqueeze(-2) * y_probs.unsqueeze(-1)).flatten(start_dim=-2)
