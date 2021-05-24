@@ -67,7 +67,7 @@ def run(cfg: Config) -> None:
     cfg_dict = {}
     for name, settings in [
         ("bias", cfg.bias),
-        ("baseline", cfg.fs_args),
+        ("fs_args", cfg.fs_args),
         ("data", cfg.data),
         ("misc", cfg.misc),
     ]:
@@ -281,11 +281,11 @@ def run(cfg: Config) -> None:
 
 
 cs = ConfigStore.instance()
-cs.store(name="baseline_schema", node=Config)
+cs.store(name="config", node=Config)
 register_configs()
 
 
-@hydra.main(config_path="conf", config_name="baselines")
+@hydra.main(config_path="conf", config_name="config")
 def main(hydra_config: DictConfig) -> None:
     cfg = Config.from_hydra(hydra_config)
     run(cfg=cfg)

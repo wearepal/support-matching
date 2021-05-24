@@ -6,5 +6,6 @@ defaults:
     - enc: mnist
     - adapt: cmnist/fallen_sun
     - misc: default
+    - fs_args: erm
     # hydra config
     - override hydra/job_logging: custom
