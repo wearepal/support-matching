@@ -291,6 +291,8 @@ class GDRO(Classifier):
                 inputs, group_idx, targets = self.to_device(
                     inputs, group_idx, targets, device=device
                 )
+                group_idx.squeeze_()
+                targets.squeeze_()
 
                 self.optimizer.zero_grad()
                 loss, _ = self.routine(data=inputs, targets=targets, group_idx=group_idx)
@@ -307,8 +309,8 @@ class GDRO(Classifier):
                         inputs, group_idx, targets = self.to_device(
                             inputs, group_idx, targets, device=device
                         )
-                        inputs = inputs.to(device)
-                        targets = targets.to(device)
+                        group_idx.squeeze_()
+                        targets.squeeze_()
 
                         loss, acc = self.routine(inputs, targets, group_idx=group_idx)
                         sum_test_acc += acc * targets.size(0)
