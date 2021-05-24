@@ -28,6 +28,7 @@ from .enums import (
     QuantizationLevel,
     ReconstructionLoss,
     VaeStd,
+    WandbMode,
     ZsTransform,
 )
 
@@ -167,7 +168,7 @@ class MiscConfig:
     # General settings
     exp_group: str = ""  # experiment group; should be unique for a specific setting
     log_method: str = ""  # arbitrary string that's appended to the experiment group name
-    use_wandb: bool = True
+    wandb: WandbMode = WandbMode.online
     save_dir: str = "experiments/finn"
     results_csv: str = ""  # name of CSV file to save results to
     resume: Optional[str] = None

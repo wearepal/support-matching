@@ -10,7 +10,7 @@ import wandb
 
 from shared.configs import BaseConfig
 
-from .utils import as_pretty_dict, flatten_dict, wandb_log
+from .utils import as_pretty_dict, flatten_dict
 
 __all__ = ["compute_metrics", "make_tuple_from_data", "print_metrics", "write_results_to_csv"]
 
@@ -77,7 +77,7 @@ def compute_metrics(
         metrics = {f"{exp_name}/{k}": v for k, v in metrics.items()}
 
     if use_wandb:
-        wandb_log(cfg.misc, metrics, step=step)
+        wandb.log(metrics, step=step)
 
         if save_summary:
             external = additional_entries or {}

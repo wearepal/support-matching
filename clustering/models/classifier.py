@@ -8,9 +8,9 @@ from torch import Tensor
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader, Dataset
 from tqdm import trange
+import wandb
 
 from clustering.models.base import ModelBase
-from shared.utils import wandb_log
 
 __all__ = ["Classifier", "Regressor"]
 
@@ -176,7 +176,8 @@ class Classifier(ModelBase):
                 loss, acc = self.routine(x, target)
                 loss.backward()
                 self.optimizer.step()
-                wandb_log(use_wandb, {"loss": loss.item()}, step=step)
+                if use_wandb:  # we only want to log here if this is running standalone
+                    wandb.log({"loss": loss.item()}, step=step)
                 pbar.set_postfix(epoch=epoch + 1, train_loss=loss.item(), train_acc=acc)
 
             if test_data is not None:

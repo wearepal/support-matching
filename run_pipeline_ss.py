@@ -18,6 +18,9 @@ def app(hydra_config: DictConfig) -> None:
     """First run the clustering, then pass on the cluster labels to the fair representation code."""
     cfg = Config.from_hydra(hydra_config=hydra_config)
 
+    # this might be needed for running with ray:
+    # os.environ["WANDB_START_METHOD"] = "thread"
+
     with TemporaryDirectory() as tmpdir:
         clf = str(Path(tmpdir) / "labels.pth")
         cfg.misc.cluster_label_file = clf

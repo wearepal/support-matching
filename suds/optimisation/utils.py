@@ -15,7 +15,7 @@ from torch.utils.data.dataset import ConcatDataset, Subset
 from shared.configs import CelebaConfig, Config, IsicConfig, ReconstructionLoss
 from shared.data.dataset_wrappers import DataTupleDataset, TensorDataTupleDataset
 from shared.data.isic import IsicDataset
-from shared.utils import StratifiedSampler, as_pretty_dict, flatten_dict, wandb_log
+from shared.utils import StratifiedSampler, as_pretty_dict, flatten_dict
 from shared.utils.utils import class_id_to_label, label_to_class_id, lcm
 
 __all__ = [
@@ -71,7 +71,7 @@ def log_images(
     shw = [
         wandb.Image(torchvision.transforms.functional.to_pil_image(i), caption=caption) for i in shw
     ]
-    wandb_log(cfg.misc, {prefix + name: shw}, step=step)
+    wandb.log({prefix + name: shw}, step=step)
 
 
 def log_attention(
@@ -112,7 +112,7 @@ def log_attention(
         wandb.Image(torchvision.transforms.functional.to_pil_image(image), caption=f"bag_{i}")
         for i, image in enumerate(shw)
     ]
-    wandb_log(cfg.misc, {prefix + name: shw}, step=step)
+    wandb.log({prefix + name: shw}, step=step)
 
 
 def save_model(cfg: Config, save_dir: Path, model: nn.Module, itr: int, best: bool = False) -> Path:

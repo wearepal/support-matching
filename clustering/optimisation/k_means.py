@@ -7,17 +7,11 @@ import numpy as np
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
+import wandb
 
 from clustering.models import Encoder
 from shared.configs import Config
-from shared.utils import (
-    ClusterResults,
-    as_pretty_dict,
-    flatten_dict,
-    get_class_id,
-    print_metrics,
-    wandb_log,
-)
+from shared.utils import ClusterResults, as_pretty_dict, flatten_dict, get_class_id, print_metrics
 
 from .evaluation import encode_dataset
 from .utils import cluster_metrics, count_occurances
@@ -63,7 +57,7 @@ def train(
         f"{k}: {v:.5g}" if isinstance(v, float) else f"{k}: {v}" for k, v in logging_dict.items()
     )
     LOGGER.info(" | ".join(prepared))
-    wandb_log(cfg.misc, logging_dict, step=0)
+    wandb.log(logging_dict, step=0)
     LOGGER.info("Context metrics:")
     print_metrics({f"Context {k}": v for k, v in context_metrics.items()})
     return ClusterResults(

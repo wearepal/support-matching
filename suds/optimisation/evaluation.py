@@ -22,6 +22,7 @@ from shared.configs import (
     EvalTrainData,
     ImageDatasetConfig,
     IsicConfig,
+    WandbMode,
 )
 from shared.data import DatasetTriplet, TensorDataTupleDataset, adult, get_data_tuples
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
@@ -279,7 +280,7 @@ def evaluate(
         step=step,
         s_dim=s_dim,
         save_summary=save_summary,
-        use_wandb=cfg.misc.use_wandb,
+        use_wandb=cfg.misc.wandb is not WandbMode.disabled,
         additional_entries=additional_entries,
     )
     if isinstance(cfg.data, AdultConfig):
@@ -299,7 +300,7 @@ def evaluate(
                 s_dim=s_dim,
                 step=step,
                 save_summary=save_summary,
-                use_wandb=cfg.misc.use_wandb,
+                use_wandb=cfg.misc.wandb is not WandbMode.disabled,
                 additional_entries=additional_entries,
             )
 

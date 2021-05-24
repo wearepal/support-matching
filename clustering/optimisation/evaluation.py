@@ -6,7 +6,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import tqdm
 
-from clustering.models import Encoder, JointModel
+from clustering.models import BaseModel, Encoder
 from shared.configs import Config
 
 __all__ = ["classify_dataset", "encode_dataset"]
@@ -47,9 +47,7 @@ def encode_dataset(
     return encoded_dataset
 
 
-def classify_dataset(
-    cfg: Config, model: JointModel, data: Dataset
-) -> Tuple[Tensor, Tensor, Tensor]:
+def classify_dataset(cfg: Config, model: BaseModel, data: Dataset) -> Tuple[Tensor, Tensor, Tensor]:
     """Determine the class of every sample in the given dataset and save them to a file."""
     model.eval()
     cluster_ids: List[Tensor] = []
