@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+from shared.configs.enums import WandbMode
 from typing import Dict, NamedTuple, Optional, Sequence, Tuple
 from typing_extensions import Literal
 
@@ -279,7 +280,7 @@ def evaluate(
         step=step,
         s_dim=s_dim,
         save_summary=save_summary,
-        use_wandb=cfg.misc.use_wandb,
+        use_wandb=cfg.misc.wandb is not WandbMode.disabled,
         additional_entries=additional_entries,
     )
     if isinstance(cfg.data, AdultConfig):
@@ -299,7 +300,7 @@ def evaluate(
                 s_dim=s_dim,
                 step=step,
                 save_summary=save_summary,
-                use_wandb=cfg.misc.use_wandb,
+                use_wandb=cfg.misc.wandb is not WandbMode.disabled,
                 additional_entries=additional_entries,
             )
 

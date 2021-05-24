@@ -15,6 +15,7 @@ from torch.cuda.amp.grad_scaler import GradScaler
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+import wandb
 
 from shared.configs import (
     Config,
@@ -27,13 +28,7 @@ from shared.data import DatasetTriplet
 from shared.data.misc import RandomSampler
 from shared.data.utils import Batch
 from shared.models.configs import FcNet, conv_autoencoder, fc_autoencoder
-from shared.utils import (
-    AverageMeter,
-    inf_generator,
-    load_results,
-    readable_duration,
-    wandb_log,
-)
+from shared.utils import AverageMeter, inf_generator, load_results, readable_duration
 from shared.utils.loadsave import ClusterResults
 from suds.models import AutoEncoder, Classifier, EncodingSize, build_classifier
 from suds.models.base import EncodingSize
@@ -223,7 +218,7 @@ class AdvSemiSupervisedAlg(AlgBase):
         x_ctx = self._sample_context(context_data_itr=context_data_itr)
         _, logging_dict = self._step_encoder(x_ctx=x_ctx, batch_tr=batch_tr, warmup=warmup)
 
-        wandb_log(self.misc_cfg, logging_dict, step=itr)
+        wandb.log(logging_dict, step=itr)
 
         # Log images
         if itr % self.adapt_cfg.log_freq == 0 and isinstance(self.data_cfg, ImageDatasetConfig):

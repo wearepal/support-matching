@@ -87,28 +87,27 @@ def run(cfg: Config) -> None:
     LOGGER.info(f"Running on {device}")
 
     # Set up wandb logging
-    run = None
-    if cfg.misc.use_wandb:
-        group = (
-            f"{cfg.data.log_name}.{str(args.method.name)}.context_mode={cfg.fs_args.context_mode}"
-        )
-        if cfg.misc.log_method:
-            group += cfg.misc.log_method
-        if cfg.misc.exp_group:
-            group += "." + cfg.misc.exp_group
-        if cfg.bias.log_dataset:
-            group += "." + cfg.bias.log_dataset
-        local_dir = Path(".", "local_logging")
-        local_dir.mkdir(exist_ok=True)
-        run = wandb.init(
-            entity="predictive-analytics-lab",
-            project="suds",
-            dir=str(local_dir),
-            config=flatten_dict(as_pretty_dict(cfg)),
-            group=group if group else None,
-            reinit=True,
-        )
-        run.__enter__()  # call the context manager dunders manually to avoid excessive indentation
+    group = (
+        f"{cfg.data.log_name}.{str(args.method.name)}.context_mode={cfg.fs_args.context_mode}"
+    )
+    if cfg.misc.log_method:
+        group += cfg.misc.log_method
+    if cfg.misc.exp_group:
+        group += "." + cfg.misc.exp_group
+    if cfg.bias.log_dataset:
+        group += "." + cfg.bias.log_dataset
+    local_dir = Path(".", "local_logging")
+    local_dir.mkdir(exist_ok=True)
+    run = wandb.init(
+        entity="predictive-analytics-lab",
+        project="suds",
+        dir=str(local_dir),
+        config=flatten_dict(as_pretty_dict(cfg)),
+        group=group if group else None,
+        reinit=True,
+        mode=cfg.misc.wandb.name,
+    )
+    run.__enter__()  # call the context manager dunders manually to avoid excessive indentation
 
     #  Load the datasets and wrap with dataloaders
     datasets = load_dataset(cfg)
@@ -280,8 +279,7 @@ def run(cfg: Config) -> None:
             csv_dir=Path(to_absolute_path(cfg.misc.save_dir)),
             csv_file=f"{cfg.data.log_name}_{full_name}",
         )
-    if run is not None:
-        run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
+    run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
 
 
 cs = ConfigStore.instance()

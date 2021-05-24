@@ -59,7 +59,6 @@ from shared.utils import (
     random_seed,
     readable_duration,
     save_results,
-    wandb_log,
 )
 
 from .build import build_ae
@@ -136,7 +135,7 @@ class Experiment(ExperimentBase):
             time_for_batch = time.time() - end
             time_meter.update(time_for_batch)
 
-            wandb_log(self.misc_cfg, logging_dict, step=itr)
+            wandb.log(logging_dict, step=itr)
             end = time.time()
 
         time_for_epoch = time.time() - start_epoch_time
@@ -263,26 +262,25 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     if cluster_label_file is not None:
         misc.cluster_label_file = str(cluster_label_file)
 
-    run = None
-    if misc.use_wandb:
-        group = ""
-        if misc.log_method:
-            group += misc.log_method
-        if misc.exp_group:
-            group += "." + misc.exp_group
-        if cfg.bias.log_dataset:
-            group += "." + cfg.bias.log_dataset
-        local_dir = Path(".", "local_logging")
-        local_dir.mkdir(exist_ok=True)
-        run = wandb.init(
-            entity="predictive-analytics-lab",
-            project="fcm-hydra",
-            dir=str(local_dir),
-            config=flatten_dict(as_pretty_dict(cfg)),
-            group=group if group else None,
-            reinit=True,
-        )
-        run.__enter__()  # call the context manager dunders manually to avoid excessive indentation
+    group = ""
+    if misc.log_method:
+        group += misc.log_method
+    if misc.exp_group:
+        group += "." + misc.exp_group
+    if cfg.bias.log_dataset:
+        group += "." + cfg.bias.log_dataset
+    local_dir = Path(".", "local_logging")
+    local_dir.mkdir(exist_ok=True)
+    run = wandb.init(
+        entity="predictive-analytics-lab",
+        project="fcm-hydra",
+        dir=str(local_dir),
+        config=flatten_dict(as_pretty_dict(cfg)),
+        group=group if group else None,
+        reinit=True,
+        mode=misc.wandb.name,
+    )
+    run.__enter__()  # call the context manager dunders manually to avoid excessive indentation
 
     save_dir = Path(to_absolute_path(misc.save_dir)) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -426,8 +424,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         LOGGER.info(f"To make use of this encoder:\n--enc-path {enc_path}")
         if args.enc_wandb:
             LOGGER.info("Stopping here because W&B will be messed up...")
-            if run is not None:
-                run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
+            run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
             return
 
     cluster_label_path = get_cluster_label_path(misc, save_dir)
@@ -436,8 +433,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
             cfg, encoder, datasets.context, num_clusters, s_count, y_count, enc_path=enc_path
         )
         save_results(save_path=cluster_label_path, cluster_results=kmeans_results)
-        if run is not None:
-            run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
+        run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
         return
     if args.finetune_encoder:
         encoder.freeze_initial_layers(
@@ -527,8 +523,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
                 enc_path=enc_path,
                 context_metrics={},  # TODO: compute this
             )
-            if run is not None:
-                run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
+            run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
             return model, pth_path
 
     # Logging
@@ -570,7 +565,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
                     n_vals_without_improvement,
                 )
             )
-            wandb_log(misc, val_log, step=itr)
+            wandb.log(val_log, step=itr)
         # if args.super_val and epoch % super_val_freq == 0:
         #     log_metrics(args, model=model.bundle, data=datasets, step=itr)
         #     save_model(args, save_dir, model=model.bundle, epoch=epoch, sha=sha)
@@ -591,5 +586,4 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         context_metrics=context_metrics,
         test_metrics=test_metrics,
     )
-    if run is not None:
-        run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
+    run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process

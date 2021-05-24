@@ -46,8 +46,6 @@ class AlgBase(nn.Module):
 
         random_seed(self.misc_cfg.seed, self.misc_cfg.use_gpu)
 
-        if not self.misc_cfg.use_wandb:
-            os.environ["WANDB_MODE"] = "dryrun"
         group = f"{self.data_cfg.log_name}.{self.__class__.__name__}"
         if self.misc_cfg.log_method:
             group += "." + self.misc_cfg.log_method
@@ -64,6 +62,7 @@ class AlgBase(nn.Module):
             config=flatten_dict(as_pretty_dict(self.cfg)),
             group=group if group else None,
             reinit=True,
+            mode=self.misc_cfg.wandb.name,
         )
 
         LOGGER.info(

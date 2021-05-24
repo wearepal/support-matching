@@ -15,7 +15,6 @@ from omegaconf import OmegaConf
 import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
-import wandb
 
 from shared.configs import ClusteringLabel, Config, DatasetConfig, MiscConfig
 
@@ -38,7 +37,6 @@ __all__ = [
     "random_seed",
     "readable_duration",
     "save_checkpoint",
-    "wandb_log",
 ]
 
 T = TypeVar("T")
@@ -88,18 +86,6 @@ def class_id_to_label(class_id: Int, s_count: int, label: Literal["s", "y"]) -> 
         return class_id % s_count
     else:
         return class_id // s_count
-
-
-def wandb_log(
-    args: bool | MiscConfig, row: dict[str, Any], step: int, commit: bool | None = None
-) -> None:
-    """Wrapper around wandb's log function"""
-    if isinstance(args, bool):
-        if not args:  # this has to be nested in order to make sure `args` is not bool in `elif`
-            return
-    elif not args.use_wandb:
-        return
-    wandb.log(row, commit=commit, step=step)
 
 
 class AverageMeter:

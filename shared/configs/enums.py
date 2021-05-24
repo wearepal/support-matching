@@ -17,6 +17,7 @@ __all__ = [
     "QuantizationLevel",
     "ReconstructionLoss",
     "VaeStd",
+    "WandbMode",
     "ZsTransform",
 ]
 
@@ -210,3 +211,11 @@ class ContextMode(Enum):
     cluster_labels = auto()
     unlabelled = auto()
     propagate = auto()
+
+
+class WandbMode(Enum):
+    """Make W&B either log online, offline or not at all."""
+
+    online = auto()
+    offline = auto()
+    disabled = auto()

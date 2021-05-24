@@ -3,10 +3,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+import wandb
 
 from shared.configs import MiscConfig
-
-from .utils import wandb_log
 
 __all__ = ["plot_contrastive", "plot_histogram"]
 
@@ -68,4 +67,4 @@ def plot_histogram(
         f"{prefix}_xi_nans": float(bool(np.isnan(vector_np).any())),
         f"{prefix}_xi_tensor": vector,
     }
-    wandb_log(misc, log_dict, step=step)
+    wandb.log(log_dict, step=step)

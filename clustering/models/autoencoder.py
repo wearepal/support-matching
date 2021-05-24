@@ -9,9 +9,10 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import wandb
 
 from shared.configs import VaeStd
-from shared.utils import print_metrics, to_discrete, wandb_log
+from shared.utils import print_metrics, to_discrete
 
 from .base import Encoder, ModelBase
 
@@ -104,7 +105,7 @@ class AutoEncoder(Encoder):
                     if use_wandb:
                         step += 1
                         logging_dict.update({"Total Loss": enc_loss})
-                        wandb_log(True, logging_dict, step)
+                        wandb.log(logging_dict, step)
                 # enc_sched.step()
                 # dec_sched.step()
         LOGGER.info("Final result from encoder training:")
