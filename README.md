@@ -29,7 +29,7 @@ bash scripts/compare.sh data=adult/gender bias=adult/partial_outcome enc=adult a
 For the "no-cluster" baseline, the bag size needs to be changed:
 
 ```
-python run_dis.py adv.balanced_context=false misc.log_method=no-cluster-adv data=adult/gender bias=adult/partial_outcome enc=adult adv=adult/on_enc_with_bags clust=adult adv.bag_size=32 adv.batch_size=16
+python run_dis.py adv.balanced_context=false misc.log_method=no-cluster-fdm data=adult/gender bias=adult/partial_outcome enc=adult adv=adult/on_enc_with_bags clust=adult adv.bag_size=32 adv.batch_size=16
 ```
 
 ### Missing subgroup
@@ -41,7 +41,7 @@ bash scripts/compare.sh data=adult/gender bias=adult/missing_demo enc=adult adv=
 For the "no-cluster" baseline, the bag size needs to be changed:
 
 ```
-python run_dis.py adv.balanced_context=false misc.log_method=no-cluster-adv data=adult/gender bias=adult/missing_demo enc=adult adv=adult/on_enc_with_bags clust=adult adv.bag_size=32 adv.batch_size=16
+python run_dis.py adv.balanced_context=false misc.log_method=no-cluster-fdm data=adult/gender bias=adult/missing_demo enc=adult adv=adult/on_enc_with_bags clust=adult adv.bag_size=32 adv.batch_size=16
 ```
 
 ## Colored MNIST

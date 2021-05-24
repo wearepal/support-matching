@@ -111,7 +111,7 @@ class AdvSemiSupervisedAlg(AlgBase):
                 variational=self.adapt_cfg.vae,
             )
 
-        zs_dim = self.enc_cfg.zs_dim
+        zs_dim = self.adapt_cfg.zs_dim
         zy_dim = latent_dim - zs_dim
         self._encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim)
 
@@ -299,7 +299,7 @@ class AdvSemiSupervisedAlg(AlgBase):
                 batch_size=self.adapt_cfg.batch_size,
                 min_size=None if self.adapt_cfg.oversample else self.eff_batch_size,
             )
-            if self.enc_cfg.use_pretrained_enc:
+            if self.adapt_cfg.use_pretrained_enc:
                 self.enc_cfg.checkpoint_path = str(cluster_results.enc_path)
         elif self.adapt_cfg.balanced_context:
             context_sampler = build_weighted_sampler_from_dataset(

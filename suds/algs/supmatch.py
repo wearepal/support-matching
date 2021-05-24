@@ -142,7 +142,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
             # ============================= recon loss for context set ============================
             encoding_c, enc_loss_ctx, logging_dict_ctx = self.encoder.routine(
-                x_ctx, self.recon_loss_fn, self.enc_cfg.prior_loss_w
+                x_ctx, self.recon_loss_fn, self.adapt_cfg.prior_loss_w
             )
             logging_dict.update({k: v + logging_dict_ctx[k] for k, v in logging_dict_tr.items()})
             enc_loss_tr = 0.5 * (enc_loss_tr + enc_loss_ctx)  # take average of the two recon losses

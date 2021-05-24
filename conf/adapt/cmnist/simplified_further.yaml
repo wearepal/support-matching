@@ -1,7 +1,6 @@
 aggregator_type: gated
 batch_size: 64
 bag_size: 4
-num_discs: 1
 
 double_adv_loss: true
 aggregator_hidden_dims:
@@ -19,6 +18,7 @@ eval_on_recon: false
 feat_attr: false
 gamma: 1.0
 iters: 5000
+prior_loss_w: 0.01
 log_freq: 150
 lr: 0.0003
 oversample: true
@@ -32,3 +32,4 @@ vae: false
 vgg_weight: 0
 warmup_steps: 0
 weight_decay: 0
+zs_dim: 1

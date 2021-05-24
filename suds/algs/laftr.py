@@ -98,13 +98,13 @@ class LAFTR(AdvSemiSupervisedAlg):
             if self.adapt_cfg.mixup:
                 x = self.mixup(batch_tr.x, x_ctx)
                 encoding_tr, enc_loss, logging_dict_enc = self.encoder.routine(
-                    x, self.recon_loss_fn, self.enc_cfg.prior_loss_w
+                    x, self.recon_loss_fn, self.adapt_cfg.prior_loss_w
                 )
             else:
                 # Concatenate the xs so only one forward pass of the autoencoder is required
                 x = torch.cat([batch_tr.x, x_ctx], dim=0)
                 encoding, enc_loss, logging_dict_enc = self.encoder.routine(
-                    x, self.recon_loss_fn, self.enc_cfg.prior_loss_w
+                    x, self.recon_loss_fn, self.adapt_cfg.prior_loss_w
                 )
                 n_tr = batch_tr.x.size(0)
                 # Only the training data is labellled and can be used for computing the adversarial
