@@ -407,7 +407,12 @@ class FsConfig:
     lr: float = 1e-3
     weight_decay: float = 0
     eta: float = 0.5
-    c: float = 0.0
+
+    # gDRO-specific arguments
+    alpha: float = 1.0
+    normalize_loss: bool = False
+    gamma: float = 0.1
+    generalization_adjustment: Optional[List[float]] = None
 
     # Misc settings
     method: FsMethod = FsMethod.erm
