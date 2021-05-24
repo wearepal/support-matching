@@ -1,6 +1,6 @@
 from __future__ import annotations
 import logging
-from typing import Any, Callable, cast
+from typing import Any, Callable
 
 import numpy as np
 import torch
@@ -128,7 +128,7 @@ class LossComputer(nn.Module):
     def compute_group_avg(self, losses: Tensor, group_idx: Tensor) -> tuple[Tensor, Tensor]:
         # compute observed counts and mean loss for each group
         group_map = (
-            group_idx == torch.arange(self.n_groups, device=losses.device).unsqueeze(1).long()
+            group_idx == torch.arange(self.n_groups, device=group_idx.device).unsqueeze(1).long()
         ).float()
         group_count = group_map.sum(1)
         group_denom = group_count + (group_count == 0).float()  # avoid nans
