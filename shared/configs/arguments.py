@@ -393,7 +393,7 @@ class BaseConfig:
 class FsConfig:
     """Arguments for models run via the run_fs script."""
 
-    _target_: str = "run_fs.FsArgs"
+    _target_: str = "shared.configs.FsConfig"
 
     # General data set settings
     greyscale: bool = False
