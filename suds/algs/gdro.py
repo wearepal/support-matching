@@ -288,7 +288,7 @@ class GDRO(Classifier):
             self.model.train()
 
             for inputs, group_idx, targets in train_data:
-                inputs, targets, group_idx = self.to_device(
+                inputs, group_idx, targets = self.to_device(
                     inputs, group_idx, targets, device=device
                 )
 
@@ -304,6 +304,9 @@ class GDRO(Classifier):
 
                 with torch.set_grad_enabled(False):
                     for inputs, group_idx, targets in test_data:
+                        inputs, group_idx, targets = self.to_device(
+                            inputs, group_idx, targets, device=device
+                        )
                         inputs = inputs.to(device)
                         targets = targets.to(device)
 
