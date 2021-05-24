@@ -282,7 +282,6 @@ class GDRO(Classifier):
                     pin_memory=train_data.pin_memory,
                     num_workers=train_data.num_workers,
                 )
-        self.loss_computer.reset_stats()
         LOGGER.info("Training classifier...")
         pbar = trange(epochs)
         for epoch in pbar:
