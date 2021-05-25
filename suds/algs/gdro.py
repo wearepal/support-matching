@@ -340,7 +340,7 @@ class GDRO(Classifier):
             Tuple of classification loss (Tensor) and accuracy (float)
         """
 
-        yhat = self.model(data).view(-1)
+        yhat = self.model(data).squeeze(1)
         loss = self.loss_computer(yhat=yhat, y=targets, group_idx=group_idx)
         acc = self.compute_accuracy(yhat, targets)
 
