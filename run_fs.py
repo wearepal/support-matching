@@ -91,7 +91,7 @@ def run(cfg: Config) -> None:
 
     # Set up wandb logging
     group = (
-        f"{cfg.data.log_name}.{str(args.method.name)}.context_mode_{cfg.fs_args.context_mode.value}"
+        f"{cfg.data.log_name}.{str(args.method.name)}.context_mode_{cfg.fs_args.context_mode.name}"
     )
     if cfg.misc.log_method:
         group += "." + cfg.misc.log_method
