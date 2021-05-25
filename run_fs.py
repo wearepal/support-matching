@@ -40,11 +40,14 @@ from shared.utils import (
     write_results_to_csv,
 )
 from shared.utils.loadsave import load_results
-from shared.utils.utils import class_id_to_label
+from shared.utils.utils import class_id_to_label, label_to_class_id
 from suds.algs import GDRO, LfF
 from suds.algs.domain_independent import DomainIndependentClassifier
 from suds.models import Classifier
-from suds.optimisation.utils import build_weighted_sampler_from_dataset
+from suds.optimisation.utils import (
+    build_weighted_sampler_from_dataset,
+    extract_labels_from_dataset,
+)
 
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
@@ -87,9 +90,11 @@ def run(cfg: Config) -> None:
     LOGGER.info(f"Running on {device}")
 
     # Set up wandb logging
-    group = f"{cfg.data.log_name}.{str(args.method.name)}.context_mode={cfg.fs_args.context_mode}."
+    group = (
+        f"{cfg.data.log_name}.{str(args.method.name)}.context_mode_{cfg.fs_args.context_mode.name}"
+    )
     if cfg.misc.log_method:
-        group += cfg.misc.log_method
+        group += "." + cfg.misc.log_method
     if cfg.misc.exp_group:
         group += "." + cfg.misc.exp_group
     if cfg.bias.log_dataset:
@@ -145,7 +150,6 @@ def run(cfg: Config) -> None:
     target_dim = datasets.y_dim
     num_classes = max(target_dim, 2)
 
-    classifier_out_dim = max(target_dim, 2)
     classifier_kwargs = {}
     if args.method is FsMethod.lff:
         classifier_cls = LfF
@@ -155,7 +159,19 @@ def run(cfg: Config) -> None:
         target_dim *= s_count
     elif args.method is FsMethod.gdro:
         classifier_cls = GDRO
-        classifier_kwargs["c_param"] = args.c
+        s_all, _ = extract_labels_from_dataset(dataset=train_data)
+        group_counts = (torch.arange(s_count).unsqueeze(1) == s_all.squeeze()).sum(1).float()
+        # process generalization adjustment stuff
+        adjustments = args.generalization_adjustment
+        if adjustments is not None:
+            assert len(adjustments) in (1, s_count)
+            if len(adjustments) == 1:
+                adjustments = np.array(adjustments * s_count)
+            else:
+                adjustments = np.array(adjustments)
+        classifier_kwargs["group_counts"] = group_counts
+        classifier_kwargs["normalize_loss"] = args.normalize_loss
+        classifier_kwargs["alpha"] = args.alpha
     else:
         if args.method is FsMethod.dro:
             criterion = implementations.dro_modules.DROLoss(nn.CrossEntropyLoss, eta=args.eta)
@@ -166,7 +182,7 @@ def run(cfg: Config) -> None:
 
     classifier = classifier_cls(
         classifier_fn(input_shape[0], num_classes),  # type: ignore
-        num_classes=classifier_out_dim,
+        num_classes=num_classes,
         optimizer_kwargs={"lr": args.lr, "weight_decay": args.weight_decay},
         **classifier_kwargs,
     )
