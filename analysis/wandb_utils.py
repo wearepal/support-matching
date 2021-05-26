@@ -274,9 +274,10 @@ def _make_plot(
         # patch.set_hatch(hatch)
         patch.set_edgecolor("black")
         # patch.set_facecolor("lightgrey")
-    # for method, patch in zip(df["Method"].unique(), plot.artists):
-    # if "oracle" in method.lower():
-    #     patch.set_hatch("/")
+    for method, patch in zip(df["Method"].unique(), plot.artists):
+        # Add dense 'x' hatching to the 'oracle' methods
+        if "oracle" in method.lower():
+            patch.set_hatch("xxx")
 
     # if you only want to set one ylim, then pass "nan" on the commandline for the other value
     plot.set_ylim(
