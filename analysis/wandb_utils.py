@@ -170,6 +170,7 @@ def plot(
     y_limits: Tuple[float, float] = (math.nan, math.nan),
     x_limits: Tuple[float, float] = (math.nan, math.nan),
     agg: Aggregation = Aggregation.none,
+    fillna: bool = False,
 ) -> None:
     df = data.copy()
 
@@ -202,6 +203,8 @@ def plot(
         base_cols = [groupby]
         col_renames[groupby] = "Method"
 
+        if fillna:
+            df = df.fillna(0, inplace=False)
         df = df[base_cols + [column_to_plot]]
         df = df.rename(columns=col_renames, inplace=False)
         df = df.replace({"Method": METHOD_RENAMES}, inplace=False)
