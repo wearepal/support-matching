@@ -1,14 +1,13 @@
 from __future__ import annotations
-
-import math
 from enum import Enum, auto
+import math
 from pathlib import Path
 from typing import Callable, List, Tuple
+from typing_extensions import Final
 
+from matplotlib import pyplot as plt
 import pandas as pd
 import seaborn as sns
-from matplotlib import pyplot as plt
-from typing_extensions import Final
 
 __all__ = ["Metrics", "load_data", "plot"]
 
@@ -98,6 +97,12 @@ METHOD_RENAMES: Final = {
     "ranking-fdm-6": "Ranking (6)",
     "ranking-fdm-8": "Ranking (8)",
     "no-cluster-fdm": "No bal.",
+    "balanced-True": "Our Method (Batch Oracle)",
+    "balanced-False": "Our Method (No Balancing)",
+    "balanced-with-clustering": "Our Method (Clustering)",
+    "oracle_gdro": "gDRO (Oracle)",
+    "cluster_and_gdro": "gDRO (Clustering)",
+    "erm_no_context_no_reg": "ERM",
     "perfect-cluster": "Perfect",
     "kmeans-fdm": "k-means",
     "kmeans-fdm-6": "k-means (6)",
@@ -204,7 +209,7 @@ def plot(
         col_renames[groupby] = "Method"
 
         if fillna:
-            df = df.fillna(0, inplace=False)
+            df = df.fillna(0, inplace=False).replace("NaN", 0, inplace=False)
         df = df[base_cols + [column_to_plot]]
         df = df.rename(columns=col_renames, inplace=False)
         df = df.replace({"Method": METHOD_RENAMES}, inplace=False)
