@@ -47,6 +47,7 @@ METRICS_COL_NAMES: Final = {
 }
 
 AGG_METRICS_COL_NAMES: Final = {
+    Metrics.acc: lambda s, cl: (f"Accuracy_{s}_0.0 ({cl})", f"Accuracy_{s}_1.0 ({cl})"),
     Metrics.prr: lambda s, cl: (
         f"prob_pos_{s}_0.0÷{s}_1.0 ({cl})",
         f"prob_pos_{s}_0.0÷{s}_2.0 ({cl})",
