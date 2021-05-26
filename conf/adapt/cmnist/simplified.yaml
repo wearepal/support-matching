@@ -3,7 +3,7 @@ defaults:
     - cmnist/fallen_sun@_here_
 
 aggregator_type: gated
-bag_size: 256
-batch_size: 1
-iters: 8000
-zs_transform: none
+bag_size: 8
+batch_size: 32
+iters: 5000
+zs_transform: round_ste

@@ -53,7 +53,7 @@ This dataset will be downloaded automatically.
 #### Subgroup bias
 
 ```
-bash scripts/compare.sh data=cmnist/2dig bias=cmnist/2dig/subsampled enc=mnist adapt=cmnist/simplified clust=vague_spaceship_improved
+bash scripts/compare.sh +experiment=cmnist_subgroup_bias
 ```
 
 #### Missing subgroup
