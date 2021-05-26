@@ -1,4 +1,3 @@
-from functools import lru_cache
 import logging
 import platform
 from typing import Dict, NamedTuple, Optional, Tuple, Union
@@ -6,10 +5,11 @@ from typing import Dict, NamedTuple, Optional, Tuple, Union
 import torch
 from torch import Tensor
 import torch.nn as nn
-from torch.utils.data import Dataset, Subset
+from torch.utils.data import DataLoader, Dataset, Subset
 from torch.utils.data.dataset import ConcatDataset
 from torchvision import transforms as TF
 from torchvision.datasets import MNIST
+from tqdm import tqdm
 
 import ethicml as em
 import ethicml.vision as emvi
@@ -288,10 +288,12 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
     if args.transductive:
         context_data = ConcatDataset([context_data, test_data])
 
-    if args.cache:
-        context_data.__getitem__ = lru_cache(None)(context_data.__getitem__)
-        test_data.__getitem__ = lru_cache(None)(test_data.__getitem__)
-        train_data.__getitem__ = lru_cache(None)(train_data.__getitem__)
+    if cfg.misc.cache_data:
+        LOGGER.info("Caching all three datasets...")
+        context_data = _cache_data(context_data)
+        test_data = _cache_data(test_data)
+        train_data = _cache_data(train_data)
+        LOGGER.info("Done.")
 
     return DatasetTriplet(
         context=context_data,
@@ -299,6 +301,23 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
         train=train_data,
         s_dim=s_dim,
         y_dim=y_dim,
+    )
+
+
+def _cache_data(data: Dataset) -> TensorDataTupleDataset:
+    all_x = []
+    all_s = []
+    all_y = []
+
+    data_loader = DataLoader(data, batch_size=1_000, shuffle=False, num_workers=0)
+
+    for x, s, y in tqdm(data_loader):
+        all_x.append(x)
+        all_s.append(s)
+        all_y.append(y)
+
+    return TensorDataTupleDataset(
+        x=torch.cat(all_x, dim=0), s=torch.cat(all_s, dim=0), y=torch.cat(all_y, dim=0)
     )
 
 
