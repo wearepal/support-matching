@@ -93,32 +93,32 @@ METRICS_RENAMES: Final = {
 }
 
 METHOD_RENAMES: Final = {
-    "ranking-fdm": "Ranking",
-    "ranking-fdm-4": "Ranking",
-    "ranking-fdm-6": "Ranking (6)",
-    "ranking-fdm-8": "Ranking (8)",
-    "no-cluster-fdm": "No bal.",
-    "balanced-True": "Our Method (Batch Oracle)",
     "balanced-False": "Our Method (No Balancing)",
+    "balanced-True": "Our Method (Bag Oracle)",
     "balanced-with-clustering": "Our Method (Clustering)",
-    "oracle_gdro": "gDRO (Oracle)",
-    "cluster_and_gdro": "gDRO (Clustering)",
-    "erm_no_context_no_reg": "ERM",
-    "perfect-cluster": "Perfect",
-    "kmeans-fdm": "k-means",
-    "kmeans-fdm-6": "k-means (6)",
-    "kmeans-fdm-8": "k-means (8)",
-    # "baseline_cnn": "K&C",
     "baseline_cnn": "ERM",
-    "baseline_erm": "ERM",
-    "baseline_oracle": "ERM (LD)",
+    "baseline_dro": "DRO",
     "baseline_dro_0.01": "DRO",
     "baseline_dro_0.1": "DRO",
     "baseline_dro_0.3": "DRO",
     "baseline_dro_1.0": "DRO",
-    "baseline_dro": "DRO",
+    "baseline_erm": "ERM",
     "baseline_gdro": "gDRO",
     "baseline_lff": "LfF",
+    "baseline_oracle": "ERM (LD)",
+    "cluster_and_gdro": "GEORGE",
+    "erm_no_context_no_reg": "ERM",
+    "kmeans-fdm": "k-means",
+    "kmeans-fdm-6": "k-means (6)",
+    "kmeans-fdm-8": "k-means (8)",
+    "no-cluster-fdm": "No bal.",
+    "oracle_gdro": "gDRO (Label Oracle)",
+    "perfect-cluster": "Perfect",
+    "ranking-fdm": "Ranking",
+    "ranking-fdm-4": "Ranking",
+    "ranking-fdm-6": "Ranking (6)",
+    "ranking-fdm-8": "Ranking (8)",
+    "ss_ae": "AutoEncoder",
 }
 
 KNOWN_CLASSIFIERS: Final = ["pytorch_classifier", "cnn", "dro", "gdro", "lff", "erm", "oracle"]
@@ -274,6 +274,9 @@ def _make_plot(
         # patch.set_hatch(hatch)
         patch.set_edgecolor("black")
         # patch.set_facecolor("lightgrey")
+    # for method, patch in zip(df["Method"].unique(), plot.artists):
+    # if "oracle" in method.lower():
+    #     patch.set_hatch("/")
 
     # if you only want to set one ylim, then pass "nan" on the commandline for the other value
     plot.set_ylim(
