@@ -173,7 +173,7 @@ def plot(
     groupby: str = "misc.log_method",
     metrics: list[Metrics] = [Metrics.acc],
     sens_attr: str = "colour",
-    output_dir: Path = Path("."),
+    output_dir: Path | str = Path("."),
     file_format: str = "png",
     file_prefix: str = "",
     fig_dim: tuple[float, float] = (4.0, 6.0),
@@ -199,6 +199,9 @@ def plot(
         filename = _prepare_filename(
             metric=metric, agg=agg, file_format=file_format, file_prefix=file_prefix
         )
+        if isinstance(output_dir, str):
+            output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
         fig.savefig(output_dir / filename, bbox_inches="tight")
 
 
