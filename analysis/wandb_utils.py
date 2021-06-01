@@ -93,9 +93,9 @@ METRICS_RENAMES: Final = {
 }
 
 METHOD_RENAMES: Final = {
-    "balanced-False": "Our Method (No Balancing)",
-    "balanced-True": "Our Method (Bag Oracle)",
-    "balanced-with-clustering": "Our Method (Clustering)",
+    "balanced-False": "Ours (No Balancing)",
+    "balanced-True": "Ours (Bag Oracle)",
+    "balanced-with-clustering": "Ours (Clustering)",
     "baseline_cnn": "ERM",
     "baseline_dro": "DRO",
     "baseline_dro_0.01": "DRO",
@@ -111,13 +111,15 @@ METHOD_RENAMES: Final = {
     "kmeans-fdm": "k-means",
     "kmeans-fdm-6": "k-means (6)",
     "kmeans-fdm-8": "k-means (8)",
-    "no-cluster-fdm": "No bal.",
+    "no-cluster-fdm": "Ours (No Balancing)",
     "oracle_gdro": "gDRO (Label Oracle)",
-    "perfect-cluster": "Perfect",
-    "ranking-fdm": "Ranking",
-    "ranking-fdm-4": "Ranking",
-    "ranking-fdm-6": "Ranking (6)",
-    "ranking-fdm-8": "Ranking (8)",
+    "perfect-cluster": "Ours (Bag Oracle)",
+    "no-cluster-suds": "Ours (No Balancing)",
+    "ranking-suds": "Ours (Clustering)",
+    "ranking-fdm": "Ours (Clustering)",
+    "ranking-fdm-4": "Ours (Clustering; k=4)",
+    "ranking-fdm-6": "Ours (Clustering; k=6)",
+    "ranking-fdm-8": "Ours (Clustering; k=8)",
     "ss_ae": "AutoEncoder",
 }
 
@@ -181,6 +183,8 @@ def plot(
     x_limits: tuple[float, float] = (math.nan, math.nan),
     agg: Aggregation = Aggregation.none,
     fillna: bool = False,
+    hide_left_ticks: bool = False,
+    x_label: str | None = None,
 ) -> None:
     df = data.copy()
 
@@ -195,6 +199,8 @@ def plot(
             fig_dim=fig_dim,
             x_limits=x_limits,
             y_limits=y_limits,
+            hide_left_ticks=hide_left_ticks,
+            x_label=x_label,
         )
         filename = _prepare_filename(
             metric=metric, agg=agg, file_format=file_format, file_prefix=file_prefix
@@ -267,6 +273,8 @@ def _make_plot(
     fig_dim: tuple[float, float],
     x_limits: tuple[float, float],
     y_limits: tuple[float, float],
+    hide_left_ticks: bool = False,
+    x_label: str | None = None,
 ) -> plt.Figure:
     # sns.set_style("whitegrid")
     sns.set_palette("husl", 12)
@@ -291,5 +299,10 @@ def _make_plot(
         xmin=x_limits[0] if not math.isnan(x_limits[0]) else None,
         xmax=x_limits[1] if not math.isnan(x_limits[1]) else None,
     )
-    # plot.grid(axis="y")
+    if x_label is not None:
+        plt.xlabel(x_label)
+    if hide_left_ticks:
+        plot.set_ylabel(None)
+        plot.tick_params(left=False, labelleft=False)
+
     return fig
