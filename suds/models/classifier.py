@@ -220,7 +220,7 @@ class Classifier(ModelBase):
                     target = s
                 else:
                     target = y
-                x, target = self.to_device(x, y, device=device)
+                x, target = self.to_device(x, target, device=device)
 
                 self.optimizer.zero_grad()
                 loss, acc = self.routine(x, target)

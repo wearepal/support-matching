@@ -55,7 +55,9 @@ class Quantize(Augmentation):
             x = torch.floor(torch.clamp(data, 0, 1 - 1e-6) * self.n_bins)
             # re-normalize to between 0 and 1
             x = x / self.n_bins
-        return x
+            return x
+        else:
+            return data
 
 
 class Rotate(Augmentation):

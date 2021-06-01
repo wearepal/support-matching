@@ -7,7 +7,7 @@ import ethicml as em
 import numpy as np
 import pandas as pd
 import torch
-from torch import Tensor, nn
+from torch import Tensor
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision.models import resnet50
@@ -130,7 +130,6 @@ def baseline_metrics(cfg: Config, data: DatasetTriplet) -> None:
         ]:
             preds = clf.run(train_data, test_data)
             compute_metrics(
-                cfg=cfg,
                 predictions=preds,
                 actual=test_data,
                 s_dim=data.s_dim,
@@ -272,7 +271,6 @@ def evaluate(
     labels_pd = pd.DataFrame(labels, columns=["labels"])
     actual = em.DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels_pd)
     compute_metrics(
-        cfg=cfg,
         predictions=preds,
         actual=actual,
         exp_name=name,
@@ -292,7 +290,6 @@ def evaluate(
         for eth_clf in [em.LR(), em.LRCV()]:  # , em.LRCV(), em.SVM(kernel="linear")]:
             preds = eth_clf.run(train_data_tup, test_data_tup)
             compute_metrics(
-                cfg=cfg,
                 predictions=preds,
                 actual=test_data_tup,
                 exp_name=name,

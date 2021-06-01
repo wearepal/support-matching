@@ -46,7 +46,6 @@ def baseline_metrics(hydra_config: DictConfig) -> None:
         preds = clf.run(train_data, test_data)
 
         metrics = compute_metrics(
-            cfg=cfg,
             predictions=preds,
             actual=test_data,
             model_name=clf.name,

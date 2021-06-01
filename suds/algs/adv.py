@@ -5,7 +5,7 @@ from collections.abc import Callable, Iterator
 import logging
 from pathlib import Path
 import time
-from typing import Any, Iterator, cast
+from typing import Any, cast
 from typing_extensions import Literal
 
 from hydra.utils import to_absolute_path
@@ -23,16 +23,22 @@ from shared.configs import (
     ImageDatasetConfig,
     ReconstructionLoss,
 )
-from shared.configs.arguments import Config
-from shared.data import DatasetTriplet
-from shared.data.misc import RandomSampler
-from shared.data.utils import Batch
+from shared.data import Batch, DatasetTriplet, RandomSampler
 from shared.models.configs import FcNet, conv_autoencoder, fc_autoencoder
-from shared.utils import AverageMeter, inf_generator, load_results, readable_duration
-from shared.utils.loadsave import ClusterResults
-from suds.models import AutoEncoder, Classifier, EncodingSize, build_classifier
-from suds.models.base import EncodingSize
-from suds.models.discriminator import Discriminator
+from shared.utils import (
+    AverageMeter,
+    ClusterResults,
+    inf_generator,
+    load_results,
+    readable_duration,
+)
+from suds.models import (
+    AutoEncoder,
+    Classifier,
+    Discriminator,
+    EncodingSize,
+    build_classifier,
+)
 from suds.optimisation.build import build_ae
 from suds.optimisation.evaluation import baseline_metrics, log_metrics
 from suds.optimisation.loss import MixedLoss, PixelCrossEntropy

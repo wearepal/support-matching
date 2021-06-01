@@ -272,7 +272,6 @@ def run(cfg: Config) -> None:
 
     # Compute accuracy + fairness metrics using EthicML
     metrics = compute_metrics(
-        cfg=cfg,
         predictions=preds,
         actual=actual,
         model_name=args.method.name,

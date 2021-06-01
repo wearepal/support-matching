@@ -7,10 +7,6 @@ import ethicml as em
 import pandas as pd
 import wandb
 
-from shared.configs import BaseConfig
-
-from .utils import as_pretty_dict, flatten_dict
-
 __all__ = ["compute_metrics", "make_tuple_from_data", "print_metrics", "write_results_to_csv"]
 
 log = logging.getLogger(__name__.split(".")[-1].upper())
@@ -33,7 +29,6 @@ def make_tuple_from_data(
 
 
 def compute_metrics(
-    cfg: BaseConfig,
     predictions: em.Prediction,
     actual: em.DataTuple,
     model_name: str,
@@ -47,7 +42,6 @@ def compute_metrics(
     """Compute accuracy and fairness metrics and log them.
 
     Args:
-        args: args object
         predictions: predictions in a format that is compatible with EthicML
         actual: labels for the predictions
         model_name: name of the model used

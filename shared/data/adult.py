@@ -48,7 +48,6 @@ def get_invisible_demographics(
         data: data in form of a DataTuple
         unbiased_pcnt: how much of the data should be reserved for the unbiased subset
         seed: random seed for the splitting
-        data_efficient: if True, try to keep as many data points as possible
 
     Returns:
         biased and unbiased dataset

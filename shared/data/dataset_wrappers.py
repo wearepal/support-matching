@@ -91,7 +91,7 @@ class LdAugmentedDataset(Dataset):
                 arg = torch.tensor(arg, dtype=dtype)
             if arg.dim() == 0:
                 arg = arg.view(-1)
-            yield (arg)
+            yield arg
 
     def __getitem__(self, index):
         return self._subroutine(self.dataset.__getitem__(index))
