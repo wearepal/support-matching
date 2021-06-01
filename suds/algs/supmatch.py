@@ -25,7 +25,6 @@ from suds.models.discriminator import Discriminator
 from suds.optimisation.mmd import mmd2
 from suds.optimisation.utils import log_attention, log_images
 
-
 __all__ = ["SupportMatching"]
 
 
