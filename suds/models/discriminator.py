@@ -1,10 +1,9 @@
 from __future__ import annotations
-
 from typing import Any
 
 import torch
-import torch.nn.functional as F
 from torch import Tensor, nn
+import torch.nn.functional as F
 
 from shared.configs.enums import DiscriminatorLoss
 from suds.models.base import ModelBase

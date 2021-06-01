@@ -1,7 +1,6 @@
 from __future__ import annotations
-
-import logging
 from collections.abc import Mapping
+import logging
 from pathlib import Path
 
 import ethicml as em

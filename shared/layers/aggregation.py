@@ -1,12 +1,11 @@
 """Modules that aggregate over a batch."""
 from __future__ import annotations
-
 from typing import Callable
+from typing_extensions import Literal
 
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
-from typing_extensions import Literal
 
 from shared.utils import ModelFn
 

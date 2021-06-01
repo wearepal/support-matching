@@ -20,7 +20,6 @@ from shared.configs.arguments import (
 )
 from shared.data.data_loading import load_dataset
 
-
 T = TypeVar("T", bound="SaveDataConfig")
 
 
