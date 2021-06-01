@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import trange
 import wandb
 
-from clustering.models.base import ModelBase
+from .base import ModelBase
 
 __all__ = ["Classifier", "Regressor"]
 

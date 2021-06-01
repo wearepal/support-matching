@@ -10,7 +10,7 @@ from torch.nn.modules.loss import _Loss
 from torch.utils.data import DataLoader, Dataset
 from tqdm import trange
 
-from suds.models.base import ModelBase
+from advrep.models.base import ModelBase
 
 __all__ = ["Classifier", "Regressor"]
 

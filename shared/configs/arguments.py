@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 import logging
 import shlex
-from typing import Dict, List, Optional, Type, TypeVar
+from typing import Any, Dict, List, Optional, Type, TypeVar
 
 from hydra.core.config_store import ConfigStore
 from hydra.core.hydra_config import HydraConfig
@@ -380,7 +380,7 @@ class BaseConfig:
 
         This is necessary because dataclasses cannot be instantiated recursively yet.
         """
-        subconfigs = {
+        subconfigs: Dict[str, Any] = {
             k: instantiate(v) for k, v in hydra_config.items() if k not in ("_target_", "cmd")
         }
 

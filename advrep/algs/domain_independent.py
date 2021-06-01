@@ -7,7 +7,7 @@ from torch import Tensor, nn
 from torch.utils.data import DataLoader, Dataset
 from tqdm import trange
 
-from suds.models.classifier import Classifier
+from advrep.models.classifier import Classifier
 
 __all__ = ["DomainIndependentClassifier"]
 

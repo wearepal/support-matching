@@ -17,6 +17,24 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import wandb
 
+from advrep.models import (
+    AutoEncoder,
+    Classifier,
+    Discriminator,
+    EncodingSize,
+    build_classifier,
+)
+from advrep.optimisation import (
+    MixedLoss,
+    PixelCrossEntropy,
+    baseline_metrics,
+    build_ae,
+    build_weighted_sampler_from_dataset,
+    get_stratified_sampler,
+    log_metrics,
+    restore_model,
+    save_model,
+)
 from shared.configs import (
     Config,
     DiscriminatorMethod,
@@ -31,24 +49,6 @@ from shared.utils import (
     inf_generator,
     load_results,
     readable_duration,
-)
-from suds.models import (
-    AutoEncoder,
-    Classifier,
-    Discriminator,
-    EncodingSize,
-    build_classifier,
-)
-from suds.optimisation import (
-    MixedLoss,
-    PixelCrossEntropy,
-    baseline_metrics,
-    build_ae,
-    build_weighted_sampler_from_dataset,
-    get_stratified_sampler,
-    log_metrics,
-    restore_model,
-    save_model,
 )
 
 from .base import AlgBase

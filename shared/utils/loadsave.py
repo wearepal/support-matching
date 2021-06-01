@@ -13,7 +13,7 @@ LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 class ClusterResults(NamedTuple):
-    """Information that the fcm code passes on to suds."""
+    """Information that the fcm code passes on to advrep."""
 
     flags: Dict[str, Any]
     cluster_ids: torch.Tensor
