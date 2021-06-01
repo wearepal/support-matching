@@ -6,6 +6,10 @@ import torch
 from torch import Tensor
 import torch.nn as nn
 
+from advrep.models import Discriminator, SplitEncoding
+from advrep.models.configs import Residual64x64Net
+from advrep.models.configs.classifiers import Strided28x28Net
+from advrep.optimisation import log_attention, log_images, mmd2
 from shared.configs import (
     AggregatorType,
     CmnistConfig,
@@ -17,12 +21,8 @@ from shared.data.utils import Batch
 from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
 from shared.models.configs import FcNet, ModelAggregatorWrapper
 from shared.utils import ModelFn, prod
-from advrep.algs.adv import AdvSemiSupervisedAlg
-from advrep.models.base import SplitEncoding
-from advrep.models.configs import Residual64x64Net
-from advrep.models.configs.classifiers import Strided28x28Net
-from advrep.models.discriminator import Discriminator
-from advrep.optimisation import log_attention, log_images, mmd2
+
+from .adv import AdvSemiSupervisedAlg
 
 __all__ = ["SupportMatching"]
 

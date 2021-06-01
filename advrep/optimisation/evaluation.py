@@ -14,6 +14,7 @@ from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
 from tqdm import tqdm
 
+from advrep.models import AutoEncoder, Classifier, SplitEncoding
 from shared.configs import (
     AdultConfig,
     CelebaConfig,
@@ -27,7 +28,6 @@ from shared.configs import (
 from shared.data import DatasetTriplet, TensorDataTupleDataset, adult, get_data_tuples
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import ModelFn, compute_metrics, make_tuple_from_data, prod
-from advrep.models import AutoEncoder, Classifier, SplitEncoding
 
 from .utils import ExtractableDataset, build_weighted_sampler_from_dataset, log_images
 

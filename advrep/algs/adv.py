@@ -17,21 +17,6 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import wandb
 
-from shared.configs import (
-    Config,
-    DiscriminatorMethod,
-    ImageDatasetConfig,
-    ReconstructionLoss,
-)
-from shared.data import Batch, DatasetTriplet, RandomSampler
-from shared.models.configs import FcNet, conv_autoencoder, fc_autoencoder
-from shared.utils import (
-    AverageMeter,
-    ClusterResults,
-    inf_generator,
-    load_results,
-    readable_duration,
-)
 from advrep.models import (
     AutoEncoder,
     Classifier,
@@ -49,6 +34,21 @@ from advrep.optimisation import (
     log_metrics,
     restore_model,
     save_model,
+)
+from shared.configs import (
+    Config,
+    DiscriminatorMethod,
+    ImageDatasetConfig,
+    ReconstructionLoss,
+)
+from shared.data import Batch, DatasetTriplet, RandomSampler
+from shared.models.configs import FcNet, conv_autoencoder, fc_autoencoder
+from shared.utils import (
+    AverageMeter,
+    ClusterResults,
+    inf_generator,
+    load_results,
+    readable_duration,
 )
 
 from .base import AlgBase

@@ -3,10 +3,10 @@ import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import DictConfig
 
-from shared.configs import Config, register_configs
-from shared.configs.enums import AdaptationMethod
 from advrep.algs.laftr import LAFTR
 from advrep.algs.supmatch import SupportMatching
+from shared.configs import Config, register_configs
+from shared.configs.enums import AdaptationMethod
 
 cs = ConfigStore.instance()
 cs.store(name="config_schema", node=Config)
