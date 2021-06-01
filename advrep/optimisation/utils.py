@@ -18,6 +18,7 @@ from shared.utils import StratifiedSampler, as_pretty_dict, flatten_dict
 from shared.utils.utils import class_id_to_label, label_to_class_id, lcm
 
 __all__ = [
+    "ExtractableDataset",
     "build_weighted_sampler_from_dataset",
     "extract_labels_from_dataset",
     "get_stratified_sampler",

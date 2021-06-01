@@ -3,10 +3,8 @@ import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import DictConfig
 
-from advrep.algs.laftr import LAFTR
-from advrep.algs.supmatch import SupportMatching
-from shared.configs import Config, register_configs
-from shared.configs.enums import AdaptationMethod
+from advrep.algs import AdvSemiSupervisedAlg, LAFTR, SupportMatching
+from shared.configs import AdaptationMethod, Config, register_configs
 
 cs = ConfigStore.instance()
 cs.store(name="config_schema", node=Config)
@@ -14,6 +12,7 @@ register_configs()
 
 
 def main(cfg: Config) -> None:
+    alg: AdvSemiSupervisedAlg
     if cfg.adapt.method is AdaptationMethod.suds:
         alg = SupportMatching(cfg=cfg)
     else:

@@ -7,15 +7,13 @@ from torch import Tensor
 import torch.distributions as td
 import torch.nn as nn
 
-from advrep.models.base import SplitEncoding
-from advrep.models.classifier import Classifier
-from advrep.models.configs.classifiers import Residual64x64Net, Strided28x28Net
+from advrep.models import Classifier, SplitEncoding
+from advrep.models.configs import Residual64x64Net, Strided28x28Net
 from advrep.optimisation import log_images
-from shared.configs.arguments import CmnistConfig
-from shared.configs.enums import ReconstructionLoss
-from shared.data.utils import Batch
-from shared.models.configs.classifiers import FcNet
-from shared.utils.utils import ModelFn, prod
+from shared.configs import CmnistConfig, ReconstructionLoss
+from shared.data import Batch
+from shared.models.configs import FcNet
+from shared.utils import ModelFn, prod
 
 from .adv import AdvSemiSupervisedAlg
 

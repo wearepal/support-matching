@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from advrep.models import Classifier
 from shared.utils import ModelFn
+
+from .classifier import Classifier
 
 __all__ = ["build_classifier"]
 

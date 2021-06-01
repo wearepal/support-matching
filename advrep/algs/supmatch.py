@@ -7,17 +7,16 @@ from torch import Tensor
 import torch.nn as nn
 
 from advrep.models import Discriminator, SplitEncoding
-from advrep.models.configs import Residual64x64Net
-from advrep.models.configs.classifiers import Strided28x28Net
+from advrep.models.configs import Residual64x64Net, Strided28x28Net
 from advrep.optimisation import log_attention, log_images, mmd2
 from shared.configs import (
     AggregatorType,
     CmnistConfig,
+    Config,
     DiscriminatorMethod,
     ReconstructionLoss,
 )
-from shared.configs.arguments import Config
-from shared.data.utils import Batch
+from shared.data import Batch
 from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
 from shared.models.configs import FcNet, ModelAggregatorWrapper
 from shared.utils import ModelFn, prod

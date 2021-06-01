@@ -3,7 +3,6 @@ from .autoencoder import *
 from .base import *
 from .classifier import *
 from .factory import *
-from .inn import *
 from .methods import *
 from .model import *
 from .pseudo_labelers import *
