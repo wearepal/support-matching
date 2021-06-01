@@ -178,6 +178,7 @@ class MiscConfig:
     use_amp: bool = False  # Whether to use mixed-precision training
     device: str = "cpu"
     gpu: int = 0  # which GPU to use (if available)
+    cache_data: bool = False  # if True, all data is cached in memory after being loaded
 
     def __post_init__(self) -> None:
         # ==== check GPU ====
