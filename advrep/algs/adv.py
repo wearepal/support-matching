@@ -353,12 +353,9 @@ class AdvSemiSupervisedAlg(AlgBase):
     def _fit(self, datasets: DatasetTriplet) -> None:
         # Load cluster results
         cluster_results = None
-        cluster_test_metrics: dict[str, float] = {}
-        cluster_context_metrics: dict[str, float] = {}
+        cluster_metrics: dict[str, float] | None = None
         if self.misc_cfg.cluster_label_file:
-            cluster_results = load_results(self.cfg)
-            cluster_test_metrics = cluster_results.test_metrics or {}
-            cluster_context_metrics = cluster_results.context_metrics or {}
+            cluster_results, cluster_metrics = load_results(self.cfg)
 
         # Construct the data iterators
         train_data_itr, context_data_itr = self._get_data_iterators(
@@ -392,8 +389,7 @@ class AdvSemiSupervisedAlg(AlgBase):
                     datasets,
                     step=0,
                     save_summary=True,
-                    cluster_test_metrics=cluster_test_metrics,
-                    cluster_context_metrics=cluster_context_metrics,
+                    cluster_metrics=cluster_metrics,
                 )
 
         itr = start_itr
@@ -441,6 +437,5 @@ class AdvSemiSupervisedAlg(AlgBase):
             data=datasets,
             save_summary=True,
             step=itr,
-            cluster_test_metrics=cluster_test_metrics,
-            cluster_context_metrics=cluster_context_metrics,
+            cluster_metrics=cluster_metrics,
         )

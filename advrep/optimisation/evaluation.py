@@ -53,8 +53,7 @@ def log_metrics(
     data: DatasetTriplet,
     step: int,
     save_summary: bool = False,
-    cluster_test_metrics: Optional[Dict[str, float]] = None,
-    cluster_context_metrics: Optional[Dict[str, float]] = None,
+    cluster_metrics: Optional[Dict[str, float]] = None,
 ) -> None:
     """Compute and log a variety of metrics."""
     model.eval()
@@ -84,8 +83,7 @@ def log_metrics(
         eval_on_recon=cfg.adapt.eval_on_recon,
         pred_s=False,
         save_summary=save_summary,
-        cluster_test_metrics=cluster_test_metrics,
-        cluster_context_metrics=cluster_context_metrics,
+        cluster_metrics=cluster_metrics,
     )
 
     if cfg.adapt.eval_s_from_zs is not None:
@@ -210,17 +208,9 @@ def evaluate(
     eval_on_recon: bool = True,
     pred_s: bool = False,
     save_summary: bool = False,
-    cluster_test_metrics: Optional[Dict[str, float]] = None,
-    cluster_context_metrics: Optional[Dict[str, float]] = None,
+    cluster_metrics: Optional[Dict[str, float]] = None,
 ):
     input_shape = next(iter(train_data))[0].shape
-    additional_entries = {}
-    if cluster_test_metrics is not None:
-        additional_entries.update({f"Clust/Test {k}": v for k, v in cluster_test_metrics.items()})
-    if cluster_context_metrics is not None:
-        additional_entries.update(
-            {f"Clust/Context {k}": v for k, v in cluster_context_metrics.items()}
-        )
 
     train_loader_kwargs = {}
     if cfg.adapt.balanced_eval:
@@ -281,7 +271,7 @@ def evaluate(
         s_dim=s_dim,
         save_summary=save_summary,
         use_wandb=cfg.misc.wandb is not WandbMode.disabled,
-        additional_entries=additional_entries,
+        additional_entries=cluster_metrics,
     )
     if isinstance(cfg.data, AdultConfig):
         train_data_tup, test_data_tup = get_data_tuples(train_data, test_data)
@@ -300,7 +290,7 @@ def evaluate(
                 step=step,
                 save_summary=save_summary,
                 use_wandb=cfg.misc.wandb is not WandbMode.disabled,
-                additional_entries=additional_entries,
+                additional_entries=cluster_metrics,
             )
 
 
