@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from shared.utils import ModelFn
-from suds.models import Classifier
+from advrep.models import Classifier
 
 __all__ = ["build_classifier"]
 

@@ -32,14 +32,14 @@ from shared.utils import (
     load_results,
     readable_duration,
 )
-from suds.models import (
+from advrep.models import (
     AutoEncoder,
     Classifier,
     Discriminator,
     EncodingSize,
     build_classifier,
 )
-from suds.optimisation import (
+from advrep.optimisation import (
     MixedLoss,
     PixelCrossEntropy,
     baseline_metrics,

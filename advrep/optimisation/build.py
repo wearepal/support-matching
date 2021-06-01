@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from shared.configs import Config
-from suds.models import AutoEncoder, EncodingSize, Vae
+from advrep.models import AutoEncoder, EncodingSize, Vae
 
 __all__ = ["build_ae"]
 

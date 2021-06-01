@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 from tqdm import trange
 
-from suds.models import Classifier
+from advrep.models import Classifier
 
 __all__ = ["GDRO"]
 

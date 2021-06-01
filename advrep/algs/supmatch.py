@@ -17,12 +17,12 @@ from shared.data.utils import Batch
 from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
 from shared.models.configs import FcNet, ModelAggregatorWrapper
 from shared.utils import ModelFn, prod
-from suds.algs.adv import AdvSemiSupervisedAlg
-from suds.models.base import SplitEncoding
-from suds.models.configs import Residual64x64Net
-from suds.models.configs.classifiers import Strided28x28Net
-from suds.models.discriminator import Discriminator
-from suds.optimisation import log_attention, log_images, mmd2
+from advrep.algs.adv import AdvSemiSupervisedAlg
+from advrep.models.base import SplitEncoding
+from advrep.models.configs import Residual64x64Net
+from advrep.models.configs.classifiers import Strided28x28Net
+from advrep.models.discriminator import Discriminator
+from advrep.optimisation import log_attention, log_images, mmd2
 
 __all__ = ["SupportMatching"]
 

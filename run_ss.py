@@ -5,8 +5,8 @@ from omegaconf import DictConfig
 
 from shared.configs import Config, register_configs
 from shared.configs.enums import AdaptationMethod
-from suds.algs.laftr import LAFTR
-from suds.algs.supmatch import SupportMatching
+from advrep.algs.laftr import LAFTR
+from advrep.algs.supmatch import SupportMatching
 
 cs = ConfigStore.instance()
 cs.store(name="config_schema", node=Config)

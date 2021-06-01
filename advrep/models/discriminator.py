@@ -6,7 +6,7 @@ from torch import Tensor, nn
 import torch.nn.functional as F
 
 from shared.configs.enums import DiscriminatorLoss
-from suds.models.base import ModelBase
+from advrep.models.base import ModelBase
 
 __all__ = ["Discriminator"]
 

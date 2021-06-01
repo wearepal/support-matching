@@ -10,9 +10,9 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 from tqdm.std import trange
 
-from suds.models import Classifier
-from suds.models.base import ModelBase
-from suds.optimisation import (
+from advrep.models import Classifier
+from advrep.models.base import ModelBase
+from advrep.optimisation import (
     ExtractableDataset,
     GeneralizedCELoss,
     extract_labels_from_dataset,

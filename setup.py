@@ -7,7 +7,7 @@ setup(
     packages=find_packages(),
     description="Fair distribution matching",
     python_requires=">=3.7",
-    package_data={"clustering": ["py.typed"], "suds": ["py.typed"], "shared": ["py.typed"]},
+    package_data={"clustering": ["py.typed"], "advrep": ["py.typed"], "shared": ["py.typed"]},
     install_requires=[
         "EthicML == 0.2.0",
         "GitPython >= 2.1.11",
