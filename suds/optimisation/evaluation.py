@@ -31,6 +31,8 @@ from suds.models import AutoEncoder, Classifier, SplitEncoding
 
 from .utils import ExtractableDataset, build_weighted_sampler_from_dataset, log_images
 
+__all__ = ["baseline_metrics", "log_metrics"]
+
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 

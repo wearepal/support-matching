@@ -15,7 +15,7 @@ from shared.utils.utils import ModelFn, prod
 from suds.models.base import SplitEncoding
 from suds.models.classifier import Classifier
 from suds.models.configs.classifiers import Residual64x64Net, Strided28x28Net
-from suds.optimisation.utils import log_images
+from suds.optimisation import log_images
 
 from .adv import AdvSemiSupervisedAlg
 

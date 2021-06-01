@@ -39,12 +39,14 @@ from suds.models import (
     EncodingSize,
     build_classifier,
 )
-from suds.optimisation.build import build_ae
-from suds.optimisation.evaluation import baseline_metrics, log_metrics
-from suds.optimisation.loss import MixedLoss, PixelCrossEntropy
-from suds.optimisation.utils import (
+from suds.optimisation import (
+    MixedLoss,
+    PixelCrossEntropy,
+    baseline_metrics,
+    build_ae,
     build_weighted_sampler_from_dataset,
     get_stratified_sampler,
+    log_metrics,
     restore_model,
     save_model,
 )

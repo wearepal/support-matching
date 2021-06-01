@@ -12,8 +12,11 @@ from tqdm.std import trange
 
 from suds.models import Classifier
 from suds.models.base import ModelBase
-from suds.optimisation.loss import GeneralizedCELoss
-from suds.optimisation.utils import ExtractableDataset, extract_labels_from_dataset
+from suds.optimisation import (
+    ExtractableDataset,
+    GeneralizedCELoss,
+    extract_labels_from_dataset,
+)
 
 __all__ = ["LfF"]
 

@@ -22,8 +22,7 @@ from suds.models.base import SplitEncoding
 from suds.models.configs import Residual64x64Net
 from suds.models.configs.classifiers import Strided28x28Net
 from suds.models.discriminator import Discriminator
-from suds.optimisation.mmd import mmd2
-from suds.optimisation.utils import log_attention, log_images
+from suds.optimisation import log_attention, log_images, mmd2
 
 __all__ = ["SupportMatching"]
 
