@@ -188,6 +188,7 @@ def run(cfg: Config) -> None:
     )
     classifier.to(device)
 
+    cluster_metrics = None
     if args.context_mode is ContextMode.ground_truth:
         LOGGER.info("Using ground-truth labels of context set.")
         train_data = ConcatDataset([train_data, datasets.context])
@@ -196,7 +197,7 @@ def run(cfg: Config) -> None:
     # series of models, with the code being as it is at the moment.
     elif args.context_mode is ContextMode.cluster_labels and cfg.misc.cluster_label_file:
         LOGGER.info("Using cluster labels as pseudo-labels for context set.")
-        cluster_results = load_results(cfg)
+        cluster_results, cluster_metrics = load_results(cfg)
         subgroup_ids = cluster_results.cluster_ids
         _, s_tr, y_tr = train_data[0]
         y = class_id_to_label(subgroup_ids, s_count=s_count, label="y").view(-1, *s_tr.shape)
@@ -278,6 +279,7 @@ def run(cfg: Config) -> None:
         step=0,
         s_dim=datasets.s_dim,
         use_wandb=True,
+        additional_entries=cluster_metrics,
     )
     if args.method == FsMethod.dro:
         metrics.update({"eta": args.eta})

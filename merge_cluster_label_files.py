@@ -21,9 +21,9 @@ def main(
         cluster_label_file = str(s_labels)
 
     print(f"Loading from {y_labels}")
-    y_results = load_results(_ForYLabel(), check=False)
+    y_results, _ = load_results(_ForYLabel(), check=False)
     print(f"Loading from {s_labels}")
-    s_results = load_results(_ForSLabel(), check=False)
+    s_results, _ = load_results(_ForSLabel(), check=False)
     s_count = int(s_results.class_ids.max() + 1)
     print(f"Computed s_count={s_count}")
     cluster_ids = get_class_id(

@@ -1,7 +1,7 @@
 """Functions related to saving and loading results."""
 import logging
 from pathlib import Path
-from typing import Any, Dict, NamedTuple, Optional
+from typing import Any, Dict, NamedTuple, Optional, Tuple
 
 import torch
 
@@ -41,7 +41,7 @@ def save_results(save_path: Path, cluster_results: ClusterResults) -> Path:
     return save_path
 
 
-def load_results(cfg: BaseConfig, check: bool = True) -> ClusterResults:
+def load_results(cfg: BaseConfig, check: bool = True) -> Tuple[ClusterResults, Dict[str, float]]:
     """Load a tensor from a file."""
     data = torch.load(cfg.misc.cluster_label_file, map_location=torch.device("cpu"))
     if check:
@@ -62,11 +62,22 @@ def load_results(cfg: BaseConfig, check: bool = True) -> ClusterResults:
             saved_cfg["data.test_pcnt"] == cfg.data.test_pcnt
         ), f'{saved_cfg["data.test_pcnt"]} != {cfg.data.test_pcnt}'
     class_ids = data["class_ids"] if "class_ids" in data else torch.zeros_like(data["cluster_ids"])
-    return ClusterResults(
+
+    # add a prefix to the metrics and merge them into one dictionary
+    context_metrics = data.get("context_metrics", None)
+    test_metrics = data.get("test_metrics", None)
+    metrics: Dict[str, float] = {}
+    if test_metrics is not None:
+        metrics.update({f"Clust/Test {k}": v for k, v in test_metrics.items()})
+    if context_metrics is not None:
+        metrics.update({f"Clust/Context {k}": v for k, v in context_metrics.items()})
+
+    results = ClusterResults(
         flags=data["args"],
         cluster_ids=data["cluster_ids"],
         class_ids=class_ids,
         enc_path=Path(data.get("enc_path", "")),
-        context_metrics=data.get("context_metrics", None),
-        test_metrics=data.get("test_metrics", None),
+        context_metrics=context_metrics,
+        test_metrics=test_metrics,
     )
+    return results, metrics
