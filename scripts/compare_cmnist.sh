@@ -3,17 +3,17 @@
 data=cmnist/2dig
 enc=mnist
 clust=vague_spaceship_improved
-suds=cmnist/fallen_sun
+adapt=cmnist/fallen_sun
 
 # ranking
 python run_both.py \
     data=$data \
     enc=$enc \
     clust=$clust \
-    suds=$suds \
+    adapt=$adapt \
     clust.method=pl_enc_no_norm \
     clust.pseudo_labeler=ranking \
-    misc.log_method=ranking-suds \
+    misc.log_method=ranking-fdm \
     "$@"
 
 # kmeans
@@ -21,25 +21,25 @@ python run_both.py \
     data=$data \
     enc=$enc \
     clust=$clust \
-    suds=$suds \
+    adapt=$adapt \
     clust.method=kmeans \
-    misc.log_method=kmeans-suds \
+    misc.log_method=kmeans-fdm \
     "$@"
 
 # no cluster
 python run_dis.py \
     data=$data \
     enc=$enc \
-    suds=$suds \
-    suds.balanced_context=false \
-    misc.log_method=no-cluster-suds \
+    adapt=$adapt \
+    adapt.balanced_context=false \
+    misc.log_method=no-cluster-fdm \
     "$@"
 
 # perfect cluster
 python run_dis.py \
     data=$data \
     enc=$enc \
-    suds=$suds \
-    suds.balanced_context=true \
+    adapt=$adapt \
+    adapt.balanced_context=true \
     misc.log_method=perfect-cluster \
     "$@"
