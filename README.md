@@ -1,4 +1,4 @@
-# Learning with Perfect Bags
+# Addressing Missing Sources with Adversarial Support-Matching
 
 Requires Python 3.7+.
 

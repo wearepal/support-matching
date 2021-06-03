@@ -102,7 +102,7 @@ def run(cfg: Config) -> None:
     local_dir = Path(".", "local_logging")
     local_dir.mkdir(exist_ok=True)
     run = wandb.init(
-        entity="predictive-analytics-lab",
+        entity="entity",
         project="suds",
         dir=str(local_dir),
         config=flatten_dict(as_pretty_dict(cfg)),

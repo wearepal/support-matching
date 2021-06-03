@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 setup(
     name="suds",
     version="0.2.0",
-    author="T. Kehrenberg, M. Bartlett, O. Thomas",
+    author="anonymous",
     packages=find_packages(),
     description="Fair distribution matching",
     python_requires=">=3.7",
@@ -22,7 +22,6 @@ setup(
         "pillow",
         "pipenv >= 2018.11.26",
         "scikit-image >= 0.14",
-        "palkit",
         "scikit_learn >= 0.20.1",
         "scipy >= 1.2.1",
         "seaborn >= 0.9.0",
