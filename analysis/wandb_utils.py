@@ -105,7 +105,7 @@ METHOD_RENAMES: Final = {
     "baseline_erm": "ERM",
     "baseline_gdro": "gDRO",
     "baseline_lff": "LfF",
-    "baseline_oracle": "ERM (LD)",
+    "baseline_oracle": "ERM (Label Oracle)",
     "cluster_and_gdro": "GEORGE",
     "erm_no_context_no_reg": "ERM",
     "kmeans-fdm": "k-means",
@@ -287,7 +287,7 @@ def _make_plot(
         # patch.set_facecolor("lightgrey")
     for method, patch in zip(df["Method"].unique(), plot.artists):
         # Add dense 'x' hatching to the 'oracle' methods
-        if "oracle" in method.lower():
+        if isinstance(method, str) and "oracle" in method.lower():
             patch.set_hatch("xxx")
 
     # if you only want to set one ylim, then pass "nan" on the commandline for the other value
