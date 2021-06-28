@@ -50,9 +50,11 @@ class FcNet:
         self,
         hidden_dims: Optional[Sequence[int]],
         activation: nn.Module = nn.SELU(),
+        final_layer_bias: bool = True,
     ):
         self.hidden_dims = hidden_dims
         self.activation = activation
+        self.final_layer_bias = final_layer_bias
 
     def _fc_block(self, in_dim: int, out_dim: int) -> List[nn.Module]:
         _block: List[nn.Module] = []
@@ -71,7 +73,7 @@ class FcNet:
             layers.extend(self._fc_block(input_dim, output_dim))
             input_dim = output_dim
 
-        layers.append(nn.Linear(input_dim, target_dim))
+        layers.append(nn.Linear(input_dim, target_dim, bias=self.final_layer_bias))
 
         return nn.Sequential(*layers)
 
