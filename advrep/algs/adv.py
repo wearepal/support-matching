@@ -92,6 +92,7 @@ class AdvSemiSupervisedAlg(AlgBase):
     def _build_encoder(
         self,
         input_shape: tuple[int, ...],
+        s_dim: int,
         feature_group_slices: dict[str, list[slice]] | None = None,
     ) -> AutoEncoder:
         if len(input_shape) > 2:
@@ -130,6 +131,7 @@ class AdvSemiSupervisedAlg(AlgBase):
             encoder=encoder,
             decoder=decoder,
             encoding_size=self._encoding_size,
+            s_dim=s_dim,
             feature_group_slices=feature_group_slices,
         )
 
@@ -177,7 +179,7 @@ class AdvSemiSupervisedAlg(AlgBase):
         feature_group_slices: dict[str, list[slice]] | None = None,
     ) -> None:
         self.encoder = self._build_encoder(
-            input_shape=input_shape, feature_group_slices=feature_group_slices
+            input_shape=input_shape, s_dim=s_dim, feature_group_slices=feature_group_slices
         )
         self.recon_loss_fn = self._get_recon_loss_fn(feature_group_slices=feature_group_slices)
         self.adversary = self._build_adversary(input_shape=input_shape, s_dim=s_dim)

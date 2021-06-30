@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, overload
+from typing import Any, Callable, overload
 from typing_extensions import Literal
 
 import torch
@@ -20,6 +20,7 @@ from .base import (
     Reconstructions,
     SplitDistributions,
     SplitEncoding,
+    replace_zs,
 )
 
 __all__ = ["AutoEncoder", "Vae"]
@@ -31,6 +32,7 @@ class AutoEncoder(nn.Module):
         encoder: nn.Module,
         decoder: nn.Module,
         encoding_size: EncodingSize | None,
+        s_dim: int,
         zs_transform: ZsTransform = ZsTransform.none,
         feature_group_slices: dict[str, list[slice]] | None = None,
         optimizer_kwargs: dict[str, Any] | None = None,
@@ -40,6 +42,7 @@ class AutoEncoder(nn.Module):
         self.encoder: ModelBase = ModelBase(encoder, optimizer_kwargs=optimizer_kwargs)
         self.decoder: ModelBase = ModelBase(decoder, optimizer_kwargs=optimizer_kwargs)
         self.encoding_size = encoding_size
+        self.s_dim = s_dim
         self.feature_group_slices = feature_group_slices
         self.zs_transform = zs_transform
 
@@ -53,8 +56,18 @@ class AutoEncoder(nn.Module):
         return SplitEncoding(zs=rounded_zs, zy=enc.zy)
 
     def decode(
-        self, enc: SplitEncoding, mode: Literal["soft", "hard", "relaxed"] = "soft"
+        self,
+        enc: SplitEncoding,
+        s: Tensor | None = None,
+        mode: Literal["soft", "hard", "relaxed"] = "soft",
     ) -> Tensor:
+        if s is not None:  # we've been given the ground-truth labels for reconstruction
+            if self.s_dim > 1:
+                s = F.one_hot(s.long(), num_classes=self.s_dim)
+            else:
+                s = s.view(-1, 1)
+            enc = replace_zs(enc, new_zs=s.float())
+
         decoding = self.decoder(self.unsplit_encoding(enc))
         if decoding.dim() == 4:
             # if decoding.size(1) <= 3:
@@ -161,11 +174,15 @@ class AutoEncoder(nn.Module):
                     pbar.set_postfix(AE_loss=loss.detach().cpu().numpy())
 
     def routine(
-        self, x: Tensor, recon_loss_fn, prior_loss_w: float
+        self,
+        x: Tensor,
+        recon_loss_fn: Callable[[Tensor, Tensor], Tensor],
+        prior_loss_w: float,
+        s: Tensor | None = None,
     ) -> tuple[SplitEncoding, Tensor, dict[str, float]]:
         encoding = self.encode(x)
 
-        recon_all = self.decode(encoding)
+        recon_all = self.decode(encoding, s=s)
         recon_loss = recon_loss_fn(recon_all, x)
         recon_loss /= x.nelement()
         prior_loss = prior_loss_w * encoding.zy.norm(dim=1).mean()
@@ -179,6 +196,7 @@ class Vae(AutoEncoder):
         encoder: nn.Module,
         decoder: nn.Module,
         encoding_size: EncodingSize | None,
+        s_dim: int,
         vae_std_tform: VaeStd,
         feature_group_slices: dict[str, list[slice]] | None = None,
         optimizer_kwargs: dict[str, Any] | None = None,
@@ -187,6 +205,7 @@ class Vae(AutoEncoder):
             encoder=encoder,
             decoder=decoder,
             encoding_size=encoding_size,
+            s_dim=s_dim,
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_kwargs,
         )
@@ -249,15 +268,19 @@ class Vae(AutoEncoder):
             return sample
 
     def routine(
-        self, x: Tensor, recon_loss_fn, kl_weight: float
+        self,
+        x: Tensor,
+        recon_loss_fn,
+        prior_loss_w: float,
+        s: Tensor | None = None,
     ) -> tuple[SplitEncoding, Tensor, dict[str, float]]:
         encoding, posterior = self.encode(x, return_posterior=True, stochastic=True)
         kl_div = self.compute_divergence(encoding.zs, posterior.zs)
         kl_div += self.compute_divergence(encoding.zy, posterior.zy)
         kl_div /= x.nelement()
-        kl_div *= kl_weight
+        kl_div *= prior_loss_w
 
-        recon_all = self.decode(encoding)
+        recon_all = self.decode(encoding, s=s)
         recon_loss = recon_loss_fn(recon_all, x)
         recon_loss /= x.nelement()
         elbo = recon_loss + kl_div
