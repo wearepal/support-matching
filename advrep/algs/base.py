@@ -4,8 +4,8 @@ import logging
 import os
 from pathlib import Path
 
+from torch import Tensor
 import torch.nn as nn
-from torch.tensor import Tensor
 import wandb
 import yaml
 
