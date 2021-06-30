@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import requests
 import torch
-from torch.tensor import Tensor
+from torch import Tensor
 from torch.utils.data.dataset import Dataset
 from torchvision.transforms.transforms import ToTensor
 from tqdm import tqdm

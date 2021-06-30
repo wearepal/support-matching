@@ -11,8 +11,7 @@ import numpy as np
 from omegaconf import DictConfig
 import pandas as pd
 import torch
-from torch import nn
-from torch.tensor import Tensor
+from torch import Tensor, nn
 from torch.utils.data import Dataset
 from torch.utils.data.dataset import ConcatDataset
 from torchvision.models import resnet50

@@ -1,6 +1,6 @@
 import torch
+from torch import Tensor
 import torch.nn as nn
-from torch.tensor import Tensor
 
 __all__ = [
     "SetTransformer",
