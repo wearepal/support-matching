@@ -46,10 +46,12 @@ class AutoEncoder(nn.Module):
         self.feature_group_slices = feature_group_slices
         self.zs_transform = zs_transform
 
-    def encode(self, inputs: Tensor, *, stochastic: bool = False) -> SplitEncoding:
+    def encode(
+        self, inputs: Tensor, *, stochastic: bool = False, do_zs_transform: bool = True
+    ) -> SplitEncoding:
         del stochastic
         enc = self._split_encoding(self.encoder(inputs))
-        if self.zs_transform is ZsTransform.round_ste:
+        if do_zs_transform and self.zs_transform is ZsTransform.round_ste:
             rounded_zs = RoundSTE.apply(torch.sigmoid(enc.zs))
         else:
             rounded_zs = enc.zs
@@ -180,7 +182,8 @@ class AutoEncoder(nn.Module):
         prior_loss_w: float,
         s: Tensor | None = None,
     ) -> tuple[SplitEncoding, Tensor, dict[str, float]]:
-        encoding = self.encode(x)
+        # it only makes sense to transform zs if we're actually going to use it
+        encoding = self.encode(x, do_zs_transform=s is None)
 
         recon_all = self.decode(encoding, s=s)
         recon_loss = recon_loss_fn(recon_all, x)

@@ -95,8 +95,8 @@ class SupportMatching(AdvSemiSupervisedAlg):
         s_dim: int,
         feature_group_slices: dict[str, list[slice]] | None = None,
     ) -> AutoEncoder:
-        if s_dim != self.cfg.adapt.zs_dim:
-            raise ValueError("s_dim has to be equal to zs_dim")
+        if self.adapt_cfg.s_as_zs and self.adapt_cfg.zs_dim != s_dim:
+            raise ValueError(f"zs_dim has to be equal to s_dim ({s_dim}) if `s_as_zs` is True.")
         return super()._build_encoder(input_shape, s_dim, feature_group_slices)
 
     @implements(AdvSemiSupervisedAlg)
@@ -148,7 +148,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 batch_tr.x,
                 recon_loss_fn=self.recon_loss_fn,
                 prior_loss_w=self.adapt_cfg.prior_loss_w,
-                s=batch_tr.s,  # using s for the reconstruction
+                s=batch_tr.s if self.adapt_cfg.s_as_zs else None,  # using s for the reconstruction
             )
 
             # ============================= recon loss for context set ============================
