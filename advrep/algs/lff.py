@@ -6,7 +6,7 @@ from typing import Any
 
 import torch
 import torch.nn as nn
-from torch.tensor import Tensor
+from torch import Tensor
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 from tqdm.std import trange

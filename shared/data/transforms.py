@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import ClassVar, Sequence
 
 import torch
-from torch.tensor import Tensor
+from torch import Tensor
 
 from kornia.geometry import rotate
 

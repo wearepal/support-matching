@@ -8,6 +8,7 @@ from pathlib import Path
 import torch.nn as nn
 import wandb
 import yaml
+from torch import Tensor
 from torch.tensor import Tensor
 
 from shared.configs.arguments import Config
