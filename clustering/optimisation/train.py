@@ -1,19 +1,20 @@
 """Main training file"""
 from __future__ import annotations
-from collections import defaultdict
+
 import logging
-from pathlib import Path
 import time
+from collections import defaultdict
+from pathlib import Path
 from typing import cast
 
-from hydra.utils import to_absolute_path
 import numpy as np
 import torch
+import wandb
+import yaml
+from hydra.utils import to_absolute_path
 from torch import Tensor
 from torch.utils.data import ConcatDataset, DataLoader
 from torchvision.models import resnet18, resnet50
-import wandb
-import yaml
 
 from clustering.models import (
     BaseModel,
@@ -428,7 +429,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
             return
 
     cluster_label_path = get_cluster_label_path(misc, save_dir)
-    if args.method == ClusteringMethod.kmeans:
+    if args.method is ClusteringMethod.kmeans:
         kmeans_results = train_k_means(
             cfg, encoder, datasets.context, num_clusters, s_count, y_count, enc_path=enc_path
         )
