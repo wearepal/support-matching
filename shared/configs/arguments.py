@@ -1,13 +1,13 @@
-from dataclasses import dataclass, field
 import logging
 import shlex
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Type, TypeVar
 
+import torch
 from hydra.core.config_store import ConfigStore
 from hydra.core.hydra_config import HydraConfig
 from hydra.utils import instantiate
-from omegaconf import DictConfig, MISSING, OmegaConf
-import torch
+from omegaconf import MISSING, DictConfig, OmegaConf
 
 from .enums import (
     AdaptationMethod,

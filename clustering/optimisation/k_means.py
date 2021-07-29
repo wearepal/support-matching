@@ -5,19 +5,13 @@ from typing import Union
 import faiss
 import numpy as np
 import torch
+import wandb
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
-import wandb
 
 from clustering.models import Encoder
 from shared.configs import Config
-from shared.utils import (
-    ClusterResults,
-    as_pretty_dict,
-    flatten_dict,
-    get_class_id,
-    print_metrics,
-)
+from shared.utils import ClusterResults, as_pretty_dict, flatten_dict, get_class_id, print_metrics
 
 from .evaluation import encode_dataset
 from .utils import cluster_metrics, count_occurances

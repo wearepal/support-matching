@@ -2,12 +2,12 @@ from dataclasses import dataclass
 from typing import Type, TypeVar
 
 import hydra
+import pandas as pd
+import torch
 from hydra.core.config_store import ConfigStore
 from hydra.utils import instantiate
 from omegaconf.dictconfig import DictConfig
 from omegaconf.omegaconf import MISSING
-import pandas as pd
-import torch
 
 from shared.configs.arguments import (
     BaseConfig,

@@ -1,10 +1,11 @@
 from __future__ import annotations
+
 from collections.abc import Iterator, Sequence
 
-from kit import implements
 import torch
-from torch import Tensor
 import torch.nn as nn
+from kit import implements
+from torch import Tensor
 
 from advrep.models import Discriminator, SplitEncoding
 from advrep.models.configs import Residual64x64Net, Strided28x28Net

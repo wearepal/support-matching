@@ -2,13 +2,13 @@ import logging
 from typing import Dict, Optional, Tuple, Union
 
 import torch
-from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
+import wandb
+from torch import Tensor
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader, Dataset
 from tqdm import trange
-import wandb
 
 from .base import ModelBase
 

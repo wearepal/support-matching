@@ -1,39 +1,31 @@
 from __future__ import annotations
+
 import logging
 from pathlib import Path
 
 import ethicml as em
-from ethicml import implementations
 import hydra
-from hydra.core.config_store import ConfigStore
-from hydra.utils import to_absolute_path
 import numpy as np
-from omegaconf import DictConfig
 import pandas as pd
 import torch
+import wandb
+import yaml
+from ethicml import implementations
+from hydra.core.config_store import ConfigStore
+from hydra.utils import to_absolute_path
+from omegaconf import DictConfig
 from torch import nn
 from torch.tensor import Tensor
 from torch.utils.data import Dataset
 from torch.utils.data.dataset import ConcatDataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
-import wandb
-import yaml
 
 from advrep.algs import GDRO, LfF
 from advrep.algs.domain_independent import DomainIndependentClassifier
 from advrep.models import Classifier
-from advrep.optimisation import (
-    build_weighted_sampler_from_dataset,
-    extract_labels_from_dataset,
-)
-from shared.configs import (
-    AdultConfig,
-    CelebaConfig,
-    CmnistConfig,
-    IsicConfig,
-    register_configs,
-)
+from advrep.optimisation import build_weighted_sampler_from_dataset, extract_labels_from_dataset
+from shared.configs import AdultConfig, CelebaConfig, CmnistConfig, IsicConfig, register_configs
 from shared.configs.arguments import Config
 from shared.configs.enums import ContextMode, FsMethod
 from shared.data import adult, load_dataset

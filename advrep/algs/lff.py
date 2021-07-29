@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import copy
 import logging
 from typing import Any
@@ -12,11 +13,7 @@ from tqdm.std import trange
 
 from advrep.models import Classifier
 from advrep.models.base import ModelBase
-from advrep.optimisation import (
-    ExtractableDataset,
-    GeneralizedCELoss,
-    extract_labels_from_dataset,
-)
+from advrep.optimisation import ExtractableDataset, GeneralizedCELoss, extract_labels_from_dataset
 
 __all__ = ["LfF"]
 

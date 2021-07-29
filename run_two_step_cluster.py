@@ -1,8 +1,8 @@
 """Call the main functions of both parts one after the other."""
 import os
+import sys
 from pathlib import Path
 from subprocess import CalledProcessError, run
-import sys
 from tempfile import TemporaryDirectory
 
 

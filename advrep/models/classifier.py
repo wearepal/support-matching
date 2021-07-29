@@ -1,11 +1,12 @@
 from __future__ import annotations
+
 import logging
 from typing import Any
 
-from ethicml.implementations.dro_modules import DROLoss
 import torch
-from torch import Tensor, nn
 import torch.nn.functional as F
+from ethicml.implementations.dro_modules import DROLoss
+from torch import Tensor, nn
 from torch.nn.modules.loss import _Loss
 from torch.utils.data import DataLoader, Dataset
 from tqdm import trange
