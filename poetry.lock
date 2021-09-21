@@ -1372,7 +1372,7 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "torch"
-version = "1.9.0+cpu"
+version = "1.9.0+cu111"
 description = "Tensors and Dynamic neural networks in Python with strong GPU acceleration"
 category = "main"
 optional = false
@@ -1383,12 +1383,12 @@ typing-extensions = "*"
 
 [package.source]
 type = "legacy"
-url = "https://download.pytorch.org/whl/cpu"
-reference = "pytorch_cpu"
+url = "https://download.pytorch.org/whl/cu111"
+reference = "torch_cu111"
 
 [[package]]
 name = "torchvision"
-version = "0.10.0+cpu"
+version = "0.10.0+cu111"
 description = "image and video datasets and models for torch deep learning"
 category = "main"
 optional = false
@@ -1404,8 +1404,8 @@ scipy = ["scipy"]
 
 [package.source]
 type = "legacy"
-url = "https://download.pytorch.org/whl/cpu"
-reference = "pytorch_cpu"
+url = "https://download.pytorch.org/whl/cu111"
+reference = "torch_cu111"
 
 [[package]]
 name = "tqdm"
@@ -1595,7 +1595,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7.1"
-content-hash = "089bffca1c6893b1fc0cb2a14c93f74eb232722e44b1a579cb3995a03401944b"
+content-hash = "3b0705ffcd9f7c97e686fc49a72aef7ff7a8bdbe6cfa4b8ddb1eb8d3988b6f09"
 
 [metadata.files]
 aiohttp = [
@@ -2623,24 +2623,24 @@ tomli = [
     {file = "tomli-1.2.1.tar.gz", hash = "sha256:a5b75cb6f3968abb47af1b40c1819dc519ea82bcc065776a866e8d74c5ca9442"},
 ]
 torch = [
-    {file = "torch-1.9.0+cpu-cp36-cp36m-linux_x86_64.whl", hash = "sha256:c2183fafdd292fe9d1c26b88e9cb3c7d8b14419d68f1767a7108dd9e5fcac802"},
-    {file = "torch-1.9.0+cpu-cp36-cp36m-win_amd64.whl", hash = "sha256:9fadaa8106c5ca9ea76f29609c2221c237053394f9963467d1dd501e683a360f"},
-    {file = "torch-1.9.0+cpu-cp37-cp37m-linux_x86_64.whl", hash = "sha256:33c7c9347a09dd3feff15bbe7c66f2f80bc52bea6ec36d3d6a183aea00a1ec65"},
-    {file = "torch-1.9.0+cpu-cp37-cp37m-win_amd64.whl", hash = "sha256:906e9b1907c85b6cbc66dba76bb054ae5aa626549468cc018bbe58f0dd8f16d6"},
-    {file = "torch-1.9.0+cpu-cp38-cp38-linux_x86_64.whl", hash = "sha256:ea73020dce444caf16c584995186f724d68cdc235c92a34668b5fc330f21ba7b"},
-    {file = "torch-1.9.0+cpu-cp38-cp38-win_amd64.whl", hash = "sha256:5ae218f21d47b30509b2ebe0992435a5b2f78c51bb94792baf9a469c0db5ded0"},
-    {file = "torch-1.9.0+cpu-cp39-cp39-linux_x86_64.whl", hash = "sha256:1a98e829d15d3b57ec1a120aa167ad2c218400758ad2a7927ad44dabbc6b4696"},
-    {file = "torch-1.9.0+cpu-cp39-cp39-win_amd64.whl", hash = "sha256:f00efa654e025ef7f6c05a655b1bb418c697ae019fd9366c6d73bb2fafbcc84a"},
+    {file = "torch-1.9.0+cu111-cp36-cp36m-linux_x86_64.whl", hash = "sha256:49d350a880fc8c08a992dc5f4186c3587d1fdae834c0fac4248f9a28b427411b"},
+    {file = "torch-1.9.0+cu111-cp36-cp36m-win_amd64.whl", hash = "sha256:1559feacea01e5e1b334be0acf7aaa1823ac100bce4b2e44731de13f949ecf54"},
+    {file = "torch-1.9.0+cu111-cp37-cp37m-linux_x86_64.whl", hash = "sha256:18e4c2e07a52c5dfb75782cd3f2dc8835f880219b753eeacfe03a42b10f80091"},
+    {file = "torch-1.9.0+cu111-cp37-cp37m-win_amd64.whl", hash = "sha256:55d971ebb450a58abc04eccdb4000fd7a2a53b84515eca85b04a4fe190af5dfd"},
+    {file = "torch-1.9.0+cu111-cp38-cp38-linux_x86_64.whl", hash = "sha256:dbd2a25d0256091467f76f9975d06add0fb360829abd4c41e472f71da7ced207"},
+    {file = "torch-1.9.0+cu111-cp38-cp38-win_amd64.whl", hash = "sha256:fabaadf560fa8f79134281e4dbb85f1343d186134365f97dd0a856970f69f3b5"},
+    {file = "torch-1.9.0+cu111-cp39-cp39-linux_x86_64.whl", hash = "sha256:5422d19042e217c2aa94030b16b3fe4da5be9ba8eea46e7e59d40a110955962d"},
+    {file = "torch-1.9.0+cu111-cp39-cp39-win_amd64.whl", hash = "sha256:fab865dc594556818289aea1aba09c115b98a8e2eec1abdaa0059c3d047bb8e9"},
 ]
 torchvision = [
-    {file = "torchvision-0.10.0+cpu-cp36-cp36m-linux_x86_64.whl", hash = "sha256:bc43b6ed08a6a6cee03b76bec99cbc3cd04a08c3efa97720a048aa22a58bd04b"},
-    {file = "torchvision-0.10.0+cpu-cp36-cp36m-win_amd64.whl", hash = "sha256:0709a49425273c3d5c163539ea5b9b0d4d4bac5adc6727a0e5b11d8ba236ba62"},
-    {file = "torchvision-0.10.0+cpu-cp37-cp37m-linux_x86_64.whl", hash = "sha256:7b660721701a4f18737bb8d7a3663780a4c8acd1f871fd2ab11c07a4ee1b9aac"},
-    {file = "torchvision-0.10.0+cpu-cp37-cp37m-win_amd64.whl", hash = "sha256:179053ca8cbe7aeec5a0b10bebd35123e2d85aac4d5279fdfa720e654239c561"},
-    {file = "torchvision-0.10.0+cpu-cp38-cp38-linux_x86_64.whl", hash = "sha256:fd0ae2ec106f7469f6ccab80721c498fc999e0acdca21c2eadc0fa5814615974"},
-    {file = "torchvision-0.10.0+cpu-cp38-cp38-win_amd64.whl", hash = "sha256:4a3d77a3465a1d8636a627725adcdd76143c592982685f1b7fab4efe40b05508"},
-    {file = "torchvision-0.10.0+cpu-cp39-cp39-linux_x86_64.whl", hash = "sha256:df9d4ebc93d30e1843c09c9e521e681e893ea816cbb745b2d0f77c8704c9c309"},
-    {file = "torchvision-0.10.0+cpu-cp39-cp39-win_amd64.whl", hash = "sha256:61d2242d939dd0a618f2450e148ddb0d24507db46f5a923af62256a902ddab9c"},
+    {file = "torchvision-0.10.0+cu111-cp36-cp36m-linux_x86_64.whl", hash = "sha256:c088703da53479f0843443ce13c802e80cf3df614e68e66c445cdf33b7957191"},
+    {file = "torchvision-0.10.0+cu111-cp36-cp36m-win_amd64.whl", hash = "sha256:27c538cc9a1f0af614f189ad60d56d16fdeb0a75aaa424e44791ad61ba02a959"},
+    {file = "torchvision-0.10.0+cu111-cp37-cp37m-linux_x86_64.whl", hash = "sha256:c8c811869d3afeb6082220cd7a136b65822bbc86cfbeeb02c4624bd262fe06ce"},
+    {file = "torchvision-0.10.0+cu111-cp37-cp37m-win_amd64.whl", hash = "sha256:cd5e735da75a75619b1788a53f52ef3e41ec084562f237fd436fa6e7e8c152db"},
+    {file = "torchvision-0.10.0+cu111-cp38-cp38-linux_x86_64.whl", hash = "sha256:a756f0fb82ac753b9795ef80c1761054bf1e94f32ba001d5f6591724659bb4f7"},
+    {file = "torchvision-0.10.0+cu111-cp38-cp38-win_amd64.whl", hash = "sha256:d785f7b75aa5a40ea2dfa8669e69124e1abce9ccb84157827604264f3ed5c89e"},
+    {file = "torchvision-0.10.0+cu111-cp39-cp39-linux_x86_64.whl", hash = "sha256:00e7e19c74e155d271e6ac63d8b4e3f93f5d3cc171428c4fdddbb1226d72eca1"},
+    {file = "torchvision-0.10.0+cu111-cp39-cp39-win_amd64.whl", hash = "sha256:e4eeaea2fd9d6ed6bf966600fa0dd7615b39898f2a096147f70e0ae85a8e6ff8"},
 ]
 tqdm = [
     {file = "tqdm-4.62.3-py2.py3-none-any.whl", hash = "sha256:8dd278a422499cd6b727e6ae4061c40b48fce8b76d1ccbf5d34fca9b7f925b0c"},

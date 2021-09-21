@@ -19,32 +19,32 @@ classifiers=[
 readme="README.md"
 
 [[tool.poetry.source]]
-name = "pytorch_cpu"
-url = "https://download.pytorch.org/whl/cpu/"
+name = "torch_cu111"
+url = "https://download.pytorch.org/whl/cu111/"
 secondary = true
 
 [tool.poetry.dependencies]
 python = "^3.7.1"
 EthicML = "0.2.0"
 GitPython = ">= 2.1.11"
-hydra-core = "^1.1.0"
-hydra-ray-launcher = "^1.1.0"
-hydra-submitit-launcher = "^1.1.5"
+hydra-core = { version = "^1.1.0", source = "pypi" }
+hydra-ray-launcher = { version = "^1.1.0", source = "pypi" }
+hydra-submitit-launcher = { version = "^1.1.5", source = "pypi" }
 lapjv = "*"
 matplotlib = ">= 3.0.2, < 3.3.1"
 numpy = ">= 1.15"
 faiss-cpu = "*"
-pandas = ">= 1.0"
+pandas = { version = "^1.1", source = "pypi" }
 pillow = "*"
 pipenv = ">= 2018.11.26"
 scikit-image = ">= 0.14"
-palkit = "^0.3.13"
+palkit = { version = "^0.3.13", source = "pypi" }
 scikit_learn = ">= 0.20.1"
 scipy = ">= 1.2.1"
 seaborn = ">= 0.9.0"
 teext = "*"
-torch = { version = "=1.9.0+cpu", source = "pytorch_cpu" }
-torchvision = { version = "=0.10.0+cpu", source = "pytorch_cpu" }
+torch = { version = "=1.9.0+cu111", source = "torch_cu111", platform = "linux" }
+torchvision = { version = "=0.10.0+cu111", source = "torch_cu111", platform = "linux" }
 tqdm = ">= 4.31.1"
 typer = "*"
 typing-extensions = ">= 3.7.2"
