@@ -6,7 +6,14 @@ import torch.distributions as td
 import torch.nn as nn
 from torch.optim import Adam
 
-__all__ = ["ModelBase", "EncodingSize", "SplitDistributions", "SplitEncoding", "Reconstructions"]
+__all__ = [
+    "EncodingSize",
+    "ModelBase",
+    "Reconstructions",
+    "SplitDistributions",
+    "SplitEncoding",
+    "replace_zs",
+]
 
 
 class EncodingSize(NamedTuple):
@@ -17,6 +24,10 @@ class EncodingSize(NamedTuple):
 class SplitEncoding(NamedTuple):
     zs: Tensor
     zy: Tensor
+
+
+def replace_zs(enc: SplitEncoding, new_zs: Tensor) -> SplitEncoding:
+    return SplitEncoding(zs=new_zs, zy=enc.zy)
 
 
 class SplitDistributions(NamedTuple):

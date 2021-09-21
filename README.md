@@ -59,7 +59,7 @@ bash scripts/compare.sh +experiment=cmnist_subgroup_bias
 #### Missing subgroup
 
 ```
-bash scripts/compare.sh data=cmnist/2dig data.context_pcnt=0.5 bias=cmnist/2dig/mildly_subs_miss_s enc=mnist adapt=cmnist/gated_3discs clust=vague_spaceship_improved
+bash scripts/compare.sh +experiment=cmnist_missing_subgroup
 ```
 
 ### 3 digits

@@ -6,7 +6,7 @@ import torch
 from torch import Tensor
 import torch.nn as nn
 
-from advrep.models import Discriminator, SplitEncoding
+from advrep.models import AutoEncoder, Discriminator, SplitEncoding
 from advrep.models.configs import Residual64x64Net, Strided28x28Net
 from advrep.optimisation import log_attention, log_images, mmd2
 from shared.configs import (
@@ -89,6 +89,17 @@ class SupportMatching(AdvSemiSupervisedAlg):
         )
 
     @implements(AdvSemiSupervisedAlg)
+    def _build_encoder(
+        self,
+        input_shape: tuple[int, ...],
+        s_dim: int,
+        feature_group_slices: dict[str, list[slice]] | None = None,
+    ) -> AutoEncoder:
+        if self.adapt_cfg.s_as_zs and self.adapt_cfg.zs_dim != s_dim:
+            raise ValueError(f"zs_dim has to be equal to s_dim ({s_dim}) if `s_as_zs` is True.")
+        return super()._build_encoder(input_shape, s_dim, feature_group_slices)
+
+    @implements(AdvSemiSupervisedAlg)
     def _step_adversary(
         self,
         train_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
@@ -137,6 +148,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 batch_tr.x,
                 recon_loss_fn=self.recon_loss_fn,
                 prior_loss_w=self.adapt_cfg.prior_loss_w,
+                s=batch_tr.s if self.adapt_cfg.s_as_zs else None,  # using s for the reconstruction
             )
 
             # ============================= recon loss for context set ============================

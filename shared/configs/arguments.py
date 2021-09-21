@@ -341,6 +341,8 @@ class AdaptConfig:
     use_pretrained_enc: bool = False
     zs_dim: int = 1
     zs_transform: ZsTransform = ZsTransform.none
+    s_as_zs: bool = False  # if True, pass `s` instead of `zs` to the decoder for the training set
+    s_pred_with_bias: bool = True  # if False, the s predictor has no bias term in the output layer
 
 
 T = TypeVar("T", bound="BaseConfig")
