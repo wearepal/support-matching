@@ -1372,13 +1372,14 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "torch"
-version = "1.9.0+cu111"
+version = "1.8.1+cu111"
 description = "Tensors and Dynamic neural networks in Python with strong GPU acceleration"
 category = "main"
 optional = false
 python-versions = ">=3.6.2"
 
 [package.dependencies]
+numpy = "*"
 typing-extensions = "*"
 
 [package.source]
@@ -1388,7 +1389,7 @@ reference = "torch_cu111"
 
 [[package]]
 name = "torchvision"
-version = "0.10.0+cu111"
+version = "0.9.1+cu111"
 description = "image and video datasets and models for torch deep learning"
 category = "main"
 optional = false
@@ -1396,8 +1397,8 @@ python-versions = "*"
 
 [package.dependencies]
 numpy = "*"
-pillow = ">=5.3.0"
-torch = "1.9.0"
+pillow = ">=4.1.1"
+torch = "1.8.1"
 
 [package.extras]
 scipy = ["scipy"]
@@ -1595,7 +1596,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7.1"
-content-hash = "4ab468a423bc9f72c6e7b60a170fe87ff82f0572e8a99317a61b86d52ba472a7"
+content-hash = "aec7907ee1d6f505c6517cb0cd89b485f108fa269887cd69535c0ba8e74ec96a"
 
 [metadata.files]
 aiohttp = [
@@ -2623,24 +2624,24 @@ tomli = [
     {file = "tomli-1.2.1.tar.gz", hash = "sha256:a5b75cb6f3968abb47af1b40c1819dc519ea82bcc065776a866e8d74c5ca9442"},
 ]
 torch = [
-    {file = "torch-1.9.0+cu111-cp36-cp36m-linux_x86_64.whl", hash = "sha256:49d350a880fc8c08a992dc5f4186c3587d1fdae834c0fac4248f9a28b427411b"},
-    {file = "torch-1.9.0+cu111-cp36-cp36m-win_amd64.whl", hash = "sha256:1559feacea01e5e1b334be0acf7aaa1823ac100bce4b2e44731de13f949ecf54"},
-    {file = "torch-1.9.0+cu111-cp37-cp37m-linux_x86_64.whl", hash = "sha256:18e4c2e07a52c5dfb75782cd3f2dc8835f880219b753eeacfe03a42b10f80091"},
-    {file = "torch-1.9.0+cu111-cp37-cp37m-win_amd64.whl", hash = "sha256:55d971ebb450a58abc04eccdb4000fd7a2a53b84515eca85b04a4fe190af5dfd"},
-    {file = "torch-1.9.0+cu111-cp38-cp38-linux_x86_64.whl", hash = "sha256:dbd2a25d0256091467f76f9975d06add0fb360829abd4c41e472f71da7ced207"},
-    {file = "torch-1.9.0+cu111-cp38-cp38-win_amd64.whl", hash = "sha256:fabaadf560fa8f79134281e4dbb85f1343d186134365f97dd0a856970f69f3b5"},
-    {file = "torch-1.9.0+cu111-cp39-cp39-linux_x86_64.whl", hash = "sha256:5422d19042e217c2aa94030b16b3fe4da5be9ba8eea46e7e59d40a110955962d"},
-    {file = "torch-1.9.0+cu111-cp39-cp39-win_amd64.whl", hash = "sha256:fab865dc594556818289aea1aba09c115b98a8e2eec1abdaa0059c3d047bb8e9"},
+    {file = "torch-1.8.1+cu111-cp36-cp36m-linux_x86_64.whl", hash = "sha256:f67f68f50f1c56e449ca714ee6303e211d9251b05a8e51f7691b0960f2518fe2"},
+    {file = "torch-1.8.1+cu111-cp36-cp36m-win_amd64.whl", hash = "sha256:764508bb88484f4d78942222d37bf8c817282da2bef1dd7b5fb9e6d76956ff7c"},
+    {file = "torch-1.8.1+cu111-cp37-cp37m-linux_x86_64.whl", hash = "sha256:9718f4eba3e207e4bcf06a909d72a077d44288a90c93799cb71fde0627998c09"},
+    {file = "torch-1.8.1+cu111-cp37-cp37m-win_amd64.whl", hash = "sha256:695785e9b58b9cf49ebc8daf0d12655ea729169c44d4c4f988015b36158b8740"},
+    {file = "torch-1.8.1+cu111-cp38-cp38-linux_x86_64.whl", hash = "sha256:aaf4d030bcf80903e06a5cd4c98c33eab9be131c96948cc8f8548c421c4ce1e3"},
+    {file = "torch-1.8.1+cu111-cp38-cp38-win_amd64.whl", hash = "sha256:d27aaa2f690d2bf061878abb4a3b047dadcb8c7a717558a47e7c08a60a9a4604"},
+    {file = "torch-1.8.1+cu111-cp39-cp39-linux_x86_64.whl", hash = "sha256:cf4a7312296353e136c764ae384020f3a766558d621594833827e83801612d0a"},
+    {file = "torch-1.8.1+cu111-cp39-cp39-win_amd64.whl", hash = "sha256:54a86e386c82d0826a64f2de02cae436007a98e269ef9fdeb89bcf6d57409c8f"},
 ]
 torchvision = [
-    {file = "torchvision-0.10.0+cu111-cp36-cp36m-linux_x86_64.whl", hash = "sha256:c088703da53479f0843443ce13c802e80cf3df614e68e66c445cdf33b7957191"},
-    {file = "torchvision-0.10.0+cu111-cp36-cp36m-win_amd64.whl", hash = "sha256:27c538cc9a1f0af614f189ad60d56d16fdeb0a75aaa424e44791ad61ba02a959"},
-    {file = "torchvision-0.10.0+cu111-cp37-cp37m-linux_x86_64.whl", hash = "sha256:c8c811869d3afeb6082220cd7a136b65822bbc86cfbeeb02c4624bd262fe06ce"},
-    {file = "torchvision-0.10.0+cu111-cp37-cp37m-win_amd64.whl", hash = "sha256:cd5e735da75a75619b1788a53f52ef3e41ec084562f237fd436fa6e7e8c152db"},
-    {file = "torchvision-0.10.0+cu111-cp38-cp38-linux_x86_64.whl", hash = "sha256:a756f0fb82ac753b9795ef80c1761054bf1e94f32ba001d5f6591724659bb4f7"},
-    {file = "torchvision-0.10.0+cu111-cp38-cp38-win_amd64.whl", hash = "sha256:d785f7b75aa5a40ea2dfa8669e69124e1abce9ccb84157827604264f3ed5c89e"},
-    {file = "torchvision-0.10.0+cu111-cp39-cp39-linux_x86_64.whl", hash = "sha256:00e7e19c74e155d271e6ac63d8b4e3f93f5d3cc171428c4fdddbb1226d72eca1"},
-    {file = "torchvision-0.10.0+cu111-cp39-cp39-win_amd64.whl", hash = "sha256:e4eeaea2fd9d6ed6bf966600fa0dd7615b39898f2a096147f70e0ae85a8e6ff8"},
+    {file = "torchvision-0.9.1+cu111-cp36-cp36m-linux_x86_64.whl", hash = "sha256:50d6af29895a068a87959e2a9af8a2be846dc0cffa7ffd7ff1f1302ac4cf0342"},
+    {file = "torchvision-0.9.1+cu111-cp36-cp36m-win_amd64.whl", hash = "sha256:607312b20c6e17ac2069394715beb8a82336e40c21abd10a48bbf7f0f803ae32"},
+    {file = "torchvision-0.9.1+cu111-cp37-cp37m-linux_x86_64.whl", hash = "sha256:ec431507c2998362373f846a9c8564ffb38e00f0353963a2a67b39f1c48252bc"},
+    {file = "torchvision-0.9.1+cu111-cp37-cp37m-win_amd64.whl", hash = "sha256:fd8971b15ef28c4c52bc13446ba59d9e0b79fd16409401a22d4fb5dab802eb02"},
+    {file = "torchvision-0.9.1+cu111-cp38-cp38-linux_x86_64.whl", hash = "sha256:563b02056f4bbacaf868340ba9a161e5da55ff9649e4f0ecee763809b0870d30"},
+    {file = "torchvision-0.9.1+cu111-cp38-cp38-win_amd64.whl", hash = "sha256:f1d50c161e068adda52dd7c1ed2a1cdd4fbe77ed7afd1902fcc838290b5e8f96"},
+    {file = "torchvision-0.9.1+cu111-cp39-cp39-linux_x86_64.whl", hash = "sha256:a7347b4c113e59c026a33b24a1e39506e3241897fdb6fb1a5ec5244dcbbce8df"},
+    {file = "torchvision-0.9.1+cu111-cp39-cp39-win_amd64.whl", hash = "sha256:640be95627d1c6cf7691a67e05f27ca57d9f7bd3c5d374e43a64e2a44e23657a"},
 ]
 tqdm = [
     {file = "tqdm-4.62.3-py2.py3-none-any.whl", hash = "sha256:8dd278a422499cd6b727e6ae4061c40b48fce8b76d1ccbf5d34fca9b7f925b0c"},
