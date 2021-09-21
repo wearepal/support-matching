@@ -1,11 +1,10 @@
 from dataclasses import dataclass, field
 import logging
 import shlex
-from typing import Any, Dict, List, Optional, Type, TypeVar
+from typing import Dict, List, Optional, Type, TypeVar
 
 from hydra.core.config_store import ConfigStore
 from hydra.core.hydra_config import HydraConfig
-from hydra.utils import instantiate
 from omegaconf import DictConfig, MISSING, OmegaConf
 import torch
 
@@ -47,7 +46,6 @@ __all__ = [
     "ImageDatasetConfig",
     "IsicConfig",
     "MiscConfig",
-    "join",
     "register_configs",
 ]
 
@@ -59,8 +57,7 @@ LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 class DatasetConfig:
     """General data set settings."""
 
-    _target_: str = "shared.configs.DatasetConfig"
-    log_name: str = MISSING  # don't rely on this to check which dataset is loaded
+    log_name: str  # don't rely on this to check which dataset is loaded
 
     data_pcnt: float = 1.0  # data pcnt should be a real value > 0, and up to 1
     context_pcnt: float = 0.4
@@ -76,7 +73,6 @@ class DatasetConfig:
 class AdultConfig(DatasetConfig):
     """Settings specific to the Adult dataset."""
 
-    _target_: str = "shared.configs.AdultConfig"
     log_name: str = "adult"
 
     # Adult data set feature settings
@@ -99,7 +95,6 @@ class ImageDatasetConfig(DatasetConfig):
 class CmnistConfig(ImageDatasetConfig):
     """Settings specific to the cMNIST dataset."""
 
-    _target_: str = "shared.configs.CmnistConfig"
     log_name: str = "cmnist"
 
     # Colored MNIST settings
@@ -120,7 +115,6 @@ class CmnistConfig(ImageDatasetConfig):
 class CelebaConfig(ImageDatasetConfig):
     """Settings specific to the CelebA dataset."""
 
-    _target_: str = "shared.configs.CelebaConfig"
     log_name: str = "celeba"
 
     # CelebA settings
@@ -132,7 +126,6 @@ class CelebaConfig(ImageDatasetConfig):
 class IsicConfig(ImageDatasetConfig):
     """Settings specific to the ISIC dataset."""
 
-    _target_: str = "shared.configs.IsicConfig"
     log_name: str = "isic"
 
     # ISIC settings
@@ -142,9 +135,6 @@ class IsicConfig(ImageDatasetConfig):
 
 @dataclass
 class BiasConfig:
-
-    _target_: str = "shared.configs.BiasConfig"
-
     # Dataset manipulation
     missing_s: List[int] = field(default_factory=list)
     mixing_factor: float = 0  # How much of context should be mixed into training?
@@ -161,7 +151,6 @@ class BiasConfig:
 
 @dataclass
 class MiscConfig:
-    _target_: str = "shared.configs.MiscConfig"
     # Cluster settings
     cluster_label_file: str = ""
 
@@ -193,8 +182,6 @@ class MiscConfig:
 @dataclass
 class ClusterConfig:
     """Flags for clustering."""
-
-    _target_: str = "shared.configs.ClusterConfig"
 
     # Optimization settings
     early_stopping: int = 30
@@ -269,8 +256,6 @@ class ClusterConfig:
 class EncoderConfig:
     """Flags that are shared between "adapt" and "clustering" but which don't concern data."""
 
-    _target_: str = "shared.configs.EncoderConfig"
-
     out_dim: int = 64
     levels: int = 4
     init_chans: int = 32
@@ -281,8 +266,6 @@ class EncoderConfig:
 @dataclass
 class AdaptConfig:
     """Flags for disentangling."""
-
-    _target_: str = "shared.configs.AdaptConfig"
 
     method: AdaptationMethod = AdaptationMethod.suds
     mixup: bool = False
@@ -367,37 +350,25 @@ T = TypeVar("T", bound="BaseConfig")
 class BaseConfig:
     """Minimum config needed to do data loading."""
 
-    _target_: str = "shared.configs.BaseConfig"
-    cmd: str = ""
+    cmd = ""  # no type annotation, so that stupid hydra doesn't pick this up
 
-    data: DatasetConfig = MISSING
-    bias: BiasConfig = MISSING
-    misc: MiscConfig = MISSING
+    data: DatasetConfig
+    bias: BiasConfig
+    misc: MiscConfig
 
     @classmethod
     def from_hydra(cls: Type[T], hydra_config: DictConfig) -> T:
-        """Instantiate this class based on a hydra config.
+        """Instantiate class based on a hydra config."""
+        conf: object = OmegaConf.to_object(hydra_config)  # type: ignore
+        assert isinstance(conf, cls), f"The given hydra config did not correspond to class {cls}."
 
-        This is necessary because dataclasses cannot be instantiated recursively yet.
-        """
-        subconfigs: Dict[str, Any] = {
-            k: instantiate(v) for k, v in hydra_config.items() if k not in ("_target_", "cmd")
-        }
-
-        # reconstruct the python command that was used to start this program
-        internal_config = HydraConfig.get()
-        program = internal_config.job.name + ".py"
-        args = internal_config.overrides.task
-        subconfigs["cmd"] = join([program] + OmegaConf.to_container(args))
-
-        return cls(**subconfigs)
+        conf.cmd = reconstruct_cmd()
+        return conf
 
 
 @dataclass
 class FsConfig:
     """Arguments for models run via the run_fs script."""
-
-    _target_: str = "shared.configs.FsConfig"
 
     # General data set settings
     greyscale: bool = False
@@ -426,10 +397,8 @@ class FsConfig:
 class Config(BaseConfig):
     """Config used for clustering and disentangling."""
 
-    _target_: str = "shared.configs.Config"
-
-    clust: ClusterConfig = MISSING
-    enc: EncoderConfig = MISSING
+    clust: ClusterConfig
+    enc: EncoderConfig
     adapt: AdaptConfig = AdaptConfig()
     fs_args: FsConfig = FsConfig()
 
@@ -442,6 +411,14 @@ def register_configs() -> None:
     cs.store(node=IsicConfig, name="isic", package="data", group="data/schema")
 
 
-def join(split_command: List[str]) -> str:
+def reconstruct_cmd() -> str:
+    """Reconstruct the python command that was used to start this program."""
+    internal_config = HydraConfig.get()
+    program = internal_config.job.name + ".py"
+    args = internal_config.overrides.task
+    return _join([program] + OmegaConf.to_container(args))  # type: ignore[operator]
+
+
+def _join(split_command: List[str]) -> str:
     """Concatenate the tokens of the list split_command and return a string."""
     return " ".join(shlex.quote(arg) for arg in split_command)

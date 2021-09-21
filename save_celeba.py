@@ -1,11 +1,10 @@
 from dataclasses import dataclass
-from typing import Type, TypeVar
+from typing import TypeVar
 
 import hydra
 from hydra.core.config_store import ConfigStore
-from hydra.utils import instantiate
 from omegaconf.dictconfig import DictConfig
-from omegaconf.omegaconf import MISSING
+from omegaconf.omegaconf import MISSING, OmegaConf
 import pandas as pd
 import torch
 
@@ -25,21 +24,10 @@ T = TypeVar("T", bound="BaseConfig")
 class SaveDataConfig:
     """Minimum config needed to do data loading."""
 
-    _target_: str = "SaveDataConfig"
     save_dir: str = ""
 
     data: DatasetConfig = MISSING
     bias: BiasConfig = MISSING
-
-    @classmethod
-    def from_hydra(cls: Type[T], hydra_config: DictConfig) -> T:
-        """Instantiate this class based on a hydra config.
-
-        This is necessary because dataclasses cannot be instantiated recursively yet.
-        """
-        subconfigs = {k: instantiate(v) for k, v in hydra_config.items() if k != "_target_"}
-
-        return cls(**subconfigs)
 
 
 cs = ConfigStore.instance()
@@ -49,7 +37,8 @@ register_configs()
 
 @hydra.main(config_path="conf", config_name="data_gen")
 def main(hydra_config: DictConfig) -> None:
-    cfg = BaseConfig.from_hydra(hydra_config)
+    cfg: object = OmegaConf.to_object(hydra_config)
+    assert isinstance(cfg, SaveDataConfig)
     if not isinstance(cfg.data, CelebaConfig):
         raise ValueError("Data-saving currently only works for CelebA.")
     #  Load the datasets and wrap with dataloaders
