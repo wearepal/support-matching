@@ -18,6 +18,11 @@ classifiers=[
 ]
 readme="README.md"
 
+[[tool.poetry.source]]
+name = "pytorch_cpu"
+url = "https://download.pytorch.org/whl/cpu/"
+secondary = true
+
 [tool.poetry.dependencies]
 python = "^3.7.1"
 EthicML = "0.2.0"
@@ -38,8 +43,8 @@ scikit_learn = ">= 0.20.1"
 scipy = ">= 1.2.1"
 seaborn = ">= 0.9.0"
 teext = "*"
-torch = ">= 1.8"
-torchvision = ">= 0.4.0"
+torch = { version = "=1.9.0+cpu", source = "pytorch_cpu" }
+torchvision = { version = "=0.10.0+cpu", source = "pytorch_cpu" }
 tqdm = ">= 4.31.1"
 typer = "*"
 typing-extensions = ">= 3.7.2"
