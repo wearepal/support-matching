@@ -2,14 +2,14 @@
 # --- slurm settings ---
 #SBATCH --partition=goedel
 #SBATCH --ntasks=1
-#SBATCH --gpus-per-task=3
-#SBATCH --cpus-per-task=9
-#SBATCH --mem=90G
-#SBATCH --job-name=ray-wrapper
+#SBATCH --gpus-per-task=2
+#SBATCH --cpus-per-task=6
+#SBATCH --mem=60G
+#SBATCH --job-name=ray-wrapper-2gpus
 #SBATCH --output=./rayjob-%j.out
 # ----------------------
 
-port=3487
+port=3486
 ray start --head --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${SLURM_GPUS_PER_TASK}" --port $port
 
 # We just run here whatever is passed as arguments to this job script.
