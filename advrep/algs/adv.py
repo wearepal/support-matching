@@ -291,13 +291,17 @@ class AdvSemiSupervisedAlg(AlgBase):
     def _train(self, mode: Literal["encoder", "adversary"]) -> None:
         if mode == "encoder":
             self.encoder.train()
-            self.predictor_y.train()
-            self.predictor_s.train()
+            if self.predictor_y is not None:
+                self.predictor_y.train()
+            if self.predictor_s is not None:
+                self.predictor_s.train()
             self.adversary.eval()
         else:
             self.encoder.eval()
-            self.predictor_y.eval()
-            self.predictor_s.eval()
+            if self.predictor_y is not None:
+                self.predictor_y.eval()
+            if self.predictor_s is not None:
+                self.predictor_s.eval()
             self.adversary.train()
 
     def _get_data_iterators(
