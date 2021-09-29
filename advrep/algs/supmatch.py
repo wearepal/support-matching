@@ -33,9 +33,12 @@ class SupportMatching(AdvSemiSupervisedAlg):
         super().__init__(cfg)
         if self.adapt_cfg.aggregator_type != AggregatorType.none:
             self.eff_batch_size *= self.adapt_cfg.bag_size
+        self.is_warmup = False
 
     @implements(AdvSemiSupervisedAlg)
-    def _build_adversary(self, input_shape: tuple[int, ...], s_dim: int) -> Discriminator:
+    def _build_adversary(
+        self, input_shape: tuple[int, ...], s_dim: int
+    ) -> tuple[Discriminator, Discriminator | None]:
         """Build the adversarial network."""
         disc_input_shape: tuple[int, ...] = (
             input_shape if self.adapt_cfg.train_on_recon else (self.enc_cfg.out_dim,)
@@ -56,6 +59,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 else disc_input_shape
             )
 
+        non_agg_disc = None
         if self.adapt_cfg.aggregator_type is not AggregatorType.none:
             final_proj = (
                 FcNet(self.adapt_cfg.aggregator_hidden_dims)
@@ -77,16 +81,23 @@ class SupportMatching(AdvSemiSupervisedAlg):
                     final_proj=final_proj,
                     **self.adapt_cfg.aggregator_kwargs,
                 )
+            non_agg_disc = Discriminator(
+                model=disc_fn(disc_input_shape, 1),  # type: ignore
+                double_adv_loss=self.adapt_cfg.double_adv_loss,
+                optimizer_kwargs=self.optimizer_kwargs,
+                criterion=self.adapt_cfg.adv_loss,
+            )
             disc_fn = ModelAggregatorWrapper(
                 disc_fn, aggregator, input_dim=self.adapt_cfg.aggregator_input_dim
             )
 
-        return Discriminator(
+        disc = Discriminator(
             model=disc_fn(disc_input_shape, 1),  # type: ignore
             double_adv_loss=self.adapt_cfg.double_adv_loss,
             optimizer_kwargs=self.optimizer_kwargs,
             criterion=self.adapt_cfg.adv_loss,
         )
+        return disc, non_agg_disc
 
     @implements(AdvSemiSupervisedAlg)
     def _build_encoder(
@@ -104,8 +115,11 @@ class SupportMatching(AdvSemiSupervisedAlg):
         self,
         train_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
         context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
+        itr: int,
     ) -> tuple[Tensor, dict[str, float]]:
         """Train the discriminator while keeping the encoder fixed."""
+        if self.adapt_cfg.aggregator_type is not AggregatorType.none:
+            self.is_warmup = itr < self.adapt_cfg.aggregator_warmup
         self._train("adversary")
         x_tr = self._sample_train(train_data_itr).x
         x_ctx = self._sample_context(context_data_itr=context_data_itr)
@@ -127,9 +141,14 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 with torch.no_grad():
                     adv_input_ctx = self._get_adv_input(encoding_ctx)  # type: ignore
 
-            adv_loss = self.adversary.discriminator_loss(fake=adv_input_tr, real=adv_input_ctx)  # type: ignore
+            if self.is_warmup and self.non_agg_adv is not None:
+                adv_loss = self.non_agg_adv.discriminator_loss(
+                    fake=adv_input_tr, real=adv_input_ctx
+                )
+            else:
+                adv_loss = self.adversary.discriminator_loss(fake=adv_input_tr, real=adv_input_ctx)  # type: ignore
 
-        self._update_adversary(adv_loss)
+        self._update_adversary(adv_loss, is_warmup=self.is_warmup and self.non_agg_adv is not None)
 
         return adv_loss, logging_dict
 
@@ -166,7 +185,14 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 disc_input_ctx = self._get_adv_input(encoding_c)
 
                 if self.adapt_cfg.adv_method is DiscriminatorMethod.nn:
-                    disc_loss = self.adversary.encoder_loss(fake=disc_input_tr, real=disc_input_ctx)
+                    if self.is_warmup and self.non_agg_adv is not None:
+                        disc_loss = self.non_agg_adv.encoder_loss(
+                            fake=disc_input_tr, real=disc_input_ctx
+                        )
+                    else:
+                        disc_loss = self.adversary.encoder_loss(
+                            fake=disc_input_tr, real=disc_input_ctx
+                        )
 
                 else:
                     x = disc_input_tr
@@ -224,7 +250,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
         rows_per_block = 8
         num_blocks = 4
-        if self.adapt_cfg.aggregator_type is AggregatorType.none:
+        if self.adapt_cfg.aggregator_type is AggregatorType.none or self.is_warmup:
             num_sampled_bags = 0  # this is only defined here to make the linter happy
             num_samples = num_blocks * rows_per_block
         else:
@@ -263,7 +289,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
             caption=caption,
         )
 
-        if self.adapt_cfg.aggregator_type is AggregatorType.gated:
+        if self.adapt_cfg.aggregator_type is AggregatorType.gated and not self.is_warmup:
             self.adversary(self._get_adv_input(encoding))
             assert isinstance(self.adversary.model[-1], Aggregator)  # type: ignore
             attention_weights = self.adversary.model[-1].attention_weights  # type: ignore

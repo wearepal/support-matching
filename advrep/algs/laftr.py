@@ -64,6 +64,7 @@ class LAFTR(AdvSemiSupervisedAlg):
         self,
         train_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
         context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
+        itr: int,
     ) -> tuple[Tensor, dict[str, float]]:
         """Train the adversary while fixing the encoder."""
         self._train("adversary")

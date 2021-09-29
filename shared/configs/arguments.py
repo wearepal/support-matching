@@ -324,6 +324,7 @@ class AdaptConfig:
     aggregator_input_dim: int = 32
     aggregator_hidden_dims: List[int] = field(default_factory=list)
     aggregator_kwargs: Dict[str, int] = field(default_factory=dict)
+    aggregator_warmup: int = 0
 
     # Training settings
     lr: float = 1e-3

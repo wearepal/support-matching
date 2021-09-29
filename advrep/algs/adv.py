@@ -64,6 +64,7 @@ class AdvSemiSupervisedAlg(AlgBase):
     _encoding_size: EncodingSize
     encoder: AutoEncoder
     adversary: Classifier | Discriminator
+    non_agg_adv: Discriminator | None
     recon_loss_fn: Callable[[Tensor, Tensor], Tensor]
     predictor_y: Classifier | None
     predictor_s: Classifier | None
@@ -147,7 +148,7 @@ class AdvSemiSupervisedAlg(AlgBase):
     @abstractmethod
     def _build_adversary(
         self, input_shape: tuple[int, ...], s_dim: int
-    ) -> Classifier | Discriminator:
+    ) -> Classifier | tuple[Discriminator, Discriminator | None]:
         ...
 
     def _build_predictors(
@@ -185,7 +186,12 @@ class AdvSemiSupervisedAlg(AlgBase):
             input_shape=input_shape, s_dim=s_dim, feature_group_slices=feature_group_slices
         )
         self.recon_loss_fn = self._get_recon_loss_fn(feature_group_slices=feature_group_slices)
-        self.adversary = self._build_adversary(input_shape=input_shape, s_dim=s_dim)
+        built_adv = self._build_adversary(input_shape=input_shape, s_dim=s_dim)
+        if isinstance(built_adv, tuple):
+            self.adversary, self.non_agg_adv = built_adv
+        else:
+            self.adversary = built_adv
+            self.non_agg_adv = None
         self.predictor_y, self.predictor_s = self._build_predictors(y_dim=y_dim, s_dim=s_dim)
         self.to(self.misc_cfg.device)
 
@@ -224,7 +230,7 @@ class AdvSemiSupervisedAlg(AlgBase):
             # Train the discriminator on its own for a number of iterations
             for _ in range(self.adapt_cfg.num_adv_updates):
                 self._step_adversary(
-                    train_data_itr=train_data_itr, context_data_itr=context_data_itr
+                    train_data_itr=train_data_itr, context_data_itr=context_data_itr, itr=itr
                 )
 
         batch_tr = self._sample_train(train_data_itr=train_data_itr)
@@ -249,6 +255,7 @@ class AdvSemiSupervisedAlg(AlgBase):
         self,
         train_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
         context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
+        itr: int,
     ) -> tuple[Tensor, dict[str, float]]:
         ...
 
@@ -278,13 +285,15 @@ class AdvSemiSupervisedAlg(AlgBase):
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
             self.grad_scaler.update()
 
-    def _update_adversary(self, loss: Tensor) -> None:
-        self.adversary.zero_grad()
+    def _update_adversary(self, loss: Tensor, is_warmup: bool = False) -> None:
+        adversary = self.non_agg_adv if is_warmup else self.adversary
+        assert adversary is not None
+        adversary.zero_grad()
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
             loss = self.grad_scaler.scale(loss)
         loss.backward()
 
-        self.adversary.step(grad_scaler=self.grad_scaler)
+        adversary.step(grad_scaler=self.grad_scaler)
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
             self.grad_scaler.update()
 
@@ -296,6 +305,8 @@ class AdvSemiSupervisedAlg(AlgBase):
             if self.predictor_s is not None:
                 self.predictor_s.train()
             self.adversary.eval()
+            if self.non_agg_adv is not None:
+                self.non_agg_adv.eval()
         else:
             self.encoder.eval()
             if self.predictor_y is not None:
@@ -303,6 +314,8 @@ class AdvSemiSupervisedAlg(AlgBase):
             if self.predictor_s is not None:
                 self.predictor_s.eval()
             self.adversary.train()
+            if self.non_agg_adv is not None:
+                self.non_agg_adv.train()
 
     def _get_data_iterators(
         self, datasets: DatasetTriplet, cluster_results: ClusterResults | None = None
