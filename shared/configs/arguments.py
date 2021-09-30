@@ -352,11 +352,11 @@ T = TypeVar("T", bound="BaseConfig")
 class BaseConfig:
     """Minimum config needed to do data loading."""
 
-    cmd = ""  # no type annotation, so that stupid hydra doesn't pick this up
-
     data: DatasetConfig
     bias: BiasConfig
     misc: MiscConfig
+
+    cmd: str = ""  # don't set this in the yaml file (or anywhere really); it will get overwritten
 
     @classmethod
     def from_hydra(cls: Type[T], hydra_config: DictConfig) -> T:
@@ -399,8 +399,8 @@ class FsConfig:
 class Config(BaseConfig):
     """Config used for clustering and disentangling."""
 
-    clust: ClusterConfig
-    enc: EncoderConfig
+    clust: ClusterConfig = MISSING
+    enc: EncoderConfig = MISSING
     adapt: AdaptConfig = AdaptConfig()
     fs_args: FsConfig = FsConfig()
 
