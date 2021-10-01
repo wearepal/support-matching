@@ -160,8 +160,8 @@ class SupportMatching(AdvSemiSupervisedAlg):
             enc_loss_tr *= self.adapt_cfg.enc_loss_w
             logging_dict["Loss Generator"] = enc_loss_tr
             total_loss = enc_loss_tr
-            # ================================= adversarial losses ================================
             if not warmup:
+                # =============================== adversarial losses ==============================
                 disc_input_tr = self._get_adv_input(encoding_t)
                 disc_input_ctx = self._get_adv_input(encoding_c)
 
@@ -183,19 +183,20 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 total_loss += disc_loss
                 logging_dict["Loss Discriminator"] = disc_loss
 
-            if self.predictor_y is not None:
-                # predictor is on encodings; predict y from the part that is invariant to s
-                pred_y_loss, pred_y_acc = self.predictor_y.routine(encoding_t.zy, batch_tr.y)
-                pred_y_loss *= self.adapt_cfg.pred_y_loss_w
-                logging_dict["Loss Predictor y"] = pred_y_loss.item()
-                logging_dict["Accuracy Predictor y"] = pred_y_acc
-                total_loss += pred_y_loss
-            if self.predictor_s is not None:
-                pred_s_loss, pred_s_acc = self.predictor_s.routine(encoding_t.zs, batch_tr.s)
-                pred_s_loss *= self.adapt_cfg.pred_s_loss_w
-                logging_dict["Loss Predictor s"] = pred_s_loss.item()
-                logging_dict["Accuracy Predictor s"] = pred_s_acc
-                total_loss += pred_s_loss
+                # ============================== classification losses ============================
+                if self.predictor_y is not None:
+                    # predictor is on encodings; predict y from the part that is invariant to s
+                    pred_y_loss, pred_y_acc = self.predictor_y.routine(encoding_t.zy, batch_tr.y)
+                    pred_y_loss *= self.adapt_cfg.pred_y_loss_w
+                    logging_dict["Loss Predictor y"] = pred_y_loss.item()
+                    logging_dict["Accuracy Predictor y"] = pred_y_acc
+                    total_loss += pred_y_loss
+                if self.predictor_s is not None:
+                    pred_s_loss, pred_s_acc = self.predictor_s.routine(encoding_t.zs, batch_tr.s)
+                    pred_s_loss *= self.adapt_cfg.pred_s_loss_w
+                    logging_dict["Loss Predictor s"] = pred_s_loss.item()
+                    logging_dict["Accuracy Predictor s"] = pred_s_acc
+                    total_loss += pred_s_loss
 
         logging_dict["Loss Total"] = total_loss
 
