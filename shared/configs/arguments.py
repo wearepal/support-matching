@@ -107,7 +107,7 @@ class CmnistConfig(ImageDatasetConfig):
     shift_data: bool = False
     color_correlation: float = 1.0
     padding: int = 2  # by how many pixels to pad the cmnist images by
-    filter_map_labels: Dict[str, int] = field(default_factory=dict)
+    filter_map_labels: Dict[int, int] = field(default_factory=dict)
     colors: List[int] = field(default_factory=list)
 
 
@@ -143,8 +143,8 @@ class BiasConfig:
     # float. the class id is given by class_id = y * s_count + s, so for binary s and y, the
     # correspondance is like this:
     # 0: y=0/s=0, 1: y=0/s=1, 2: y=1/s=0, 3: y=1/s=1
-    subsample_context: Dict[str, float] = field(default_factory=dict)
-    subsample_train: Dict[str, float] = field(default_factory=dict)
+    subsample_context: Dict[int, float] = field(default_factory=dict)
+    subsample_train: Dict[int, float] = field(default_factory=dict)
 
     log_dataset: str = ""
 

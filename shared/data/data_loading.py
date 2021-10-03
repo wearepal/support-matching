@@ -81,7 +81,7 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
             def _filter_(dataset: MNIST):
                 final_mask = torch.zeros_like(dataset.targets).bool()
                 for old_label, new_label in args.filter_map_labels.items():
-                    mask = dataset.targets == int(old_label)
+                    mask = dataset.targets == old_label
                     dataset.targets[mask] = new_label
                     final_mask |= mask
                 dataset.data = dataset.data[final_mask]
@@ -133,14 +133,13 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
             return RawDataTuple(x=x_col, s=s, y=y)
 
         def _subsample_by_s_and_y(
-            _data: RawDataTuple, _target_props: Dict[str, float]
+            _data: RawDataTuple, _target_props: Dict[int, float]
         ) -> RawDataTuple:
             _x = _data.x
             _s = _data.s
             _y = _data.y
             smallest: Tuple[int, Optional[int], Optional[int]] = (int(1e10), None, None)
             for _class_id, _prop in _target_props.items():
-                _class_id = int(_class_id)  # hydra doesn't allow ints as keys, so we have to cast
                 assert 0 <= _prop <= 1, "proportions should be between 0 and 1"
                 target_y = _class_id // num_classes
                 target_s = _class_id % num_colors
@@ -237,13 +236,12 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
         )
 
         def _subsample_inds_by_s_and_y(
-            _data: Dataset, _subset_inds: Tensor, _target_props: Dict[str, float]
+            _data: Dataset, _subset_inds: Tensor, _target_props: Dict[int, float]
         ) -> Tensor:
 
             card_y = max(y_dim, 2)
             card_s = max(s_dim, 2)
             for _class_id, _prop in _target_props.items():
-                _class_id = int(_class_id)  # hydra doesn't allow ints as keys, so we have to cast
                 assert 0 <= _prop <= 1, "proportions should be between 0 and 1"
                 _s = _data.s[_subset_inds]
                 _y = _data.y[_subset_inds]
