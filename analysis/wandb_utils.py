@@ -2,14 +2,14 @@ from __future__ import annotations
 from enum import Enum, auto
 import math
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Dict
 from typing_extensions import Final
 
 from matplotlib import pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-__all__ = ["Metrics", "load_data", "plot"]
+__all__ = ["Metrics", "load_data", "plot", "concat_with_suffix", "simple_concat"]
 
 
 class Metrics(Enum):
@@ -41,9 +41,9 @@ METRICS_COL_NAMES: Final = {
     Metrics.prr: lambda s, cl: f"prob_pos_{s}_0.0÷{s}_1.0 ({cl})",
     Metrics.tprr: lambda s, cl: f"TPR_{s}_0.0÷{s}_1.0 ({cl})",
     Metrics.tnrr: lambda s, cl: f"TNR_{s}_0.0÷{s}_1.0 ({cl})",
-    Metrics.clust_acc: lambda s, cl: f"Clust/Context Accuracy",
-    Metrics.clust_ari: lambda s, cl: f"Clust/Context ARI",
-    Metrics.clust_nmi: lambda s, cl: f"Clust/Context NMI",
+    Metrics.clust_acc: lambda s, cl: "Clust/Context Accuracy",
+    Metrics.clust_ari: lambda s, cl: "Clust/Context ARI",
+    Metrics.clust_nmi: lambda s, cl: "Clust/Context NMI",
 }
 
 AGG_METRICS_COL_NAMES: Final = {
@@ -115,11 +115,14 @@ METHOD_RENAMES: Final = {
     "oracle_gdro": "gDRO (Label Oracle)",
     "perfect-cluster": "Ours (Bag Oracle)",
     "no-cluster-suds": "Ours (No Balancing)",
+    "perfect-cluster-nomil": "No MIL (Bag Oracle)",
+    "no-cluster-fdm-nomil": "No MIL (No Balancing)",
     "ranking-suds": "Ours (Clustering)",
     "ranking-fdm": "Ours (Clustering)",
     "ranking-fdm-4": "Ours (Clustering; k=4)",
     "ranking-fdm-6": "Ours (Clustering; k=6)",
     "ranking-fdm-8": "Ours (Clustering; k=8)",
+    "ranking-fdm-nomil": "No MIL (Clustering)",
     "ss_ae": "AutoEncoder",
 }
 
@@ -163,10 +166,17 @@ def simple_concat(*dfs: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(dfs, axis="index", sort=False, ignore_index=True)
 
 
+def concat_with_suffix(dfs: Dict[str, pd.DataFrame], groupby: str = "misc.log_method") -> pd.DataFrame:
+    renamed_dfs: list[pd.DataFrame] = []
+    for suffix, df in dfs.items():
+        copy = df.copy()
+        copy[groupby] += suffix
+        renamed_dfs.append(copy)
+    return pd.concat(renamed_dfs, axis="index", sort=False, ignore_index=True)
+
+
 def load_data(*csv_files: Path) -> pd.DataFrame:
-    dfs = []
-    for csv_file in csv_files:
-        dfs.append(pd.read_csv(csv_file))
+    dfs = [pd.read_csv(csv_file) for csv_file in csv_files]
     return simple_concat(*dfs)
 
 
