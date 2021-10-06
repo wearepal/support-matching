@@ -4,7 +4,9 @@ from typing import Dict, NamedTuple, Optional, Sequence, Tuple
 from typing_extensions import Literal
 
 import ethicml as em
+from matplotlib import pyplot as plt
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import torch
 from torch import Tensor
@@ -13,6 +15,8 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
 from tqdm import tqdm
+import umap
+import wandb
 
 from advrep.models import AutoEncoder, Classifier, SplitEncoding
 from shared.configs import (
@@ -71,6 +75,7 @@ def log_metrics(
         test = encode_dataset(cfg, data.test, model, recons=False, invariant_to=invariant_to)
         assert test.inv_s is not None
         test_repr = test.inv_s
+        _log_enc_statistics(test_repr)
 
     LOGGER.info("\nComputing metrics...")
     evaluate(
@@ -138,6 +143,68 @@ def baseline_metrics(cfg: Config, data: DatasetTriplet) -> None:
                 step=0,
                 use_wandb=False,
             )
+
+
+def _log_enc_statistics(encoded: TensorDataTupleDataset):
+    """Compute and log statistics about the encoding."""
+    z, y, s = encoded.x, encoded.y, encoded.s
+    label = 10 * y + s
+    mapper = umap.UMAP(n_neighbors=25, n_components=2)
+    umap_z = mapper.fit_transform(z.numpy())
+    umap_plot = visualize_clusters(umap_z, labels=label.numpy())
+    to_log = {"umap": umap_plot}
+
+    for y_value in y.unique():
+        for s_value in s.unique():
+            mask = (y == y_value) & (s == s_value)
+            encodings = z[mask]
+            to_log[f"enc_mean_s={s_value}_y={y_value}"] = encodings.mean().item()
+    wandb.log(to_log)
+
+
+def visualize_clusters(
+    x: npt.NDArray[np.floating] | Tensor,
+    *,
+    labels: npt.NDArray[np.number] | Tensor,
+    title: str | None = None,
+    legend: bool = True,
+) -> plt.Figure:
+    if x.shape[1] != 2:
+        raise ValueError("Cluster-visualization can only be performed for 2-dimensional inputs.")
+    if isinstance(x, Tensor):
+        x = x.detach().cpu().numpy()
+    if isinstance(labels, Tensor):
+        labels_ls = labels.detach().cpu().long().tolist()
+    else:
+        labels_ls = labels.astype("uint").tolist()
+
+    classes = np.unique(labels)
+    num_classes = len(classes)
+    fig, ax = plt.subplots(dpi=100, figsize=(6, 6))
+    cmap = ListedColormap(sns.color_palette("bright", num_classes).as_hex())  # type: ignore
+    sc = ax.scatter(x[:, 0], x[:, 1], lw=0, s=40, c=labels_ls, cmap=cmap)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    sns.despine(left=True, bottom=True, right=True)
+
+    if legend:
+
+        def _flip(items: Sequence, ncol: int):
+            return itertools.chain(*[items[i::ncol] for i in range(ncol)])
+
+        plt.legend(
+            handles=_flip(sc.legend_elements()[0], 5),
+            labels=_flip(classes.tolist(), 5),
+            frameon=False,
+            loc="upper center",
+            bbox_to_anchor=(0.3, -0.03),
+            ncol=5,
+        )
+
+    if title is not None:
+        ax.set_title(title)
+
+    return fig
 
 
 def fit_classifier(

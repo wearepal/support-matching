@@ -148,7 +148,7 @@ class AutoEncoder(nn.Module):
             zs = zs.detach()
             zy = zy.detach()
         if random:
-            zs_m = SplitEncoding(zs=torch.randn_like(zs), zy=zy)
+            zs_m = SplitEncoding(zs=torch.randint_like(zs, low=0, high=2).float(), zy=zy)
             zy_m = SplitEncoding(zs=zs, zy=torch.randn_like(zy))
         else:
             zs_m = SplitEncoding(zs=torch.zeros_like(zs), zy=zy)

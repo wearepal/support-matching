@@ -238,7 +238,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         recons = [recon.all, recon.zero_s, recon.just_s]
 
         caption = "original | all | zero_s | just_s"
-        if self.adapt_cfg.train_on_recon:
+        if self.adapt_cfg.train_on_recon and self.adapt_cfg.s_as_zs:
             recons.append(recon.rand_s)
             caption += " | rand_s"
 
