@@ -126,3 +126,5 @@ dmypy.json
 *.pdf
 /experiments_copy/
 /flags_bak/
+
+/rayjobs/

@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=6
 #SBATCH --mem=60G
 #SBATCH --job-name=ray-wrapper-2gpus
-#SBATCH --output=./rayjob-%j.out
+#SBATCH --output=./rayjobs/%j.out
 # ----------------------
 
 # magic command to get a free port
