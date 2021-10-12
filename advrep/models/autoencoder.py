@@ -52,7 +52,10 @@ class AutoEncoder(nn.Module):
         del stochastic
         enc = self._split_encoding(self.encoder(inputs))
         if do_zs_transform and self.zs_transform is ZsTransform.round_ste:
-            rounded_zs = RoundSTE.apply(torch.sigmoid(enc.zs))
+            if enc.zs.size(1) > 1:
+                rounded_zs = F.gumbel_softmax(enc.zs, hard=True)
+            else:
+                rounded_zs = RoundSTE.apply(torch.sigmoid(enc.zs))
         else:
             rounded_zs = enc.zs
         return SplitEncoding(zs=rounded_zs, zy=enc.zy)
