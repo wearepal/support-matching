@@ -337,6 +337,7 @@ class AdaptConfig:
     pred_y_loss_w: float = 1
     pred_s_loss_w: float = 0
     prior_loss_w: float = 0
+    pred_y_hidden_dims: List[int] = field(default_factory=list)
 
     # Encoder settings (that are not shared with the clustering code)
     use_pretrained_enc: bool = False
