@@ -1,3 +1,5 @@
+from typing import Optional
+
 import matplotlib
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -5,9 +7,7 @@ import numpy as np
 import torch
 import wandb
 
-from shared.configs import MiscConfig
-
-__all__ = ["plot_contrastive", "plot_histogram"]
+__all__ = ["plot_contrastive", "plot_histogram", "plot_histogram_by_source"]
 
 
 def plot_contrastive(original, recon, columns, filename):
@@ -41,7 +41,6 @@ def plot_contrastive(original, recon, columns, filename):
 
 
 def plot_histogram(
-    misc: MiscConfig,
     vector: torch.Tensor,
     step: int,
     prefix: str = "train",
@@ -68,3 +67,50 @@ def plot_histogram(
         f"{prefix}_xi_tensor": vector,
     }
     wandb.log(log_dict, step=step)
+
+
+def plot_histogram_by_source(
+    soft_preds: torch.Tensor,
+    *,
+    s: torch.Tensor,
+    y: torch.Tensor,
+    step: int,
+    n_bins: int = 15,
+) -> None:
+    """Plot a histogram over the batch"""
+    logging_dict = {}
+    for s_value in s.unique():
+        for y_value in y.unique():
+            preds_for_source = soft_preds[(y == y_value) & (s == s_value)]
+            fig = _plot_histo(preds_for_source, n_bins=n_bins)
+            logging_dict[f"confidence_s={s_value}_y={y_value}"] = wandb.Image(fig)
+            fig = _plot_histo(preds_for_source, n_bins=n_bins, pred_target=y_value)
+            logging_dict[f"prob_true_class_s={s_value}_y={y_value}"] = wandb.Image(fig)
+
+        preds_for_subgroup = soft_preds[(s == s_value)]
+        fig = _plot_histo(preds_for_subgroup, n_bins=n_bins)
+        logging_dict[f"confidence_s={s_value}"] = wandb.Image(fig)
+    wandb.log(logging_dict, step=step)
+
+
+def _plot_histo(
+    soft_preds: torch.Tensor, n_bins: int, pred_target: Optional[int] = None
+) -> matplotlib.figure.Figure:
+    class_dim = soft_preds.size(1) if soft_preds.ndim > 1 else 1
+    if class_dim > 1:
+        if pred_target is not None:
+            probs = soft_preds[:, pred_target]
+        else:
+            probs = soft_preds.max(dim=1).values
+    else:
+        if pred_target is not None:
+            probs = soft_preds if pred_target == 1 else (1 - soft_preds)
+        else:
+            probs = torch.where(soft_preds > 0.5, soft_preds, 1 - soft_preds)
+        probs = probs.view((probs.size(0),))
+    probs_np = probs.detach().cpu().numpy()
+    fig, plot = plt.subplots(dpi=200, figsize=(6, 4))
+    plot.hist(probs_np, bins=n_bins, range=(0, 1))
+    plot.set_xlim(left=0, right=1)
+    fig.tight_layout()
+    return fig

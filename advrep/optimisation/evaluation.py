@@ -39,6 +39,7 @@ from shared.utils import (
     label_to_class_id,
     make_tuple_from_data,
     prod,
+    plot_histogram_by_source,
 )
 
 from .utils import ExtractableDataset, build_weighted_sampler_from_dataset, log_images
@@ -83,7 +84,7 @@ def log_metrics(
         test = encode_dataset(cfg, data.test, model, recons=False, invariant_to=invariant_to)
         assert test.inv_s is not None
         test_repr = test.inv_s
-        if cfg.misc.wandb is not WandbMode.disabled:
+        if cfg.misc.wandb is not WandbMode.disabled and cfg.misc.umap:
             s_count = data.s_dim if data.s_dim > 1 else 2
             _log_enc_statistics(test_repr, step=step, s_count=s_count)
 
@@ -334,9 +335,12 @@ def evaluate(
         target_dim=s_dim if pred_s else y_dim,
     )
 
-    preds, labels, sens = clf.predict_dataset(test_loader, device=torch.device(cfg.misc.device))
+    preds, labels, sens, soft_preds = clf.predict_dataset(
+        test_loader, device=torch.device(cfg.misc.device), with_soft=True
+    )
     del train_loader  # try to prevent lock ups of the workers
     del test_loader
+    plot_histogram_by_source(soft_preds, s=sens, y=labels, step=step)
     preds = em.Prediction(hard=pd.Series(preds))
     if isinstance(cfg.data, CmnistConfig):
         sens_name = "colour"

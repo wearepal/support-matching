@@ -168,6 +168,7 @@ class MiscConfig:
     device: str = "cpu"
     gpu: int = 0  # which GPU to use (if available)
     cache_data: bool = False  # if True, all data is cached in memory after being loaded
+    umap: bool = False  # whether to create UMAP plots
 
     def __post_init__(self) -> None:
         # ==== check GPU ====
