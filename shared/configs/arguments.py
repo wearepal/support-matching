@@ -292,6 +292,7 @@ class AdaptConfig:
     encode_batch_size: int = 1000
     balanced_eval: bool = False  # Whether to balance the training set during evaluation
     eval_s_from_zs: Optional[EvalTrainData] = None  # Train a classifier to predict s from zs
+    eval_hidden_dims: List[int] = field(default_factory=list)
 
     # Misc
     validate: bool = True
