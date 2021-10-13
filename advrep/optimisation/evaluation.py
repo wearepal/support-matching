@@ -94,7 +94,7 @@ def log_metrics(
                 plot.hist(zs, bins=20)
                 # plot.set_xlim(left=0, right=1)
                 fig.tight_layout()
-                wandb.log({"zs_histogram": wandb.Image(fig)})
+                wandb.log({"zs_histogram": wandb.Image(fig)}, step=step)
 
     LOGGER.info("\nComputing metrics...")
     evaluate(
