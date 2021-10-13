@@ -75,6 +75,7 @@ def plot_histogram_by_source(
     s: torch.Tensor,
     y: torch.Tensor,
     step: int,
+    name: str,
     n_bins: int = 15,
 ) -> None:
     """Plot a histogram over the batch"""
@@ -83,13 +84,13 @@ def plot_histogram_by_source(
         for y_value in y.unique():
             preds_for_source = soft_preds[(y == y_value) & (s == s_value)]
             fig = _plot_histo(preds_for_source, n_bins=n_bins)
-            logging_dict[f"confidence_s={s_value}_y={y_value}"] = wandb.Image(fig)
+            logging_dict[f"{name}confidence_s={s_value}_y={y_value}"] = wandb.Image(fig)
             fig = _plot_histo(preds_for_source, n_bins=n_bins, pred_target=y_value)
-            logging_dict[f"prob_true_class_s={s_value}_y={y_value}"] = wandb.Image(fig)
+            logging_dict[f"{name}prob_true_class_s={s_value}_y={y_value}"] = wandb.Image(fig)
 
         preds_for_subgroup = soft_preds[(s == s_value)]
         fig = _plot_histo(preds_for_subgroup, n_bins=n_bins)
-        logging_dict[f"confidence_s={s_value}"] = wandb.Image(fig)
+        logging_dict[f"{name}confidence_s={s_value}"] = wandb.Image(fig)
     wandb.log(logging_dict, step=step)
 
 

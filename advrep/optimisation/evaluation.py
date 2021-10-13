@@ -84,9 +84,17 @@ def log_metrics(
         test = encode_dataset(cfg, data.test, model, recons=False, invariant_to=invariant_to)
         assert test.inv_s is not None
         test_repr = test.inv_s
-        if cfg.misc.wandb is not WandbMode.disabled and cfg.misc.umap:
+        if cfg.misc.wandb is not WandbMode.disabled:
             s_count = data.s_dim if data.s_dim > 1 else 2
-            _log_enc_statistics(test_repr, step=step, s_count=s_count)
+            if cfg.misc.umap:
+                _log_enc_statistics(test_repr, step=step, s_count=s_count)
+            if test.inv_y is not None and cfg.adapt.zs_dim == 1:
+                zs = test.inv_y.x.view(-1).detach().cpu().numpy()
+                fig, plot = plt.subplots(dpi=200, figsize=(6, 4))
+                plot.hist(zs, bins=20)
+                # plot.set_xlim(left=0, right=1)
+                fig.tight_layout()
+                wandb.log({"zs_histogram": wandb.Image(fig)})
 
     LOGGER.info("\nComputing metrics...")
     evaluate(
@@ -340,7 +348,8 @@ def evaluate(
     )
     del train_loader  # try to prevent lock ups of the workers
     del test_loader
-    plot_histogram_by_source(soft_preds, s=sens, y=labels, step=step)
+    if cfg.misc.wandb is not WandbMode.disabled:
+        plot_histogram_by_source(soft_preds, s=sens, y=labels, step=step, name=name)
     preds = em.Prediction(hard=pd.Series(preds))
     if isinstance(cfg.data, CmnistConfig):
         sens_name = "colour"
