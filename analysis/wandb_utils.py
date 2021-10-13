@@ -166,7 +166,9 @@ def simple_concat(*dfs: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(dfs, axis="index", sort=False, ignore_index=True)
 
 
-def concat_with_suffix(dfs: Dict[str, pd.DataFrame], groupby: str = "misc.log_method") -> pd.DataFrame:
+def concat_with_suffix(
+    dfs: Dict[str, pd.DataFrame], groupby: str = "misc.log_method"
+) -> pd.DataFrame:
     renamed_dfs: list[pd.DataFrame] = []
     for suffix, df in dfs.items():
         copy = df.copy()

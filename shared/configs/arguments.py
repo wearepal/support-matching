@@ -292,6 +292,7 @@ class AdaptConfig:
     encode_batch_size: int = 1000
     balanced_eval: bool = False  # Whether to balance the training set during evaluation
     eval_s_from_zs: Optional[EvalTrainData] = None  # Train a classifier to predict s from zs
+    eval_hidden_dims: Optional[List[int]] = None
 
     # Misc
     validate: bool = True
@@ -336,6 +337,7 @@ class AdaptConfig:
     pred_y_loss_w: float = 1
     pred_s_loss_w: float = 0
     prior_loss_w: float = 0
+    pred_y_hidden_dims: Optional[List[int]] = None
 
     # Encoder settings (that are not shared with the clustering code)
     use_pretrained_enc: bool = False

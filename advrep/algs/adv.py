@@ -158,7 +158,7 @@ class AdvSemiSupervisedAlg(AlgBase):
             predictor_y = build_classifier(
                 input_shape=(self._encoding_size.zy,),  # this is always trained on encodings
                 target_dim=y_dim,
-                model_fn=FcNet(hidden_dims=None),  # no hidden layers
+                model_fn=FcNet(hidden_dims=self.adapt_cfg.pred_y_hidden_dims),
                 optimizer_kwargs=self.optimizer_kwargs,
             )
         predictor_s = None

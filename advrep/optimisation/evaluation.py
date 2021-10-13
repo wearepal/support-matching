@@ -177,7 +177,7 @@ def fit_classifier(
             optimizer_kwargs["weight_decay"] = 1e-8
             clf_fn = _adult_fc_net
     else:
-        clf_fn = FcNet(hidden_dims=None)
+        clf_fn = FcNet(hidden_dims=cfg.adapt.eval_hidden_dims)
         input_dim = prod(input_shape)
     clf_base = clf_fn(input_dim, target_dim=target_dim)
 
