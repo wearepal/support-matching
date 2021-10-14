@@ -420,7 +420,8 @@ def encode_dataset(
             all_s.append(s)
             all_y.append(y)
 
-            enc = generator.encode(x, stochastic=False)
+            # don't do the zs transform here because we might want to look at the raw distribution
+            enc = generator.encode(x, stochastic=False, do_zs_transform=False)
 
             if invariant_to in ("s", "both"):
                 all_inv_s.append(_get_classifer_input(cfg, enc, generator, recons, "s"))
