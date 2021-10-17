@@ -53,6 +53,10 @@ class AutoEncoder(nn.Module):
         enc = self._split_encoding(self.encoder(inputs))
         if do_zs_transform and self.zs_transform is ZsTransform.round_ste:
             rounded_zs = RoundSTE.apply(torch.sigmoid(enc.zs))
+        elif do_zs_transform and self.zs_transform is ZsTransform.sigmoid:
+            rounded_zs = torch.sigmoid(enc.zs)
+        elif do_zs_transform and self.zs_transform is ZsTransform.relu_round:
+            rounded_zs = enc.zs  # this is currently done in `routine()`
         else:
             rounded_zs = enc.zs
         return SplitEncoding(zs=rounded_zs, zy=enc.zy)
@@ -190,12 +194,21 @@ class AutoEncoder(nn.Module):
         s: Tensor | None = None,
     ) -> tuple[SplitEncoding, Tensor, dict[str, float]]:
         # it only makes sense to transform zs if we're actually going to use it
-        encoding = self.encode(x, do_zs_transform=s is None)
+        # encoding = self.encode(x, do_zs_transform=s is None)
+        encoding = self.encode(x, do_zs_transform=True)
 
-        recon_all = self.decode(encoding, s=s)
+        prior_loss = prior_loss_w * encoding.zy.norm(dim=1).mean()
+        if s is not None:  # we're in the training set
+            # TODO: this only works if the training set has one s value
+            prior_loss += prior_loss_w * encoding.zs.norm(dim=1).mean()
+        if self.zs_transform is ZsTransform.relu_round:
+            encoding = replace_zs(encoding, new_zs=RoundSTE.apply(torch.relu(encoding.zs)))
+
+        # recon_all = self.decode(encoding, s=s)
+        recon_all = self.decode(encoding)  # don't use s as zs
+
         recon_loss = recon_loss_fn(recon_all, x)
         recon_loss /= x.nelement()
-        prior_loss = prior_loss_w * encoding.zy.norm(dim=1).mean()
         loss = recon_loss + prior_loss
         return encoding, loss, {"Loss reconstruction": recon_loss.item(), "Prior Loss": prior_loss}
 

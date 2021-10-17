@@ -111,6 +111,8 @@ class ZsTransform(Enum):
 
     none = auto()
     round_ste = auto()
+    sigmoid = auto()
+    relu_round = auto()
 
 
 class QuantizationLevel(Enum):
