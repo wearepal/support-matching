@@ -33,6 +33,7 @@ def build_ae(
             encoding_size=encoding_size,
             s_dim=s_dim,
             zs_transform=cfg.adapt.zs_transform,
+            zs_round=cfg.adapt.zs_round,
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_args,
         )

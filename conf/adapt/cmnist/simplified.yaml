@@ -7,4 +7,5 @@ bag_size: 8
 batch_size: 32
 iters: 5000
 s_as_zs: true
-zs_transform: round_ste
+zs_transform: sigmoid
+zs_round: true

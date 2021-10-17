@@ -109,10 +109,8 @@ class DiscriminatorLoss(Enum):
 class ZsTransform(Enum):
     """How to transform the z_s partition."""
 
-    none = auto()
-    round_ste = auto()
     sigmoid = auto()
-    relu_round = auto()
+    relu = auto()
 
 
 class QuantizationLevel(Enum):

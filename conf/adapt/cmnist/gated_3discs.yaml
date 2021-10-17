@@ -10,4 +10,5 @@ adv_loss_w: 0.1
 enc_loss_w: 100.0
 iters: 8_000
 # num_discs: 3
-zs_transform: round_ste
+zs_transform: sigmoid
+zs_round: true

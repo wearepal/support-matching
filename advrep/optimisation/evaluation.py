@@ -91,9 +91,9 @@ def log_metrics(
                 _log_enc_statistics(test_repr, step=step, s_count=s_count)
             if test.inv_y is not None and cfg.adapt.zs_dim == 1:
                 zs = test.inv_y.x[:, 0].view((test.inv_y.x.size(0),))
-                if cfg.adapt.zs_transform is ZsTransform.round_ste:
+                if cfg.adapt.zs_transform is ZsTransform.sigmoid:
                     zs = zs.sigmoid()
-                elif cfg.adapt.zs_transform is ZsTransform.relu_round:
+                elif cfg.adapt.zs_transform is ZsTransform.relu:
                     zs = zs.relu()
                 zs_np = zs.detach().cpu().numpy()
                 fig, plot = plt.subplots(dpi=200, figsize=(6, 4))

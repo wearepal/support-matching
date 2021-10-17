@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Callable, overload
+from typing import Any, Callable, Optional, overload
 from typing_extensions import Literal
 
 import torch
@@ -33,7 +33,8 @@ class AutoEncoder(nn.Module):
         decoder: nn.Module,
         encoding_size: EncodingSize | None,
         s_dim: int,
-        zs_transform: ZsTransform = ZsTransform.none,
+        zs_transform: Optional[ZsTransform] = None,
+        zs_round: bool = False,
         feature_group_slices: dict[str, list[slice]] | None = None,
         optimizer_kwargs: dict[str, Any] | None = None,
     ):
@@ -45,17 +46,18 @@ class AutoEncoder(nn.Module):
         self.s_dim = s_dim
         self.feature_group_slices = feature_group_slices
         self.zs_transform = zs_transform
+        self.zs_round = zs_round
 
     def encode(
         self, inputs: Tensor, *, stochastic: bool = False, do_zs_transform: bool = True
     ) -> SplitEncoding:
         del stochastic
         enc = self._split_encoding(self.encoder(inputs))
-        if do_zs_transform and self.zs_transform is ZsTransform.round_ste:
-            rounded_zs = RoundSTE.apply(torch.sigmoid(enc.zs))
-        elif do_zs_transform and self.zs_transform is ZsTransform.sigmoid:
+        if do_zs_transform and self.zs_transform is ZsTransform.sigmoid:
             rounded_zs = torch.sigmoid(enc.zs)
-        elif do_zs_transform and self.zs_transform is ZsTransform.relu_round:
+            if self.zs_round:
+                rounded_zs = RoundSTE.apply(rounded_zs)
+        elif do_zs_transform and self.zs_transform is ZsTransform.relu:
             rounded_zs = enc.zs  # this is currently done in `routine()`
         else:
             rounded_zs = enc.zs
@@ -201,8 +203,11 @@ class AutoEncoder(nn.Module):
         if s is not None:  # we're in the training set
             # TODO: this only works if the training set has one s value
             prior_loss += prior_loss_w * encoding.zs.norm(dim=1).mean()
-        if self.zs_transform is ZsTransform.relu_round:
-            encoding = replace_zs(encoding, new_zs=RoundSTE.apply(torch.relu(encoding.zs)))
+        if self.zs_transform is ZsTransform.relu:
+            transformed_zs = torch.relu(encoding.zs)
+            if self.zs_round:
+                transformed_zs = RoundSTE.apply(transformed_zs)
+            encoding = replace_zs(encoding, new_zs=transformed_zs)
 
         # recon_all = self.decode(encoding, s=s)
         recon_all = self.decode(encoding)  # don't use s as zs

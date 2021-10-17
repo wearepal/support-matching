@@ -8,4 +8,5 @@ batch_size: 14
 iters: 8_000
 num_adv_updates: 3
 # num_discs: 3
-zs_transform: round_ste
+zs_transform: sigmoid
+zs_round: true

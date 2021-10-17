@@ -343,7 +343,8 @@ class AdaptConfig:
     # Encoder settings (that are not shared with the clustering code)
     use_pretrained_enc: bool = False
     zs_dim: int = 1
-    zs_transform: ZsTransform = ZsTransform.none
+    zs_transform: Optional[ZsTransform] = None
+    zs_round: bool = False
     s_as_zs: bool = False  # if True, pass `s` instead of `zs` to the decoder for the training set
     s_pred_with_bias: bool = True  # if False, the s predictor has no bias term in the output layer
 

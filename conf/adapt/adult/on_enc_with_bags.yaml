@@ -21,4 +21,5 @@ validate: true
 warmup_steps: 0
 weight_decay: 0
 zs_dim: 1
-zs_transform: none
+zs_transform: null
+zs_round: false
