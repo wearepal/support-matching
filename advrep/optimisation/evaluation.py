@@ -29,6 +29,7 @@ from shared.configs import (
     ImageDatasetConfig,
     IsicConfig,
     WandbMode,
+    ZsTransform,
 )
 from shared.data import DatasetTriplet, TensorDataTupleDataset, adult, get_data_tuples
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
@@ -89,11 +90,15 @@ def log_metrics(
             if cfg.misc.umap:
                 _log_enc_statistics(test_repr, step=step, s_count=s_count)
             if test.inv_y is not None and cfg.adapt.zs_dim == 1:
-                zs = test.inv_y.x[:, 0].view((test.inv_y.x.size(0),)).sigmoid()
+                zs = test.inv_y.x[:, 0].view((test.inv_y.x.size(0),))
+                if cfg.adapt.zs_transform is ZsTransform.round_ste:
+                    zs = zs.sigmoid()
+                elif cfg.adapt.zs_transform is ZsTransform.relu_round:
+                    zs = zs.relu()
                 zs_np = zs.detach().cpu().numpy()
                 fig, plot = plt.subplots(dpi=200, figsize=(6, 4))
-                plot.hist(zs_np, bins=20, range=(0, 1))
-                plot.set_xlim(left=0, right=1)
+                plot.hist(zs_np, bins=20)  # , range=(0, 1)
+                plot.set_xlim(left=0)
                 fig.tight_layout()
                 wandb.log({"zs_histogram": wandb.Image(fig)}, step=step)
 
