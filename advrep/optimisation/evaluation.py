@@ -4,8 +4,11 @@ from typing import Dict, NamedTuple, Optional, Sequence, Tuple
 from typing_extensions import Literal
 
 import ethicml as em
+from matplotlib import pyplot as plt
+from matplotlib.colors import ListedColormap
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -13,6 +16,8 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
 from tqdm import tqdm
+import umap
+import wandb
 
 from advrep.models import AutoEncoder, Classifier, SplitEncoding
 from shared.configs import (
@@ -27,7 +32,15 @@ from shared.configs import (
 )
 from shared.data import DatasetTriplet, TensorDataTupleDataset, adult, get_data_tuples
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
-from shared.utils import ModelFn, compute_metrics, make_tuple_from_data, prod
+from shared.utils import (
+    ModelFn,
+    class_id_to_label,
+    compute_metrics,
+    label_to_class_id,
+    make_tuple_from_data,
+    prod,
+    plot_histogram_by_source,
+)
 
 from .utils import ExtractableDataset, build_weighted_sampler_from_dataset, log_images
 
@@ -71,6 +84,18 @@ def log_metrics(
         test = encode_dataset(cfg, data.test, model, recons=False, invariant_to=invariant_to)
         assert test.inv_s is not None
         test_repr = test.inv_s
+        if cfg.misc.wandb is not WandbMode.disabled:
+            s_count = data.s_dim if data.s_dim > 1 else 2
+            if cfg.misc.umap:
+                _log_enc_statistics(test_repr, step=step, s_count=s_count)
+            if test.inv_y is not None and cfg.adapt.zs_dim == 1:
+                zs = test.inv_y.x[:, 0].view((test.inv_y.x.size(0),)).sigmoid()
+                zs_np = zs.detach().cpu().numpy()
+                fig, plot = plt.subplots(dpi=200, figsize=(6, 4))
+                plot.hist(zs_np, bins=20, range=(0, 1))
+                plot.set_xlim(left=0, right=1)
+                fig.tight_layout()
+                wandb.log({"zs_histogram": wandb.Image(fig)}, step=step)
 
     LOGGER.info("\nComputing metrics...")
     evaluate(
@@ -138,6 +163,80 @@ def baseline_metrics(cfg: Config, data: DatasetTriplet) -> None:
                 step=0,
                 use_wandb=False,
             )
+
+
+def _log_enc_statistics(encoded: TensorDataTupleDataset, *, step: int, s_count: int):
+    """Compute and log statistics about the encoding."""
+    z, y, s = encoded.x, encoded.y, encoded.s
+    class_ids = label_to_class_id(s=s, y=y, s_count=s_count)
+
+    LOGGER.info("Starting UMAP...")
+    mapper = umap.UMAP(n_neighbors=25, n_components=2)
+    umap_z = mapper.fit_transform(z.numpy())
+    umap_plot = visualize_clusters(umap_z, labels=class_ids, s_count=s_count)
+    to_log = {"umap": wandb.Image(umap_plot)}
+    LOGGER.info("Done.")
+
+    for y_value in y.unique():
+        for s_value in s.unique():
+            mask = (y == y_value) & (s == s_value)
+            to_log[f"enc_mean_s={s_value}_y={y_value}"] = z[mask].mean().item()
+    wandb.log(to_log, step=step)
+
+
+def visualize_clusters(
+    x: np.ndarray[np.floating] | Tensor,
+    *,
+    labels: np.ndarray[np.number] | Tensor,
+    s_count: int,
+    title: str | None = None,
+    legend: bool = True,
+) -> plt.Figure:
+    if x.shape[1] != 2:
+        raise ValueError("Cluster-visualization can only be performed for 2-dimensional inputs.")
+    if isinstance(x, Tensor):
+        x = x.detach().cpu().numpy()
+    if isinstance(labels, Tensor):
+        labels_ls = labels.detach().cpu().long().tolist()
+    else:
+        labels_ls = labels.astype("uint").tolist()
+
+    classes = np.unique(labels)
+    num_classes = len(classes)
+    fig, ax = plt.subplots(dpi=100, figsize=(6, 6))
+    cmap = ListedColormap(sns.color_palette("bright", num_classes).as_hex())  # type: ignore
+    sc = ax.scatter(x[:, 0], x[:, 1], lw=0, s=40, c=labels_ls, cmap=cmap)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    sns.despine(left=True, bottom=True, right=True)
+
+    if legend:
+
+        def _flip(items: Sequence, ncol: int):
+            # return itertools.chain(*[items[i::ncol] for i in range(ncol)])
+            return items
+
+        plt.legend(
+            handles=_flip(sc.legend_elements()[0], 5),
+            labels=_flip(
+                [
+                    f"s={class_id_to_label(class_id, s_count=s_count, label='s')},"
+                    f"y={class_id_to_label(class_id, s_count=s_count, label='y')}"
+                    for class_id in classes.tolist()
+                ],
+                5,
+            ),
+            frameon=False,
+            loc="upper center",
+            bbox_to_anchor=(0.3, -0.03),
+            ncol=4,
+        )
+
+    if title is not None:
+        ax.set_title(title)
+
+    fig.tight_layout()
+    return fig
 
 
 def fit_classifier(
@@ -245,9 +344,14 @@ def evaluate(
         target_dim=s_dim if pred_s else y_dim,
     )
 
-    preds, labels, sens = clf.predict_dataset(test_loader, device=torch.device(cfg.misc.device))
+    # TODO: the soft predictions should only be computed if they're needed
+    preds, labels, sens, soft_preds = clf.predict_dataset(
+        test_loader, device=torch.device(cfg.misc.device), with_soft=True
+    )
     del train_loader  # try to prevent lock ups of the workers
     del test_loader
+    if cfg.misc.wandb is not WandbMode.disabled:
+        plot_histogram_by_source(soft_preds, s=sens, y=labels, step=step, name=name)
     preds = em.Prediction(hard=pd.Series(preds))
     if isinstance(cfg.data, CmnistConfig):
         sens_name = "colour"
@@ -318,7 +422,8 @@ def encode_dataset(
             all_s.append(s)
             all_y.append(y)
 
-            enc = generator.encode(x, stochastic=False)
+            # don't do the zs transform here because we might want to look at the raw distribution
+            enc = generator.encode(x, stochastic=False, do_zs_transform=False)
 
             if invariant_to in ("s", "both"):
                 all_inv_s.append(_get_classifer_input(cfg, enc, generator, recons, "s"))

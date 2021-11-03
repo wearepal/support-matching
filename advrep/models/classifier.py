@@ -1,6 +1,7 @@
 from __future__ import annotations
 import logging
-from typing import Any
+from typing import Any, Tuple, Union, overload
+from typing_extensions import Literal
 
 from ethicml.implementations.dro_modules import DROLoss
 import torch
@@ -109,12 +110,48 @@ class Classifier(ModelBase):
 
         return pred
 
+    def predict_soft(self, inputs: Tensor) -> Tensor:
+        """Make soft predictions."""
+        outputs: Tensor = super().__call__(inputs)
+        if self.criterion == "bce" or (
+            isinstance(self.criterion, DROLoss)
+            and isinstance(self.criterion.loss, nn.BCEWithLogitsLoss)
+        ):
+            return outputs.sigmoid()
+        else:
+            return outputs.softmax(dim=-1)
+
+    @overload
     def predict_dataset(
-        self, data: Dataset | DataLoader, device: torch.device, batch_size: int = 100
-    ):
+        self,
+        data: Dataset | DataLoader,
+        device: torch.device,
+        batch_size: int = 100,
+        with_soft: Literal[False] = ...,
+    ) -> tuple[Tensor, Tensor, Tensor]:
+        ...
+
+    @overload
+    def predict_dataset(
+        self,
+        data: Dataset | DataLoader,
+        device: torch.device,
+        *,
+        batch_size: int = 100,
+        with_soft: Literal[True],
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+        ...
+
+    def predict_dataset(
+        self,
+        data: Dataset | DataLoader,
+        device: torch.device,
+        batch_size: int = 100,
+        with_soft: bool = False,
+    ) -> Union[Tuple[Tensor, Tensor, Tensor], Tuple[Tensor, Tensor, Tensor, Tensor]]:
         if not isinstance(data, DataLoader):
             data = DataLoader(data, batch_size=batch_size, shuffle=False, pin_memory=True)
-        preds, actual, sens = [], [], []
+        preds, actual, sens, soft_preds = [], [], [], []
         with torch.set_grad_enabled(False):
             for x, s, y in data:
                 x, y = self.to_device(x, y, device=device)
@@ -123,12 +160,18 @@ class Classifier(ModelBase):
                 preds.append(batch_preds)
                 actual.append(y)
                 sens.append(s)
+                if with_soft:
+                    soft_preds.append(self.predict_soft(x))
 
         preds = torch.cat(preds, dim=0).cpu().detach().view(-1)
         actual = torch.cat(actual, dim=0).cpu().detach().view(-1)
         sens = torch.cat(sens, dim=0).cpu().detach().view(-1)
+        soft_preds = torch.cat(soft_preds, dim=0).cpu().detach().view(-1)
 
-        return preds, actual, sens
+        if with_soft:
+            return preds, actual, sens, soft_preds
+        else:
+            return preds, actual, sens
 
     def compute_accuracy(self, outputs: Tensor, targets: Tensor, top: int = 1) -> float:
         """Computes the classification accuracy.

@@ -63,7 +63,7 @@ isort = "*"
 mypy = "*"
 pre-commit = "*"
 pytest = "*"
-python-type-stubs = {git = "https://github.com/predictive-analytics-lab/python-type-stubs.git", branch = "main" }
+python-type-stubs = {git = "https://github.com/predictive-analytics-lab/python-type-stubs.git", rev = "e46be67" }
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
