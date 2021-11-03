@@ -1,25 +1,30 @@
 from __future__ import annotations
-
-import logging
-import time
 from abc import abstractmethod
 from collections import defaultdict
 from collections.abc import Callable, Iterator
+import logging
 from pathlib import Path
+import time
 from typing import Any, cast
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import wandb
-from ethicml.common import implements
-from hydra.utils import to_absolute_path
-from torch import Tensor
-from torch.cuda.amp.grad_scaler import GradScaler
-from torch.utils.data import DataLoader
 from typing_extensions import Literal
 
-from advrep.models import AutoEncoder, Classifier, Discriminator, EncodingSize, build_classifier
+from ethicml.common import implements
+from hydra.utils import to_absolute_path
+import torch
+from torch import Tensor
+from torch.cuda.amp.grad_scaler import GradScaler
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
+import wandb
+
+from advrep.models import (
+    AutoEncoder,
+    Classifier,
+    Discriminator,
+    EncodingSize,
+    build_classifier,
+)
 from advrep.optimisation import (
     MixedLoss,
     PixelCrossEntropy,
@@ -31,7 +36,12 @@ from advrep.optimisation import (
     restore_model,
     save_model,
 )
-from shared.configs import Config, DiscriminatorMethod, ImageDatasetConfig, ReconstructionLoss
+from shared.configs import (
+    Config,
+    DiscriminatorMethod,
+    ImageDatasetConfig,
+    ReconstructionLoss,
+)
 from shared.data import Batch, DatasetTriplet, RandomSampler
 from shared.models.configs import FcNet, conv_autoencoder, fc_autoencoder
 from shared.utils import (

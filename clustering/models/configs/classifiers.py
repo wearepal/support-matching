@@ -1,8 +1,8 @@
 from typing import List
 
+from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
-from torch import Tensor
 from torchvision.models import ResNet, resnet50
 
 from clustering.models.resnet import ResidualNet

@@ -3,7 +3,7 @@ import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import DictConfig
 
-from advrep.algs import LAFTR, AdvSemiSupervisedAlg, SupportMatching
+from advrep.algs import AdvSemiSupervisedAlg, LAFTR, SupportMatching
 from shared.configs import AdaptationMethod, Config, register_configs
 
 cs = ConfigStore.instance()

@@ -1,14 +1,13 @@
 from __future__ import annotations
-
-import math
 from enum import Enum, auto
+import math
 from pathlib import Path
 from typing import Callable, Dict
+from typing_extensions import Final
 
+from matplotlib import pyplot as plt
 import pandas as pd
 import seaborn as sns
-from matplotlib import pyplot as plt
-from typing_extensions import Final
 
 __all__ = ["Metrics", "load_data", "plot", "concat_with_suffix", "simple_concat"]
 

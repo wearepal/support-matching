@@ -1,14 +1,13 @@
 from __future__ import annotations
-
-import math
 from enum import Enum
+import math
 from pathlib import Path
 from typing import List
+from typing_extensions import Final
 
 import numpy as np
 import pandas as pd
 import typer
-from typing_extensions import Final
 
 __all__ = ["Metrics", "METRICS_COL_NAMES", "METRICS_RENAMES"]
 

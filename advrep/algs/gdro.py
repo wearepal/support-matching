@@ -1,12 +1,11 @@
 from __future__ import annotations
-
 import logging
 from typing import Any, Callable, cast
 
 import numpy as np
 import torch
-import torch.nn as nn
 from torch import Tensor
+import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 from tqdm import trange

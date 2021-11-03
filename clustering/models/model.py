@@ -1,12 +1,11 @@
 """Model that contains all."""
 from __future__ import annotations
-
 from abc import abstractmethod
 from collections import defaultdict
 from typing import Optional, cast
 
-import torch.nn as nn
 from torch import Tensor
+import torch.nn as nn
 
 from shared.configs import ClusteringLabel
 from shared.utils import get_class_id, get_joint_probability

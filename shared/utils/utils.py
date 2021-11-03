@@ -1,21 +1,20 @@
 """Utility functions."""
 from __future__ import annotations
-
-import os
-import random
 from collections.abc import Iterable, Iterator, MutableMapping, Sequence
 from dataclasses import asdict
 from enum import Enum
 from functools import reduce
 from math import gcd
+import os
+import random
 from typing import Any, TypeVar
+from typing_extensions import Literal, Protocol
 
 import numpy as np
-import torch
 from omegaconf import OmegaConf
+import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
-from typing_extensions import Literal, Protocol
 
 from shared.configs import ClusteringLabel, Config, DatasetConfig, MiscConfig
 
