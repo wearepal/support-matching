@@ -67,7 +67,7 @@ class AdvSemiSupervisedAlg(AlgBase):
     adversary: Classifier | Discriminator
     recon_loss_fn: Callable[[Tensor, Tensor], Tensor]
     predictor_y: Classifier | None
-    pedictor_y_gr: Classifier | None
+    gr_predictor_y: Classifier | None
     predictor_s: Classifier | None
 
     def __init__(
