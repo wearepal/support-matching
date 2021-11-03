@@ -8,8 +8,8 @@ import time
 from typing import Any, cast
 from typing_extensions import Literal
 
-from ethicml.common import implements
 from hydra.utils import to_absolute_path
+from kit import implements
 import torch
 from torch import Tensor
 from torch.cuda.amp.grad_scaler import GradScaler
