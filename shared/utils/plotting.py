@@ -2,10 +2,10 @@ from typing import Optional
 
 import matplotlib
 import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 import torch
 import wandb
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 __all__ = ["plot_contrastive", "plot_histogram", "plot_histogram_by_source"]
 

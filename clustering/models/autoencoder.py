@@ -3,13 +3,13 @@ import logging
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import torch
-from torch import Tensor
 import torch.distributions as td
 import torch.nn as nn
 import torch.nn.functional as F
+import wandb
+from torch import Tensor
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-import wandb
 
 from shared.configs import VaeStd
 from shared.utils import print_metrics, to_discrete

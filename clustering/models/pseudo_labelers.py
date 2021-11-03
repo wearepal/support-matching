@@ -2,8 +2,8 @@
 from typing import Tuple
 
 import torch
-from torch import Tensor
 import torch.nn as nn
+from torch import Tensor
 
 from shared.utils import dot_product
 

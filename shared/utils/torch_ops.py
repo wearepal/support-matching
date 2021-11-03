@@ -1,6 +1,6 @@
 import torch
-from torch import Tensor, jit
 import torch.distributions as td
+from torch import Tensor, jit
 from torch.nn import functional as F
 
 __all__ = [

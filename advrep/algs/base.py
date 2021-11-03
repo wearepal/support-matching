@@ -1,12 +1,13 @@
 from __future__ import annotations
-from abc import abstractmethod
+
 import logging
+from abc import abstractmethod
 from pathlib import Path
 
-from torch import Tensor
 import torch.nn as nn
 import wandb
 import yaml
+from torch import Tensor
 
 from shared.configs.arguments import Config
 from shared.data.data_loading import DatasetTriplet, load_dataset

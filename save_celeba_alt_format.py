@@ -1,23 +1,18 @@
+import random
 from dataclasses import dataclass
 from pathlib import Path
-import random
 from typing import Type, TypeVar
 
 import hydra
-from hydra.core.config_store import ConfigStore
-from hydra.utils import instantiate, to_absolute_path
 import numpy as np
-from omegaconf.dictconfig import DictConfig
-from omegaconf.omegaconf import MISSING, OmegaConf
 import pandas as pd
 import torch
+from hydra.core.config_store import ConfigStore
+from hydra.utils import instantiate, to_absolute_path
+from omegaconf.dictconfig import DictConfig
+from omegaconf.omegaconf import MISSING, OmegaConf
 
-from shared.configs.arguments import (
-    BiasConfig,
-    CelebaConfig,
-    DatasetConfig,
-    register_configs,
-)
+from shared.configs.arguments import BiasConfig, CelebaConfig, DatasetConfig, register_configs
 from shared.data.data_loading import load_dataset
 
 T = TypeVar("T", bound="SaveDataConfig")

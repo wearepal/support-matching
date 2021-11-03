@@ -1,19 +1,20 @@
 """Main training file"""
 from __future__ import annotations
-from collections import defaultdict
+
 import logging
-from pathlib import Path
 import time
+from collections import defaultdict
+from pathlib import Path
 from typing import cast
 
-from hydra.utils import to_absolute_path
 import numpy as np
 import torch
+import wandb
+import yaml
+from hydra.utils import to_absolute_path
 from torch import Tensor
 from torch.utils.data import ConcatDataset, DataLoader
 from torchvision.models import resnet18, resnet50
-import wandb
-import yaml
 
 from clustering.models import (
     BaseModel,

@@ -1,15 +1,16 @@
 from __future__ import annotations
+
 from typing import Any, Callable, overload
-from typing_extensions import Literal
 
 import torch
-from torch import Tensor
-from torch.cuda.amp.grad_scaler import GradScaler
 import torch.distributions as td
 import torch.nn as nn
 import torch.nn.functional as F
+from torch import Tensor
+from torch.cuda.amp.grad_scaler import GradScaler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from typing_extensions import Literal
 
 from shared.configs import VaeStd, ZsTransform
 from shared.utils import RoundSTE, sample_concrete, to_discrete

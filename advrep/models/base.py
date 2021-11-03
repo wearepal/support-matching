@@ -1,9 +1,9 @@
 from typing import Any, Dict, NamedTuple, Optional
 
-from torch import Tensor
-from torch.cuda.amp.grad_scaler import GradScaler
 import torch.distributions as td
 import torch.nn as nn
+from torch import Tensor
+from torch.cuda.amp.grad_scaler import GradScaler
 from torch.optim import Adam
 
 __all__ = [

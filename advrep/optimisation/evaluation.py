@@ -1,23 +1,24 @@
 from __future__ import annotations
+
 import logging
 from typing import Dict, NamedTuple, Optional, Sequence, Tuple
-from typing_extensions import Literal
 
 import ethicml as em
-from matplotlib import pyplot as plt
-from matplotlib.colors import ListedColormap
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import torch
-from torch import Tensor
 import torch.nn as nn
+import umap
+import wandb
+from matplotlib import pyplot as plt
+from matplotlib.colors import ListedColormap
+from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
 from tqdm import tqdm
-import umap
-import wandb
+from typing_extensions import Literal
 
 from advrep.models import AutoEncoder, Classifier, SplitEncoding
 from shared.configs import (
@@ -38,8 +39,8 @@ from shared.utils import (
     compute_metrics,
     label_to_class_id,
     make_tuple_from_data,
-    prod,
     plot_histogram_by_source,
+    prod,
 )
 
 from .utils import ExtractableDataset, build_weighted_sampler_from_dataset, log_images
