@@ -1,12 +1,12 @@
-from dataclasses import dataclass, field
 import logging
 import shlex
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Type, TypeVar
 
+import torch
 from hydra.core.config_store import ConfigStore
 from hydra.core.hydra_config import HydraConfig
-from omegaconf import DictConfig, MISSING, OmegaConf
-import torch
+from omegaconf import MISSING, DictConfig, OmegaConf
 
 from .enums import (
     AdaptationMethod,
@@ -336,6 +336,7 @@ class AdaptConfig:
     num_adv_updates: int = 3
     distinguish_weight: float = 1
     pred_y_loss_w: float = 1
+    gr_pred_y_loss_w: float = 1
     pred_s_loss_w: float = 0
     prior_loss_w: float = 0
     pred_y_hidden_dims: Optional[List[int]] = None

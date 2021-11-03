@@ -1,29 +1,25 @@
 from __future__ import annotations
+
+import logging
+import time
 from abc import abstractmethod
 from collections import defaultdict
 from collections.abc import Callable, Iterator
-import logging
 from pathlib import Path
-import time
 from typing import Any, cast
-from typing_extensions import Literal
 
-from hydra.utils import to_absolute_path
 import torch
-from torch import Tensor
-from torch.cuda.amp.grad_scaler import GradScaler
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
 import wandb
+from ethicml.common import implements
+from hydra.utils import to_absolute_path
+from torch import Tensor
+from torch.cuda.amp.grad_scaler import GradScaler
+from torch.utils.data import DataLoader
+from typing_extensions import Literal
 
-from advrep.models import (
-    AutoEncoder,
-    Classifier,
-    Discriminator,
-    EncodingSize,
-    build_classifier,
-)
+from advrep.models import AutoEncoder, Classifier, Discriminator, EncodingSize, build_classifier
 from advrep.optimisation import (
     MixedLoss,
     PixelCrossEntropy,
@@ -35,12 +31,7 @@ from advrep.optimisation import (
     restore_model,
     save_model,
 )
-from shared.configs import (
-    Config,
-    DiscriminatorMethod,
-    ImageDatasetConfig,
-    ReconstructionLoss,
-)
+from shared.configs import Config, DiscriminatorMethod, ImageDatasetConfig, ReconstructionLoss
 from shared.data import Batch, DatasetTriplet, RandomSampler
 from shared.models.configs import FcNet, conv_autoencoder, fc_autoencoder
 from shared.utils import (
@@ -66,6 +57,7 @@ class AdvSemiSupervisedAlg(AlgBase):
     adversary: Classifier | Discriminator
     recon_loss_fn: Callable[[Tensor, Tensor], Tensor]
     predictor_y: Classifier | None
+    pedictor_y_gr: Classifier | None
     predictor_s: Classifier | None
 
     def __init__(
@@ -152,7 +144,7 @@ class AdvSemiSupervisedAlg(AlgBase):
 
     def _build_predictors(
         self, y_dim: int, s_dim: int
-    ) -> tuple[Classifier | None, Classifier | None]:
+    ) -> tuple[Classifier | None, Classifier | None, Classifier | None]:
         predictor_y = None
         if self.adapt_cfg.pred_y_loss_w > 0:
             predictor_y = build_classifier(
@@ -161,6 +153,7 @@ class AdvSemiSupervisedAlg(AlgBase):
                 model_fn=FcNet(hidden_dims=self.adapt_cfg.pred_y_hidden_dims),
                 optimizer_kwargs=self.optimizer_kwargs,
             )
+
         predictor_s = None
         if self.adapt_cfg.pred_s_loss_w > 0:
             predictor_s = build_classifier(
@@ -172,7 +165,17 @@ class AdvSemiSupervisedAlg(AlgBase):
                 ),
                 optimizer_kwargs=self.optimizer_kwargs,
             )
-        return predictor_y, predictor_s
+
+        gr_predictor_y = None
+        if self.adapt_cfg.gr_pred_y_loss_w > 0:
+            gr_predictor_y = build_classifier(
+                input_shape=(self._encoding_size.zs,),  # this is always trained on encodings
+                target_dim=y_dim,
+                model_fn=FcNet(hidden_dims=self.adapt_cfg.pred_y_hidden_dims),
+                optimizer_kwargs=self.optimizer_kwargs,
+            )
+
+        return predictor_y, predictor_s, gr_predictor_y
 
     def _build(
         self,
@@ -186,7 +189,9 @@ class AdvSemiSupervisedAlg(AlgBase):
         )
         self.recon_loss_fn = self._get_recon_loss_fn(feature_group_slices=feature_group_slices)
         self.adversary = self._build_adversary(input_shape=input_shape, s_dim=s_dim)
-        self.predictor_y, self.predictor_s = self._build_predictors(y_dim=y_dim, s_dim=s_dim)
+        self.predictor_y, self.predictor_s, self.gr_predictor_y = self._build_predictors(
+            y_dim=y_dim, s_dim=s_dim
+        )
         self.to(self.misc_cfg.device)
 
     def _get_recon_loss_fn(
@@ -345,7 +350,7 @@ class AdvSemiSupervisedAlg(AlgBase):
             oversample=self.adapt_cfg.oversample,
             balance_hierarchical=True,
         )
-        train_dataloader = DataLoader(
+        train_dataloader = DataLoader(  # type: ignore
             dataset=datasets.train,
             num_workers=self.data_cfg.num_workers,
             drop_last=True,
@@ -359,7 +364,8 @@ class AdvSemiSupervisedAlg(AlgBase):
 
         return train_data_itr, context_data_itr
 
-    def _fit(self, datasets: DatasetTriplet) -> None:
+    @implements(AlgBase)
+    def _fit(self, datasets: DatasetTriplet) -> AdvSemiSupervisedAlg:
         # Load cluster results
         cluster_results = None
         cluster_metrics: dict[str, float] | None = None
@@ -448,3 +454,4 @@ class AdvSemiSupervisedAlg(AlgBase):
             step=itr,
             cluster_metrics=cluster_metrics,
         )
+        return self

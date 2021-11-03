@@ -1,14 +1,16 @@
 from __future__ import annotations
+
 from collections.abc import Iterator, Sequence
 
-from kit import implements
 import torch
-from torch import Tensor
 import torch.nn as nn
+from kit import implements
+from torch import Tensor
 
 from advrep.models import AutoEncoder, Discriminator, SplitEncoding
 from advrep.models.configs import Residual64x64Net, Strided28x28Net
 from advrep.optimisation import log_attention, log_images, mmd2
+from clustering.optimisation.loss import grad_reverse
 from shared.configs import (
     AggregatorType,
     CmnistConfig,
@@ -50,11 +52,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         else:
             disc_fn = FcNet(hidden_dims=self.adapt_cfg.adv_hidden_dims, activation=nn.GELU())
             # FcNet first flattens the input
-            disc_input_shape = (
-                (prod(disc_input_shape),)
-                if isinstance(disc_input_shape, Sequence)
-                else disc_input_shape
-            )
+            disc_input_shape = (prod(disc_input_shape),)
 
         if self.adapt_cfg.aggregator_type is not AggregatorType.none:
             final_proj = (
@@ -190,12 +188,24 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 logging_dict["Loss Predictor y"] = pred_y_loss.item()
                 logging_dict["Accuracy Predictor y"] = pred_y_acc
                 total_loss += pred_y_loss
+
             if self.predictor_s is not None:
                 pred_s_loss, pred_s_acc = self.predictor_s.routine(encoding_t.zs, batch_tr.s)
                 pred_s_loss *= self.adapt_cfg.pred_s_loss_w
                 logging_dict["Loss Predictor s"] = pred_s_loss.item()
                 logging_dict["Accuracy Predictor s"] = pred_s_acc
                 total_loss += pred_s_loss
+
+            if self.gr_predictor_y is not None:
+                # predictor is on encodings; predict y from the part that is variant to s
+                # (and should be invariant to y)
+                pred_y_loss, pred_y_acc = self.gr_predictor_y.routine(
+                    grad_reverse(encoding_t.zs), batch_tr.y
+                )
+                pred_y_loss *= self.adapt_cfg.gr_pred_y_loss_w
+                logging_dict["Loss GR Predictor y"] = pred_y_loss.item()
+                logging_dict["Accuracy GR Predictor y"] = pred_y_acc
+                total_loss += pred_y_loss
 
         logging_dict["Loss Total"] = total_loss
 
