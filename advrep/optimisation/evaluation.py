@@ -344,6 +344,7 @@ def evaluate(
         target_dim=s_dim if pred_s else y_dim,
     )
 
+    # TODO: the soft predictions should only be computed if they're needed
     preds, labels, sens, soft_preds = clf.predict_dataset(
         test_loader, device=torch.device(cfg.misc.device), with_soft=True
     )
