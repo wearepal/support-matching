@@ -336,6 +336,7 @@ class AdaptConfig:
     num_adv_updates: int = 3
     distinguish_weight: float = 1
     pred_y_loss_w: float = 1
+    gr_pred_y_loss_w: float = 1
     pred_s_loss_w: float = 0
     prior_loss_w: float = 0
     pred_y_hidden_dims: Optional[List[int]] = None

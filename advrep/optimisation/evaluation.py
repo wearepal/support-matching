@@ -39,8 +39,8 @@ from shared.utils import (
     compute_metrics,
     label_to_class_id,
     make_tuple_from_data,
-    prod,
     plot_histogram_by_source,
+    prod,
 )
 
 from .utils import ExtractableDataset, build_weighted_sampler_from_dataset, log_images
