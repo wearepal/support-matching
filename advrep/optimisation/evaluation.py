@@ -350,7 +350,8 @@ def evaluate(
     )
     del train_loader  # try to prevent lock ups of the workers
     del test_loader
-    if cfg.misc.wandb is not WandbMode.disabled:
+    # TODO: investigate why the histogram plotting fails when s_dim != 1
+    if cfg.misc.wandb is not WandbMode.disabled and s_dim == 1:
         plot_histogram_by_source(soft_preds, s=sens, y=labels, step=step, name=name)
     preds = em.Prediction(hard=pd.Series(preds))
     if isinstance(cfg.data, CmnistConfig):
