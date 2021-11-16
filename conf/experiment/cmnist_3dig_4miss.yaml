@@ -1,0 +1,18 @@
+# @package _global_
+
+# usage: +experiment=cmnist_3dig_4miss
+
+defaults:
+    - override /data: cmnist/3dig
+    - override /bias: cmnist/3dig/4miss
+    - override /enc: mnist
+    - override /adapt: cmnist/simplified
+    # - override /adapt: cmnist/mostly_traditional
+    - override /clust: vague_spaceship_improved
+
+adapt:
+    iters: 20000
+    zs_dim: 3
+    # zs_dim: 2
+    bag_size: 18  # 2*3classes*3colors
+    batch_size: 14
