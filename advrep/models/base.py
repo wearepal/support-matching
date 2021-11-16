@@ -52,7 +52,12 @@ class ModelBase(nn.Module):
         super().__init__()
         self.model = model
         optimizer_kwargs = optimizer_kwargs or self.default_kwargs["optimizer_kwargs"]
-        self.optimizer = Adam(self.model.parameters(), **optimizer_kwargs)
+        params = list(self.model.parameters())
+        self.optimizer = None
+        if params:
+            self.optimizer = Adam(params, **optimizer_kwargs)
+        else:
+            print("no params")
 
     def reset_parameters(self):
         def _reset_parameters(m: nn.Module):
@@ -64,13 +69,16 @@ class ModelBase(nn.Module):
         self.model.apply(_reset_parameters)
 
     def step(self, grads=None, grad_scaler: Optional[GradScaler] = None):
+        if self.optimizer is None:
+            return
         if grad_scaler is not None:
             grad_scaler.step(self.optimizer)
         else:
             self.optimizer.step(grads)
 
     def zero_grad(self):
-        self.optimizer.zero_grad()
+        if self.optimizer is not None:
+            self.optimizer.zero_grad()
 
     def forward(self, inputs):
         return self.model(inputs)
