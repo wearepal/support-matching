@@ -70,6 +70,11 @@ class Classifier(ModelBase):
                 if targets.dtype != torch.long:
                     targets = targets.long()
                 return F.cross_entropy(logits, targets, reduction="none")
+            elif self.criterion == "one_hot":
+                targets = targets.view(-1)
+                if targets.dtype != torch.long:
+                    targets = targets.long()
+                return one_hot_loss(logits, targets, num_classes=self.num_classes, reduction="none")
             else:
                 raise NotImplementedError("Only 'bce' and 'ce' losses are implemented using str.")
         elif isinstance(self.criterion, DROLoss):
@@ -324,3 +329,14 @@ class Regressor(Classifier):
 
     def compute_accuracy(self, outputs: Tensor, targets: Tensor, top: int = 1) -> float:
         return 0
+
+
+def one_hot_loss(
+    input: Tensor,
+    target: Tensor,
+    num_classes: int,
+    reduction: Literal["none", "mean", "sum"] = "mean",
+) -> Tensor:
+    """Compute MSE loss with respect to a one-hot encoded target."""
+    target_oh = F.one_hot(target, num_classes=num_classes).float()
+    return F.mse_loss(input, target_oh, reduction=reduction)

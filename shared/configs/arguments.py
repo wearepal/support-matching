@@ -337,6 +337,8 @@ class AdaptConfig:
     distinguish_weight: float = 1
     pred_y_loss_w: float = 1
     pred_s_loss_w: float = 0
+    s_pred_with_bias: bool = True  # if False, the s predictor has no bias term in the output layer
+    s_pred_identity: bool = False  # if True, the s predictor will just be the identify function
     prior_loss_w: float = 0
     pred_y_hidden_dims: Optional[List[int]] = None
 
@@ -345,7 +347,6 @@ class AdaptConfig:
     zs_dim: int = 1
     zs_transform: ZsTransform = ZsTransform.none
     s_as_zs: bool = False  # if True, pass `s` instead of `zs` to the decoder for the training set
-    s_pred_with_bias: bool = True  # if False, the s predictor has no bias term in the output layer
 
 
 T = TypeVar("T", bound="BaseConfig")

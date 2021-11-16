@@ -163,15 +163,22 @@ class AdvSemiSupervisedAlg(AlgBase):
             )
         predictor_s = None
         if self.adapt_cfg.pred_s_loss_w > 0:
-            predictor_s = build_classifier(
-                input_shape=(self._encoding_size.zs,),  # this is always trained on encodings
-                target_dim=s_dim,
-                model_fn=FcNet(
-                    hidden_dims=None,  # no hidden layers
-                    final_layer_bias=self.adapt_cfg.s_pred_with_bias,
-                ),
-                optimizer_kwargs=self.optimizer_kwargs,
-            )
+            if self.adapt_cfg.s_pred_identity:
+                num_classes = s_dim if s_dim > 1 else 2
+                assert self._encoding_size.zs == num_classes, "size of zs must be dimension of s"
+                predictor_s = Classifier(
+                    nn.Identity(), num_classes=num_classes, criterion="one_hot"
+                )
+            else:
+                predictor_s = build_classifier(
+                    input_shape=(self._encoding_size.zs,),  # this is always trained on encodings
+                    target_dim=s_dim,
+                    model_fn=FcNet(
+                        hidden_dims=None,  # no hidden layers
+                        final_layer_bias=self.adapt_cfg.s_pred_with_bias,
+                    ),
+                    optimizer_kwargs=self.optimizer_kwargs,
+                )
         return predictor_y, predictor_s
 
     def _build(
