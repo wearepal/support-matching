@@ -115,14 +115,14 @@ METHOD_RENAMES: Final = {
     "oracle_gdro": "gDRO (Label Oracle)",
     "perfect-cluster": "Ours (Bag Oracle)",
     "no-cluster-suds": "Ours (No Balancing)",
-    "perfect-cluster-nomil": "No MIL (Bag Oracle)",
-    "no-cluster-fdm-nomil": "No MIL (No Balancing)",
+    "perfect-cluster-nomil": "Inst. (Bag Oracle)",
+    "no-cluster-fdm-nomil": "Inst. (No Balancing)",
     "ranking-suds": "Ours (Clustering)",
     "ranking-fdm": "Ours (Clustering)",
     "ranking-fdm-4": "Ours (Clustering; k=4)",
     "ranking-fdm-6": "Ours (Clustering; k=6)",
     "ranking-fdm-8": "Ours (Clustering; k=8)",
-    "ranking-fdm-nomil": "No MIL (Clustering)",
+    "ranking-fdm-nomil": "Inst. (Clustering)",
     "ss_ae": "AutoEncoder",
 }
 
