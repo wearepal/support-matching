@@ -792,21 +792,6 @@ python-versions = ">=3.6"
 pyparsing = ">=2.0.2,<3.0.5 || >3.0.5"
 
 [[package]]
-name = "palkit"
-version = "0.3.13"
-description = "Useful functions."
-category = "main"
-optional = false
-python-versions = ">=3.7.1,<4.0"
-
-[package.extras]
-torch = ["torch (>=1.8,<2.0)", "numpy (>=1.20.3,<2.0.0)"]
-all = ["pytorch-lightning (>=1.4.2,<2.0.0)", "hydra-core (>=1.1.0,<2.0.0)", "pandas (>=1.3.1,<2.0.0)", "wandb (>=0.12.0,<0.13.0)"]
-pl = ["pytorch-lightning (>=1.4.2,<2.0.0)", "tqdm (>=4.62.0,<5.0.0)"]
-hydra = ["hydra-core (>=1.1.0,<2.0.0)"]
-wandb = ["pandas (>=1.3.1,<2.0.0)", "wandb (>=0.12.0,<0.13.0)"]
-
-[[package]]
 name = "pandas"
 version = "1.3.5"
 description = "Powerful data structures for data analysis, time series, and statistics"
@@ -1107,6 +1092,21 @@ description = "YAML parser and emitter for Python"
 category = "main"
 optional = false
 python-versions = ">=3.6"
+
+[[package]]
+name = "ranzen"
+version = "1.1.4"
+description = "A toolkit facilitating machine-learning experimentation."
+category = "main"
+optional = false
+python-versions = ">=3.7.1,<4.0.0"
+
+[package.extras]
+torch = ["torch (>=1.8,<2.0)", "numpy (>=1.20.3,<2.0.0)"]
+all = ["pytorch-lightning (>=1.4.2,<2.0.0)", "hydra-core (>=1.1.0,<2.0.0)", "neoconfigen (>=2.0.0,<3.0.0)", "pandas (>=1.3.1,<2.0.0)", "wandb (>=0.12.0,<0.13.0)"]
+pl = ["pytorch-lightning (>=1.4.2,<2.0.0)", "tqdm (>=4.62.0,<5.0.0)"]
+hydra = ["hydra-core (>=1.1.0,<2.0.0)", "neoconfigen (>=2.0.0,<3.0.0)"]
+wandb = ["pandas (>=1.3.1,<2.0.0)", "wandb (>=0.12.0,<0.13.0)"]
 
 [[package]]
 name = "ray"
@@ -1622,7 +1622,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7.1"
-content-hash = "34309de7ffc591cc4382f6065cae1309b55aef64c231f407d7eee5619f14f2b4"
+content-hash = "8de64f14ea715d87201cc990917ad7eff9b57d71f8b2673cd62527eff8a15bba"
 
 [metadata.files]
 aiohttp = [
@@ -2360,10 +2360,6 @@ packaging = [
     {file = "packaging-21.3-py3-none-any.whl", hash = "sha256:ef103e05f519cdc783ae24ea4e2e0f508a9c99b2d4969652eed6a2e1ea5bd522"},
     {file = "packaging-21.3.tar.gz", hash = "sha256:dd47c42927d89ab911e606518907cc2d3a1f38bbd026385970643f9c5b8ecfeb"},
 ]
-palkit = [
-    {file = "palkit-0.3.13-py3-none-any.whl", hash = "sha256:8a90880872120ed544395eaa18ab279879f2042f8483b19e495f023358a4ae84"},
-    {file = "palkit-0.3.13.tar.gz", hash = "sha256:dc1cccfd2134aa73d85e3dd455b05bb08266e6af178e19710163d28bb5abbe4d"},
-]
 pandas = [
     {file = "pandas-1.3.5-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:62d5b5ce965bae78f12c1c0df0d387899dd4211ec0bdc52822373f13a3a022b9"},
     {file = "pandas-1.3.5-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:adfeb11be2d54f275142c8ba9bf67acee771b7186a5745249c7d5a06c670136b"},
@@ -2684,6 +2680,10 @@ pyyaml = [
     {file = "PyYAML-6.0-cp39-cp39-win32.whl", hash = "sha256:b5b9eccad747aabaaffbc6064800670f0c297e52c12754eb1d976c57e4f74dcb"},
     {file = "PyYAML-6.0-cp39-cp39-win_amd64.whl", hash = "sha256:b3d267842bf12586ba6c734f89d1f5b871df0273157918b0ccefa29deb05c21c"},
     {file = "PyYAML-6.0.tar.gz", hash = "sha256:68fb519c14306fec9720a2a5b45bc9f0c8d1b9c72adf45c37baedfcd949c35a2"},
+]
+ranzen = [
+    {file = "ranzen-1.1.4-py3-none-any.whl", hash = "sha256:8beb337fd0ef3cf9463efee17673e4a62d1ec31f3c8016f28b4a82a8296e6de2"},
+    {file = "ranzen-1.1.4.tar.gz", hash = "sha256:3c9335b017440ab22c7cd259dfcd2aa8c5704c182e97d7c6a9603c4a6ed35caf"},
 ]
 ray = [
     {file = "ray-1.3.0-cp36-cp36m-macosx_10_13_intel.whl", hash = "sha256:fd845b62c6b9b9d7e2cc93b612d3e060b3397f23d358067fa98e2634bc27402c"},
