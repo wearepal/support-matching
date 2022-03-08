@@ -73,7 +73,7 @@ def contrastive_gradient_penalty(network, input, penalty_amount=1.0):
         output = network(*input)[-1]
     gradient = _get_gradient(input, output)
     gradient = gradient.view(gradient.size()[0], -1)
-    penalty = (gradient ** 2).sum(1).mean()
+    penalty = (gradient**2).sum(1).mean()
 
     return penalty * penalty_amount
 

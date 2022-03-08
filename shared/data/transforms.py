@@ -37,7 +37,7 @@ class Augmentation:
 
 class NoisyDequantize(Augmentation):
     def __init__(self, n_bits_x: int = 8):
-        self.n_bins = 2 ** n_bits_x
+        self.n_bins = 2**n_bits_x
 
     def _augment(self, data: torch.Tensor) -> torch.Tensor:
         return torch.clamp(data + (torch.rand_like(data) / self.n_bins), min=0, max=1)
@@ -46,7 +46,7 @@ class NoisyDequantize(Augmentation):
 class Quantize(Augmentation):
     def __init__(self, n_bits_x: int = 8):
         self.n_bits_x = n_bits_x
-        self.n_bins = 2 ** n_bits_x
+        self.n_bins = 2**n_bits_x
 
     def _augment(self, data: torch.Tensor) -> torch.Tensor:
         if self.n_bits_x < 8:

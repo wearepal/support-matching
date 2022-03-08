@@ -26,7 +26,7 @@ class DLogistic(td.Distribution):
 
     @property
     def variance(self):
-        return self.scale ** 2
+        return self.scale**2
 
     def log_prob(self, value):
         upper = ((value + 0.5 - self.loc) / self.scale).sigmoid()
