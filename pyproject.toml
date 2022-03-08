@@ -20,26 +20,26 @@ readme="README.md"
 
 [tool.poetry.dependencies]
 python = "^3.7.1"
-EthicML = { version = "0.2.0", source = "pypi" }
-GitPython = { version = ">=2.1.11", source = "pypi" }
-hydra-core = { version = "^1.1.0", source = "pypi" }
-hydra-ray-launcher = { version = "^1.1.0", source = "pypi" }
-hydra-submitit-launcher = { version = "^1.1.5", source = "pypi" }
+EthicML = { version = "0.2.0" }
+GitPython = { version = ">=2.1.11" }
+hydra-core = { version = "^1.1.0" }
+hydra-ray-launcher = { version = "^1.1.0" }
+hydra-submitit-launcher = { version = "^1.1.5" }
 lapjv = "*"
 matplotlib = ">= 3.0.2, < 3.3.1"
-numpy = { version = ">=1.20", source = "pypi" }
+numpy = { version = ">=1.20" }
 faiss-cpu = "*"
-pandas = { version = "^1.1", source = "pypi" }
+pandas = { version = "^1.1" }
 pillow = "*"
 scikit-image = ">= 0.14"
-palkit = { version = "^0.3.13", source = "pypi" }
-scikit_learn = { version = ">=0.20.1", source = "pypi" }
-scipy = { version = ">=1.2.1", source = "pypi" }
-seaborn = { version = ">=0.9.0", source = "pypi" }
+palkit = { version = "^0.3.13" }
+scikit_learn = { version = ">=0.20.1" }
+scipy = { version = ">=1.2.1" }
+seaborn = { version = ">=0.9.0" }
 teext = "*"
-tqdm = { version = ">=4.31.1", source = "pypi" }
+tqdm = { version = ">=4.31.1" }
 typer = "*"
-typing-extensions = { version = ">=3.7.2", source = "pypi" }
+typing-extensions = { version = ">=3.7.2" }
 wandb = "*"
 aioredis = "^1.3.1"
 umap-learn = "^0.5.1"
