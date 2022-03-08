@@ -18,11 +18,6 @@ classifiers=[
 ]
 readme="README.md"
 
-[[tool.poetry.source]]
-name = "torch_cu111"
-url = "https://download.pytorch.org/whl/cu111/"
-secondary = true
-
 [tool.poetry.dependencies]
 python = "^3.7.1"
 EthicML = { version = "0.2.0", source = "pypi" }
@@ -42,14 +37,6 @@ scikit_learn = { version = ">=0.20.1", source = "pypi" }
 scipy = { version = ">=1.2.1", source = "pypi" }
 seaborn = { version = ">=0.9.0", source = "pypi" }
 teext = "*"
-torch = [
-    { version = "=1.9.1+cu111", source = "torch_cu111", platform = "linux" },
-    { version = "1.9.1", source = "pypi", platform = "darwin" }
-]
-torchvision = [
-    { version = "=0.10.1+cu111", source = "torch_cu111", platform = "linux" },
-    { version = "0.10.1", source = "pypi", platform = "darwin" }
-]
 tqdm = { version = ">=4.31.1", source = "pypi" }
 typer = "*"
 typing-extensions = { version = ">=3.7.2", source = "pypi" }
