@@ -9,7 +9,7 @@ import wandb
 import yaml
 
 from shared.configs.arguments import Config
-from shared.data.data_loading import DatasetTriplet, load_dataset
+from shared.data.data_loading import DataModule, load_dataset
 from shared.utils.utils import as_pretty_dict, flatten_dict, random_seed
 
 __all__ = ["AlgBase"]
@@ -37,7 +37,7 @@ class AlgBase(nn.Module):
         return moved[0] if len(moved) == 1 else tuple(moved)
 
     @abstractmethod
-    def _fit(self, datasets: DatasetTriplet) -> AlgBase:
+    def _fit(self, datasets: DataModule) -> AlgBase:
         ...
 
     def run(self) -> None:
@@ -74,7 +74,7 @@ class AlgBase(nn.Module):
         )
 
         # ==== construct dataset ====
-        datasets: DatasetTriplet = load_dataset(self.cfg)
+        datasets: DataModule = load_dataset(self.cfg)
         LOGGER.info(
             "Size of context-set: {}, training-set: {}, test-set: {}".format(
                 len(datasets.context),  # type: ignore

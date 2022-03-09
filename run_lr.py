@@ -7,7 +7,7 @@ from hydra.utils import to_absolute_path
 from omegaconf import DictConfig
 
 from shared.configs import AdultConfig, BaseConfig, register_configs
-from shared.data import DatasetTriplet, get_data_tuples, load_dataset
+from shared.data import DataModule, get_data_tuples, load_dataset
 from shared.utils import (
     as_pretty_dict,
     compute_metrics,
@@ -26,7 +26,7 @@ def baseline_metrics(hydra_config: DictConfig) -> None:
     cfg = BaseConfig.from_hydra(hydra_config)
     cfg_dict = flatten_dict(as_pretty_dict(cfg))
     assert isinstance(cfg.data, AdultConfig), "This script is only for the adult dataset."
-    data: DatasetTriplet = load_dataset(cfg)
+    data: DataModule = load_dataset(cfg)
     train_data = data.train
     test_data = data.test
     if not isinstance(train_data, em.DataTuple):

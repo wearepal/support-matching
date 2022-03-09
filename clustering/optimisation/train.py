@@ -42,7 +42,7 @@ from shared.configs import (
     MiscConfig,
     PlMethod,
 )
-from shared.data.data_loading import DatasetTriplet, load_dataset
+from shared.data.data_loading import DataModule, load_dataset
 from shared.data.dataset_wrappers import RotationPrediction
 from shared.data.misc import adaptive_collate
 from shared.models.configs.classifiers import FcNet
@@ -294,7 +294,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     LOGGER.info(f"{torch.cuda.device_count()} GPUs available. Using device '{device}'")
 
     # ==== construct dataset ====
-    datasets: DatasetTriplet = load_dataset(cfg)
+    datasets: DataModule = load_dataset(cfg)
     LOGGER.info(
         "Size of context-set: {}, training-set: {}, test-set: {}".format(
             len(datasets.context),

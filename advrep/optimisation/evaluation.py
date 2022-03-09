@@ -30,7 +30,7 @@ from shared.configs import (
     IsicConfig,
     WandbMode,
 )
-from shared.data import DatasetTriplet, TensorDataTupleDataset, adult, get_data_tuples
+from shared.data import DataModule, TensorDataTupleDataset, adult, get_data_tuples
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import (
     ModelFn,
@@ -63,7 +63,7 @@ def log_sample_images(cfg: Config, data, name, step):
 def log_metrics(
     cfg: Config,
     model,
-    data: DatasetTriplet,
+    data: DataModule,
     step: int,
     save_summary: bool = False,
     cluster_metrics: Optional[Dict[str, float]] = None,
@@ -136,7 +136,7 @@ def log_metrics(
         )
 
 
-def baseline_metrics(cfg: Config, data: DatasetTriplet) -> None:
+def baseline_metrics(cfg: Config, data: DataModule) -> None:
     if isinstance(cfg.data, AdultConfig):
         LOGGER.info("Baselines...")
         train_data = data.train

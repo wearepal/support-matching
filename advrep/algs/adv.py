@@ -41,7 +41,7 @@ from shared.configs import (
     ImageDatasetConfig,
     ReconstructionLoss,
 )
-from shared.data import Batch, DatasetTriplet, RandomSampler
+from shared.data import Batch, DataModule, RandomSampler
 from shared.models.configs import FcNet, conv_autoencoder, fc_autoencoder
 from shared.utils import (
     AverageMeter,
@@ -305,7 +305,7 @@ class AdvSemiSupervisedAlg(AlgBase):
             self.adversary.train()
 
     def _get_data_iterators(
-        self, datasets: DatasetTriplet, cluster_results: ClusterResults | None = None
+        self, datasets: DataModule, cluster_results: ClusterResults | None = None
     ) -> tuple[Iterator[Batch], Iterator[Batch]]:
         s_count = max(datasets.s_dim, 2)
         context_dl_kwargs: dict[str, Any] = dict(shuffle=False, drop_last=True)
@@ -359,7 +359,7 @@ class AdvSemiSupervisedAlg(AlgBase):
 
         return train_data_itr, context_data_itr
 
-    def _fit(self, datasets: DatasetTriplet) -> None:
+    def _fit(self, datasets: DataModule) -> None:
         # Load cluster results
         cluster_results = None
         cluster_metrics: dict[str, float] | None = None

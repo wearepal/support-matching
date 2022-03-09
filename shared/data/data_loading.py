@@ -1,10 +1,14 @@
+from __future__ import annotations
 import logging
 import platform
-from typing import Dict, NamedTuple, Optional, Tuple, Union
+from typing import NamedTuple
+from typing_extensions import Protocol, runtime_checkable
 
 import ethicml as em
 import ethicml.vision as emvi
 from hydra.utils import to_absolute_path
+import numpy as np
+import numpy.typing as npt
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -30,12 +34,22 @@ from .isic import IsicDataset
 from .misc import shrink_dataset
 from .transforms import NoisyDequantize, Quantize, Rotate
 
-__all__ = ["DatasetTriplet", "load_dataset"]
+__all__ = ["DataModule", "load_dataset"]
 
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
-class DatasetTriplet(NamedTuple):
+@runtime_checkable
+class TripletDataset(Protocol):
+    x: Tensor | npt.NDArray[np.string_] | npt.NDArray[np.number]
+    s: Tensor | npt.NDArray[np.number]
+    y: Tensor | npt.NDArray[np.number]
+
+    def __getitem__(self, index: int) -> tuple[Tensor, Tensor, Tensor]:
+        ...
+
+
+class DataModule(NamedTuple):
     context: Dataset
     test: Dataset
     train: Dataset
@@ -49,10 +63,7 @@ class RawDataTuple(NamedTuple):
     y: Tensor
 
 
-def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
-    context_data: Dataset
-    test_data: Dataset
-    train_data: Dataset
+def load_dataset(cfg: BaseConfig) -> DataModule:
     args = cfg.data
     data_root = args.root or find_data_dir()
 
@@ -69,7 +80,6 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
             augs.append(Rotate())
 
         train_data = MNIST(root=data_root, download=True, train=True)
-        test_data: Union[Tuple, Dataset]
         test_data = MNIST(root=data_root, download=True, train=False)
 
         num_classes = 10
@@ -111,7 +121,7 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
         )
 
         def _colorize_subset(
-            _subset: Tuple[Tensor, Tensor],
+            _subset: tuple[Tensor, Tensor],
             _apply_missing_s: bool,
             _correlation: float = 0.0,
         ) -> RawDataTuple:
@@ -133,12 +143,12 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
             return RawDataTuple(x=x_col, s=s, y=y)
 
         def _subsample_by_s_and_y(
-            _data: RawDataTuple, _target_props: Dict[int, float]
+            _data: RawDataTuple, _target_props: dict[int, float]
         ) -> RawDataTuple:
             _x = _data.x
             _s = _data.s
             _y = _data.y
-            smallest: Tuple[int, Optional[int], Optional[int]] = (int(1e10), None, None)
+            smallest: tuple[int, int | None, int | None] = (int(1e10), None, None)
             for _class_id, _prop in _target_props.items():
                 assert 0 <= _prop <= 1, "proportions should be between 0 and 1"
                 target_y = _class_id // num_classes
@@ -236,7 +246,7 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
         )
 
         def _subsample_inds_by_s_and_y(
-            _data: Dataset, _subset_inds: Tensor, _target_props: Dict[int, float]
+            _data: TripletDataset, _subset_inds: Tensor, _target_props: dict[int, float]
         ) -> Tensor:
 
             card_y = max(y_dim, 2)
@@ -293,7 +303,7 @@ def load_dataset(cfg: BaseConfig) -> DatasetTriplet:
         train_data = _cache_data(train_data)
         LOGGER.info("Done.")
 
-    return DatasetTriplet(
+    return DataModule(
         context=context_data,
         test=test_data,
         train=train_data,
@@ -322,10 +332,10 @@ def _cache_data(data: Dataset) -> TensorDataTupleDataset:
 def find_data_dir() -> str:
     """Find data directory for the current machine based on predefined mappings."""
     data_dirs = {
-        "fear": "/mnt/data0/data",
-        "hydra": "/mnt/archive/shared/data",
         "m900382.inf.susx.ac.uk": "/Users/tk324/PycharmProjects/NoSINN/data",
         "turing": "/srv/galene0/shared/data",
+        "fear": "/srv/galene0/shared/data",
+        "hydra": "/srv/galene0/shared/data",
         "goedel": "/srv/galene0/shared/data",
     }
     name_of_machine = platform.node()  # name of machine as reported by operating system
