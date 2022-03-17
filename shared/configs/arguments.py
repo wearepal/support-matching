@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
 import logging
 import shlex
-from typing import Dict, List, Optional, Type, TypeVar
+from typing import Dict, List, Optional, Type, TypeVar, Union
 
+from conduit.data.datasets.vision.celeba import CelebAttr
 from hydra.core.config_store import ConfigStore
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, MISSING, OmegaConf
@@ -12,7 +13,6 @@ from .enums import (
     AdaptationMethod,
     AdultDatasetSplit,
     AggregatorType,
-    CelebaAttributes,
     ClusteringLabel,
     ClusteringMethod,
     ContextMode,
@@ -118,8 +118,8 @@ class CelebaConfig(ImageDatasetConfig):
     log_name: str = "celeba"
 
     # CelebA settings
-    celeba_sens_attr: CelebaAttributes = CelebaAttributes.Male
-    celeba_target_attr: CelebaAttributes = CelebaAttributes.Smiling
+    celeba_sens_attr: CelebAttr = CelebAttr.Male
+    celeba_target_attr: CelebAttr = CelebAttr.Smiling
 
 
 @dataclass
@@ -143,8 +143,12 @@ class BiasConfig:
     # float. the class id is given by class_id = y * s_count + s, so for binary s and y, the
     # correspondance is like this:
     # 0: y=0/s=0, 1: y=0/s=1, 2: y=1/s=0, 3: y=1/s=1
-    subsample_context: Dict[int, float] = field(default_factory=dict)
-    subsample_train: Dict[int, float] = field(default_factory=dict)
+    subsample_context: Optional[Dict[int, Union[Dict[int, float], float]]] = field(
+        default_factory=dict
+    )
+    subsample_train: Optional[Dict[int, Union[Dict[int, float], float]]] = field(
+        default_factory=dict
+    )
 
     log_dataset: str = ""
 
