@@ -1209,7 +1209,7 @@ typing-extensions = "*"
 
 [[package]]
 name = "ranzen"
-version = "1.2.0"
+version = "1.2.1"
 description = "A toolkit facilitating machine-learning experimentation."
 category = "main"
 optional = false
@@ -1840,7 +1840,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8, <3.10"
-content-hash = "22866f1d8dd71d2efb5d5c1e480cbb7100f7506e25077065589556ee10c5c3d2"
+content-hash = "4d03585a88cb7527d9d090d000f3138fdddd29463c67805f48e1afc135d4b74f"
 
 [metadata.files]
 absl-py = [
@@ -2967,8 +2967,8 @@ qudida = [
     {file = "qudida-0.0.4.tar.gz", hash = "sha256:db198e2887ab0c9aa0023e565afbff41dfb76b361f85fd5e13f780d75ba18cc8"},
 ]
 ranzen = [
-    {file = "ranzen-1.2.0-py3-none-any.whl", hash = "sha256:7fcbdaa659d566e7d767b61ccb0d67776bb3f932f698edfeeb481e8be26ad06c"},
-    {file = "ranzen-1.2.0.tar.gz", hash = "sha256:69bba5362af6ddaf159f5986f7a77ffc8d1e35e4a8dda362198a46a940e6b11b"},
+    {file = "ranzen-1.2.1-py3-none-any.whl", hash = "sha256:734a7a18e4e9e887804e01c859c451dc00d198e93ec9427e048b68fa5dcc6ade"},
+    {file = "ranzen-1.2.1.tar.gz", hash = "sha256:a0d8858505a9facac3fd46cf3e87a0ab9e215a6fe2558e30fd35e2a5614a6bd5"},
 ]
 requests = [
     {file = "requests-2.27.1-py2.py3-none-any.whl", hash = "sha256:f22fa1e554c9ddfd16e6e41ac79759e17be9e492b3587efa038054674760e72d"},

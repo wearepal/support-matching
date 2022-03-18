@@ -11,7 +11,6 @@ from advrep.models.configs import Residual64x64Net, Strided28x28Net
 from advrep.optimisation import log_attention, log_images, mmd2
 from shared.configs import (
     AggregatorType,
-    CmnistConfig,
     Config,
     DiscriminatorMethod,
     ReconstructionLoss,

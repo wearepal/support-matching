@@ -52,7 +52,7 @@ class LAFTR(AdvSemiSupervisedAlg):
         )
 
     @staticmethod
-    def mixup(x1, x2, alpha: float = 0.1) -> Tensor:
+    def mixup(x1: Tensor, x2: Tensor, alpha: float = 0.1) -> Tensor:
         """Vicinal Risk Minimization reformulation of mix-up which interpolates only between xs."""
         lambda_ = (
             td.Beta(alpha + 1, alpha).sample((x1.size(0), *((1,) * (x1.ndim - 1)))).to(x1.device)

@@ -23,7 +23,7 @@ def app(hydra_config: DictConfig) -> None:
 
     with TemporaryDirectory() as tmpdir:
         clf = str(Path(tmpdir) / "labels.pth")
-        cfg.misc.cluster_label_file = clf
+        cfg.train.cluster_label_file = clf
 
         from clustering.optimisation import main as cluster
 

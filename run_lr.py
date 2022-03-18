@@ -7,7 +7,7 @@ from hydra.utils import to_absolute_path
 from omegaconf import DictConfig
 
 from shared.configs import AdultConfig, BaseConfig, register_configs
-from shared.data import DataModule, get_data_tuples, load_dataset
+from shared.data import DataModule, get_data_tuples, load_data
 from shared.utils import (
     as_pretty_dict,
     compute_metrics,
@@ -25,8 +25,8 @@ register_configs()
 def baseline_metrics(hydra_config: DictConfig) -> None:
     cfg = BaseConfig.from_hydra(hydra_config)
     cfg_dict = flatten_dict(as_pretty_dict(cfg))
-    assert isinstance(cfg.data, AdultConfig), "This script is only for the adult dataset."
-    data: DataModule = load_dataset(cfg)
+    assert isinstance(cfg.datamodule, AdultConfig), "This script is only for the adult dataset."
+    data: DataModule = load_data(cfg)
     train_data = data.train
     test_data = data.test
     if not isinstance(train_data, em.DataTuple):
@@ -50,18 +50,18 @@ def baseline_metrics(hydra_config: DictConfig) -> None:
             actual=test_data,
             model_name=clf.name,
             step=0,
-            s_dim=data.s_dim,
+            s_dim=data.dim_s,
         )
         all_metrics.update(metrics)
 
-    cfg.misc.log_method = "ethicml"
+    cfg.train.log_method = "ethicml"
     results = {}
     results.update(cfg_dict)
     results.update(all_metrics)
     write_results_to_csv(
         results=results,
-        csv_dir=Path(to_absolute_path(cfg.misc.save_dir)),
-        csv_file=cfg.data.log_name + "_baseline_" + cfg.misc.results_csv,
+        csv_dir=Path(to_absolute_path(cfg.train.save_dir)),
+        csv_file=cfg.datamodule.log_name + "_baseline_" + cfg.train.results_csv,
     )
 
 

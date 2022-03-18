@@ -9,7 +9,7 @@ import wandb
 import yaml
 
 from shared.configs.arguments import Config
-from shared.data.data_loading import DataModule, load_dataset
+from shared.data.data_loading import DataModule, load_data
 from shared.utils.utils import as_pretty_dict, flatten_dict, random_seed
 
 __all__ = ["AlgBase"]
@@ -26,9 +26,9 @@ class AlgBase(nn.Module):
     ) -> None:
         super().__init__()
         self.cfg = cfg
-        self.data_cfg = cfg.data
-        self.misc_cfg = cfg.misc
-        self.bias_cfg = cfg.bias
+        self.data_cfg = cfg.datamodule
+        self.misc_cfg = cfg.train
+        self.bias_cfg = cfg.split
 
     def _to_device(self, *tensors: Tensor) -> Tensor | tuple[Tensor, ...]:
         """Place tensors on the correct device."""
@@ -74,7 +74,7 @@ class AlgBase(nn.Module):
         )
 
         # ==== construct dataset ====
-        datasets: DataModule = load_dataset(self.cfg)
+        datasets: DataModule = load_data(self.cfg)
         LOGGER.info(
             "Size of context-set: {}, training-set: {}, test-set: {}".format(
                 len(datasets.context),  # type: ignore

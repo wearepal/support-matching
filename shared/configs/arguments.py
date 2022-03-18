@@ -3,7 +3,16 @@ import logging
 import shlex
 from typing import Dict, List, Optional, Type, TypeVar, Union
 
-from conduit.data.datasets.vision.celeba import CelebAttr
+import albumentations as A  # type: ignore
+from albumentations.pytorch import ToTensorV2  # type: ignore
+import attr
+from conduit.constants import IMAGENET_STATS
+from conduit.data.datasets.utils import AlbumentationsTform, ImageTform
+from conduit.hydra.conduit.data.datasets.conf import (
+    Camelyon17Conf,
+    CelebAConf,
+    ColoredMNISTConf,
+)
 from hydra.core.config_store import ConfigStore
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, MISSING, OmegaConf
@@ -11,7 +20,6 @@ import torch
 
 from .enums import (
     AdaptationMethod,
-    AdultDatasetSplit,
     AggregatorType,
     ClusteringLabel,
     ClusteringMethod,
@@ -21,10 +29,8 @@ from .enums import (
     EncoderType,
     EvalTrainData,
     FsMethod,
-    IsicAttrs,
     MMDKernel,
     PlMethod,
-    QuantizationLevel,
     ReconstructionLoss,
     VaeStd,
     WandbMode,
@@ -33,19 +39,13 @@ from .enums import (
 
 __all__ = [
     "AdaptConfig",
-    "AdultConfig",
     "BaseConfig",
-    "BiasConfig",
-    "CelebaConfig",
+    "SplitConfig",
     "ClusterConfig",
-    "CmnistConfig",
     "Config",
-    "DatasetConfig",
     "EncoderConfig",
     "FsConfig",
-    "ImageDatasetConfig",
-    "IsicConfig",
-    "MiscConfig",
+    "TrainConfig",
     "register_configs",
 ]
 
@@ -53,96 +53,20 @@ __all__ = [
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
-@dataclass
-class DatasetConfig:
-    """General data set settings."""
+@attr.define(kw_only=True)
+class SplitConfig:
+    log_dataset: str = ""
 
-    log_name: str  # don't rely on this to check which dataset is loaded
-
-    data_pcnt: float = 1.0  # data pcnt should be a real value > 0, and up to 1
-    context_pcnt: float = 0.4
-    test_pcnt: float = 0.2
-    root: str = ""
-    transductive: bool = False  # whether to include the test data in the pool of unlabelled data
-
-    num_workers: int = 4
     data_split_seed: int = 42
+    transductive: bool = False  # whether to include the test data in the pool of unlabelled data
+    context_prop: float = 0.4
+    test_prop: float = 0.2
+    data_prop: Optional[float] = None
 
-
-@dataclass
-class AdultConfig(DatasetConfig):
-    """Settings specific to the Adult dataset."""
-
-    log_name: str = "adult"
-
-    # Adult data set feature settings
-    drop_native: bool = True
-    adult_split: AdultDatasetSplit = AdultDatasetSplit.Sex
-    drop_discrete: bool = False
-    adult_balanced_test: bool = True
-    balance_all_quadrants: bool = True
-
-
-@dataclass
-class ImageDatasetConfig(DatasetConfig):
-    """Settings specific to image datasets."""
-
-    quant_level: QuantizationLevel = QuantizationLevel.eight  # number of bits that encode color
-    input_noise: bool = False  # add uniform noise to the input
-
-
-@dataclass
-class CmnistConfig(ImageDatasetConfig):
-    """Settings specific to the cMNIST dataset."""
-
-    log_name: str = "cmnist"
-
-    # Colored MNIST settings
-    scale: float = 0.0
-    greyscale: bool = False
-    background: bool = False
-    black: bool = True
-    binarize: bool = True
-    rotate_data: bool = False
-    shift_data: bool = False
-    color_correlation: float = 1.0
-    padding: int = 2  # by how many pixels to pad the cmnist images by
-    filter_map_labels: Dict[int, int] = field(default_factory=dict)
-    colors: List[int] = field(default_factory=list)
-
-
-@dataclass
-class CelebaConfig(ImageDatasetConfig):
-    """Settings specific to the CelebA dataset."""
-
-    log_name: str = "celeba"
-
-    # CelebA settings
-    celeba_sens_attr: CelebAttr = CelebAttr.Male
-    celeba_target_attr: CelebAttr = CelebAttr.Smiling
-
-
-@dataclass
-class IsicConfig(ImageDatasetConfig):
-    """Settings specific to the ISIC dataset."""
-
-    log_name: str = "isic"
-
-    # ISIC settings
-    isic_sens_attr: IsicAttrs = IsicAttrs.histo
-    isic_target_attr: IsicAttrs = IsicAttrs.malignant
-
-
-@dataclass
-class BiasConfig:
     # Dataset manipulation
     missing_s: List[int] = field(default_factory=list)
     mixing_factor: float = 0  # How much of context should be mixed into training?
     adult_biased_train: bool = True  # if True, make the training set biased, based on mixing factor
-    # the subsample flags work like this: you give it a class id and a fraction in the form of a
-    # float. the class id is given by class_id = y * s_count + s, so for binary s and y, the
-    # correspondance is like this:
-    # 0: y=0/s=0, 1: y=0/s=1, 2: y=1/s=0, 3: y=1/s=1
     subsample_context: Optional[Dict[int, Union[Dict[int, float], float]]] = field(
         default_factory=dict
     )
@@ -150,20 +74,69 @@ class BiasConfig:
         default_factory=dict
     )
 
-    log_dataset: str = ""
+    # transforms for image datasets
+    train_transforms: ImageTform = attr.field()
+
+    @train_transforms.default  # type: ignore
+    def _default_train_transforms(self) -> ImageTform:
+        transform_ls: List[AlbumentationsTform] = [A.ToFloat()]
+        transform_ls.append(A.Normalize(mean=IMAGENET_STATS.mean, std=IMAGENET_STATS.std))
+        transform_ls.append(ToTensorV2())
+        return A.Compose(transform_ls)
+
+    test_transforms: ImageTform = attr.field()
+
+    @test_transforms.default  # type: ignore
+    def _default_test_transforms(self) -> ImageTform:
+        transform_ls: List[AlbumentationsTform] = [A.ToFloat()]
+        transform_ls.append(A.Normalize(mean=IMAGENET_STATS.mean, std=IMAGENET_STATS.std))
+        transform_ls.append(ToTensorV2())
+        return A.Compose(transform_ls)
+
+    context_transforms: ImageTform = attr, field()  # type: ignore
+
+    @context_transforms.default  # type: ignore
+    def _default_context_transforms(self) -> ImageTform:
+        return self.test_transforms
+
+
+@attr.define(kw_only=True)
+class DataModuleConfig:
+    # DataLoader settings
+    batch_size_tr: int
+    batch_size_ctx: int = attr.field()
+    batch_size_te: int = attr.field()
+    num_samples_per_group_per_bag: int = 1
+
+    num_workers: int = 0
+    persist_workers: bool = False
+    pin_memory: bool = True
+
+    balanced_context: bool = False
+
+    @batch_size_ctx.default  # type: ignore
+    def _batch_size_ctx_default(self) -> int:
+        return self.batch_size_tr
+
+    @batch_size_te.default  # type: ignore
+    def _batch_size_te_default(self) -> int:
+        return self.batch_size_tr
 
 
 @dataclass
-class MiscConfig:
-    # Cluster settings
-    cluster_label_file: str = ""
-
-    # General settings
+class LoggingConfig:
     exp_group: str = ""  # experiment group; should be unique for a specific setting
     log_method: str = ""  # arbitrary string that's appended to the experiment group name
     wandb: WandbMode = WandbMode.online
-    save_dir: str = "experiments/finn"
+    save_dir: str = "experiments/asm"
     results_csv: str = ""  # name of CSV file to save results to
+
+
+@dataclass
+class TrainConfig:
+    # Cluster settings
+    cluster_label_file: str = ""
+    # General settings
     resume: Optional[str] = None
     evaluate: bool = False
     seed: int = MISSING
@@ -171,7 +144,6 @@ class MiscConfig:
     use_amp: bool = False  # Whether to use mixed-precision training
     device: str = "cpu"
     gpu: int = 0  # which GPU to use (if available)
-    cache_data: bool = False  # if True, all data is cached in memory after being loaded
     umap: bool = False  # whether to create UMAP plots
 
     def __post_init__(self) -> None:
@@ -193,6 +165,7 @@ class ClusterConfig:
     epochs: int = 250
     batch_size: int = 256
     test_batch_size: Optional[int] = 256
+    num_workers: int = 4
 
     # Evaluation settings
     eval_epochs: int = 40
@@ -280,6 +253,7 @@ class AdaptConfig:
     bag_size: int = 16
     balanced_context: bool = False  # Whether to balance the context set with groundtruth labels
     oversample: bool = False  # Whether to oversample when doing weighted sampling.
+    num_workers: int = 4
 
     early_stopping: int = 30
     weight_decay: float = 0
@@ -309,10 +283,6 @@ class AdaptConfig:
     vae: bool = False
     vae_std_tform: VaeStd = VaeStd.exp
     stochastic: bool = False
-
-    # adversary ensemble (RIP)
-    # num_discs: int = 1
-    # disc_reset_prob: float = 0.0
 
     # Discriminator settings
     adv_loss: DiscriminatorLoss = DiscriminatorLoss.logistic_ns
@@ -359,10 +329,11 @@ T = TypeVar("T", bound="BaseConfig")
 class BaseConfig:
     """Minimum config needed to do data loading."""
 
-    data: DatasetConfig
-    bias: BiasConfig
-    misc: MiscConfig
-
+    dataset: DictConfig
+    datamodule: DictConfig
+    split: SplitConfig
+    train: TrainConfig
+    logging: LoggingConfig
     cmd: str = ""  # don't set this in the yaml file (or anywhere really); it will get overwritten
 
     @classmethod
@@ -370,8 +341,8 @@ class BaseConfig:
         """Instantiate class based on a hydra config."""
         conf: object = OmegaConf.to_object(hydra_config)  # type: ignore
         assert isinstance(conf, cls), f"The given hydra config did not correspond to class {cls}."
-
         conf.cmd = reconstruct_cmd()
+
         return conf
 
 
@@ -414,10 +385,9 @@ class Config(BaseConfig):
 
 def register_configs() -> None:
     cs = ConfigStore.instance()
-    cs.store(node=AdultConfig, name="adult", package="data", group="data/schema")
-    cs.store(node=CmnistConfig, name="cmnist", package="data", group="data/schema")
-    cs.store(node=CelebaConfig, name="celeba", package="data", group="data/schema")
-    cs.store(node=IsicConfig, name="isic", package="data", group="data/schema")
+    cs.store(node=ColoredMNISTConf, name="cmnist", package="data", group="data/schema")
+    cs.store(node=CelebAConf, name="celeba", package="data", group="data/schema")
+    cs.store(node=Camelyon17Conf, name="camelyon17", package="data", group="data/schema")
 
 
 def reconstruct_cmd() -> str:

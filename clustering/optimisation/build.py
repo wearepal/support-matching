@@ -67,7 +67,7 @@ def build_ae(
     recon_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
     if cfg.clust.vgg_weight != 0:
         vgg_loss = VGGLoss()
-        vgg_loss.to(cfg.misc.device)
+        vgg_loss.to(cfg.train.device)
 
         def recon_loss_fn(input_: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
             return recon_loss_fn_(input_, target) + cfg.clust.vgg_weight * vgg_loss(input_, target)

@@ -43,24 +43,24 @@ def save_results(save_path: Path, cluster_results: ClusterResults) -> Path:
 
 def load_results(cfg: BaseConfig, check: bool = True) -> Tuple[ClusterResults, Dict[str, float]]:
     """Load a tensor from a file."""
-    data = torch.load(cfg.misc.cluster_label_file, map_location=torch.device("cpu"))
+    data = torch.load(cfg.train.cluster_label_file, map_location=torch.device("cpu"))
     if check:
         saved_cfg = data["args"]
         assert (
-            saved_cfg["data.log_name"] == cfg.data.log_name
-        ), f'{saved_cfg["data.log_name"]} != {cfg.data.log_name}'
+            saved_cfg["data.log_name"] == cfg.datamodule.log_name
+        ), f'{saved_cfg["data.log_name"]} != {cfg.datamodule.log_name}'
         assert (
-            saved_cfg["data.data_pcnt"] == cfg.data.data_pcnt
-        ), f'{saved_cfg["data.data_pcnt"]} != {cfg.data.data_pcnt}'
+            saved_cfg["data.data_pcnt"] == cfg.datamodule.data_pcnt
+        ), f'{saved_cfg["data.data_pcnt"]} != {cfg.datamodule.data_pcnt}'
         assert (
-            saved_cfg["data.data_split_seed"] == cfg.data.data_split_seed
-        ), f'{saved_cfg["misc.data_split_seed"]} != {cfg.data.data_split_seed}'
+            saved_cfg["data.data_split_seed"] == cfg.datamodule.data_split_seed
+        ), f'{saved_cfg["misc.data_split_seed"]} != {cfg.datamodule.data_split_seed}'
         assert (
-            saved_cfg["data.context_pcnt"] == cfg.data.context_pcnt
-        ), f'{saved_cfg["data.context_pcnt"]} != {cfg.data.context_pcnt}'
+            saved_cfg["data.context_pcnt"] == cfg.datamodule.context_pcnt
+        ), f'{saved_cfg["data.context_pcnt"]} != {cfg.datamodule.context_pcnt}'
         assert (
-            saved_cfg["data.test_pcnt"] == cfg.data.test_pcnt
-        ), f'{saved_cfg["data.test_pcnt"]} != {cfg.data.test_pcnt}'
+            saved_cfg["data.test_pcnt"] == cfg.datamodule.test_pcnt
+        ), f'{saved_cfg["data.test_pcnt"]} != {cfg.datamodule.test_pcnt}'
     class_ids = data["class_ids"] if "class_ids" in data else torch.zeros_like(data["cluster_ids"])
 
     # add a prefix to the metrics and merge them into one dictionary

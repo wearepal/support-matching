@@ -84,9 +84,9 @@ def log_metrics(
         test = encode_dataset(cfg, data.test, model, recons=False, invariant_to=invariant_to)
         assert test.inv_s is not None
         test_repr = test.inv_s
-        if cfg.misc.wandb is not WandbMode.disabled:
-            s_count = data.s_dim if data.s_dim > 1 else 2
-            if cfg.misc.umap:
+        if cfg.train.wandb is not WandbMode.disabled:
+            s_count = data.dim_s if data.dim_s > 1 else 2
+            if cfg.train.umap:
                 _log_enc_statistics(test_repr, step=step, s_count=s_count)
             if test.inv_y is not None and cfg.adapt.zs_dim == 1:
                 zs = test.inv_y.x[:, 0].view((test.inv_y.x.size(0),)).sigmoid()
@@ -103,8 +103,8 @@ def log_metrics(
         step=step,
         train_data=train.inv_s,
         test_data=test_repr,
-        y_dim=data.y_dim,
-        s_dim=data.s_dim,
+        y_dim=data.dim_y,
+        s_dim=data.dim_s,
         eval_on_recon=cfg.adapt.eval_on_recon,
         pred_s=False,
         save_summary=save_summary,
@@ -127,8 +127,8 @@ def log_metrics(
             step=step,
             train_data=train_data,
             test_data=test.inv_y,
-            y_dim=data.y_dim,
-            s_dim=data.s_dim,
+            y_dim=data.dim_y,
+            s_dim=data.dim_s,
             name="s_from_zs",
             eval_on_recon=cfg.adapt.eval_on_recon,
             pred_s=True,
@@ -137,7 +137,7 @@ def log_metrics(
 
 
 def baseline_metrics(cfg: Config, data: DataModule) -> None:
-    if isinstance(cfg.data, AdultConfig):
+    if isinstance(cfg.datamodule, AdultConfig):
         LOGGER.info("Baselines...")
         train_data = data.train
         test_data = data.test
@@ -157,7 +157,7 @@ def baseline_metrics(cfg: Config, data: DataModule) -> None:
             compute_metrics(
                 predictions=preds,
                 actual=test_data,
-                s_dim=data.s_dim,
+                s_dim=data.dim_s,
                 exp_name="original_data",
                 model_name=clf.name,
                 step=0,
@@ -253,10 +253,10 @@ def fit_classifier(
     clf_fn: ModelFn
 
     if train_on_recon:
-        if isinstance(cfg.data, ImageDatasetConfig):
-            if isinstance(cfg.data, CmnistConfig):
+        if isinstance(cfg.datamodule, ImageDatasetConfig):
+            if isinstance(cfg.datamodule, CmnistConfig):
                 clf_fn = Mp32x23Net(batch_norm=True)
-            elif isinstance(cfg.data, CelebaConfig):
+            elif isinstance(cfg.datamodule, CelebaConfig):
                 clf_fn = Mp64x64Net(batch_norm=True)
             else:  # ISIC dataset
 
@@ -284,12 +284,12 @@ def fit_classifier(
     clf: Classifier = Classifier(
         clf_base, num_classes=num_classes, optimizer_kwargs=optimizer_kwargs
     )
-    clf.to(torch.device(cfg.misc.device))
+    clf.to(torch.device(cfg.train.device))
     clf.fit(
         train_data,
         test_data=test_data,
         epochs=cfg.adapt.eval_epochs,
-        device=torch.device(cfg.misc.device),
+        device=torch.device(cfg.train.device),
         pred_s=pred_s,
     )
 
@@ -346,21 +346,21 @@ def evaluate(
 
     # TODO: the soft predictions should only be computed if they're needed
     preds, labels, sens, soft_preds = clf.predict_dataset(
-        test_loader, device=torch.device(cfg.misc.device), with_soft=True
+        test_loader, device=torch.device(cfg.train.device), with_soft=True
     )
     del train_loader  # try to prevent lock ups of the workers
     del test_loader
     # TODO: investigate why the histogram plotting fails when s_dim != 1
-    if cfg.misc.wandb is not WandbMode.disabled and s_dim == 1:
+    if cfg.train.wandb is not WandbMode.disabled and s_dim == 1:
         plot_histogram_by_source(soft_preds, s=sens, y=labels, step=step, name=name)
     preds = em.Prediction(hard=pd.Series(preds))
-    if isinstance(cfg.data, CmnistConfig):
+    if isinstance(cfg.datamodule, CmnistConfig):
         sens_name = "colour"
-    elif isinstance(cfg.data, CelebaConfig):
-        sens_name = cfg.data.celeba_sens_attr.name
-    elif isinstance(cfg.data, IsicConfig):
-        sens_name = cfg.data.isic_sens_attr.name
-    elif isinstance(cfg.data, AdultConfig):
+    elif isinstance(cfg.datamodule, CelebaConfig):
+        sens_name = cfg.datamodule.celeba_sens_attr.name
+    elif isinstance(cfg.datamodule, IsicConfig):
+        sens_name = cfg.datamodule.isic_sens_attr.name
+    elif isinstance(cfg.datamodule, AdultConfig):
         sens_name = str(adult.SENS_ATTRS[0])
     else:
         sens_name = "sens_Label"
@@ -375,10 +375,10 @@ def evaluate(
         step=step,
         s_dim=s_dim,
         save_summary=save_summary,
-        use_wandb=cfg.misc.wandb is not WandbMode.disabled,
+        use_wandb=cfg.train.wandb is not WandbMode.disabled,
         additional_entries=cluster_metrics,
     )
-    if isinstance(cfg.data, AdultConfig):
+    if isinstance(cfg.datamodule, AdultConfig):
         train_data_tup, test_data_tup = get_data_tuples(train_data, test_data)
 
         train_data_tup, test_data_tup = make_tuple_from_data(
@@ -394,7 +394,7 @@ def evaluate(
                 s_dim=s_dim,
                 step=step,
                 save_summary=save_summary,
-                use_wandb=cfg.misc.wandb is not WandbMode.disabled,
+                use_wandb=cfg.train.wandb is not WandbMode.disabled,
                 additional_entries=cluster_metrics,
             )
 
@@ -414,7 +414,7 @@ def encode_dataset(
     data_loader = DataLoader(
         data, batch_size=cfg.adapt.encode_batch_size, pin_memory=True, shuffle=False, num_workers=0
     )
-    device = torch.device(cfg.misc.device)
+    device = torch.device(cfg.train.device)
 
     with torch.set_grad_enabled(False):
         for x, s, y in tqdm(data_loader):
@@ -467,7 +467,7 @@ def _get_classifer_input(
         z_m = zs_m if invariance == "s" else zy_m
         x_m = generator.decode(z_m, mode="hard")
 
-        if isinstance(cfg.data, (CelebaConfig, IsicConfig)):
+        if isinstance(cfg.datamodule, (CelebaConfig, IsicConfig)):
             x_m = 0.5 * x_m + 0.5
         if x_m.dim() > 2:
             x_m = x_m.clamp(min=0, max=1)

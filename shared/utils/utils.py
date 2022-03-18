@@ -16,7 +16,7 @@ import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
 
-from shared.configs import ClusteringLabel, Config, DatasetConfig, MiscConfig
+from shared.configs import ClusteringLabel, Config, DatasetConfig, TrainConfig
 
 __all__ = [
     "AverageMeter",
@@ -51,7 +51,7 @@ class ExperimentBase:
         self,
         cfg: Config,
         data_cfg: DatasetConfig,
-        misc_cfg: MiscConfig,
+        misc_cfg: TrainConfig,
     ) -> None:
         self.cfg = cfg
         self.data_cfg = data_cfg

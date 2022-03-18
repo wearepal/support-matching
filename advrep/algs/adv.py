@@ -307,7 +307,7 @@ class AdvSemiSupervisedAlg(AlgBase):
     def _get_data_iterators(
         self, datasets: DataModule, cluster_results: ClusterResults | None = None
     ) -> tuple[Iterator[Batch], Iterator[Batch]]:
-        s_count = max(datasets.s_dim, 2)
+        s_count = max(datasets.dim_s, 2)
         context_dl_kwargs: dict[str, Any] = dict(shuffle=False, drop_last=True)
         if cluster_results is not None:
             context_sampler = get_stratified_sampler(
@@ -375,8 +375,8 @@ class AdvSemiSupervisedAlg(AlgBase):
         feature_group_slices = getattr(datasets.context, "feature_group_slices", None)
         self._build(
             input_shape=input_shape,
-            y_dim=datasets.y_dim,
-            s_dim=datasets.s_dim,
+            y_dim=datasets.dim_y,
+            s_dim=datasets.dim_s,
             feature_group_slices=feature_group_slices,
         )
 

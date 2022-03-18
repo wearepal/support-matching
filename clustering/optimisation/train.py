@@ -39,10 +39,10 @@ from shared.configs import (
     DatasetConfig,
     EncoderConfig,
     EncoderType,
-    MiscConfig,
     PlMethod,
+    TrainConfig,
 )
-from shared.data.data_loading import DataModule, load_dataset
+from shared.data.data_loading import DataModule, load_data
 from shared.data.dataset_wrappers import RotationPrediction
 from shared.data.misc import adaptive_collate
 from shared.models.configs.classifiers import FcNet
@@ -80,7 +80,7 @@ class Experiment(ExperimentBase):
         cfg: Config,
         data: DatasetConfig,
         enc: EncoderConfig,
-        misc: MiscConfig,
+        misc: TrainConfig,
         model: BaseModel,
         s_dim: int,
         y_dim: int,
@@ -248,9 +248,9 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     """
     # ==== initialize config shorthands ====
     args = cfg.clust
-    data = cfg.data
+    data = cfg.datamodule
     enc = cfg.enc
-    misc = cfg.misc
+    misc = cfg.train
 
     # ==== current git commit ====
     # repo = git.Repo(search_parent_directories=True)
@@ -267,8 +267,8 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         group += misc.log_method
     if misc.exp_group:
         group += "." + misc.exp_group
-    if cfg.bias.log_dataset:
-        group += "." + cfg.bias.log_dataset
+    if cfg.split.log_dataset:
+        group += "." + cfg.split.log_dataset
     local_dir = Path(".", "local_logging")
     local_dir.mkdir(exist_ok=True)
     run = wandb.init(
@@ -294,7 +294,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     LOGGER.info(f"{torch.cuda.device_count()} GPUs available. Using device '{device}'")
 
     # ==== construct dataset ====
-    datasets: DataModule = load_dataset(cfg)
+    datasets: DataModule = load_data(cfg)
     LOGGER.info(
         "Size of context-set: {}, training-set: {}, test-set: {}".format(
             len(datasets.context),
@@ -347,8 +347,8 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
 
     # ==== construct networks ====
     input_shape = get_data_dim(context_loader)
-    s_count = datasets.s_dim if datasets.s_dim > 1 else 2
-    y_count = datasets.y_dim if datasets.y_dim > 1 else 2
+    s_count = datasets.dim_s if datasets.dim_s > 1 else 2
+    y_count = datasets.dim_y if datasets.dim_y > 1 else 2
     if args.cluster is ClusteringLabel.s:
         num_clusters = s_count
     elif args.cluster is ClusteringLabel.y:
@@ -507,8 +507,8 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         enc=enc,
         misc=misc,
         model=model,
-        s_dim=datasets.s_dim,
-        y_dim=datasets.y_dim,
+        s_dim=datasets.dim_s,
+        y_dim=datasets.dim_y,
     )
 
     start_epoch = 1  # start at 1 so that the val_freq works correctly

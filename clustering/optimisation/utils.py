@@ -10,7 +10,7 @@ from sklearn.metrics import (
 )
 from torch import Tensor
 
-from shared.configs import ClusteringLabel, MiscConfig
+from shared.configs import ClusteringLabel, TrainConfig
 from shared.utils import class_id_to_label, get_class_id
 
 __all__ = ["cluster_metrics", "count_occurances", "find_assignment", "get_cluster_label_path"]
@@ -52,7 +52,7 @@ def find_assignment(
     return best_acc, col_ind, logging_dict
 
 
-def get_cluster_label_path(misc: MiscConfig, save_dir: Path) -> Path:
+def get_cluster_label_path(misc: TrainConfig, save_dir: Path) -> Path:
     if misc.cluster_label_file:
         return Path(misc.cluster_label_file)
     else:

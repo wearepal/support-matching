@@ -89,10 +89,10 @@ def get_invisible_demographics(
 
 
 def load_adult_data(cfg: BaseConfig) -> Tuple[DataTupleDataset, DataTupleDataset, DataTupleDataset]:
-    assert isinstance(cfg.data, AdultConfig)
+    assert isinstance(cfg.datamodule, AdultConfig)
     global ADULT_DATASET
     ADULT_DATASET = em.adult(
-        split=cfg.data.adult_split.name, binarize_nationality=cfg.data.drop_native
+        split=cfg.datamodule.adult_split.name, binarize_nationality=cfg.datamodule.drop_native
     )
     data = ADULT_DATASET.load(ordered=True)
     global SENS_ATTRS
@@ -114,7 +114,7 @@ def load_adult_data(cfg: BaseConfig) -> Tuple[DataTupleDataset, DataTupleDataset
     context_x = context.x
     context_x[cont_feats] = scaler.transform(context.x[cont_feats].to_numpy(np.float32))
 
-    if cfg.data.drop_discrete:
+    if cfg.datamodule.drop_discrete:
         context_x = context_x[cont_feats]
         train_x = train_x[cont_feats]
         test_x = test_x[cont_feats]
@@ -139,33 +139,35 @@ def load_adult_data(cfg: BaseConfig) -> Tuple[DataTupleDataset, DataTupleDataset
 
 def biased_split(cfg: BaseConfig, data: em.DataTuple) -> DataTupleTriplet:
     """Split the dataset such that the training set is biased."""
-    assert isinstance(cfg.data, AdultConfig)
-    if cfg.bias.adult_biased_train:
+    assert isinstance(cfg.datamodule, AdultConfig)
+    if cfg.split.adult_biased_train:
         train_tuple, unbiased = get_invisible_demographics(  # get_biased_subset(
             data=data,
             # mixing_factor=args.mixing_factor,
-            unbiased_pcnt=cfg.data.test_pcnt + cfg.data.context_pcnt,
-            seed=cfg.data.data_split_seed,
-            missing_s=cfg.bias.missing_s,
+            unbiased_pcnt=cfg.datamodule.test_pcnt + cfg.datamodule.context_pcnt,
+            seed=cfg.datamodule.data_split_seed,
+            missing_s=cfg.split.missing_s,
         )
     else:
         train_tuple, unbiased, _ = em.BalancedTestSplit(
-            train_percentage=1 - cfg.data.test_pcnt - cfg.data.context_pcnt,
-            start_seed=cfg.data.data_split_seed,
+            train_percentage=1 - cfg.datamodule.test_pcnt - cfg.datamodule.context_pcnt,
+            start_seed=cfg.datamodule.data_split_seed,
         )(data)
 
-    context_pcnt = cfg.data.context_pcnt / (cfg.data.test_pcnt + cfg.data.context_pcnt)
+    context_pcnt = cfg.datamodule.context_pcnt / (
+        cfg.datamodule.test_pcnt + cfg.datamodule.context_pcnt
+    )
     context_splitter: em.DataSplitter
 
-    if cfg.data.adult_balanced_test and cfg.bias.adult_biased_train:
+    if cfg.datamodule.adult_balanced_test and cfg.split.adult_biased_train:
         context_splitter = em.BalancedTestSplit(
             train_percentage=context_pcnt,
-            start_seed=cfg.data.data_split_seed,
-            balance_type="P(s,y)=0.25" if cfg.data.balance_all_quadrants else "P(s|y)=0.5",
+            start_seed=cfg.datamodule.data_split_seed,
+            balance_type="P(s,y)=0.25" if cfg.datamodule.balance_all_quadrants else "P(s|y)=0.5",
         )
     else:
         context_splitter = em.ProportionalSplit(
-            train_percentage=context_pcnt, start_seed=cfg.data.data_split_seed
+            train_percentage=context_pcnt, start_seed=cfg.datamodule.data_split_seed
         )
     context_tuple, test_tuple, _ = context_splitter(unbiased)
     return DataTupleTriplet(context=context_tuple, test=test_tuple, train=train_tuple)

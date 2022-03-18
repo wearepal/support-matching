@@ -36,5 +36,5 @@ def build_ae(
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_args,
         )
-    model.to(cfg.misc.device)
+    model.to(cfg.train.device)
     return model
