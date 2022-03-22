@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Iterator, Sequence
 
-from kit import implements
+from ranzen import implements
 import torch
 from torch import Tensor
 import torch.distributions as td
@@ -144,7 +144,7 @@ class LAFTR(AdvSemiSupervisedAlg):
     def _get_adv_input(self, encoding: SplitEncoding, detach: bool = False) -> Tensor:
         """Construct the input that the discriminator expects; either zy or reconstructed zy."""
         zs_m, _ = self.encoder.mask(encoding, detach=detach)
-        return self.encoder.unsplit_encoding(zs_m)
+        return self.encoder.reform_encoding(zs_m)
 
     @torch.no_grad()
     @implements(AdvSemiSupervisedAlg)

@@ -1,7 +1,9 @@
 from __future__ import annotations
 from collections.abc import Iterator, Sequence
 
-from kit import implements
+from conduit.data.datasets.vision.cmnist import ColoredMNIST
+from conduit.data.structures import TernarySample
+from ranzen import implements
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -15,7 +17,7 @@ from shared.configs import (
     DiscriminatorMethod,
     ReconstructionLoss,
 )
-from shared.data import Batch
+from shared.data.data_module import DataModule
 from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
 from shared.models.configs import FcNet, ModelAggregatorWrapper
 from shared.utils import ModelFn, prod
@@ -34,14 +36,14 @@ class SupportMatching(AdvSemiSupervisedAlg):
             self.eff_batch_size *= self.adapt_cfg.bag_size
 
     @implements(AdvSemiSupervisedAlg)
-    def _build_adversary(self, input_shape: tuple[int, ...], s_dim: int) -> Discriminator:
+    def _build_adversary(self, datamodule: DataModule) -> Discriminator:
         """Build the adversarial network."""
-        disc_input_shape: tuple[int, ...] = (
-            input_shape if self.adapt_cfg.train_on_recon else (self.enc_cfg.out_dim,)
+        disc_input_shape: Sequence[int] = (
+            datamodule.dim_x if self.adapt_cfg.train_on_recon else (self.enc_cfg.out_dim,)
         )
         disc_fn: ModelFn
-        if len(input_shape) > 2 and self.adapt_cfg.train_on_recon:
-            if isinstance(self.data_cfg, CmnistConfig):
+        if len(datamodule.dim_x) > 2 and self.adapt_cfg.train_on_recon:
+            if isinstance(datamodule.train, ColoredMNIST):
                 disc_fn = Strided28x28Net(batch_norm=False)
             else:
                 disc_fn = Residual64x64Net(batch_norm=False)
@@ -49,11 +51,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         else:
             disc_fn = FcNet(hidden_dims=self.adapt_cfg.adv_hidden_dims, activation=nn.GELU())
             # FcNet first flattens the input
-            disc_input_shape = (
-                (prod(disc_input_shape),)
-                if isinstance(disc_input_shape, Sequence)
-                else disc_input_shape
-            )
+            disc_input_shape = (prod(disc_input_shape),)
 
         if self.adapt_cfg.aggregator_type is not AggregatorType.none:
             final_proj = (
@@ -90,19 +88,18 @@ class SupportMatching(AdvSemiSupervisedAlg):
     @implements(AdvSemiSupervisedAlg)
     def _build_encoder(
         self,
-        input_shape: tuple[int, ...],
-        s_dim: int,
+        dm: DataModule,
         feature_group_slices: dict[str, list[slice]] | None = None,
     ) -> AutoEncoder:
-        if self.adapt_cfg.s_as_zs and self.adapt_cfg.zs_dim != s_dim:
-            raise ValueError(f"zs_dim has to be equal to s_dim ({s_dim}) if `s_as_zs` is True.")
-        return super()._build_encoder(input_shape, s_dim, feature_group_slices)
+        if self.adapt_cfg.s_as_zs and self.adapt_cfg.zs_dim != dm.card_s:
+            raise ValueError(f"zs_dim has to be equal to s_dim ({dm.card_s}) if `s_as_zs` is True.")
+        return super()._build_encoder(dm)
 
     @implements(AdvSemiSupervisedAlg)
     def _step_adversary(
         self,
-        train_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
-        context_data_itr: Iterator[tuple[Tensor, Tensor, Tensor]],
+        train_data_itr: Iterator[TernarySample[Tensor]],
+        context_data_itr: Iterator[TernarySample[Tensor]],
     ) -> tuple[Tensor, dict[str, float]]:
         """Train the discriminator while keeping the encoder fixed."""
         self._train("adversary")
@@ -134,14 +131,15 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
     @implements(AdvSemiSupervisedAlg)
     def _step_encoder(
-        self, x_ctx: Tensor, batch_tr: Batch, warmup: bool
+        self, x_ctx: Tensor, batch_tr: TernarySample, warmup: bool
     ) -> tuple[Tensor, dict[str, float]]:
         """Compute the losses for the encoder and update its parameters."""
+        assert isinstance(batch_tr.x, Tensor)
         # Compute losses for the encoder.
         self._train("encoder")
         logging_dict = {}
 
-        with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):
+        with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):  # type: ignore
             # ============================= recon loss for training set ===========================
             encoding_t, enc_loss_tr, logging_dict_tr = self.encoder.routine(
                 batch_tr.x,
@@ -202,23 +200,18 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
         return total_loss, logging_dict
 
-    def _get_adv_input(self, encoding: SplitEncoding, detach: bool = False) -> Tensor:
+    def _get_adv_input(self, encoding: SplitEncoding, *, detach: bool = False) -> Tensor:
         """Construct the input that the discriminator expects; either zy or reconstructed zy."""
         if self.adapt_cfg.train_on_recon:
             zs_m, _ = self.encoder.mask(encoding, random=True, detach=detach)
             recon = self.encoder.decode(zs_m, mode="relaxed")
-            if self.enc_cfg.recon_loss is ReconstructionLoss.ce:
-                recon = recon.argmax(dim=1).float() / 255
-                if not isinstance(self.data_cfg, CmnistConfig):
-                    recon = recon * 2 - 1
             return recon
-        else:
-            zs_m, _ = self.encoder.mask(encoding, detach=detach)
-            return self.encoder.unsplit_encoding(zs_m)
+        zs_m, _ = self.encoder.mask(encoding, detach=detach)
+        return self.encoder.reform_encoding(zs_m)
 
     @torch.no_grad()
     @implements(AdvSemiSupervisedAlg)
-    def _log_recons(self, x: Tensor, itr: int, prefix: str | None = None) -> None:
+    def _log_recons(self, x: Tensor, *, itr: int, prefix: str | None = None) -> None:
         """Log the reconstructed and original images."""
 
         rows_per_block = 8

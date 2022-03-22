@@ -2,7 +2,7 @@ from __future__ import annotations
 from collections import defaultdict
 import logging
 from pathlib import Path
-from typing import Sequence, Union, cast
+from typing import Sequence, TypeVar, Union, cast
 
 from ethicml.vision.data.image_dataset import TorchImageDataset
 import torch
@@ -131,7 +131,10 @@ def save_model(cfg: Config, save_dir: Path, model: nn.Module, itr: int, best: bo
     return filename
 
 
-def restore_model(cfg: Config, filename: Path, model: nn.Module) -> tuple[nn.Module, int]:
+M = TypeVar("M", bound=nn.Module)
+
+
+def restore_model(cfg: Config, filename: Path, model: M) -> tuple[M, int]:
     chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
     args_chkpt = chkpt["args"]
     assert cfg.enc.levels == args_chkpt["enc.levels"]

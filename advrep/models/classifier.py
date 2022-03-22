@@ -30,7 +30,7 @@ class Classifier(ModelBase):
     ):
         """Build classifier model.
 
-        Args:).
+        Args:
             n_classes: Positive integer. Number of class labels.
             model: nn.Module. Classifier model to wrap around.
             optimizer_args: Dictionary. Arguments to pass to the optimizer.
@@ -257,7 +257,7 @@ class Classifier(ModelBase):
         for epoch in pbar:
             self.model.train()
 
-            for x, s, y in train_data:
+            for x, y, s in train_data:
 
                 if pred_s:
                     target = s
@@ -279,7 +279,7 @@ class Classifier(ModelBase):
                 # __len__ (it makes no sense for iterable datasets, for instance)
                 num_samples = 0
                 with torch.no_grad():
-                    for x, s, y in test_data:
+                    for x, y, s in test_data:
 
                         if pred_s:
                             target = s

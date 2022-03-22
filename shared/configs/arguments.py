@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Type, TypeVar, Union
 import albumentations as A  # type: ignore
 from albumentations.pytorch import ToTensorV2  # type: ignore
 import attr
-from conduit.constants import IMAGENET_STATS
+from conduit.data.constants import IMAGENET_STATS
 from conduit.data.datasets.utils import AlbumentationsTform, ImageTform
 from conduit.hydra.conduit.data.datasets.conf import (
     Camelyon17Conf,
@@ -88,12 +88,14 @@ class SplitConfig:
 
     @test_transforms.default  # type: ignore
     def _default_test_transforms(self) -> ImageTform:
-        transform_ls: List[AlbumentationsTform] = [A.ToFloat()]
-        transform_ls.append(A.Normalize(mean=IMAGENET_STATS.mean, std=IMAGENET_STATS.std))
-        transform_ls.append(ToTensorV2())
+        transform_ls = [
+            A.ToFloat(),
+            A.Normalize(mean=IMAGENET_STATS.mean, std=IMAGENET_STATS.std),
+            ToTensorV2(),
+        ]
         return A.Compose(transform_ls)
 
-    context_transforms: ImageTform = attr, field()  # type: ignore
+    context_transforms: ImageTform = attr.field()
 
     @context_transforms.default  # type: ignore
     def _default_context_transforms(self) -> ImageTform:

@@ -1,9 +1,16 @@
 from __future__ import annotations
+from dataclasses import dataclass
 import logging
-from typing import Dict, NamedTuple, Optional, Sequence, Tuple
+from typing import Dict, Generic, Optional, Sequence
 from typing_extensions import Literal
 
+from conduit.data import CdtDataLoader
+from conduit.data.datasets.base import CdtDataset
+from conduit.data.datasets.vision.base import CdtVisionDataset
+from conduit.data.datasets.vision.cmnist import ColoredMNIST
+from conduit.data.structures import TernarySample
 import ethicml as em
+from ethicml.data.vision_data.celeba import CelebA
 from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
 import numpy as np
@@ -12,7 +19,6 @@ import seaborn as sns
 import torch
 from torch import Tensor
 import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
 from tqdm import tqdm
@@ -20,72 +26,81 @@ import umap
 import wandb
 
 from advrep.models import AutoEncoder, Classifier, SplitEncoding
-from shared.configs import (
-    AdultConfig,
-    CelebaConfig,
-    CmnistConfig,
-    Config,
-    EvalTrainData,
-    ImageDatasetConfig,
-    IsicConfig,
-    WandbMode,
-)
-from shared.data import DataModule, TensorDataTupleDataset, adult, get_data_tuples
+from shared.configs import Config, EvalTrainData, WandbMode
+from shared.data.data_module import D, DataModule, Dataset
+from shared.data.utils import group_id_to_label, labels_to_group_id
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import (
     ModelFn,
-    class_id_to_label,
     compute_metrics,
-    label_to_class_id,
     make_tuple_from_data,
     plot_histogram_by_source,
     prod,
 )
 
-from .utils import ExtractableDataset, build_weighted_sampler_from_dataset, log_images
+from .utils import log_images
 
-__all__ = ["baseline_metrics", "log_metrics"]
+__all__ = [
+    "InvarianceDatasets",
+    "log_metrics",
+    "log_sample_images",
+]
 
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
-class InvarianceDatasets(NamedTuple):
-    inv_y: TensorDataTupleDataset | None
-    inv_s: TensorDataTupleDataset | None
+@dataclass(frozen=True)
+class InvarianceDatasets(Generic[D]):
+    inv_y: D | None
+    inv_s: D | None
 
 
-def log_sample_images(cfg: Config, data, name, step):
-    data_loader = DataLoader(data, shuffle=False, batch_size=64)
-    x, _, _ = next(iter(data_loader))
+def log_sample_images(
+    cfg: Config, *, data: CdtVisionDataset, name: str, step: int, num_samples: int = 64
+) -> None:
+    inds = torch.randperm(len(data))[:num_samples]
+    x = data[inds.tolist()]
     log_images(cfg, x, f"Samples from {name}", prefix="eval", step=step)
 
 
 def log_metrics(
     cfg: Config,
-    model,
-    data: DataModule,
+    *,
+    dm: DataModule,
+    encoder: AutoEncoder,
     step: int,
     save_summary: bool = False,
     cluster_metrics: Optional[Dict[str, float]] = None,
 ) -> None:
     """Compute and log a variety of metrics."""
-    model.eval()
+    encoder.eval()
     invariant_to = "both" if cfg.adapt.eval_s_from_zs is not None else "s"
 
     LOGGER.info("Encoding training set...")
     train = encode_dataset(
-        cfg, data.train, model, recons=cfg.adapt.eval_on_recon, invariant_to=invariant_to
+        cfg,
+        dm=dm,
+        dl=dm.train_dataloader(eval=True),
+        encoder=encoder,
+        recons=cfg.adapt.eval_on_recon,
+        invariant_to=invariant_to,
     )
-    assert train.inv_s is not None
     if cfg.adapt.eval_on_recon:
         # don't encode test dataset
-        test_repr = data.test
+        test_repr = dm.test
     else:
-        test = encode_dataset(cfg, data.test, model, recons=False, invariant_to=invariant_to)
-        assert test.inv_s is not None
+        test = encode_dataset(
+            cfg,
+            dm=dm,
+            dl=dm.test_dataloader(),
+            encoder=encoder,
+            recons=False,
+            invariant_to=invariant_to,
+        )
+
         test_repr = test.inv_s
         if cfg.train.wandb is not WandbMode.disabled:
-            s_count = data.dim_s if data.dim_s > 1 else 2
+            s_count = dm.dim_s if dm.dim_s > 1 else 2
             if cfg.train.umap:
                 _log_enc_statistics(test_repr, step=step, s_count=s_count)
             if test.inv_y is not None and cfg.adapt.zs_dim == 1:
@@ -100,11 +115,12 @@ def log_metrics(
     LOGGER.info("\nComputing metrics...")
     evaluate(
         cfg=cfg,
+        dm=dm,
         step=step,
         train_data=train.inv_s,
         test_data=test_repr,
-        y_dim=data.dim_y,
-        s_dim=data.dim_s,
+        y_dim=dm.dim_y,
+        s_dim=dm.dim_s,
         eval_on_recon=cfg.adapt.eval_on_recon,
         pred_s=False,
         save_summary=save_summary,
@@ -117,7 +133,7 @@ def log_metrics(
             train_data = train.inv_y  # the part that is invariant to y corresponds to zs
         else:
             context = encode_dataset(
-                cfg, data.context, model, recons=cfg.adapt.eval_on_recon, invariant_to="y"
+                cfg, dm.context, encoder, recons=cfg.adapt.eval_on_recon, invariant_to="y"
             )
             assert context.inv_y is not None
             train_data = context.inv_y
@@ -127,8 +143,8 @@ def log_metrics(
             step=step,
             train_data=train_data,
             test_data=test.inv_y,
-            y_dim=data.dim_y,
-            s_dim=data.dim_s,
+            y_dim=dm.dim_y,
+            s_dim=dm.dim_s,
             name="s_from_zs",
             eval_on_recon=cfg.adapt.eval_on_recon,
             pred_s=True,
@@ -136,39 +152,40 @@ def log_metrics(
         )
 
 
-def baseline_metrics(cfg: Config, data: DataModule) -> None:
-    if isinstance(cfg.datamodule, AdultConfig):
-        LOGGER.info("Baselines...")
-        train_data = data.train
-        test_data = data.test
-        if not isinstance(train_data, em.DataTuple):
-            train_data, test_data = get_data_tuples(train_data, test_data)
+# def baseline_metrics(cfg: Config, data: DataModule) -> None:
+#     if isinstance(cfg.datamodule, AdultConfig):
+#         LOGGER.info("Baselines...")
+#         train_data = data.train
+#         test_data = data.test
+#         if not isinstance(train_data, em.DataTuple):
+#             train_data, test_data = get_data_tuples(train_data, test_data)
 
-        train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=False)
+#         train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=False)
 
-        for clf in [
-            em.LR(),
-            em.Majority(),
-            em.Kamiran(classifier="LR"),
-            em.LRCV(),
-            em.SVM(),
-        ]:
-            preds = clf.run(train_data, test_data)
-            compute_metrics(
-                predictions=preds,
-                actual=test_data,
-                s_dim=data.dim_s,
-                exp_name="original_data",
-                model_name=clf.name,
-                step=0,
-                use_wandb=False,
-            )
+#         for clf in [
+#             em.LR(),
+#             em.Majority(),
+#             em.Kamiran(classifier="LR"),
+#             em.LRCV(),
+#             em.SVM(),
+#         ]:
+#             preds = clf.run(train_data, test_data)
+#             compute_metrics(
+#                 predictions=preds,
+#                 actual=test_data,
+#                 s_dim=data.dim_s,
+#                 exp_name="original_data",
+#                 model_name=clf.name,
+#                 step=0,
+#                 use_wandb=False,
+#             )
 
 
-def _log_enc_statistics(encoded: TensorDataTupleDataset, *, step: int, s_count: int):
+def _log_enc_statistics(encoded: Dataset, *, step: int, s_count: int):
     """Compute and log statistics about the encoding."""
     z, y, s = encoded.x, encoded.y, encoded.s
-    class_ids = label_to_class_id(s=s, y=y, s_count=s_count)
+    group_id_to_label
+    class_ids = labels_to_group_id(s=s, y=y, s_count=s_count)
 
     LOGGER.info("Starting UMAP...")
     mapper = umap.UMAP(n_neighbors=25, n_components=2)
@@ -185,13 +202,13 @@ def _log_enc_statistics(encoded: TensorDataTupleDataset, *, step: int, s_count: 
 
 
 def visualize_clusters(
-    x: np.ndarray[np.floating] | Tensor,
+    x: np.ndarray | Tensor,
     *,
-    labels: np.ndarray[np.number] | Tensor,
+    labels: np.ndarray | Tensor,
     s_count: int,
     title: str | None = None,
     legend: bool = True,
-) -> plt.Figure:
+) -> plt.Figure:  # type: ignore
     if x.shape[1] != 2:
         raise ValueError("Cluster-visualization can only be performed for 2-dimensional inputs.")
     if isinstance(x, Tensor):
@@ -220,8 +237,8 @@ def visualize_clusters(
             handles=_flip(sc.legend_elements()[0], 5),
             labels=_flip(
                 [
-                    f"s={class_id_to_label(class_id, s_count=s_count, label='s')},"
-                    f"y={class_id_to_label(class_id, s_count=s_count, label='y')}"
+                    f"s={group_id_to_label(class_id, s_count=s_count, label='s')},"
+                    f"y={group_id_to_label(class_id, s_count=s_count, label='y')}"
                     for class_id in classes.tolist()
                 ],
                 5,
@@ -241,22 +258,20 @@ def visualize_clusters(
 
 def fit_classifier(
     cfg: Config,
-    input_shape: Sequence[int],
-    train_data: DataLoader,
+    *,
+    dm: DataModule,
     train_on_recon: bool,
     pred_s: bool,
-    target_dim: int,
-    test_data: Optional[DataLoader] = None,
 ) -> Classifier:
-    input_dim = input_shape[0]
+    input_dim = dm.dim_x[0]
     optimizer_kwargs = {"lr": cfg.adapt.eval_lr}
     clf_fn: ModelFn
 
     if train_on_recon:
-        if isinstance(cfg.datamodule, ImageDatasetConfig):
-            if isinstance(cfg.datamodule, CmnistConfig):
+        if isinstance(dm.train, CdtVisionDataset):
+            if isinstance(dm.train, ColoredMNIST):
                 clf_fn = Mp32x23Net(batch_norm=True)
-            elif isinstance(cfg.datamodule, CelebaConfig):
+            elif isinstance(dm.train, CelebA):
                 clf_fn = Mp64x64Net(batch_norm=True)
             else:  # ISIC dataset
 
@@ -277,17 +292,22 @@ def fit_classifier(
             clf_fn = _adult_fc_net
     else:
         clf_fn = FcNet(hidden_dims=cfg.adapt.eval_hidden_dims)
-        input_dim = prod(input_shape)
-    clf_base = clf_fn(input_dim, target_dim=target_dim)
+        input_dim = prod(dm.dim_x)
+    clf_base = clf_fn(input_dim, target_dim=dm.card_y)
 
-    num_classes = max(2, target_dim)
     clf: Classifier = Classifier(
-        clf_base, num_classes=num_classes, optimizer_kwargs=optimizer_kwargs
+        clf_base, num_classes=dm.num_classes, optimizer_kwargs=optimizer_kwargs
     )
+
+    train_dl = dm.train_dataloader(
+        batch_size=cfg.adapt.eval_batch_size, balance=cfg.adapt.balanced_eval
+    )
+    test_dl = dm.test_dataloader()
+
     clf.to(torch.device(cfg.train.device))
     clf.fit(
-        train_data,
-        test_data=test_data,
+        train_data=train_dl,
+        test_data=test_dl,
         epochs=cfg.adapt.eval_epochs,
         device=torch.device(cfg.train.device),
         pred_s=pred_s,
@@ -298,50 +318,21 @@ def fit_classifier(
 
 def evaluate(
     cfg: Config,
+    *,
+    dm: DataModule,
     step: int,
-    train_data: ExtractableDataset,
-    test_data: Dataset[Tuple[Tensor, Tensor, Tensor]],
-    y_dim: int,
-    s_dim: int,
     name: str = "",
     eval_on_recon: bool = True,
     pred_s: bool = False,
     save_summary: bool = False,
     cluster_metrics: Optional[Dict[str, float]] = None,
 ):
-    input_shape = next(iter(train_data))[0].shape
-
-    train_loader_kwargs = {}
-    if cfg.adapt.balanced_eval:
-        train_loader_kwargs["sampler"] = build_weighted_sampler_from_dataset(
-            dataset=train_data,
-            s_count=max(s_dim, 2),
-            batch_size=cfg.adapt.eval_batch_size,
-            oversample=cfg.adapt.oversample,
-            balance_hierarchical=False,
-        )
-        train_loader_kwargs["shuffle"] = False  # the sampler shuffles for us
-    else:
-        train_loader_kwargs["shuffle"] = True
-
-    train_loader = DataLoader(
-        train_data,
-        batch_size=cfg.adapt.eval_batch_size,
-        pin_memory=True,
-        **train_loader_kwargs,
-    )
-    test_loader = DataLoader(
-        test_data, batch_size=cfg.adapt.test_batch_size, shuffle=False, pin_memory=True
-    )
 
     clf: Classifier = fit_classifier(
         cfg,
-        input_shape,
-        train_data=train_loader,
+        dm=dm,
         train_on_recon=eval_on_recon,
         pred_s=pred_s,
-        test_data=test_loader,
-        target_dim=s_dim if pred_s else y_dim,
     )
 
     # TODO: the soft predictions should only be computed if they're needed
@@ -403,47 +394,68 @@ Invariance = Literal["s", "y", "both"]
 
 
 def encode_dataset(
-    cfg: Config, data: Dataset, generator: AutoEncoder, recons: bool, invariant_to: Invariance = "s"
-) -> InvarianceDatasets:
+    cfg: Config,
+    *,
+    dm: DataModule,
+    dl: CdtDataLoader[TernarySample],
+    encoder: AutoEncoder,
+    recons: bool,
+    invariant_to: Invariance = "s",
+) -> InvarianceDatasets[CdtDataset[TernarySample, Tensor, Tensor, Tensor]]:
     LOGGER.info("Encoding dataset...")
     all_inv_s = []
     all_inv_y = []
     all_s = []
     all_y = []
 
-    data_loader = DataLoader(
-        data, batch_size=cfg.adapt.encode_batch_size, pin_memory=True, shuffle=False, num_workers=0
-    )
     device = torch.device(cfg.train.device)
 
     with torch.set_grad_enabled(False):
-        for x, s, y in tqdm(data_loader):
+        for batch in tqdm(dl):
 
-            x = x.to(device, non_blocking=True)
-            all_s.append(s)
-            all_y.append(y)
+            x = batch.x.to(device, non_blocking=True)
+            all_s.append(batch.s)
+            all_y.append(batch.y)
 
             # don't do the zs transform here because we might want to look at the raw distribution
-            enc = generator.encode(x, stochastic=False, do_zs_transform=False)
+            encodings = encoder.encode(x, stochastic=False, do_zs_transform=False)
 
             if invariant_to in ("s", "both"):
-                all_inv_s.append(_get_classifer_input(cfg, enc, generator, recons, "s"))
+                all_inv_s.append(
+                    _get_classifer_input(
+                        cfg,
+                        dm=dm,
+                        encodings=encodings,
+                        encoder=encoder,
+                        recons=recons,
+                        invariant_to="s",
+                    )
+                )
 
             if invariant_to in ("y", "both"):
-                all_inv_y.append(_get_classifer_input(cfg, enc, generator, recons, "y"))
+                all_inv_y.append(
+                    _get_classifer_input(
+                        cfg,
+                        dm=dm,
+                        encodings=encodings,
+                        encoder=encoder,
+                        recons=recons,
+                        invariant_to="y",
+                    )
+                )
 
     all_s = torch.cat(all_s, dim=0)
     all_y = torch.cat(all_y, dim=0)
 
-    datasets: dict[Literal["inv_y", "inv_s"], TensorDataTupleDataset] = {}
+    datasets: dict[Literal["inv_y", "inv_s"], CdtDataset] = {}
 
     if all_inv_s:
         inv_s = torch.cat(all_inv_s, dim=0)
-        datasets["inv_s"] = TensorDataTupleDataset(x=inv_s, s=all_s, y=all_y)
+        datasets["inv_s"] = CdtDataset(x=inv_s, s=all_s, y=all_y)
 
     if all_inv_y:
         inv_y = torch.cat(all_inv_y, dim=0)
-        datasets["inv_y"] = TensorDataTupleDataset(x=inv_y, s=all_s, y=all_y)
+        datasets["inv_y"] = CdtDataset(x=inv_y, s=all_s, y=all_y)
 
     LOGGER.info("Done.")
     return InvarianceDatasets(inv_y=datasets.get("inv_y"), inv_s=datasets.get("inv_s"))
@@ -451,30 +463,31 @@ def encode_dataset(
 
 def _get_classifer_input(
     cfg: Config,
-    enc: SplitEncoding,
-    generator: AutoEncoder,
+    *,
+    dm: DataModule,
+    encodings: SplitEncoding,
+    encoder: AutoEncoder,
     recons: bool,
-    invariance: Literal["s", "y"],
+    invariant_to: Literal["s", "y"],
 ) -> Tensor:
     if recons:
         # `zs_m` has zs zeroed out
         if cfg.adapt.train_on_recon:
-            zs_m, zy_m = generator.mask(enc, random=True)
+            zs_m, zy_m = encoder.mask(encodings, random=True)
         else:
             # if we didn't train with the random encodings, it probably doesn't make much
             # sense to evaluate with them; better to use null-sampling
-            zs_m, zy_m = generator.mask(enc, random=False)
-        z_m = zs_m if invariance == "s" else zy_m
-        x_m = generator.decode(z_m, mode="hard")
+            zs_m, zy_m = encoder.mask(encodings, random=False)
+        z_m = zs_m if invariant_to == "s" else zy_m
+        x_m = encoder.decode(z_m, mode="hard")
 
-        if isinstance(cfg.datamodule, (CelebaConfig, IsicConfig)):
-            x_m = 0.5 * x_m + 0.5
+        x_m = dm.denormalize(x_m)
         if x_m.dim() > 2:
             x_m = x_m.clamp(min=0, max=1)
         classifier_input = x_m
     else:
-        zs_m, zy_m = generator.mask(enc)
+        zs_m, zy_m = encoder.mask(encodings)
         # `zs_m` has zs zeroed out
-        z_m = zs_m if invariance == "s" else zy_m
-        classifier_input = generator.unsplit_encoding(z_m)
+        z_m = zs_m if invariant_to == "s" else zy_m
+        classifier_input = encoder.reform_encoding(z_m)
     return classifier_input.detach().cpu()

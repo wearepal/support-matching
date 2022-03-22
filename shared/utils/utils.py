@@ -16,22 +16,19 @@ import torch
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
 
-from shared.configs import ClusteringLabel, Config, DatasetConfig, TrainConfig
+from shared.configs import ClusteringLabel, Config, TrainConfig
 
 __all__ = [
     "AverageMeter",
-    "ExperimentBase",
     "ModelFn",
     "RunningAverageMeter",
     "as_pretty_dict",
-    "class_id_to_label",
     "count_parameters",
     "flatten_dict",
     "get_class_id",
     "get_data_dim",
     "get_joint_probability",
     "inf_generator",
-    "label_to_class_id",
     "lcm",
     "prod",
     "random_seed",
@@ -44,23 +41,23 @@ T = TypeVar("T")
 Int = TypeVar("Int", Tensor, int)
 
 
-class ExperimentBase:
-    """Experiment singleton base class."""
+# class ExperimentBase:
+#     """Experiment singleton base class."""
 
-    def __init__(
-        self,
-        cfg: Config,
-        data_cfg: DatasetConfig,
-        misc_cfg: TrainConfig,
-    ) -> None:
-        self.cfg = cfg
-        self.data_cfg = data_cfg
-        self.misc_cfg = misc_cfg
+#     def __init__(
+#         self,
+#         cfg: Config,
+#         data_cfg: DatasetConfig,
+#         misc_cfg: TrainConfig,
+#     ) -> None:
+#         self.cfg = cfg
+#         self.data_cfg = data_cfg
+#         self.misc_cfg = misc_cfg
 
-    def to_device(self, *tensors: Tensor) -> Tensor | tuple[Tensor, ...]:
-        """Place tensors on the correct device."""
-        moved = [tensor.to(self.misc_cfg.device, non_blocking=True) for tensor in tensors]
-        return moved[0] if len(moved) == 1 else tuple(moved)
+#     def to_device(self, *tensors: Tensor) -> Tensor | tuple[Tensor, ...]:
+#         """Place tensors on the correct device."""
+#         moved = [tensor.to(self.misc_cfg.device, non_blocking=True) for tensor in tensors]
+#         return moved[0] if len(moved) == 1 else tuple(moved)
 
 
 class ModelFn(Protocol):
@@ -73,19 +70,6 @@ def get_data_dim(data_loader: DataLoader) -> tuple[int, ...]:
     x_dim = x.shape[1:]
 
     return tuple(x_dim)
-
-
-def label_to_class_id(*, s: Int, y: Int, s_count: int) -> Int:
-    assert s_count > 1
-    return y * s_count + s
-
-
-def class_id_to_label(class_id: Int, s_count: int, label: Literal["s", "y"]) -> Int:
-    assert s_count > 1
-    if label == "s":
-        return class_id % s_count
-    else:
-        return class_id // s_count
 
 
 class AverageMeter:

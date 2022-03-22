@@ -2,7 +2,7 @@
 name = "suds"
 version = "0.2.0"
 description = "Fair distribution matching"
-authors = ["PAL <info@predictive-analytics-lab.com>"]
+authors = ["PAL <info@wearepal.com>"]
 packages = [
   { include = "clustering" },
   { include = "advrep" },
@@ -40,7 +40,7 @@ aioredis = "^1.3.1"
 umap-learn = "^0.5.1"
 llvmlite = ">=0.34.0.,<0.39"
 ranzen = {version = "^1.2.1", extras = ["all"]}
-conduit = {git = "https://github.com/predictive-analytics-lab/conduit.git", branch = "main"}
+conduit = {git = "https://github.com/wearepal/conduit.git", branch = "misc"}
 ethicml = "^0.6.0"
 
 [tool.poetry.dev-dependencies]
@@ -49,7 +49,6 @@ isort = "*"
 mypy = "*"
 pre-commit = "*"
 pytest = "*"
-python-type-stubs = {git = "https://github.com/predictive-analytics-lab/python-type-stubs.git", rev = "e46be67" }
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

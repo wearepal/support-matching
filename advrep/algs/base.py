@@ -2,14 +2,14 @@ from __future__ import annotations
 from abc import abstractmethod
 import logging
 from pathlib import Path
+from typing_extensions import Self
 
-from torch import Tensor
 import torch.nn as nn
 import wandb
 import yaml
 
 from shared.configs.arguments import Config
-from shared.data.data_loading import DataModule, load_data
+from shared.data import DataModule
 from shared.utils.utils import as_pretty_dict, flatten_dict, random_seed
 
 __all__ = ["AlgBase"]
@@ -24,20 +24,19 @@ class AlgBase(nn.Module):
         self,
         cfg: Config,
     ) -> None:
+
         super().__init__()
         self.cfg = cfg
         self.data_cfg = cfg.datamodule
         self.misc_cfg = cfg.train
         self.bias_cfg = cfg.split
 
-    def _to_device(self, *tensors: Tensor) -> Tensor | tuple[Tensor, ...]:
-        """Place tensors on the correct device."""
-        moved = [tensor.to(self.misc_cfg.device, non_blocking=True) for tensor in tensors]
-
-        return moved[0] if len(moved) == 1 else tuple(moved)
+    @property
+    def device(self) -> str:
+        return self.misc_cfg.device
 
     @abstractmethod
-    def _fit(self, datasets: DataModule) -> AlgBase:
+    def _fit(self, dm: DataModule) -> Self:
         ...
 
     def run(self) -> None:
@@ -74,15 +73,10 @@ class AlgBase(nn.Module):
         )
 
         # ==== construct dataset ====
-        datasets: DataModule = load_data(self.cfg)
-        LOGGER.info(
-            "Size of context-set: {}, training-set: {}, test-set: {}".format(
-                len(datasets.context),  # type: ignore
-                len(datasets.train),  # type: ignore
-                len(datasets.test),  # type: ignore
-            )
-        )
+        dm = DataModule.from_config(self.cfg)
+        LOGGER.info(dm)
         # Fit the model to the data
-        self._fit(datasets=datasets)
+        self._fit(dm=dm)
         # finish logging for the current run
-        run.finish()
+
+        run.finish()  # type: ignore

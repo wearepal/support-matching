@@ -15,15 +15,16 @@ class Discriminator(ModelBase):
     def __init__(
         self,
         model: nn.Module,
+        *,
         double_adv_loss: bool,
         criterion: DiscriminatorLoss = DiscriminatorLoss.logistic,
         optimizer_kwargs: dict[str, Any] | None = None,
-    ):
+    ) -> None:
         super().__init__(model, optimizer_kwargs=optimizer_kwargs)
         self.double_adv_loss = double_adv_loss
         self.criterion = criterion
 
-    def discriminator_loss(self, fake: Tensor, real: Tensor) -> Tensor:
+    def discriminator_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
         real_scores = self.model(real)
         fake_scores = self.model(fake)
         if self.criterion is DiscriminatorLoss.logistic:
@@ -37,7 +38,7 @@ class Discriminator(ModelBase):
         else:  # WGAN Loss is just the difference between the mean scores for the real and fake data
             return real_scores.mean() - fake_scores.mean()
 
-    def encoder_loss(self, fake: Tensor, real: Tensor) -> Tensor:
+    def encoder_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
         fake_scores = self.model(fake)
         real_scores: Tensor | None = None
         if self.double_adv_loss:

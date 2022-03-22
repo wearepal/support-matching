@@ -70,7 +70,7 @@ class AutoEncoder(nn.Module):
                 s = s.view(-1, 1)
             enc = replace_zs(enc, new_zs=s.float())
 
-        decoding = self.decoder(self.unsplit_encoding(enc))
+        decoding = self.decoder(self.reform_encoding(enc))
         if decoding.dim() == 4:
             # if decoding.size(1) <= 3:
             #     decoding = decoding.sigmoid()
@@ -129,7 +129,7 @@ class AutoEncoder(nn.Module):
         return SplitEncoding(zs=zs, zy=zy)
 
     @staticmethod
-    def unsplit_encoding(enc: SplitEncoding) -> Tensor:
+    def reform_encoding(enc: SplitEncoding) -> Tensor:
         return torch.cat([enc.zs, enc.zy], dim=1)
 
     def mask(
