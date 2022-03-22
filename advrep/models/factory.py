@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from shared.utils import ModelFn
+from shared.models.configs.classifiers import ModelFactory
 
 from .classifier import Classifier
 
@@ -9,8 +9,9 @@ __all__ = ["build_classifier"]
 
 def build_classifier(
     input_shape: tuple[int, ...],
+    *,
     target_dim: int,
-    model_fn: ModelFn,
+    model_fn: ModelFactory,
     optimizer_kwargs: dict | None = None,
 ) -> Classifier:
     in_dim = input_shape[0]

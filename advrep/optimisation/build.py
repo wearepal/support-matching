@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from advrep.models import AutoEncoder, EncodingSize, Vae
+from advrep.models import AutoEncoder, EncodingSize, VAE
 from shared.configs import Config
 
 __all__ = ["build_ae"]
@@ -17,7 +17,7 @@ def build_ae(
     optimizer_args = {"lr": cfg.adapt.lr, "weight_decay": cfg.adapt.weight_decay}
     model: AutoEncoder
     if cfg.adapt.vae:
-        model = Vae(
+        model = VAE(
             encoder=encoder,
             decoder=decoder,
             encoding_size=encoding_size,

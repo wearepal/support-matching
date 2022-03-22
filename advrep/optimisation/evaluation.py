@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import logging
-from typing import Dict, Generic, Optional, Sequence
+from typing import Dict, Generic, Optional, Sequence, TypeVar, overload
 from typing_extensions import Literal
 
 from conduit.data import CdtDataLoader
@@ -15,6 +15,7 @@ from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
 import numpy as np
 import pandas as pd
+from ranzen.misc import gcopy
 import seaborn as sns
 import torch
 from torch import Tensor
@@ -27,21 +28,20 @@ import wandb
 
 from advrep.models import AutoEncoder, Classifier, SplitEncoding
 from shared.configs import Config, EvalTrainData, WandbMode
-from shared.data.data_module import D, DataModule, Dataset
+from shared.data.data_module import DataModule, Dataset
 from shared.data.utils import group_id_to_label, labels_to_group_id
-from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
-from shared.utils import (
-    ModelFn,
-    compute_metrics,
-    make_tuple_from_data,
-    plot_histogram_by_source,
-    prod,
+from shared.models.configs.classifiers import (
+    FcNet,
+    ModelFactory,
+    Mp32x23Net,
+    Mp64x64Net,
 )
+from shared.utils import compute_metrics, plot_histogram_by_source, prod
 
 from .utils import log_images
 
 __all__ = [
-    "InvarianceDatasets",
+    "InvariantDatasets",
     "log_metrics",
     "log_sample_images",
 ]
@@ -49,10 +49,14 @@ __all__ = [
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
+DY = TypeVar("DY", bound=Optional[Dataset])
+DS = TypeVar("DS", bound=Optional[Dataset])
+
+
 @dataclass(frozen=True)
-class InvarianceDatasets(Generic[D]):
-    inv_y: D | None
-    inv_s: D | None
+class InvariantDatasets(Generic[DY, DS]):
+    inv_y: DY
+    inv_s: DS
 
 
 def log_sample_images(
@@ -77,7 +81,7 @@ def log_metrics(
     invariant_to = "both" if cfg.adapt.eval_s_from_zs is not None else "s"
 
     LOGGER.info("Encoding training set...")
-    train = encode_dataset(
+    train_eval = encode_dataset(
         cfg,
         dm=dm,
         dl=dm.train_dataloader(eval=True),
@@ -87,9 +91,9 @@ def log_metrics(
     )
     if cfg.adapt.eval_on_recon:
         # don't encode test dataset
-        test_repr = dm.test
+        test_eval = dm.test
     else:
-        test = encode_dataset(
+        test_eval = encode_dataset(
             cfg,
             dm=dm,
             dl=dm.test_dataloader(),
@@ -98,13 +102,12 @@ def log_metrics(
             invariant_to=invariant_to,
         )
 
-        test_repr = test.inv_s
         if cfg.train.wandb is not WandbMode.disabled:
             s_count = dm.dim_s if dm.dim_s > 1 else 2
             if cfg.train.umap:
-                _log_enc_statistics(test_repr, step=step, s_count=s_count)
-            if test.inv_y is not None and cfg.adapt.zs_dim == 1:
-                zs = test.inv_y.x[:, 0].view((test.inv_y.x.size(0),)).sigmoid()
+                _log_enc_statistics(test_eval.inv_s, step=step, s_count=s_count)
+            if test_eval.inv_y is not None and cfg.adapt.zs_dim == 1:
+                zs = test_eval.inv_y.x[:, 0].view((test_eval.inv_y.x.size(0),)).sigmoid()
                 zs_np = zs.detach().cpu().numpy()
                 fig, plot = plt.subplots(dpi=200, figsize=(6, 4))
                 plot.hist(zs_np, bins=20, range=(0, 1))
@@ -112,15 +115,12 @@ def log_metrics(
                 fig.tight_layout()
                 wandb.log({"zs_histogram": wandb.Image(fig)}, step=step)
 
+    dm_cp = gcopy(dm, deep=False, train=train_eval.inv_s, test=test_eval.inv_s)
     LOGGER.info("\nComputing metrics...")
     evaluate(
         cfg=cfg,
-        dm=dm,
+        dm=dm_cp,
         step=step,
-        train_data=train.inv_s,
-        test_data=test_repr,
-        y_dim=dm.dim_y,
-        s_dim=dm.dim_s,
         eval_on_recon=cfg.adapt.eval_on_recon,
         pred_s=False,
         save_summary=save_summary,
@@ -129,22 +129,22 @@ def log_metrics(
 
     if cfg.adapt.eval_s_from_zs is not None:
         if cfg.adapt.eval_s_from_zs is EvalTrainData.train:
-            assert train.inv_y is not None
-            train_data = train.inv_y  # the part that is invariant to y corresponds to zs
+            train_data = train_eval.inv_y  # the part that is invariant to y corresponds to zs
         else:
             context = encode_dataset(
-                cfg, dm.context, encoder, recons=cfg.adapt.eval_on_recon, invariant_to="y"
+                cfg,
+                dm=dm,
+                dl=dm.context_dataloader(eval=True),
+                encoder=encoder,
+                recons=cfg.adapt.eval_on_recon,
+                invariant_to="y",
             )
-            assert context.inv_y is not None
             train_data = context.inv_y
-        assert test.inv_y is not None, "if this test fails, you're evaluating on recons"
+        dm_cp = gcopy(dm, deep=False, train=train_data, test=test_eval.inv_y)
         evaluate(
             cfg=cfg,
+            dm=dm,
             step=step,
-            train_data=train_data,
-            test_data=test.inv_y,
-            y_dim=dm.dim_y,
-            s_dim=dm.dim_s,
             name="s_from_zs",
             eval_on_recon=cfg.adapt.eval_on_recon,
             pred_s=True,
@@ -152,44 +152,14 @@ def log_metrics(
         )
 
 
-# def baseline_metrics(cfg: Config, data: DataModule) -> None:
-#     if isinstance(cfg.datamodule, AdultConfig):
-#         LOGGER.info("Baselines...")
-#         train_data = data.train
-#         test_data = data.test
-#         if not isinstance(train_data, em.DataTuple):
-#             train_data, test_data = get_data_tuples(train_data, test_data)
-
-#         train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=False)
-
-#         for clf in [
-#             em.LR(),
-#             em.Majority(),
-#             em.Kamiran(classifier="LR"),
-#             em.LRCV(),
-#             em.SVM(),
-#         ]:
-#             preds = clf.run(train_data, test_data)
-#             compute_metrics(
-#                 predictions=preds,
-#                 actual=test_data,
-#                 s_dim=data.dim_s,
-#                 exp_name="original_data",
-#                 model_name=clf.name,
-#                 step=0,
-#                 use_wandb=False,
-#             )
-
-
 def _log_enc_statistics(encoded: Dataset, *, step: int, s_count: int):
     """Compute and log statistics about the encoding."""
-    z, y, s = encoded.x, encoded.y, encoded.s
-    group_id_to_label
+    x, y, s = encoded.x, encoded.y, encoded.s
     class_ids = labels_to_group_id(s=s, y=y, s_count=s_count)
 
     LOGGER.info("Starting UMAP...")
-    mapper = umap.UMAP(n_neighbors=25, n_components=2)
-    umap_z = mapper.fit_transform(z.numpy())
+    mapper = umap.UMAP(n_neighbors=25, n_components=2)  # type: ignore
+    umap_z = mapper.fit_transform(x.numpy())
     umap_plot = visualize_clusters(umap_z, labels=class_ids, s_count=s_count)
     to_log = {"umap": wandb.Image(umap_plot)}
     LOGGER.info("Done.")
@@ -197,7 +167,7 @@ def _log_enc_statistics(encoded: Dataset, *, step: int, s_count: int):
     for y_value in y.unique():
         for s_value in s.unique():
             mask = (y == y_value) & (s == s_value)
-            to_log[f"enc_mean_s={s_value}_y={y_value}"] = z[mask].mean().item()
+            to_log[f"enc_mean_s={s_value}_y={y_value}"] = x[mask].mean().item()
     wandb.log(to_log, step=step)
 
 
@@ -265,7 +235,7 @@ def fit_classifier(
 ) -> Classifier:
     input_dim = dm.dim_x[0]
     optimizer_kwargs = {"lr": cfg.adapt.eval_lr}
-    clf_fn: ModelFn
+    clf_fn: ModelFactory
 
     if train_on_recon:
         if isinstance(dm.train, CdtVisionDataset):
@@ -337,26 +307,16 @@ def evaluate(
 
     # TODO: the soft predictions should only be computed if they're needed
     preds, labels, sens, soft_preds = clf.predict_dataset(
-        test_loader, device=torch.device(cfg.train.device), with_soft=True
+        dm.test_dataloader(), device=torch.device(cfg.train.device), with_soft=True
     )
     del train_loader  # try to prevent lock ups of the workers
     del test_loader
     # TODO: investigate why the histogram plotting fails when s_dim != 1
-    if cfg.train.wandb is not WandbMode.disabled and s_dim == 1:
+    if cfg.train.wandb is not WandbMode.disabled and dm.card_s == 1:
         plot_histogram_by_source(soft_preds, s=sens, y=labels, step=step, name=name)
     preds = em.Prediction(hard=pd.Series(preds))
-    if isinstance(cfg.datamodule, CmnistConfig):
-        sens_name = "colour"
-    elif isinstance(cfg.datamodule, CelebaConfig):
-        sens_name = cfg.datamodule.celeba_sens_attr.name
-    elif isinstance(cfg.datamodule, IsicConfig):
-        sens_name = cfg.datamodule.isic_sens_attr.name
-    elif isinstance(cfg.datamodule, AdultConfig):
-        sens_name = str(adult.SENS_ATTRS[0])
-    else:
-        sens_name = "sens_Label"
-    sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=[sens_name])
-    labels_pd = pd.DataFrame(labels, columns=["labels"])
+    sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=["subgroup"])
+    labels_pd = pd.DataFrame(labels.cpu().numpy(), columns=["labels"])
     actual = em.DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels_pd)
     compute_metrics(
         predictions=preds,
@@ -364,33 +324,53 @@ def evaluate(
         exp_name=name,
         model_name="pytorch_classifier",
         step=step,
-        s_dim=s_dim,
+        s_dim=dm.card_s,
         save_summary=save_summary,
         use_wandb=cfg.train.wandb is not WandbMode.disabled,
         additional_entries=cluster_metrics,
     )
-    if isinstance(cfg.datamodule, AdultConfig):
-        train_data_tup, test_data_tup = get_data_tuples(train_data, test_data)
-
-        train_data_tup, test_data_tup = make_tuple_from_data(
-            train_data_tup, test_data_tup, pred_s=pred_s
-        )
-        for eth_clf in [em.LR(), em.LRCV()]:  # , em.LRCV(), em.SVM(kernel="linear")]:
-            preds = eth_clf.run(train_data_tup, test_data_tup)
-            compute_metrics(
-                predictions=preds,
-                actual=test_data_tup,
-                exp_name=name,
-                model_name=eth_clf.name,
-                s_dim=s_dim,
-                step=step,
-                save_summary=save_summary,
-                use_wandb=cfg.train.wandb is not WandbMode.disabled,
-                additional_entries=cluster_metrics,
-            )
 
 
-Invariance = Literal["s", "y", "both"]
+InvariantAttr = Literal["s", "y", "both"]
+
+
+@overload
+def encode_dataset(
+    cfg: Config,
+    *,
+    dm: DataModule,
+    dl: CdtDataLoader[TernarySample],
+    encoder: AutoEncoder,
+    recons: bool,
+    invariant_to: Literal["y"] = ...,
+) -> InvariantDatasets[Dataset, None]:
+    ...
+
+
+@overload
+def encode_dataset(
+    cfg: Config,
+    *,
+    dm: DataModule,
+    dl: CdtDataLoader[TernarySample],
+    encoder: AutoEncoder,
+    recons: bool,
+    invariant_to: Literal["s"] = ...,
+) -> InvariantDatasets[None, Dataset]:
+    ...
+
+
+@overload
+def encode_dataset(
+    cfg: Config,
+    *,
+    dm: DataModule,
+    dl: CdtDataLoader[TernarySample],
+    encoder: AutoEncoder,
+    recons: bool,
+    invariant_to: Literal["both"] = ...,
+) -> InvariantDatasets[Dataset, Dataset]:
+    ...
 
 
 def encode_dataset(
@@ -400,8 +380,8 @@ def encode_dataset(
     dl: CdtDataLoader[TernarySample],
     encoder: AutoEncoder,
     recons: bool,
-    invariant_to: Invariance = "s",
-) -> InvarianceDatasets[CdtDataset[TernarySample, Tensor, Tensor, Tensor]]:
+    invariant_to: InvariantAttr = "s",
+) -> InvariantDatasets:
     LOGGER.info("Encoding dataset...")
     all_inv_s = []
     all_inv_y = []
@@ -447,18 +427,18 @@ def encode_dataset(
     all_s = torch.cat(all_s, dim=0)
     all_y = torch.cat(all_y, dim=0)
 
-    datasets: dict[Literal["inv_y", "inv_s"], CdtDataset] = {}
-
-    if all_inv_s:
-        inv_s = torch.cat(all_inv_s, dim=0)
-        datasets["inv_s"] = CdtDataset(x=inv_s, s=all_s, y=all_y)
-
+    inv_y = None
     if all_inv_y:
         inv_y = torch.cat(all_inv_y, dim=0)
-        datasets["inv_y"] = CdtDataset(x=inv_y, s=all_s, y=all_y)
+        inv_y = CdtDataset(x=inv_y, s=all_s, y=all_y)
+
+    inv_s = None
+    if all_inv_s:
+        inv_s = torch.cat(all_inv_s, dim=0)
+        inv_s = CdtDataset(x=inv_s, s=all_s, y=all_y)
 
     LOGGER.info("Done.")
-    return InvarianceDatasets(inv_y=datasets.get("inv_y"), inv_s=datasets.get("inv_s"))
+    return InvariantDatasets(inv_y=inv_y, inv_s=inv_s)
 
 
 def _get_classifer_input(
@@ -489,5 +469,5 @@ def _get_classifer_input(
         zs_m, zy_m = encoder.mask(encodings)
         # `zs_m` has zs zeroed out
         z_m = zs_m if invariant_to == "s" else zy_m
-        classifier_input = encoder.reform_encoding(z_m)
+        classifier_input = z_m.join()
     return classifier_input.detach().cpu()

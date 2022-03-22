@@ -30,6 +30,7 @@ def make_tuple_from_data(
 
 def compute_metrics(
     predictions: em.Prediction,
+    *,
     actual: em.DataTuple,
     model_name: str,
     step: int,
@@ -41,24 +42,23 @@ def compute_metrics(
 ) -> dict[str, float]:
     """Compute accuracy and fairness metrics and log them.
 
-    Args:
-        predictions: predictions in a format that is compatible with EthicML
-        actual: labels for the predictions
-        model_name: name of the model used
-        step: step of training (needed for logging to W&B)
-        s_dim: dimension of s
-        exp_name: name of the experiment
-        save_summary: if True, a summary will be saved to wandb
-        use_wandb: whether to use wandb at all
-        additional_entries: entries that should go with in the summary
-    Returns:
-        dictionary with the computed metrics
+    :param predictions: predictions in a format that is compatible with EthicML
+    :param actual: labels for the predictions
+    :param model_name: name of the model used
+    :param step: step of training (needed for logging to W&B)
+    :param s_dim: dimension of s
+    :param exp_name: name of the experiment
+    :param save_summary: if True, a summary will be saved to wandb
+    :param use_wandb: whether to use wandb at all
+    :param additional_entries: entries that should go with in the summary
+
+    :returns: dictionary with the computed metrics
     """
 
     predictions._info = {}
     metrics = em.run_metrics(
-        predictions,
-        actual,
+        predictions=predictions,
+        actual=actual,
         metrics=[em.Accuracy(), em.TPR(), em.TNR(), em.RenyiCorrelation()],
         per_sens_metrics=[em.Accuracy(), em.ProbPos(), em.TPR(), em.TNR()],
         diffs_and_ratios=s_dim < 4,  # this just gets too much with higher s dim

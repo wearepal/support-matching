@@ -1,14 +1,16 @@
 from __future__ import annotations
-from typing import Any, Callable, overload
-from typing_extensions import Literal
+from typing import Any, Callable, Union, overload
+from typing_extensions import Literal, Self
 
+from conduit.data.datasets.utils import CdtDataLoader
+from conduit.data.structures import NamedSample
+from conduit.types import Loss
 import torch
 from torch import Tensor
 from torch.cuda.amp.grad_scaler import GradScaler
 import torch.distributions as td
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from shared.configs import VaeStd, ZsTransform
@@ -23,24 +25,25 @@ from .base import (
     replace_zs,
 )
 
-__all__ = ["AutoEncoder", "Vae"]
+__all__ = ["AutoEncoder", "VAE"]
 
 
 class AutoEncoder(nn.Module):
     def __init__(
         self,
         encoder: nn.Module,
+        *,
         decoder: nn.Module,
         encoding_size: EncodingSize | None,
         s_dim: int,
         zs_transform: ZsTransform = ZsTransform.none,
         feature_group_slices: dict[str, list[slice]] | None = None,
         optimizer_kwargs: dict[str, Any] | None = None,
-    ):
-        super(AutoEncoder, self).__init__()
+    ) -> None:
+        super().__init__()
 
-        self.encoder: ModelBase = ModelBase(encoder, optimizer_kwargs=optimizer_kwargs)
-        self.decoder: ModelBase = ModelBase(decoder, optimizer_kwargs=optimizer_kwargs)
+        self.encoder = ModelBase(encoder, optimizer_kwargs=optimizer_kwargs)
+        self.decoder = ModelBase(decoder, optimizer_kwargs=optimizer_kwargs)
         self.encoding_size = encoding_size
         self.s_dim = s_dim
         self.feature_group_slices = feature_group_slices
@@ -68,9 +71,9 @@ class AutoEncoder(nn.Module):
                 s = F.one_hot(s.long(), num_classes=self.s_dim)
             else:
                 s = s.view(-1, 1)
-            enc = replace_zs(enc, new_zs=s.float())
+            enc = replace_zs(enc, new_zs=s.float())  # type: ignore
 
-        decoding = self.decoder(self.reform_encoding(enc))
+        decoding = self.decoder(enc.join())
         if decoding.dim() == 4:
             # if decoding.size(1) <= 3:
             #     decoding = decoding.sigmoid()
@@ -81,19 +84,19 @@ class AutoEncoder(nn.Module):
                 decoding = decoding.view(decoding.size(0), num_classes, -1, *decoding.shape[-2:])
         else:
             if mode in ("hard", "relaxed") and self.feature_group_slices:
-                discrete_outputs = []
+                discrete_outputs_ls: list[Tensor] = []
                 stop_index = 0
                 #   Sample from discrete variables using the straight-through-estimator
                 for group_slice in self.feature_group_slices["discrete"]:
                     if mode == "hard":
-                        discrete_outputs.append(to_discrete(decoding[:, group_slice]).float())
+                        discrete_outputs_ls.append(to_discrete(decoding[:, group_slice]).float())
                     else:
-                        discrete_outputs.append(
+                        discrete_outputs_ls.append(
                             sample_concrete(decoding[:, group_slice], temperature=1e-2)
                         )
                     stop_index = group_slice.stop
-                discrete_outputs = torch.cat(discrete_outputs, axis=1)
-                decoding = torch.cat([discrete_outputs, decoding[:, stop_index:]], axis=1)
+                discrete_outputs = torch.cat(discrete_outputs_ls, dim=1)
+                decoding = torch.cat([discrete_outputs, decoding[:, stop_index:]], dim=1)
 
         return decoding
 
@@ -112,10 +115,10 @@ class AutoEncoder(nn.Module):
             just_s=self.decode(just_s, mode=mode),
         )
 
-    def forward(self, inputs):
+    def forward(self, inputs: Tensor) -> SplitEncoding:
         return self.encode(inputs)
 
-    def zero_grad(self):
+    def zero_grad(self, set_to_none: bool = False) -> None:
         self.encoder.zero_grad()
         self.decoder.zero_grad()
 
@@ -162,19 +165,25 @@ class AutoEncoder(nn.Module):
             zy_m = SplitEncoding(zs=zs, zy=torch.zeros_like(zy))
         return zs_m, zy_m
 
-    def fit(self, train_data: DataLoader, epochs: int, device, loss_fn, kl_weight: float):
+    def fit(
+        self,
+        train_data: CdtDataLoader[NamedSample],
+        *,
+        epochs: int,
+        device: Union[str, torch.device],
+        loss_fn: Loss,
+        kl_weight: float,
+    ) -> Self:
         self.train()
 
         with tqdm(total=epochs * len(train_data)) as pbar:
             for _ in range(epochs):
 
-                for x, _, _ in train_data:
-
-                    x = x.to(device)
+                for batch in train_data:
+                    x = batch.x.to(device)
 
                     self.zero_grad()
                     _, loss, _ = self.routine(x, recon_loss_fn=loss_fn, prior_loss_w=kl_weight)
-                    # loss /= x[0].nelement()
 
                     loss.backward()
                     self.step()
@@ -182,9 +191,12 @@ class AutoEncoder(nn.Module):
                     pbar.update()
                     pbar.set_postfix(AE_loss=loss.detach().cpu().numpy())
 
+        return self
+
     def routine(
         self,
         x: Tensor,
+        *,
         recon_loss_fn: Callable[[Tensor, Tensor], Tensor],
         prior_loss_w: float,
         s: Tensor | None = None,
@@ -200,10 +212,11 @@ class AutoEncoder(nn.Module):
         return encoding, loss, {"Loss reconstruction": recon_loss.item(), "Prior Loss": prior_loss}
 
 
-class Vae(AutoEncoder):
+class VAE(AutoEncoder):
     def __init__(
         self,
         encoder: nn.Module,
+        *,
         decoder: nn.Module,
         encoding_size: EncodingSize | None,
         s_dim: int,
@@ -219,8 +232,8 @@ class Vae(AutoEncoder):
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_kwargs,
         )
-        self.encoder: ModelBase = ModelBase(encoder, optimizer_kwargs=optimizer_kwargs)
-        self.decoder: ModelBase = ModelBase(decoder, optimizer_kwargs=optimizer_kwargs)
+        self.encoder = ModelBase(encoder, optimizer_kwargs=optimizer_kwargs)
+        self.decoder = ModelBase(decoder, optimizer_kwargs=optimizer_kwargs)
 
         self.prior = td.Normal(0, 1)
         self.posterior_fn = td.Normal
@@ -280,7 +293,8 @@ class Vae(AutoEncoder):
     def routine(
         self,
         x: Tensor,
-        recon_loss_fn,
+        *,
+        recon_loss_fn: Callable[[Tensor, Tensor], Tensor],
         prior_loss_w: float,
         s: Tensor | None = None,
     ) -> tuple[SplitEncoding, Tensor, dict[str, float]]:
@@ -292,7 +306,10 @@ class Vae(AutoEncoder):
 
         recon_all = self.decode(encoding, s=s)
         recon_loss = recon_loss_fn(recon_all, x)
-        recon_loss /= x.nelement()
+        recon_loss /= x.numel()
         elbo = recon_loss + kl_div
-        logging_dict = {"Loss Reconstruction": recon_loss.item(), "KL divergence": kl_div}
+        logging_dict = {
+            "Loss Reconstruction": float(recon_loss.item()),
+            "KL divergence": float(kl_div.item()),
+        }
         return encoding, elbo, logging_dict

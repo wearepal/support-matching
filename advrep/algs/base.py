@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from typing_extensions import Self
 
+import torch
 import torch.nn as nn
 import wandb
 import yaml
@@ -12,12 +13,12 @@ from shared.configs.arguments import Config
 from shared.data import DataModule
 from shared.utils.utils import as_pretty_dict, flatten_dict, random_seed
 
-__all__ = ["AlgBase"]
+__all__ = ["Algorithm"]
 
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
-class AlgBase(nn.Module):
+class Algorithm(nn.Module):
     """Base class for algorithms."""
 
     def __init__(
@@ -30,16 +31,13 @@ class AlgBase(nn.Module):
         self.data_cfg = cfg.datamodule
         self.misc_cfg = cfg.train
         self.bias_cfg = cfg.split
-
-    @property
-    def device(self) -> str:
-        return self.misc_cfg.device
+        self.device = torch.device(self.misc_cfg.device)
 
     @abstractmethod
     def _fit(self, dm: DataModule) -> Self:
         ...
 
-    def run(self) -> None:
+    def run(self) -> Self:
         """Loads the data and fits and evaluates the model."""
 
         random_seed(self.misc_cfg.seed, self.misc_cfg.use_gpu)
@@ -80,3 +78,4 @@ class AlgBase(nn.Module):
         # finish logging for the current run
 
         run.finish()  # type: ignore
+        return self

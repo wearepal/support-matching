@@ -7,7 +7,7 @@ import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
 
-from shared.utils import ModelFn
+from shared.models.configs.classifiers import ModelFactory
 
 __all__ = ["Aggregator", "KvqAttentionAggregator", "GatedAttentionAggregator"]
 
@@ -36,10 +36,11 @@ class KvqAttentionAggregator(Aggregator):
     def __init__(
         self,
         latent_dim: int,
+        *,
         bag_size: int,
         activation: Literal["relu", "gelu"] = "relu",
         dropout: float = 0.0,
-        final_proj: ModelFn | None = None,
+        final_proj: ModelFactory | None = None,
         output_dim: int = 1,
     ):
         super().__init__(bag_size=bag_size)
@@ -78,7 +79,7 @@ class GatedAttentionAggregator(Aggregator):
         in_dim: int,
         bag_size: int,
         embed_dim: int = 128,
-        final_proj: ModelFn | None = None,
+        final_proj: ModelFactory | None = None,
         output_dim: int = 1,
     ) -> None:
         super().__init__(bag_size=bag_size)

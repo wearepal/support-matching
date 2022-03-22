@@ -16,17 +16,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import wandb
 
-from advrep.models import (
-    AutoEncoder,
-    Classifier,
-    Discriminator,
-    EncodingSize,
-    build_classifier,
-)
+from advrep.models import AutoEncoder, Classifier, EncodingSize, build_classifier
+from advrep.models.discriminator import Discriminator
 from advrep.optimisation import (
     MixedLoss,
     PixelCrossEntropy,
-    baseline_metrics,
     build_ae,
     log_metrics,
     restore_model,
@@ -37,19 +31,19 @@ from shared.data import DataModule
 from shared.models.configs import FcNet, conv_autoencoder, fc_autoencoder
 from shared.utils import AverageMeter, ClusterResults, load_results, readable_duration
 
-from .base import AlgBase
+from .base import Algorithm
 
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 __all__ = ["AdvSemiSupervisedAlg"]
 
 
-class AdvSemiSupervisedAlg(AlgBase):
+class AdvSemiSupervisedAlg(Algorithm):
     """Base class for adversarial semi-supervsied methods."""
 
     _encoding_size: EncodingSize
     encoder: AutoEncoder
-    adversary: Classifier | Discriminator
+    adversary: Discriminator
     recon_loss_fn: Callable[[Tensor, Tensor], Tensor]
     predictor_y: Classifier | None
     predictor_s: Classifier | None
@@ -65,15 +59,14 @@ class AdvSemiSupervisedAlg(AlgBase):
         self.eff_batch_size = self.adapt_cfg.batch_size
         self.grad_scaler = GradScaler() if self.misc_cfg.use_amp else None
 
-    def _sample_context(self, context_data_itr: Iterator[NamedSample[Tensor]]) -> Tensor:
-        sample = next(context_data_itr).to(self.device)
-        return sample.x
+    def _sample_context(self, iterator_ctx: Iterator[NamedSample[Tensor]]) -> Tensor:
+        return next(iterator_ctx).to(self.device).x
 
     def _sample_train(
         self,
-        train_data_itr: Iterator[TernarySample[Tensor]],
+        iterator_tr: Iterator[TernarySample[Tensor]],
     ) -> TernarySample[Tensor]:
-        return next(train_data_itr).to(self.device, non_blocking=True)
+        return next(iterator_tr).to(self.device, non_blocking=True)
 
     def _build_encoder(
         self,
@@ -84,7 +77,7 @@ class AdvSemiSupervisedAlg(AlgBase):
         if len(input_shape) > 2:
             encoder, decoder, latent_dim = conv_autoencoder(
                 input_shape,
-                self.enc_cfg.init_chans,
+                initial_hidden_channels=self.enc_cfg.init_chans,
                 encoding_dim=self.enc_cfg.out_dim,
                 decoding_dim=input_shape[0],
                 levels=self.enc_cfg.levels,
@@ -94,7 +87,7 @@ class AdvSemiSupervisedAlg(AlgBase):
         else:
             encoder, decoder, latent_dim = fc_autoencoder(
                 input_shape,
-                self.enc_cfg.init_chans,
+                hidden_channels=self.enc_cfg.init_chans,
                 encoding_dim=self.enc_cfg.out_dim,
                 levels=self.enc_cfg.levels,
                 variational=self.adapt_cfg.vae,
@@ -123,7 +116,7 @@ class AdvSemiSupervisedAlg(AlgBase):
         return encoder
 
     @abstractmethod
-    def _build_adversary(self, dm: DataModule) -> Classifier:
+    def _build_adversary(self, dm: DataModule) -> Discriminator:
         ...
 
     def _build_predictors(
@@ -184,8 +177,9 @@ class AdvSemiSupervisedAlg(AlgBase):
 
     def _train_step(
         self,
-        context_data_itr: Iterator[NamedSample[Tensor]],
-        train_data_itr: Iterator[TernarySample[Tensor]],
+        iterator_tr: Iterator[TernarySample[Tensor]],
+        *,
+        iterator_ctx: Iterator[NamedSample[Tensor]],
         itr: int,
     ) -> dict[str, float]:
 
@@ -193,12 +187,10 @@ class AdvSemiSupervisedAlg(AlgBase):
         if (not warmup) and (self.adapt_cfg.adv_method is DiscriminatorMethod.nn):
             # Train the discriminator on its own for a number of iterations
             for _ in range(self.adapt_cfg.num_adv_updates):
-                self._step_adversary(
-                    train_data_itr=train_data_itr, context_data_itr=context_data_itr
-                )
+                self._step_adversary(iterator_tr=iterator_tr, iterator_ctx=iterator_ctx)
 
-        batch_tr = self._sample_train(train_data_itr=train_data_itr)
-        x_ctx = self._sample_context(context_data_itr=context_data_itr)
+        batch_tr = self._sample_train(iterator_tr=iterator_tr)
+        x_ctx = self._sample_context(iterator_ctx=iterator_ctx)
         _, logging_dict = self._step_encoder(x_ctx=x_ctx, batch_tr=batch_tr, warmup=warmup)
 
         wandb.log(logging_dict, step=itr)
@@ -217,14 +209,15 @@ class AdvSemiSupervisedAlg(AlgBase):
     @abstractmethod
     def _step_adversary(
         self,
-        train_data_itr: Iterator[TernarySample[Tensor]],
-        context_data_itr: Iterator[NamedSample[Tensor]],
+        iterator_tr: Iterator[TernarySample[Tensor]],
+        *,
+        iterator_ctx: Iterator[NamedSample[Tensor]],
     ) -> tuple[Tensor, dict[str, float]]:
         ...
 
     @abstractmethod
     def _step_encoder(
-        self, x_ctx: Tensor, batch_tr: Batch, warmup: bool
+        self, x_ctx: Tensor, *, batch_tr: TernarySample, warmup: bool
     ) -> tuple[Tensor, dict[str, float]]:
         ...
 
@@ -326,8 +319,8 @@ class AdvSemiSupervisedAlg(AlgBase):
         for itr in range(start_itr, self.adapt_cfg.iters + 1):
 
             logging_dict = self._train_step(
-                context_data_itr=context_data_itr,
-                train_data_itr=train_data_itr,
+                iterator_tr=train_data_itr,
+                iterator_ctx=context_data_itr,
                 itr=itr,
             )
             for name, value in logging_dict.items():
@@ -347,8 +340,6 @@ class AdvSemiSupervisedAlg(AlgBase):
                 start_time = time.monotonic()
 
             if self.adapt_cfg.validate and itr % self.adapt_cfg.val_freq == 0:
-                if itr == self.adapt_cfg.val_freq:  # first validation
-                    baseline_metrics(self.cfg, dm)
                 log_metrics(self.cfg, encoder=self.encoder, dm=dm, step=itr)
                 save_model(self.cfg, save_dir, model=self.encoder, itr=itr)
 

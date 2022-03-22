@@ -5,9 +5,10 @@ import hydra
 from hydra.core.config_store import ConfigStore
 from hydra.utils import to_absolute_path
 from omegaconf import DictConfig
+import pandas as pd
 
-from shared.configs import AdultConfig, BaseConfig, register_configs
-from shared.data import DataModule, get_data_tuples, load_data
+from shared.configs import BaseConfig, register_configs
+from shared.data import DataModule
 from shared.utils import (
     as_pretty_dict,
     compute_metrics,
@@ -25,12 +26,15 @@ register_configs()
 def baseline_metrics(hydra_config: DictConfig) -> None:
     cfg = BaseConfig.from_hydra(hydra_config)
     cfg_dict = flatten_dict(as_pretty_dict(cfg))
-    assert isinstance(cfg.datamodule, AdultConfig), "This script is only for the adult dataset."
-    data: DataModule = load_data(cfg)
+    data = DataModule.from_config(cfg)
     train_data = data.train
     test_data = data.test
-    if not isinstance(train_data, em.DataTuple):
-        train_data, test_data = get_data_tuples(train_data, test_data)
+    train_data, test_data = get_data_tuples(train_data, test_data)
+    data = [pd.DataFrame(tensor.detach().cpu().numpy()) for tensor in data]
+    if sens_attrs is not None:
+        data[1].columns = sens_attrs
+    # create a DataTuple
+    return em.DataTuple(x=data[0], s=data[1], y=data[2])
 
     train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=False)
 

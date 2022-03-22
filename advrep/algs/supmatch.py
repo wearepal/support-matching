@@ -2,7 +2,7 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 
 from conduit.data.datasets.vision.cmnist import ColoredMNIST
-from conduit.data.structures import TernarySample
+from conduit.data.structures import NamedSample, TernarySample
 from ranzen import implements
 import torch
 from torch import Tensor
@@ -20,7 +20,8 @@ from shared.configs import (
 from shared.data.data_module import DataModule
 from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
 from shared.models.configs import FcNet, ModelAggregatorWrapper
-from shared.utils import ModelFn, prod
+from shared.models.configs.classifiers import ModelFactory
+from shared.utils import prod
 
 from .adv import AdvSemiSupervisedAlg
 
@@ -28,22 +29,20 @@ __all__ = ["SupportMatching"]
 
 
 class SupportMatching(AdvSemiSupervisedAlg):
-    adversary: Discriminator
-
     def __init__(self, cfg: Config) -> None:
         super().__init__(cfg)
         if self.adapt_cfg.aggregator_type != AggregatorType.none:
             self.eff_batch_size *= self.adapt_cfg.bag_size
 
     @implements(AdvSemiSupervisedAlg)
-    def _build_adversary(self, datamodule: DataModule) -> Discriminator:
+    def _build_adversary(self, dm: DataModule) -> Discriminator:
         """Build the adversarial network."""
         disc_input_shape: Sequence[int] = (
-            datamodule.dim_x if self.adapt_cfg.train_on_recon else (self.enc_cfg.out_dim,)
+            dm.dim_x if self.adapt_cfg.train_on_recon else (self.enc_cfg.out_dim,)
         )
-        disc_fn: ModelFn
-        if len(datamodule.dim_x) > 2 and self.adapt_cfg.train_on_recon:
-            if isinstance(datamodule.train, ColoredMNIST):
+        disc_fn: ModelFactory
+        if len(dm.dim_x) > 2 and self.adapt_cfg.train_on_recon:
+            if isinstance(dm.train, ColoredMNIST):
                 disc_fn = Strided28x28Net(batch_norm=False)
             else:
                 disc_fn = Residual64x64Net(batch_norm=False)
@@ -89,7 +88,6 @@ class SupportMatching(AdvSemiSupervisedAlg):
     def _build_encoder(
         self,
         dm: DataModule,
-        feature_group_slices: dict[str, list[slice]] | None = None,
     ) -> AutoEncoder:
         if self.adapt_cfg.s_as_zs and self.adapt_cfg.zs_dim != dm.card_s:
             raise ValueError(f"zs_dim has to be equal to s_dim ({dm.card_s}) if `s_as_zs` is True.")
@@ -98,13 +96,14 @@ class SupportMatching(AdvSemiSupervisedAlg):
     @implements(AdvSemiSupervisedAlg)
     def _step_adversary(
         self,
-        train_data_itr: Iterator[TernarySample[Tensor]],
-        context_data_itr: Iterator[TernarySample[Tensor]],
+        iterator_tr: Iterator[TernarySample[Tensor]],
+        *,
+        iterator_ctx: Iterator[NamedSample[Tensor]],
     ) -> tuple[Tensor, dict[str, float]]:
         """Train the discriminator while keeping the encoder fixed."""
         self._train("adversary")
-        x_tr = self._sample_train(train_data_itr).x
-        x_ctx = self._sample_context(context_data_itr=context_data_itr)
+        x_tr = self._sample_train(iterator_tr).x
+        x_ctx = self._sample_context(iterator_ctx=iterator_ctx)
 
         with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):  # type: ignore
             encoding_tr = self.encoder.encode(x_tr, stochastic=True)
@@ -131,7 +130,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
     @implements(AdvSemiSupervisedAlg)
     def _step_encoder(
-        self, x_ctx: Tensor, batch_tr: TernarySample, warmup: bool
+        self, x_ctx: Tensor, *, batch_tr: TernarySample, warmup: bool
     ) -> tuple[Tensor, dict[str, float]]:
         """Compute the losses for the encoder and update its parameters."""
         assert isinstance(batch_tr.x, Tensor)
@@ -150,7 +149,9 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
             # ============================= recon loss for context set ============================
             encoding_c, enc_loss_ctx, logging_dict_ctx = self.encoder.routine(
-                x_ctx, self.recon_loss_fn, self.adapt_cfg.prior_loss_w
+                x_ctx,
+                recon_loss_fn=self.recon_loss_fn,
+                prior_loss_w=self.adapt_cfg.prior_loss_w,
             )
             logging_dict.update({k: v + logging_dict_ctx[k] for k, v in logging_dict_tr.items()})
             enc_loss_tr = 0.5 * (enc_loss_tr + enc_loss_ctx)  # take average of the two recon losses

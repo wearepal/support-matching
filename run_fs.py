@@ -1,9 +1,12 @@
 from __future__ import annotations
 import logging
 from pathlib import Path
+from typing import cast
 
+from conduit.data.datasets.vision.cmnist import ColoredMNIST
 import ethicml as em
 from ethicml import implementations
+from ethicml.data.vision_data.celeba import CelebA
 import hydra
 from hydra.core.config_store import ConfigStore
 from hydra.utils import to_absolute_path
@@ -11,28 +14,23 @@ import numpy as np
 from omegaconf import DictConfig
 import pandas as pd
 import torch
-from torch import Tensor, nn
-from torch.utils.data import Dataset
-from torch.utils.data.dataset import ConcatDataset
+from torch import nn
 from torchvision.models import resnet50
 from torchvision.models.resnet import ResNet
 import wandb
 import yaml
 
 from advrep.algs import GDRO, LfF
-from advrep.algs.domain_independent import DomainIndependentClassifier
 from advrep.models import Classifier
-from advrep.optimisation import (
-    build_weighted_sampler_from_dataset,
-    extract_labels_from_dataset,
-)
+from advrep.optimisation import build_weighted_sampler_from_dataset
 from shared.configs import register_configs
 from shared.configs.arguments import Config
 from shared.configs.enums import ContextMode, FsMethod
-from shared.data import adult, load_data
-from shared.models.configs import FcNet, Mp32x23Net, Mp64x64Net
+from shared.data.data_module import DataModule
+from shared.data.utils import group_id_to_label
+from shared.models.configs import Mp32x23Net, Mp64x64Net
+from shared.models.configs.classifiers import ModelFactory
 from shared.utils import (
-    ModelFn,
     as_pretty_dict,
     compute_metrics,
     flatten_dict,
@@ -40,23 +38,8 @@ from shared.utils import (
     write_results_to_csv,
 )
 from shared.utils.loadsave import load_results
-from shared.utils.utils import class_id_to_label
 
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
-
-
-class RelabelingDataset(Dataset):
-    def __init__(self, dataset: Dataset, s: Tensor, y: Tensor) -> None:
-        super().__init__()
-        self.dataset = dataset
-        self.s = s
-        self.y = y
-
-    def __getitem__(self, index) -> tuple[Tensor, Tensor, Tensor]:
-        return self.dataset[index][0], self.s[index], self.y[index]
-
-    def __len__(self) -> int:
-        return len(self.dataset)  # type: ignore
 
 
 def run(cfg: Config) -> None:
@@ -104,57 +87,33 @@ def run(cfg: Config) -> None:
     run.__enter__()  # call the context manager dunders manually to avoid excessive indentation
 
     #  Load the datasets and wrap with dataloaders
-    datasets = load_data(cfg)
-
-    train_data = datasets.train
-    test_data = datasets.test
-    s_count = max(datasets.dim_s, 2)
-
-    train_loader_kwargs = {
-        "pin_memory": True,
-        "num_workers": cfg.datamodule.num_workers,
-        "shuffle": True,
-    }
-
-    input_shape = train_data[0][0].shape
+    dm = DataModule.from_config(cfg)
+    input_shape = dm.dim_x
     #  Construct the network
-    classifier_fn: ModelFn
-    if isinstance(cfg.datamodule, CmnistConfig):
+    classifier_fn: ModelFactory
+    if isinstance(dm.train, ColoredMNIST):
         classifier_fn = Mp32x23Net(batch_norm=True)
-    elif isinstance(cfg.datamodule, IsicConfig):
+    elif isinstance(dm.train, CelebA):
+        classifier_fn = Mp64x64Net(batch_norm=True)
+    else:
 
-        def resnet50_ft(input_dim: int, target_dim: int) -> ResNet:
+        def resnet50_ft(input_dim: int, *, target_dim: int) -> ResNet:
             classifier = resnet50(pretrained=True)
             classifier.fc = nn.Linear(classifier.fc.in_features, target_dim)
             return classifier
 
         classifier_fn = resnet50_ft
-    elif isinstance(cfg.datamodule, AdultConfig):
 
-        def adult_fc_net(input_dim: int, target_dim: int) -> nn.Sequential:
-            encoder = FcNet(hidden_dims=[35])(input_dim=input_dim, target_dim=35)
-            classifier = nn.Linear(35, target_dim)
-            return nn.Sequential(encoder, classifier)
+    num_classes = dm.num_classes
 
-        classifier_fn = adult_fc_net
-    elif isinstance(cfg.datamodule, CelebaConfig):
-        classifier_fn = Mp64x64Net(batch_norm=True)
-    else:
-        raise NotImplementedError()
-
-    target_dim = datasets.dim_y
-    num_classes = max(target_dim, 2)
-
+    s_count = dm.card_s
     classifier_kwargs = {}
+
     if args.method is FsMethod.lff:
         classifier_cls = LfF
-    elif args.method is FsMethod.domind:
-        classifier_cls = DomainIndependentClassifier
-        classifier_kwargs["num_domains"] = s_count
-        target_dim *= s_count
     elif args.method is FsMethod.gdro:
         classifier_cls = GDRO
-        s_all, _ = extract_labels_from_dataset(dataset=train_data)
+        s_all, _ = dm.train.s
         group_counts = (torch.arange(s_count).unsqueeze(1) == s_all.squeeze()).sum(1).float()
         # process generalization adjustment stuff
         adjustments = args.generalization_adjustment
@@ -184,9 +143,11 @@ def run(cfg: Config) -> None:
     classifier.to(device)
 
     cluster_metrics = None
+    dm.context = cast(type(dm.train), dm.context)
     if args.context_mode is ContextMode.ground_truth:
         LOGGER.info("Using ground-truth labels of context set.")
-        train_data = ConcatDataset([train_data, datasets.context])
+        dm.train += dm.context  # type: ignore
+        # train_data = ConcatDataset([train_data, datasets.context])
     # Tehcnicaly this and the method invoked in the subsequent conditional are self-supervised
     # method, however it's far easier to integrate them into this script than to create a new
     # series of models, with the code being as it is at the moment.
@@ -194,30 +155,28 @@ def run(cfg: Config) -> None:
         LOGGER.info("Using cluster labels as pseudo-labels for context set.")
         cluster_results, cluster_metrics = load_results(cfg)
         subgroup_ids = cluster_results.cluster_ids
-        _, s_tr, y_tr = train_data[0]
-        y = class_id_to_label(subgroup_ids, s_count=s_count, label="y").view(-1, *s_tr.shape)
-        s = class_id_to_label(subgroup_ids, s_count=s_count, label="s").view(-1, *y_tr.shape)
-        context_data = RelabelingDataset(datasets.context, s=s, y=y)
-        train_data = ConcatDataset([train_data, context_data])
+        y = group_id_to_label(subgroup_ids, s_count=s_count, label="y").view(-1)
+        s = group_id_to_label(subgroup_ids, s_count=s_count, label="s").view(-1)
+        dm.context.y = y
+        dm.context.s = s
+        dm.train += dm.context  # type: ignore
+
     elif args.context_mode is ContextMode.propagate:
         LOGGER.info("Propagating labels from training set to context set.")
         classifier.fit(
-            train_data=train_data,  # type: ignore
-            test_data=test_data,
+            dm=dm,
             epochs=args.epochs,
             device=device,
-            batch_size=args.batch_size,
-            test_batch_size=args.test_batch_size,
-            **train_loader_kwargs,
         )
         # Generate predictions with the trained model
-        y, _, s = classifier.predict_dataset(datasets.context, device=device)
-        context_data = RelabelingDataset(datasets.context, s=s, y=y)
-        train_data = ConcatDataset([train_data, context_data])
+        y, _, s = classifier.predict_dataset(dm.context_dataloader(eval=True), device=device)
+        dm.context.s = s
+        dm.context.y = y
+        dm.train += dm.context  # type: ignore
     else:
         train_sampler = build_weighted_sampler_from_dataset(
             dataset=train_data,  # type: ignore
-            s_count=max(datasets.dim_s, 2),
+            s_count=max(dm.card_s, 2),
             batch_size=args.batch_size,
             oversample=args.oversample,
             balance_hierarchical=True,
