@@ -370,7 +370,7 @@ def encode_dataset(
     dl: CdtDataLoader[TernarySample],
     encoder: AutoEncoder,
     recons: bool,
-    invariant_to: Literal["both"] = ...,
+    invariant_to: Literal["both"],
 ) -> InvariantDatasets[Dataset, Dataset]:
     ...
 
