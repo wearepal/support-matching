@@ -3,7 +3,7 @@ from typing import Sequence
 
 import torch.nn as nn
 
-from shared.layers import View
+from shared.layers.misc import View
 
 __all__ = ["conv_autoencoder", "fc_autoencoder"]
 

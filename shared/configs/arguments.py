@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
 import logging
 import shlex
-from typing import Dict, List, Optional, Type, TypeVar, Union
+from typing import Dict, List, Optional, Protocol, Type, TypeVar, Union
+from typing_extensions import runtime_checkable
 
 import albumentations as A  # type: ignore
 from albumentations.pytorch import ToTensorV2  # type: ignore
@@ -15,20 +16,18 @@ from conduit.hydra.conduit.data.datasets.conf import (
 )
 from hydra.core.config_store import ConfigStore
 from hydra.core.hydra_config import HydraConfig
+from hydra.utils import instantiate
 from omegaconf import DictConfig, MISSING, OmegaConf
 import torch
 
 from .enums import (
-    AdaptationMethod,
     AggregatorType,
     ClusteringLabel,
     ClusteringMethod,
-    ContextMode,
     DiscriminatorLoss,
     DiscriminatorMethod,
     EncoderType,
     EvalTrainData,
-    FsMethod,
     MMDKernel,
     PlMethod,
     ReconstructionLoss,
@@ -38,14 +37,13 @@ from .enums import (
 )
 
 __all__ = [
-    "AdaptConfig",
+    "ASMConfig",
     "BaseConfig",
     "SplitConfig",
     "ClusterConfig",
     "Config",
     "EncoderConfig",
-    "FsConfig",
-    "TrainConfig",
+    "MiscConfig",
     "register_configs",
 ]
 
@@ -53,7 +51,7 @@ __all__ = [
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
-@attr.define(kw_only=True)
+@dataclass
 class SplitConfig:
     log_dataset: str = ""
 
@@ -64,30 +62,21 @@ class SplitConfig:
     data_prop: Optional[float] = None
 
     # Dataset manipulation
-    missing_s: List[int] = field(default_factory=list)
+    missing_s: Optional[List[int]] = None
     mixing_factor: float = 0  # How much of context should be mixed into training?
     adult_biased_train: bool = True  # if True, make the training set biased, based on mixing factor
-    subsample_context: Optional[Dict[int, Union[Dict[int, float], float]]] = field(
-        default_factory=dict
-    )
-    subsample_train: Optional[Dict[int, Union[Dict[int, float], float]]] = field(
-        default_factory=dict
-    )
+    subsample_context: Optional[Dict[int, Union[Dict[int, float], float]]] = None
+    subsample_train: Optional[Dict[int, Union[Dict[int, float], float]]] = None
 
-    # transforms for image datasets
-    train_transforms: ImageTform = attr.field()
-
-    @train_transforms.default  # type: ignore
-    def _default_train_transforms(self) -> ImageTform:
+    @staticmethod
+    def _default_train_transforms() -> ImageTform:
         transform_ls: List[AlbumentationsTform] = [A.ToFloat()]
         transform_ls.append(A.Normalize(mean=IMAGENET_STATS.mean, std=IMAGENET_STATS.std))
         transform_ls.append(ToTensorV2())
         return A.Compose(transform_ls)
 
-    test_transforms: ImageTform = attr.field()
-
-    @test_transforms.default  # type: ignore
-    def _default_test_transforms(self) -> ImageTform:
+    @staticmethod
+    def _default_test_transforms() -> ImageTform:
         transform_ls = [
             A.ToFloat(),
             A.Normalize(mean=IMAGENET_STATS.mean, std=IMAGENET_STATS.std),
@@ -95,19 +84,18 @@ class SplitConfig:
         ]
         return A.Compose(transform_ls)
 
-    context_transforms: ImageTform = attr.field()
-
-    @context_transforms.default  # type: ignore
-    def _default_context_transforms(self) -> ImageTform:
-        return self.test_transforms
+    # transforms for image datasets
+    train_transforms: ImageTform = field(default_factory=_default_train_transforms)
+    test_transforms: ImageTform = field(default_factory=_default_test_transforms)
+    context_transforms: ImageTform = field(default_factory=_default_test_transforms)
 
 
 @attr.define(kw_only=True)
 class DataModuleConfig:
     # DataLoader settings
-    batch_size_tr: int
-    batch_size_ctx: int = attr.field()
-    batch_size_te: int = attr.field()
+    batch_size_tr: int = 1
+    batch_size_ctx: Optional[int] = None
+    batch_size_te: Optional[int] = None
     num_samples_per_group_per_bag: int = 1
 
     num_workers: int = 0
@@ -116,26 +104,25 @@ class DataModuleConfig:
 
     balanced_context: bool = False
 
-    @batch_size_ctx.default  # type: ignore
-    def _batch_size_ctx_default(self) -> int:
-        return self.batch_size_tr
-
-    @batch_size_te.default  # type: ignore
-    def _batch_size_te_default(self) -> int:
-        return self.batch_size_tr
+    def __attrs_post_init__(self) -> None:
+        if self.batch_size_ctx is None:
+            self.batch_size_ctx = self.batch_size_tr
+        if self.batch_size_test is None:
+            self.batch_size_test = self.batch_size_tr
 
 
-@dataclass
+@attr.define
 class LoggingConfig:
     exp_group: str = ""  # experiment group; should be unique for a specific setting
     log_method: str = ""  # arbitrary string that's appended to the experiment group name
-    wandb: WandbMode = WandbMode.online
+    mode: WandbMode = WandbMode.online
     save_dir: str = "experiments/asm"
     results_csv: str = ""  # name of CSV file to save results to
+    umap: bool = False  # whether to create UMAP plots
 
 
-@dataclass
-class TrainConfig:
+@attr.define
+class MiscConfig:
     # Cluster settings
     cluster_label_file: str = ""
     # General settings
@@ -146,9 +133,8 @@ class TrainConfig:
     use_amp: bool = False  # Whether to use mixed-precision training
     device: str = "cpu"
     gpu: int = 0  # which GPU to use (if available)
-    umap: bool = False  # whether to create UMAP plots
 
-    def __post_init__(self) -> None:
+    def __attrs_post_init__(self) -> None:
         # ==== check GPU ====
         self.use_gpu = torch.cuda.is_available() and self.gpu >= 0
         self.device = f"cuda:{self.gpu}" if self.use_gpu else "cpu"
@@ -158,7 +144,7 @@ class TrainConfig:
             self.use_amp = False
 
 
-@dataclass
+@attr.define
 class ClusterConfig:
     """Flags for clustering."""
 
@@ -208,7 +194,7 @@ class ClusterConfig:
     upper_threshold: float = 0.5
 
     # Classifier
-    cl_hidden_dims: List[int] = field(default_factory=lambda: [256])
+    cl_hidden_dims: List[int] = attr.field(factory=lambda: [256])
     lr: float = 1e-3
     weight_decay: float = 0
     factorized_s_y: bool = False  # P(s,y) will be factorized to P(s)P(y) with separate outputs
@@ -219,7 +205,7 @@ class ClusterConfig:
     #  Labeler
     labeler_lr: float = 1e-3
     labeler_wd: float = 0
-    labeler_hidden_dims: List[int] = field(default_factory=lambda: [100, 100])
+    labeler_hidden_dims: List[int] = attr.field(factory=lambda: [100, 100])
     labeler_epochs: int = 100
     labeler_wandb: bool = False
 
@@ -232,7 +218,7 @@ class ClusterConfig:
             raise ValueError("factorizing s and y requires both y and s")
 
 
-@dataclass
+@attr.define
 class EncoderConfig:
     """Flags that are shared between "adapt" and "clustering" but which don't concern data."""
 
@@ -243,19 +229,20 @@ class EncoderConfig:
     checkpoint_path: str = ""
 
 
-@dataclass
-class AdaptConfig:
+@runtime_checkable
+class AlgConfig(Protocol):
+
+    _target_: str
+
+
+@attr.define
+class ASMConfig(AlgConfig):
     """Flags for disentangling."""
 
-    method: AdaptationMethod = AdaptationMethod.suds
-    mixup: bool = False
-    batch_size: int = 256
-    test_batch_size: Optional[int] = 256
+    _target_ = "advrep.algs.SupportMatching"
+
+    # mixup: bool = False
     iters: int = 50_000
-    bag_size: int = 16
-    balanced_context: bool = False  # Whether to balance the context set with groundtruth labels
-    oversample: bool = False  # Whether to oversample when doing weighted sampling.
-    num_workers: int = 4
 
     early_stopping: int = 30
     weight_decay: float = 0
@@ -270,7 +257,6 @@ class AdaptConfig:
     eval_epochs: int = 40
     eval_lr: float = 1e-3
     eval_batch_size: int = 256
-    encode_batch_size: int = 1000
     balanced_eval: bool = False  # Whether to balance the training set during evaluation
     eval_s_from_zs: Optional[EvalTrainData] = None  # Train a classifier to predict s from zs
     eval_hidden_dims: Optional[List[int]] = None
@@ -293,15 +279,15 @@ class AdaptConfig:
     )
     adv_method: DiscriminatorMethod = DiscriminatorMethod.nn
     mmd_kernel: MMDKernel = MMDKernel.rq
-    mmd_scales: List[float] = field(default_factory=list)
-    mmd_wts: List[float] = field(default_factory=list)
+    mmd_scales: List[float] = attr.field(factory=list)
+    mmd_wts: List[float] = attr.field(factory=list)
     mmd_add_dot: float = 0.0
 
-    adv_hidden_dims: List[int] = field(default_factory=lambda: [256])
-    aggregator_type: AggregatorType = AggregatorType.none
+    adv_hidden_dims: List[int] = attr.field(factory=lambda: [256])
+    aggregator_type: Optional[AggregatorType] = None
     aggregator_input_dim: int = 32
-    aggregator_hidden_dims: List[int] = field(default_factory=list)
-    aggregator_kwargs: Dict[str, int] = field(default_factory=dict)
+    aggregator_hidden_dims: List[int] = attr.field(factory=list)
+    aggregator_kwargs: Dict[str, int] = attr.field(factory=dict)
 
     # Training settings
     lr: float = 1e-3
@@ -324,22 +310,22 @@ class AdaptConfig:
     s_pred_with_bias: bool = True  # if False, the s predictor has no bias term in the output layer
 
 
-T = TypeVar("T", bound="BaseConfig")
+C = TypeVar("C", bound="BaseConfig")
 
 
-@dataclass
+@attr.define
 class BaseConfig:
     """Minimum config needed to do data loading."""
 
-    dataset: DictConfig
-    datamodule: DictConfig
+    ds: DictConfig
+    dm: DictConfig
     split: SplitConfig
-    train: TrainConfig
+    misc: MiscConfig
     logging: LoggingConfig
     cmd: str = ""  # don't set this in the yaml file (or anywhere really); it will get overwritten
 
     @classmethod
-    def from_hydra(cls: Type[T], hydra_config: DictConfig) -> T:
+    def from_hydra(cls: Type[C], hydra_config: DictConfig) -> C:
         """Instantiate class based on a hydra config."""
         conf: object = OmegaConf.to_object(hydra_config)  # type: ignore
         assert isinstance(conf, cls), f"The given hydra config did not correspond to class {cls}."
@@ -349,40 +335,15 @@ class BaseConfig:
 
 
 @dataclass
-class FsConfig:
-    """Arguments for models run via the run_fs script."""
-
-    # General data set settings
-    greyscale: bool = False
-    context_mode: ContextMode = ContextMode.unlabelled
-
-    # Optimization settings
-    epochs: int = 60
-    test_batch_size: int = 1000
-    batch_size: int = 100
-    lr: float = 1e-3
-    weight_decay: float = 0
-    eta: float = 0.5
-
-    # gDRO-specific arguments
-    alpha: float = 1.0
-    normalize_loss: bool = False
-    gamma: float = 0.1
-    generalization_adjustment: Optional[List[float]] = None
-
-    # Misc settings
-    method: FsMethod = FsMethod.erm
-    oversample: bool = True
-
-
-@dataclass
 class Config(BaseConfig):
     """Config used for clustering and disentangling."""
 
     clust: ClusterConfig = MISSING
     enc: EncoderConfig = MISSING
-    adapt: AdaptConfig = AdaptConfig()
-    fs_args: FsConfig = FsConfig()
+    alg: ASMConfig = MISSING
+
+    def second_stage(self) -> None:
+        return instantiate(self.alg, cfg=self).run()
 
 
 def register_configs() -> None:
@@ -403,3 +364,24 @@ def reconstruct_cmd() -> str:
 def _join(split_command: List[str]) -> str:
     """Concatenate the tokens of the list split_command and return a string."""
     return " ".join(shlex.quote(arg) for arg in split_command)
+
+
+# @attr.define
+# class FsConfig:
+#     """Arguments for models run via the run_fs script."""
+
+#     context_mode: ContextMode = ContextMode.unlabelled
+
+#     # Optimization settings
+#     epochs: int = 60
+#     lr: float = 1e-3
+#     weight_decay: float = 0
+#     eta: float = 0.5
+
+#     # Method of chocie
+#     method: FsMethod = FsMethod.erm
+#     # gDRO-specific arguments
+#     alpha: float = 1.0
+#     normalize_loss: bool = False
+#     gamma: float = 0.1
+#     generalization_adjustment: Optional[List[float]] = None

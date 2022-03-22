@@ -8,6 +8,7 @@ from typing import cast
 
 from hydra.utils import to_absolute_path
 import numpy as np
+from ranzen.torch import random_seed
 import torch
 from torch import Tensor
 from torch.utils.data import ConcatDataset, DataLoader
@@ -34,13 +35,11 @@ from shared.configs import (
     ClusterConfig,
     ClusteringLabel,
     ClusteringMethod,
-    CmnistConfig,
     Config,
-    DatasetConfig,
     EncoderConfig,
     EncoderType,
+    MiscConfig,
     PlMethod,
-    TrainConfig,
 )
 from shared.data.data_loading import DataModule, load_data
 from shared.data.dataset_wrappers import RotationPrediction
@@ -49,14 +48,12 @@ from shared.models.configs.classifiers import FcNet
 from shared.utils import (
     AverageMeter,
     ClusterResults,
-    ExperimentBase,
     as_pretty_dict,
     count_parameters,
     flatten_dict,
     get_class_id,
     get_data_dim,
     print_metrics,
-    random_seed,
     readable_duration,
     save_results,
 )
@@ -80,7 +77,7 @@ class Experiment(ExperimentBase):
         cfg: Config,
         data: DatasetConfig,
         enc: EncoderConfig,
-        misc: TrainConfig,
+        misc: MiscConfig,
         model: BaseModel,
         s_dim: int,
         y_dim: int,
@@ -248,9 +245,9 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     """
     # ==== initialize config shorthands ====
     args = cfg.clust
-    data = cfg.datamodule
+    data = cfg.dm
     enc = cfg.enc
-    misc = cfg.train
+    misc = cfg.misc
 
     # ==== current git commit ====
     # repo = git.Repo(search_parent_directories=True)
@@ -258,7 +255,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
     sha = ""  # this doesn't work with ray
 
     use_gpu = torch.cuda.is_available() and misc.gpu >= 0
-    random_seed(misc.seed, use_gpu)
+    random_seed(misc.seed, use_cuda=use_gpu)
     if cluster_label_file is not None:
         misc.cluster_label_file = str(cluster_label_file)
 
@@ -432,7 +429,7 @@ def main(cfg: Config, cluster_label_file: Path | None = None) -> None:
         kmeans_results = train_k_means(
             cfg, encoder, datasets.context, num_clusters, s_count, y_count, enc_path=enc_path
         )
-        save_results(save_path=cluster_label_path, cluster_results=kmeans_results)
+        # save_results(save_path=cluster_label_path, cluster_results=kmeans_results)
         run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
         return
     if args.finetune_encoder:

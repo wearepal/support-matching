@@ -11,16 +11,10 @@ import torch.nn as nn
 from advrep.models import AutoEncoder, Discriminator, SplitEncoding
 from advrep.models.configs import Residual64x64Net, Strided28x28Net
 from advrep.optimisation import log_attention, log_images, mmd2
-from shared.configs import (
-    AggregatorType,
-    Config,
-    DiscriminatorMethod,
-    ReconstructionLoss,
-)
+from shared.configs import AggregatorType, DiscriminatorMethod, ReconstructionLoss
 from shared.data.data_module import DataModule
-from shared.layers import Aggregator, GatedAttentionAggregator, KvqAttentionAggregator
-from shared.models.configs import FcNet, ModelAggregatorWrapper
-from shared.models.configs.classifiers import ModelFactory
+from shared.layers import Aggregator, ModelAggregatorWrapper
+from shared.models.configs import FcNet
 from shared.utils import prod
 
 from .adv import AdvSemiSupervisedAlg
@@ -29,59 +23,45 @@ __all__ = ["SupportMatching"]
 
 
 class SupportMatching(AdvSemiSupervisedAlg):
-    def __init__(self, cfg: Config) -> None:
-        super().__init__(cfg)
-        if self.adapt_cfg.aggregator_type != AggregatorType.none:
-            self.eff_batch_size *= self.adapt_cfg.bag_size
-
     @implements(AdvSemiSupervisedAlg)
     def _build_adversary(self, dm: DataModule) -> Discriminator:
         """Build the adversarial network."""
         disc_input_shape: Sequence[int] = (
-            dm.dim_x if self.adapt_cfg.train_on_recon else (self.enc_cfg.out_dim,)
+            dm.dim_x if self.alg_cfg.train_on_recon else (self.enc_cfg.out_dim,)
         )
-        disc_fn: ModelFactory
-        if len(dm.dim_x) > 2 and self.adapt_cfg.train_on_recon:
+        if len(dm.dim_x) > 2 and self.alg_cfg.train_on_recon:
             if isinstance(dm.train, ColoredMNIST):
                 disc_fn = Strided28x28Net(batch_norm=False)
             else:
                 disc_fn = Residual64x64Net(batch_norm=False)
 
         else:
-            disc_fn = FcNet(hidden_dims=self.adapt_cfg.adv_hidden_dims, activation=nn.GELU())
+            disc_fn = FcNet(hidden_dims=self.alg_cfg.adv_hidden_dims, activation=nn.GELU())
             # FcNet first flattens the input
             disc_input_shape = (prod(disc_input_shape),)
 
-        if self.adapt_cfg.aggregator_type is not AggregatorType.none:
+        if self.alg_cfg.aggregator_type is not None:
             final_proj = (
-                FcNet(self.adapt_cfg.aggregator_hidden_dims)
-                if self.adapt_cfg.aggregator_hidden_dims
+                FcNet(self.alg_cfg.aggregator_hidden_dims)
+                if self.alg_cfg.aggregator_hidden_dims
                 else None
             )
-            aggregator: Aggregator
-            if self.adapt_cfg.aggregator_type is AggregatorType.kvq:
-                aggregator = KvqAttentionAggregator(
-                    latent_dim=self.adapt_cfg.aggregator_input_dim,
-                    bag_size=self.adapt_cfg.bag_size,
-                    final_proj=final_proj,
-                    **self.adapt_cfg.aggregator_kwargs,
-                )
-            else:
-                aggregator = GatedAttentionAggregator(
-                    in_dim=self.adapt_cfg.aggregator_input_dim,
-                    bag_size=self.adapt_cfg.bag_size,
-                    final_proj=final_proj,
-                    **self.adapt_cfg.aggregator_kwargs,
-                )
+            aggregator_cls: type[Aggregator] = self.alg_cfg.aggregator_type.value
+            aggregator = aggregator_cls(
+                latent_dim=self.alg_cfg.aggregator_input_dim,
+                bag_size=dm.bag_size,
+                final_proj=final_proj,
+                **self.alg_cfg.aggregator_kwargs,
+            )
             disc_fn = ModelAggregatorWrapper(
-                disc_fn, aggregator, input_dim=self.adapt_cfg.aggregator_input_dim
+                disc_fn, aggregator, input_dim=self.alg_cfg.aggregator_input_dim
             )
 
         return Discriminator(
             model=disc_fn(disc_input_shape, 1),  # type: ignore
-            double_adv_loss=self.adapt_cfg.double_adv_loss,
+            double_adv_loss=self.alg_cfg.double_adv_loss,
             optimizer_kwargs=self.optimizer_kwargs,
-            criterion=self.adapt_cfg.adv_loss,
+            criterion=self.alg_cfg.adv_loss,
         )
 
     @implements(AdvSemiSupervisedAlg)
@@ -89,7 +69,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         self,
         dm: DataModule,
     ) -> AutoEncoder:
-        if self.adapt_cfg.s_as_zs and self.adapt_cfg.zs_dim != dm.card_s:
+        if self.alg_cfg.s_as_zs and self.alg_cfg.zs_dim != dm.card_s:
             raise ValueError(f"zs_dim has to be equal to s_dim ({dm.card_s}) if `s_as_zs` is True.")
         return super()._build_encoder(dm)
 
@@ -105,12 +85,12 @@ class SupportMatching(AdvSemiSupervisedAlg):
         x_tr = self._sample_train(iterator_tr).x
         x_ctx = self._sample_context(iterator_ctx=iterator_ctx)
 
-        with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):  # type: ignore
+        with torch.cuda.amp.autocast(enabled=self.train_cfg.use_amp):  # type: ignore
             encoding_tr = self.encoder.encode(x_tr, stochastic=True)
-            if not self.adapt_cfg.train_on_recon:
+            if not self.alg_cfg.train_on_recon:
                 encoding_ctx = self.encoder.encode(x_ctx, stochastic=True)
 
-            if self.adapt_cfg.train_on_recon:
+            if self.alg_cfg.train_on_recon:
                 adv_input_ctx = x_ctx
 
             adv_loss = x_ctx.new_zeros(())
@@ -118,7 +98,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
             adv_input_tr = self._get_adv_input(encoding_tr)
             adv_input_tr = adv_input_tr.detach()
 
-            if not self.adapt_cfg.train_on_recon:
+            if not self.alg_cfg.train_on_recon:
                 with torch.no_grad():
                     adv_input_ctx = self._get_adv_input(encoding_ctx)  # type: ignore
 
@@ -138,24 +118,24 @@ class SupportMatching(AdvSemiSupervisedAlg):
         self._train("encoder")
         logging_dict = {}
 
-        with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):  # type: ignore
+        with torch.cuda.amp.autocast(enabled=self.train_cfg.use_amp):  # type: ignore
             # ============================= recon loss for training set ===========================
             encoding_t, enc_loss_tr, logging_dict_tr = self.encoder.routine(
                 batch_tr.x,
                 recon_loss_fn=self.recon_loss_fn,
-                prior_loss_w=self.adapt_cfg.prior_loss_w,
-                s=batch_tr.s if self.adapt_cfg.s_as_zs else None,  # using s for the reconstruction
+                prior_loss_w=self.alg_cfg.prior_loss_w,
+                s=batch_tr.s if self.alg_cfg.s_as_zs else None,  # using s for the reconstruction
             )
 
             # ============================= recon loss for context set ============================
             encoding_c, enc_loss_ctx, logging_dict_ctx = self.encoder.routine(
                 x_ctx,
                 recon_loss_fn=self.recon_loss_fn,
-                prior_loss_w=self.adapt_cfg.prior_loss_w,
+                prior_loss_w=self.alg_cfg.prior_loss_w,
             )
             logging_dict.update({k: v + logging_dict_ctx[k] for k, v in logging_dict_tr.items()})
             enc_loss_tr = 0.5 * (enc_loss_tr + enc_loss_ctx)  # take average of the two recon losses
-            enc_loss_tr *= self.adapt_cfg.enc_loss_w
+            enc_loss_tr *= self.alg_cfg.enc_loss_w
             logging_dict["Loss Generator"] = enc_loss_tr
             total_loss = enc_loss_tr
             # ================================= adversarial losses ================================
@@ -163,7 +143,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 disc_input_tr = self._get_adv_input(encoding_t)
                 disc_input_ctx = self._get_adv_input(encoding_c)
 
-                if self.adapt_cfg.adv_method is DiscriminatorMethod.nn:
+                if self.alg_cfg.adv_method is DiscriminatorMethod.nn:
                     disc_loss = self.adversary.encoder_loss(fake=disc_input_tr, real=disc_input_ctx)
 
                 else:
@@ -172,25 +152,25 @@ class SupportMatching(AdvSemiSupervisedAlg):
                     disc_loss = mmd2(
                         x=x,
                         y=y,
-                        kernel=self.adapt_cfg.mmd_kernel,
-                        scales=self.adapt_cfg.mmd_scales,
-                        wts=self.adapt_cfg.mmd_wts,
-                        add_dot=self.adapt_cfg.mmd_add_dot,
+                        kernel=self.alg_cfg.mmd_kernel,
+                        scales=self.alg_cfg.mmd_scales,
+                        wts=self.alg_cfg.mmd_wts,
+                        add_dot=self.alg_cfg.mmd_add_dot,
                     )
-                disc_loss *= self.adapt_cfg.adv_loss_w
+                disc_loss *= self.alg_cfg.adv_loss_w
                 total_loss += disc_loss
                 logging_dict["Loss Discriminator"] = disc_loss
 
             if self.predictor_y is not None:
                 # predictor is on encodings; predict y from the part that is invariant to s
                 pred_y_loss, pred_y_acc = self.predictor_y.routine(encoding_t.zy, batch_tr.y)
-                pred_y_loss *= self.adapt_cfg.pred_y_loss_w
+                pred_y_loss *= self.alg_cfg.pred_y_loss_w
                 logging_dict["Loss Predictor y"] = pred_y_loss.item()
                 logging_dict["Accuracy Predictor y"] = pred_y_acc
                 total_loss += pred_y_loss
             if self.predictor_s is not None:
                 pred_s_loss, pred_s_acc = self.predictor_s.routine(encoding_t.zs, batch_tr.s)
-                pred_s_loss *= self.adapt_cfg.pred_s_loss_w
+                pred_s_loss *= self.alg_cfg.pred_s_loss_w
                 logging_dict["Loss Predictor s"] = pred_s_loss.item()
                 logging_dict["Accuracy Predictor s"] = pred_s_acc
                 total_loss += pred_s_loss
@@ -203,7 +183,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
     def _get_adv_input(self, encoding: SplitEncoding, *, detach: bool = False) -> Tensor:
         """Construct the input that the discriminator expects; either zy or reconstructed zy."""
-        if self.adapt_cfg.train_on_recon:
+        if self.alg_cfg.train_on_recon:
             zs_m, _ = self.encoder.mask(encoding, random=True, detach=detach)
             recon = self.encoder.decode(zs_m, mode="relaxed")
             return recon
@@ -212,18 +192,20 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
     @torch.no_grad()
     @implements(AdvSemiSupervisedAlg)
-    def _log_recons(self, x: Tensor, *, itr: int, prefix: str | None = None) -> None:
+    def _log_recons(
+        self, x: Tensor, *, dm: DataModule, itr: int, prefix: str | None = None
+    ) -> None:
         """Log the reconstructed and original images."""
 
         rows_per_block = 8
         num_blocks = 4
-        if self.adapt_cfg.aggregator_type is AggregatorType.none:
+        if self.alg_cfg.aggregator_type is None:
             num_sampled_bags = 0  # this is only defined here to make the linter happy
             num_samples = num_blocks * rows_per_block
         else:
             # take enough bags to have 32 samples
-            num_sampled_bags = ((num_blocks * rows_per_block - 1) // self.adapt_cfg.bag_size) + 1
-            num_samples = num_sampled_bags * self.adapt_cfg.bag_size
+            num_sampled_bags = ((num_blocks * rows_per_block - 1) // dm.bag_size) + 1
+            num_samples = num_sampled_bags * dm.bag_size
 
         sample = x[:num_samples]
         encoding = self.encoder.encode(sample, stochastic=False)
@@ -231,7 +213,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         recons = [recon.all, recon.zero_s, recon.just_s]
 
         caption = "original | all | zero_s | just_s"
-        if self.adapt_cfg.train_on_recon or self.adapt_cfg.s_as_zs:
+        if self.alg_cfg.train_on_recon or self.alg_cfg.s_as_zs:
             recons.append(recon.rand_s)
             caption += " | rand_s"
 
@@ -247,7 +229,8 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
         log_images(
             self.cfg,
-            interleaved,
+            images=interleaved,
+            dm=dm,
             name="reconstructions",
             step=itr,
             nsamples=[ncols * rows_per_block] * num_blocks,
@@ -256,7 +239,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
             caption=caption,
         )
 
-        if self.adapt_cfg.aggregator_type is AggregatorType.gated:
+        if self.alg_cfg.aggregator_type is AggregatorType.gated:
             self.adversary(self._get_adv_input(encoding))
             assert isinstance(self.adversary.model[-1], Aggregator)  # type: ignore
             attention_weights = self.adversary.model[-1].attention_weights  # type: ignore

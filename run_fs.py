@@ -13,6 +13,7 @@ from hydra.utils import to_absolute_path
 import numpy as np
 from omegaconf import DictConfig
 import pandas as pd
+from ranzen.torch import random_seed
 import torch
 from torch import nn
 from torchvision.models import resnet50
@@ -22,19 +23,16 @@ import yaml
 
 from advrep.algs import GDRO, LfF
 from advrep.models import Classifier
-from advrep.optimisation import build_weighted_sampler_from_dataset
 from shared.configs import register_configs
 from shared.configs.arguments import Config
 from shared.configs.enums import ContextMode, FsMethod
 from shared.data.data_module import DataModule
 from shared.data.utils import group_id_to_label
 from shared.models.configs import Mp32x23Net, Mp64x64Net
-from shared.models.configs.classifiers import ModelFactory
 from shared.utils import (
     as_pretty_dict,
     compute_metrics,
     flatten_dict,
-    random_seed,
     write_results_to_csv,
 )
 from shared.utils.loadsave import load_results
@@ -47,8 +45,8 @@ def run(cfg: Config) -> None:
     for name, settings in [
         ("bias", cfg.split),
         ("fs_args", cfg.fs_args),
-        ("data", cfg.datamodule),
-        ("misc", cfg.train),
+        ("data", cfg.dm),
+        ("misc", cfg.misc),
     ]:
         as_dict = as_pretty_dict(settings)
         cfg_dict[name] = as_dict
@@ -56,21 +54,23 @@ def run(cfg: Config) -> None:
         LOGGER.info(f"{name}: " + "{" + ", ".join(as_list) + "}")
     cfg_dict = flatten_dict(cfg_dict)
     args = cfg.fs_args
-    use_gpu = torch.cuda.is_available() and not cfg.train.gpu < 0  # type: ignore
-    random_seed(cfg.train.seed, use_gpu)
+    use_gpu = torch.cuda.is_available() and not cfg.misc.gpu < 0  # type: ignore
+    random_seed(cfg.misc.seed, use_cuda=use_gpu)
 
     LOGGER.info(
         yaml.dump(as_pretty_dict(cfg), default_flow_style=False, allow_unicode=True, sort_keys=True)
     )
-    device = torch.device(f"cuda:{cfg.train.gpu}" if use_gpu else "cpu")
+    device = torch.device(f"cuda:{cfg.misc.gpu}" if use_gpu else "cpu")
     LOGGER.info(f"Running on {device}")
 
     # Set up wandb logging
-    group = f"{cfg.datamodule.log_name}.{str(args.method.name)}.context_mode_{cfg.fs_args.context_mode.name}"
-    if cfg.train.log_method:
-        group += "." + cfg.train.log_method
-    if cfg.train.exp_group:
-        group += "." + cfg.train.exp_group
+    group = (
+        f"{cfg.dm.log_name}.{str(args.method.name)}.context_mode_{cfg.fs_args.context_mode.name}"
+    )
+    if cfg.misc.log_method:
+        group += "." + cfg.misc.log_method
+    if cfg.misc.exp_group:
+        group += "." + cfg.misc.exp_group
     if cfg.split.log_dataset:
         group += "." + cfg.split.log_dataset
     local_dir = Path(".", "local_logging")
@@ -82,7 +82,7 @@ def run(cfg: Config) -> None:
         config=flatten_dict(as_pretty_dict(cfg)),
         group=group if group else None,
         reinit=True,
-        mode=cfg.train.wandb.name,
+        mode=cfg.misc.wandb.name,
     )
     run.__enter__()  # call the context manager dunders manually to avoid excessive indentation
 
@@ -90,7 +90,6 @@ def run(cfg: Config) -> None:
     dm = DataModule.from_config(cfg)
     input_shape = dm.dim_x
     #  Construct the network
-    classifier_fn: ModelFactory
     if isinstance(dm.train, ColoredMNIST):
         classifier_fn = Mp32x23Net(batch_norm=True)
     elif isinstance(dm.train, CelebA):
@@ -151,7 +150,7 @@ def run(cfg: Config) -> None:
     # Tehcnicaly this and the method invoked in the subsequent conditional are self-supervised
     # method, however it's far easier to integrate them into this script than to create a new
     # series of models, with the code being as it is at the moment.
-    elif args.context_mode is ContextMode.cluster_labels and cfg.train.cluster_label_file:
+    elif args.context_mode is ContextMode.cluster_labels and cfg.misc.cluster_label_file:
         LOGGER.info("Using cluster labels as pseudo-labels for context set.")
         cluster_results, cluster_metrics = load_results(cfg)
         subgroup_ids = cluster_results.cluster_ids
@@ -197,13 +196,13 @@ def run(cfg: Config) -> None:
     # Generate predictions with the trained model
     preds, labels, sens = classifier.predict_dataset(test_data, device=device)
     preds = em.Prediction(pd.Series(preds))
-    if isinstance(cfg.datamodule, CmnistConfig):
+    if isinstance(cfg.dm, CmnistConfig):
         sens_name = "colour"
-    elif isinstance(cfg.datamodule, CelebaConfig):
-        sens_name = cfg.datamodule.celeba_sens_attr.name
-    elif isinstance(cfg.datamodule, IsicConfig):
-        sens_name = cfg.datamodule.isic_sens_attr.name
-    elif isinstance(cfg.datamodule, AdultConfig):
+    elif isinstance(cfg.dm, CelebaConfig):
+        sens_name = cfg.dm.celeba_sens_attr.name
+    elif isinstance(cfg.dm, IsicConfig):
+        sens_name = cfg.dm.isic_sens_attr.name
+    elif isinstance(cfg.dm, AdultConfig):
         sens_name = str(adult.SENS_ATTRS[0])
     else:
         sens_name = "sens_Label"
@@ -212,14 +211,14 @@ def run(cfg: Config) -> None:
     actual = em.DataTuple(x=sens_pd, s=sens_pd, y=labels_pd)
 
     full_name = f"baseline_{args.method.name}"
-    if isinstance(cfg.datamodule, CmnistConfig):
+    if isinstance(cfg.dm, CmnistConfig):
         full_name += "_greyscale" if args.greyscale else "_color"
-    elif isinstance(cfg.datamodule, CelebaConfig):
-        full_name += f"_{str(cfg.datamodule.celeba_sens_attr.name)}"
-        full_name += f"_{cfg.datamodule.celeba_target_attr.name}"
-    elif isinstance(cfg.datamodule, IsicConfig):
-        full_name += f"_{str(cfg.datamodule.isic_sens_attr.name)}"
-        full_name += f"_{cfg.datamodule.isic_target_attr.name}"
+    elif isinstance(cfg.dm, CelebaConfig):
+        full_name += f"_{str(cfg.dm.celeba_sens_attr.name)}"
+        full_name += f"_{cfg.dm.celeba_target_attr.name}"
+    elif isinstance(cfg.dm, IsicConfig):
+        full_name += f"_{str(cfg.dm.isic_sens_attr.name)}"
+        full_name += f"_{cfg.dm.isic_target_attr.name}"
     if args.method is FsMethod.dro:
         full_name += f"_eta_{args.eta}"
     full_name += f"_context_mode={args.context_mode}"
@@ -237,7 +236,7 @@ def run(cfg: Config) -> None:
     )
     if args.method == FsMethod.dro:
         metrics.update({"eta": args.eta})
-    if cfg.train.save_dir:
+    if cfg.misc.save_dir:
         cfg_dict["misc.log_method"] = f"baseline_{args.method.name}"
 
         results = {}
@@ -245,8 +244,8 @@ def run(cfg: Config) -> None:
         results.update(metrics)
         write_results_to_csv(
             results=results,
-            csv_dir=Path(to_absolute_path(cfg.train.save_dir)),
-            csv_file=f"{cfg.datamodule.log_name}_{full_name}",
+            csv_dir=Path(to_absolute_path(cfg.misc.save_dir)),
+            csv_file=f"{cfg.dm.log_name}_{full_name}",
         )
     run.__exit__(None, 0, 0)  # this allows multiple experiments in one python process
 

@@ -2,7 +2,6 @@ from enum import Enum, auto
 
 __all__ = [
     "AdaptationMethod",
-    "AdultDatasetSplit",
     "AggregatorType",
     "CelebaAttributes",
     "ClusteringLabel",
@@ -48,7 +47,6 @@ class ReconstructionLoss(Enum):
     l2 = auto()
     bce = auto()
     huber = auto()
-    ce = auto()
     mixed = auto()
 
 
@@ -93,9 +91,10 @@ class MMDKernel(Enum):
 class AggregatorType(Enum):
     """Which aggreagation function to use (if any)."""
 
-    none = auto()
-    kvq = auto()
-    gated = auto()
+    from shared.layers import GatedAttentionAggregator, KvqAttentionAggregator
+
+    kvq = KvqAttentionAggregator
+    gated = GatedAttentionAggregator
 
 
 class DiscriminatorLoss(Enum):
@@ -197,7 +196,7 @@ class AdaptationMethod(Enum):
     """Method to use for adaptation."""
 
     laftr = auto()
-    suds = auto()
+    asm = auto()
 
 
 class FsMethod(Enum):

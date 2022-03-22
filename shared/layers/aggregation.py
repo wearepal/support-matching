@@ -1,26 +1,31 @@
 """Modules that aggregate over a batch."""
 from __future__ import annotations
-from typing import Callable
+from typing import Any
 from typing_extensions import Literal
 
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
 
-from shared.models.configs.classifiers import ModelFactory
+from shared.models.factory import ModelFactory
 
-__all__ = ["Aggregator", "KvqAttentionAggregator", "GatedAttentionAggregator"]
+__all__ = [
+    "Aggregator",
+    "GatedAttentionAggregator",
+    "KvqAttentionAggregator",
+    "ModelAggregatorWrapper",
+]
 
 
 class Aggregator(nn.Module):
     output_dim: int
     bag_size: int
 
-    def __init__(self, bag_size: int) -> None:
+    def __init__(self, bag_size: int, *args: Any, **kwargs: Any) -> None:
         super().__init__()
         self.bag_size = bag_size
 
-    def bag_batch(self, batch: Tensor) -> Tensor:
+    def batch_to_bags(self, batch: Tensor) -> Tensor:
         """
         Reshape a batch so that it's a batch of bags.
 
@@ -30,9 +35,6 @@ class Aggregator(nn.Module):
 
 
 class KvqAttentionAggregator(Aggregator):
-
-    act: Callable[[Tensor], Tensor]
-
     def __init__(
         self,
         latent_dim: int,
@@ -49,9 +51,9 @@ class KvqAttentionAggregator(Aggregator):
             embed_dim=latent_dim, num_heads=1, dropout=dropout, bias=True
         )
         if final_proj is not None:
-            self.final_proj = final_proj(latent_dim, output_dim)
+            self.final_proj = final_proj(latent_dim, target_dim=output_dim)
         else:
-            self.final_proj = nn.Linear(latent_dim, output_dim)
+            self.final_proj = nn.Linear(in_features=latent_dim, out_features=output_dim)
 
         if activation == "relu":
             self.act = F.relu
@@ -61,10 +63,10 @@ class KvqAttentionAggregator(Aggregator):
             raise ValueError(f"Unknown activation {activation}")
         self.output_dim = output_dim
 
-    def forward(self, inputs: Tensor) -> Tensor:
+    def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
         # `attn` expects the *second* dimension to be the batch dimension
         # that's why we have to transpose here
-        inputs_batched = self.bag_batch(inputs).transpose(0, 1)  # shape: (bag, batch, latent)
+        inputs_batched = self.batch_to_bags(inputs).transpose(0, 1)  # shape: (bag, batch, latent)
         # for the query we just use an average of the bags
         query = inputs_batched.mean(dim=0, keepdim=True)
         key = inputs_batched
@@ -83,24 +85,38 @@ class GatedAttentionAggregator(Aggregator):
         output_dim: int = 1,
     ) -> None:
         super().__init__(bag_size=bag_size)
-        self.V = nn.Parameter(torch.empty(embed_dim, in_dim))
-        self.U = nn.Parameter(torch.empty(embed_dim, in_dim))
-        self.w = nn.Parameter(torch.empty(1, embed_dim))
+        self.V = torch.empty(embed_dim, in_dim, requires_grad=True)
+        self.U = torch.empty(embed_dim, in_dim, requires_grad=True)
+        self.w = torch.empty(1, embed_dim, requires_grad=True)
         nn.init.xavier_normal_(self.V)
         nn.init.xavier_normal_(self.U)
         nn.init.xavier_normal_(self.w)
         if final_proj is not None:
-            self.final_proj = final_proj(in_dim, output_dim)
+            self.final_proj = final_proj(in_dim, target_dim=output_dim)
         else:
-            self.final_proj = nn.Linear(in_dim, output_dim)
+            self.final_proj = nn.Linear(in_features=in_dim, out_features=output_dim)
         self.output_dim = output_dim
         self.attention_weights: Tensor
 
     def forward(self, inputs: Tensor) -> Tensor:
         logits = torch.tanh(inputs @ self.V.t()) * torch.sigmoid(inputs @ self.U.t()) @ self.w.t()
-        logits_batched = self.bag_batch(logits)
+        logits_batched = self.batch_to_bags(logits)
         weights = logits_batched.softmax(dim=1)
         self.attention_weights = weights.squeeze(-1).detach().cpu()
-        inputs_batched = self.bag_batch(inputs)
+        inputs_batched = self.batch_to_bags(inputs)
         weighted = torch.sum(weights * inputs_batched, dim=1, keepdim=False)
         return self.final_proj(weighted)
+
+
+class ModelAggregatorWrapper(ModelFactory[nn.Sequential]):
+    def __init__(self, model_fn: ModelFactory, aggregator: Aggregator, input_dim: int) -> None:
+        self.model_fn = model_fn
+        self.aggregator = aggregator
+        self.input_dim = input_dim
+
+    def __call__(self, input_dim: int, *, target_dim: int) -> nn.Sequential:
+        assert target_dim == self.aggregator.output_dim
+
+        return nn.Sequential(
+            self.model_fn(input_dim, target_dim=self.input_dim), nn.GELU(), self.aggregator
+        )

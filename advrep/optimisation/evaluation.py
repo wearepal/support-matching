@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import logging
-from typing import Dict, Generic, Optional, Sequence, TypeVar, overload
+from typing import Any, Dict, Generic, Optional, Sequence, TypeVar, overload
 from typing_extensions import Literal
 
 from conduit.data import CdtDataLoader
@@ -30,20 +30,19 @@ from advrep.models import AutoEncoder, Classifier, SplitEncoding
 from shared.configs import Config, EvalTrainData, WandbMode
 from shared.data.data_module import DataModule, Dataset
 from shared.data.utils import group_id_to_label, labels_to_group_id
-from shared.models.configs.classifiers import (
-    FcNet,
-    ModelFactory,
-    Mp32x23Net,
-    Mp64x64Net,
-)
+from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import compute_metrics, plot_histogram_by_source, prod
 
 from .utils import log_images
 
 __all__ = [
     "InvariantDatasets",
+    "encode_dataset",
+    "evaluate",
+    "fit_classifier",
     "log_metrics",
     "log_sample_images",
+    "visualize_clusters",
 ]
 
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
@@ -60,11 +59,17 @@ class InvariantDatasets(Generic[DY, DS]):
 
 
 def log_sample_images(
-    cfg: Config, *, data: CdtVisionDataset, name: str, step: int, num_samples: int = 64
+    cfg: Config,
+    *,
+    data: CdtVisionDataset,
+    dm: DataModule,
+    name: str,
+    step: int,
+    num_samples: int = 64,
 ) -> None:
     inds = torch.randperm(len(data))[:num_samples]
-    x = data[inds.tolist()]
-    log_images(cfg, x, f"Samples from {name}", prefix="eval", step=step)
+    images = data[inds.tolist()]
+    log_images(cfg, images=images, dm=dm, name=f"Samples from {name}", prefix="eval", step=step)
 
 
 def log_metrics(
@@ -78,7 +83,7 @@ def log_metrics(
 ) -> None:
     """Compute and log a variety of metrics."""
     encoder.eval()
-    invariant_to = "both" if cfg.adapt.eval_s_from_zs is not None else "s"
+    invariant_to = "both" if cfg.alg.eval_s_from_zs is not None else "s"
 
     LOGGER.info("Encoding training set...")
     train_eval = encode_dataset(
@@ -86,10 +91,10 @@ def log_metrics(
         dm=dm,
         dl=dm.train_dataloader(eval=True),
         encoder=encoder,
-        recons=cfg.adapt.eval_on_recon,
+        recons=cfg.alg.eval_on_recon,
         invariant_to=invariant_to,
     )
-    if cfg.adapt.eval_on_recon:
+    if cfg.alg.eval_on_recon:
         # don't encode test dataset
         test_eval = dm.test
     else:
@@ -102,11 +107,11 @@ def log_metrics(
             invariant_to=invariant_to,
         )
 
-        if cfg.train.wandb is not WandbMode.disabled:
+        if cfg.logging.mode is not WandbMode.disabled:
             s_count = dm.dim_s if dm.dim_s > 1 else 2
-            if cfg.train.umap:
+            if cfg.logging.umap:
                 _log_enc_statistics(test_eval.inv_s, step=step, s_count=s_count)
-            if test_eval.inv_y is not None and cfg.adapt.zs_dim == 1:
+            if test_eval.inv_y is not None and cfg.alg.zs_dim == 1:
                 zs = test_eval.inv_y.x[:, 0].view((test_eval.inv_y.x.size(0),)).sigmoid()
                 zs_np = zs.detach().cpu().numpy()
                 fig, plot = plt.subplots(dpi=200, figsize=(6, 4))
@@ -121,14 +126,14 @@ def log_metrics(
         cfg=cfg,
         dm=dm_cp,
         step=step,
-        eval_on_recon=cfg.adapt.eval_on_recon,
+        eval_on_recon=cfg.alg.eval_on_recon,
         pred_s=False,
         save_summary=save_summary,
         cluster_metrics=cluster_metrics,
     )
 
-    if cfg.adapt.eval_s_from_zs is not None:
-        if cfg.adapt.eval_s_from_zs is EvalTrainData.train:
+    if cfg.alg.eval_s_from_zs is not None:
+        if cfg.alg.eval_s_from_zs is EvalTrainData.train:
             train_data = train_eval.inv_y  # the part that is invariant to y corresponds to zs
         else:
             context = encode_dataset(
@@ -136,7 +141,7 @@ def log_metrics(
                 dm=dm,
                 dl=dm.context_dataloader(eval=True),
                 encoder=encoder,
-                recons=cfg.adapt.eval_on_recon,
+                recons=cfg.alg.eval_on_recon,
                 invariant_to="y",
             )
             train_data = context.inv_y
@@ -146,7 +151,7 @@ def log_metrics(
             dm=dm,
             step=step,
             name="s_from_zs",
-            eval_on_recon=cfg.adapt.eval_on_recon,
+            eval_on_recon=cfg.alg.eval_on_recon,
             pred_s=True,
             save_summary=save_summary,
         )
@@ -199,7 +204,7 @@ def visualize_clusters(
 
     if legend:
 
-        def _flip(items: Sequence, ncol: int):
+        def _flip(items: Sequence[Any], ncol: int) -> Sequence[Any]:
             # return itertools.chain(*[items[i::ncol] for i in range(ncol)])
             return items
 
@@ -234,8 +239,7 @@ def fit_classifier(
     pred_s: bool,
 ) -> Classifier:
     input_dim = dm.dim_x[0]
-    optimizer_kwargs = {"lr": cfg.adapt.eval_lr}
-    clf_fn: ModelFactory
+    optimizer_kwargs = {"lr": cfg.alg.eval_lr}
 
     if train_on_recon:
         if isinstance(dm.train, CdtVisionDataset):
@@ -243,9 +247,9 @@ def fit_classifier(
                 clf_fn = Mp32x23Net(batch_norm=True)
             elif isinstance(dm.train, CelebA):
                 clf_fn = Mp64x64Net(batch_norm=True)
-            else:  # ISIC dataset
+            else:
 
-                def resnet50_ft(input_dim: int, target_dim: int) -> ResNet:
+                def resnet50_ft(input_dim: int, *, target_dim: int) -> ResNet:
                     classifier = resnet50(pretrained=True)
                     classifier.fc = nn.Linear(classifier.fc.in_features, target_dim)
                     return classifier
@@ -261,25 +265,23 @@ def fit_classifier(
             optimizer_kwargs["weight_decay"] = 1e-8
             clf_fn = _adult_fc_net
     else:
-        clf_fn = FcNet(hidden_dims=cfg.adapt.eval_hidden_dims)
+        clf_fn = FcNet(hidden_dims=cfg.alg.eval_hidden_dims)
         input_dim = prod(dm.dim_x)
     clf_base = clf_fn(input_dim, target_dim=dm.card_y)
 
-    clf: Classifier = Classifier(
-        clf_base, num_classes=dm.num_classes, optimizer_kwargs=optimizer_kwargs
-    )
+    clf = Classifier(clf_base, num_classes=dm.num_classes, optimizer_kwargs=optimizer_kwargs)
 
     train_dl = dm.train_dataloader(
-        batch_size=cfg.adapt.eval_batch_size, balance=cfg.adapt.balanced_eval
+        batch_size=cfg.alg.eval_batch_size, balance=cfg.alg.balanced_eval
     )
     test_dl = dm.test_dataloader()
 
-    clf.to(torch.device(cfg.train.device))
+    clf.to(torch.device(cfg.misc.device))
     clf.fit(
         train_data=train_dl,
         test_data=test_dl,
-        epochs=cfg.adapt.eval_epochs,
-        device=torch.device(cfg.train.device),
+        epochs=cfg.alg.eval_epochs,
+        device=torch.device(cfg.misc.device),
         pred_s=pred_s,
     )
 
@@ -298,7 +300,7 @@ def evaluate(
     cluster_metrics: Optional[Dict[str, float]] = None,
 ):
 
-    clf: Classifier = fit_classifier(
+    clf = fit_classifier(
         cfg,
         dm=dm,
         train_on_recon=eval_on_recon,
@@ -307,12 +309,12 @@ def evaluate(
 
     # TODO: the soft predictions should only be computed if they're needed
     preds, labels, sens, soft_preds = clf.predict_dataset(
-        dm.test_dataloader(), device=torch.device(cfg.train.device), with_soft=True
+        dm.test_dataloader(), device=torch.device(cfg.misc.device), with_soft=True
     )
     del train_loader  # try to prevent lock ups of the workers
     del test_loader
     # TODO: investigate why the histogram plotting fails when s_dim != 1
-    if cfg.train.wandb is not WandbMode.disabled and dm.card_s == 1:
+    if (cfg.logging.mode is not WandbMode.disabled) and (dm.card_s == 2):
         plot_histogram_by_source(soft_preds, s=sens, y=labels, step=step, name=name)
     preds = em.Prediction(hard=pd.Series(preds))
     sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=["subgroup"])
@@ -326,7 +328,7 @@ def evaluate(
         step=step,
         s_dim=dm.card_s,
         save_summary=save_summary,
-        use_wandb=cfg.train.wandb is not WandbMode.disabled,
+        use_wandb=(cfg.logging.mode is not WandbMode.disabled),
         additional_entries=cluster_metrics,
     )
 
@@ -388,7 +390,7 @@ def encode_dataset(
     all_s = []
     all_y = []
 
-    device = torch.device(cfg.train.device)
+    device = torch.device(cfg.misc.device)
 
     with torch.set_grad_enabled(False):
         for batch in tqdm(dl):
@@ -452,7 +454,7 @@ def _get_classifer_input(
 ) -> Tensor:
     if recons:
         # `zs_m` has zs zeroed out
-        if cfg.adapt.train_on_recon:
+        if cfg.alg.train_on_recon:
             zs_m, zy_m = encoder.mask(encodings, random=True)
         else:
             # if we didn't train with the random encodings, it probably doesn't make much

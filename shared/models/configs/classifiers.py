@@ -1,28 +1,15 @@
-from typing import List, Optional, Sequence, TypeVar, Union
-from typing_extensions import Protocol, runtime_checkable
+from typing import List, Optional, Sequence, Union
 
 from torch import nn
 
-from shared.layers.aggregation import Aggregator
-from shared.models.configs.classifiers import ModelFactory
+from shared.models.factory import ModelFactory
 from shared.utils import prod
 
 __all__ = [
     "FcNet",
-    "ModelAggregatorWrapper",
-    "ModelFactory",
     "Mp32x23Net",
     "Mp64x64Net",
 ]
-
-
-M_co = TypeVar("M_co", bound=nn.Module, covariant=True)
-
-
-@runtime_checkable
-class ModelFactory(Protocol[M_co]):
-    def __call__(self, input_dim: int, *, target_dim: int) -> M_co:
-        ...
 
 
 class Mp32x23Net(ModelFactory[nn.Sequential]):
@@ -132,17 +119,3 @@ class Mp64x64Net(ModelFactory[nn.Sequential]):
         layers += [nn.Linear(512, target_dim)]
 
         return nn.Sequential(*layers)
-
-
-class ModelAggregatorWrapper(ModelFactory[nn.Sequential]):
-    def __init__(self, model_fn: ModelFactory, aggregator: Aggregator, input_dim: int) -> None:
-        self.model_fn = model_fn
-        self.aggregator = aggregator
-        self.input_dim = input_dim
-
-    def __call__(self, input_dim: int, *, target_dim: int) -> nn.Sequential:
-        assert target_dim == self.aggregator.output_dim
-
-        return nn.Sequential(
-            self.model_fn(input_dim, target_dim=self.input_dim), nn.GELU(), self.aggregator
-        )

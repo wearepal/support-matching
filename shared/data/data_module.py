@@ -328,9 +328,9 @@ class DataModule(Generic[D]):
 
     @classmethod
     def from_config(cls: Type[Self], config: BaseConfig) -> Self:
-        ds_config = config.datamodule
+        ds_config = config.dm
         split_config = config.split
-        dm_config = config.datamodule
+        dm_config = config.dm
 
         root = cls.find_data_dir() if ds_config.root is None else ds_config.root
         all_data: D = instantiate(ds_config, root=root, split=None)

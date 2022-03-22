@@ -1,7 +1,7 @@
 from typing import Dict, Optional, Tuple
 
 from clustering.models import Classifier
-from shared.models.configs.classifiers import ModelFactory
+from shared.models.factory import ModelFactory
 
 __all__ = ["build_classifier"]
 

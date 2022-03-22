@@ -54,10 +54,9 @@ class AdvSemiSupervisedAlg(Algorithm):
     ) -> None:
         super().__init__(cfg=cfg)
         self.enc_cfg = cfg.enc
-        self.adapt_cfg = cfg.adapt
-        self.optimizer_kwargs = {"lr": self.adapt_cfg.adv_lr}
-        self.eff_batch_size = self.adapt_cfg.batch_size
-        self.grad_scaler = GradScaler() if self.misc_cfg.use_amp else None
+        self.alg_cfg = cfg.alg
+        self.optimizer_kwargs = {"lr": self.alg_cfg.adv_lr}
+        self.grad_scaler = GradScaler() if self.train_cfg.use_amp else None
 
     def _sample_context(self, iterator_ctx: Iterator[NamedSample[Tensor]]) -> Tensor:
         return next(iterator_ctx).to(self.device).x
@@ -82,7 +81,7 @@ class AdvSemiSupervisedAlg(Algorithm):
                 decoding_dim=input_shape[0],
                 levels=self.enc_cfg.levels,
                 decoder_out_act=None,
-                variational=self.adapt_cfg.vae,
+                variational=self.alg_cfg.vae,
             )
         else:
             encoder, decoder, latent_dim = fc_autoencoder(
@@ -90,10 +89,10 @@ class AdvSemiSupervisedAlg(Algorithm):
                 hidden_channels=self.enc_cfg.init_chans,
                 encoding_dim=self.enc_cfg.out_dim,
                 levels=self.enc_cfg.levels,
-                variational=self.adapt_cfg.vae,
+                variational=self.alg_cfg.vae,
             )
 
-        zs_dim = self.adapt_cfg.zs_dim
+        zs_dim = self.alg_cfg.zs_dim
         zy_dim = latent_dim - zs_dim
         self._encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim)
 
@@ -123,21 +122,21 @@ class AdvSemiSupervisedAlg(Algorithm):
         self, y_dim: int, *, s_dim: int
     ) -> tuple[Classifier | None, Classifier | None]:
         predictor_y = None
-        if self.adapt_cfg.pred_y_loss_w > 0:
+        if self.alg_cfg.pred_y_loss_w > 0:
             predictor_y = build_classifier(
                 input_shape=(self._encoding_size.zy,),  # this is always trained on encodings
                 target_dim=y_dim,
-                model_fn=FcNet(hidden_dims=self.adapt_cfg.pred_y_hidden_dims),
+                model_fn=FcNet(hidden_dims=self.alg_cfg.pred_y_hidden_dims),
                 optimizer_kwargs=self.optimizer_kwargs,
             )
         predictor_s = None
-        if self.adapt_cfg.pred_s_loss_w > 0:
+        if self.alg_cfg.pred_s_loss_w > 0:
             predictor_s = build_classifier(
                 input_shape=(self._encoding_size.zs,),  # this is always trained on encodings
                 target_dim=s_dim,
                 model_fn=FcNet(
                     hidden_dims=None,  # no hidden layers
-                    final_layer_bias=self.adapt_cfg.s_pred_with_bias,
+                    final_layer_bias=self.alg_cfg.s_pred_with_bias,
                 ),
                 optimizer_kwargs=self.optimizer_kwargs,
             )
@@ -150,7 +149,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         self.predictor_y, self.predictor_s = self._build_predictors(
             y_dim=dm.card_y, s_dim=dm.card_s
         )
-        self.to(self.misc_cfg.device)
+        self.to(self.train_cfg.device)
 
     def _get_recon_loss_fn(
         self, feature_group_slices: dict[str, list[slice]] | None = None
@@ -181,12 +180,13 @@ class AdvSemiSupervisedAlg(Algorithm):
         *,
         iterator_ctx: Iterator[NamedSample[Tensor]],
         itr: int,
+        dm: DataModule,
     ) -> dict[str, float]:
 
-        warmup = itr < self.adapt_cfg.warmup_steps
-        if (not warmup) and (self.adapt_cfg.adv_method is DiscriminatorMethod.nn):
+        warmup = itr < self.alg_cfg.warmup_steps
+        if (not warmup) and (self.alg_cfg.adv_method is DiscriminatorMethod.nn):
             # Train the discriminator on its own for a number of iterations
-            for _ in range(self.adapt_cfg.num_adv_updates):
+            for _ in range(self.alg_cfg.num_adv_updates):
                 self._step_adversary(iterator_tr=iterator_tr, iterator_ctx=iterator_ctx)
 
         batch_tr = self._sample_train(iterator_tr=iterator_tr)
@@ -196,14 +196,16 @@ class AdvSemiSupervisedAlg(Algorithm):
         wandb.log(logging_dict, step=itr)
 
         # Log images
-        if itr % (self.adapt_cfg.log_freq == 0) and (batch_tr.x.ndim == 4):
-            self._log_recons(x=batch_tr.x, itr=itr, prefix="train")
-            self._log_recons(x=x_ctx, itr=itr, prefix="context")
+        if ((itr % self.alg_cfg.log_freq) == 0) and (batch_tr.x.ndim == 4):
+            self._log_recons(x=batch_tr.x, dm=dm, itr=itr, prefix="train")
+            self._log_recons(x=x_ctx, dm=dm, itr=itr, prefix="context")
         return logging_dict
 
     @abstractmethod
     @torch.no_grad()
-    def _log_recons(self, x: Tensor, *, itr: int, prefix: str | None = None) -> None:
+    def _log_recons(
+        self, x: Tensor, *, dm: DataModule, itr: int, prefix: str | None = None
+    ) -> None:
         ...
 
     @abstractmethod
@@ -282,7 +284,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         # Load cluster results
         cluster_results = None
         cluster_metrics: dict[str, float] | None = None
-        if self.misc_cfg.cluster_label_file:
+        if self.train_cfg.cluster_label_file:
             cluster_results, cluster_metrics = load_results(self.cfg)
 
         # Construct the data iterators
@@ -292,17 +294,17 @@ class AdvSemiSupervisedAlg(Algorithm):
         # ==== construct networks ====
         self._build(dm)
 
-        save_dir = Path(to_absolute_path(self.misc_cfg.save_dir)) / str(time.time())
+        save_dir = Path(to_absolute_path(self.log_cfg.save_dir)) / str(time.time())
         save_dir.mkdir(parents=True, exist_ok=True)
         LOGGER.info(f"Save directory: {save_dir.resolve()}")
 
         start_itr = 1  # start at 1 so that the val_freq works correctly
         # Resume from checkpoint
-        if self.misc_cfg.resume is not None:
+        if self.train_cfg.resume is not None:
             LOGGER.info("Restoring encoder's weights from checkpoint")
-            encoder, start_itr = restore_model(self.cfg, Path(self.misc_cfg.resume), self.encoder)
+            encoder, start_itr = restore_model(self.cfg, Path(self.train_cfg.resume), self.encoder)
 
-            if self.misc_cfg.evaluate:
+            if self.train_cfg.evaluate:
                 log_metrics(
                     cfg=self.cfg,
                     encoder=encoder,
@@ -316,30 +318,31 @@ class AdvSemiSupervisedAlg(Algorithm):
         start_time = time.monotonic()
         loss_meters = defaultdict(AverageMeter)
 
-        for itr in range(start_itr, self.adapt_cfg.iters + 1):
+        for itr in range(start_itr, self.alg_cfg.iters + 1):
 
             logging_dict = self._train_step(
                 iterator_tr=train_data_itr,
                 iterator_ctx=context_data_itr,
                 itr=itr,
+                dm=dm,
             )
             for name, value in logging_dict.items():
                 loss_meters[name].update(value)
 
-            if itr % self.adapt_cfg.log_freq == 0:
+            if itr % self.alg_cfg.log_freq == 0:
                 log_string = " | ".join(
                     f"{name}: {loss.avg:.5g}" for name, loss in loss_meters.items()
                 )
                 elapsed = time.monotonic() - start_time
                 LOGGER.info(
                     f"[TRN] Iteration {itr} | Elapsed: {readable_duration(elapsed)} | "
-                    f"Iterations/s: {self.adapt_cfg.log_freq / elapsed} | {log_string}"
+                    f"Iterations/s: {self.alg_cfg.log_freq / elapsed} | {log_string}"
                 )
 
                 loss_meters.clear()
                 start_time = time.monotonic()
 
-            if self.adapt_cfg.validate and itr % self.adapt_cfg.val_freq == 0:
+            if self.alg_cfg.validate and itr % self.alg_cfg.val_freq == 0:
                 log_metrics(self.cfg, encoder=self.encoder, dm=dm, step=itr)
                 save_model(self.cfg, save_dir, model=self.encoder, itr=itr)
 

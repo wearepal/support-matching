@@ -42,7 +42,7 @@ def train(
     preds = run_kmeans_faiss(
         encoded,
         nmb_clusters=num_clusters,
-        cuda=str(cfg.train.device) != "cpu",
+        cuda=str(cfg.misc.device) != "cpu",
         n_iter=cfg.clust.epochs,
         verbose=True,
     )

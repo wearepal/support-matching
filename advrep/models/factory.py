@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from shared.models.configs.classifiers import ModelFactory
+from shared.models.factory import ModelFactory
 
 from .classifier import Classifier
 

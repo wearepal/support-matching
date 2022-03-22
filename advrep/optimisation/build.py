@@ -14,15 +14,15 @@ def build_ae(
     s_dim: int,
     feature_group_slices: dict[str, list[slice]] | None,
 ) -> AutoEncoder:
-    optimizer_args = {"lr": cfg.adapt.lr, "weight_decay": cfg.adapt.weight_decay}
+    optimizer_args = {"lr": cfg.alg.lr, "weight_decay": cfg.alg.weight_decay}
     model: AutoEncoder
-    if cfg.adapt.vae:
+    if cfg.alg.vae:
         model = VAE(
             encoder=encoder,
             decoder=decoder,
             encoding_size=encoding_size,
             s_dim=s_dim,
-            vae_std_tform=cfg.adapt.vae_std_tform,
+            vae_std_tform=cfg.alg.vae_std_tform,
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_args,
         )
@@ -32,9 +32,9 @@ def build_ae(
             decoder=decoder,
             encoding_size=encoding_size,
             s_dim=s_dim,
-            zs_transform=cfg.adapt.zs_transform,
+            zs_transform=cfg.alg.zs_transform,
             feature_group_slices=feature_group_slices,
             optimizer_kwargs=optimizer_args,
         )
-    model.to(cfg.train.device)
+    model.to(cfg.misc.device)
     return model
