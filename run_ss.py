@@ -62,7 +62,6 @@ class ASMRelay(Relay):
     @implements(Relay)
     def run(self, raw_config: dict[str, Any] | None = None) -> None:
         self.log(f"Current working directory: '{os.getcwd()}'")
-        breakpoint()
 
 
 if __name__ == "__main__":
