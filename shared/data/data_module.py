@@ -1,5 +1,6 @@
 from collections import defaultdict
 import logging
+from pathlib import Path
 import platform
 from typing import (
     Any,
@@ -12,15 +13,18 @@ from typing import (
     Optional,
     Type,
     TypeVar,
+    cast,
 )
 from typing_extensions import Self, TypeAlias
 
 import albumentations as A
 import attr
+from conduit.data.constants import IMAGENET_STATS
 from conduit.data.datasets import CdtDataset, CdtVisionDataset
 from conduit.data.datasets.utils import (
     CdtDataLoader,
     ImageTform,
+    PillowTform,
     get_group_ids,
     stratified_split,
 )
@@ -28,6 +32,7 @@ from conduit.data.structures import LoadedData, MeanStd, TernarySample
 from conduit.logging import init_logger
 from conduit.transforms import denormalize
 from hydra.utils import instantiate, to_absolute_path
+from omegaconf.dictconfig import DictConfig
 from ranzen.torch.data import (
     BaseSampler,
     BatchSamplerBase,
@@ -39,8 +44,7 @@ import torch
 from torch import Tensor
 import torchvision.transforms.transforms as T
 
-from shared.configs import BaseConfig
-from shared.configs.arguments import SplitConfig
+from shared.configs.arguments import DataModuleConf, SplitConf
 from shared.utils.loadsave import ClusterResults
 from shared.utils.utils import lcm
 
@@ -169,6 +173,20 @@ class DataModule(Generic[D]):
     def feature_group_slices(self) -> Optional[Dict[str, List[slice]]]:
         return None
 
+    @classmethod
+    def _default_train_transforms(cls) -> ImageTform:
+        transform_ls: List[PillowTform] = []
+        transform_ls.append(T.ToTensor())
+        transform_ls.append(T.Normalize(mean=IMAGENET_STATS.mean, std=IMAGENET_STATS.std))
+        return T.Compose(transform_ls)
+
+    @classmethod
+    def _default_test_transforms(cls) -> ImageTform:
+        transform_ls: List[PillowTform] = []
+        transform_ls.append(T.ToTensor())
+        transform_ls.append(T.Normalize(mean=IMAGENET_STATS.mean, std=IMAGENET_STATS.std))
+        return T.Compose(transform_ls)
+
     def _make_dataloader(
         self,
         ds: D,
@@ -279,16 +297,17 @@ class DataModule(Generic[D]):
                 group_ids=group_ids,
                 batch_size=self.batch_size_ctx,
             )
-        return self._make_dataloader(
+        dl = self._make_dataloader(
             ds=self.context, batch_size=self.batch_size_ctx, batch_sampler=batch_sampler
         )
+        return dl
 
     def test_dataloader(self) -> CdtDataLoader[TernarySample]:
         return self._make_dataloader(ds=self.test, batch_size=self.batch_size_te, shuffle=False)
 
     @classmethod
     def _generate_splits(
-        cls: Type[Self], dataset: D, split_config: SplitConfig
+        cls: Type[Self], dataset: D, split_config: SplitConf
     ) -> TrainContextTestSplit[D]:
 
         context_data, test_data, train_data = dataset.random_split(
@@ -300,7 +319,7 @@ class DataModule(Generic[D]):
             train_data,
             default_train_prop=1.0,
             train_props=split_config.subsample_train,
-            seed=split_config.data_split_seed,
+            seed=split_config.seed,
         ).train
 
         if split_config.subsample_context:
@@ -309,7 +328,7 @@ class DataModule(Generic[D]):
                 train_data,
                 default_train_prop=1.0,
                 train_props=split_config.subsample_context,
-                seed=split_config.data_split_seed,
+                seed=split_config.seed,
             ).train
 
         # Enable transductive learning (i.e. using the test data for semi-supervised learning)
@@ -318,28 +337,51 @@ class DataModule(Generic[D]):
 
         # Assign transforms if datasets are vision ones
         if isinstance(train_data, CdtVisionDataset):
-            train_data.transform = split_config.train_transforms
+            train_data.transform = (
+                cls._default_train_transforms()
+                if split_config.train_transforms is None
+                else split_config.train_transforms
+            )
         if isinstance(context_data, CdtVisionDataset):
             context_data.transform = split_config.context_transforms
+            train_data = cast(CdtVisionDataset, train_data)
+            context_data.transform = (
+                train_data.transform
+                if split_config.context_transforms is None
+                else split_config.context_transforms
+            )
         if isinstance(test_data, CdtVisionDataset):
             test_data.transform = split_config.test_transforms
+            test_data.transform = (
+                cls._default_test_transforms()
+                if split_config.test_transforms is None
+                else split_config.test_transforms
+            )
 
         return TrainContextTestSplit(train=train_data, context=context_data, test=test_data)
 
     @classmethod
-    def from_config(cls: Type[Self], config: BaseConfig) -> Self:
-        ds_config = config.dm
-        split_config = config.split
-        dm_config = config.dm
-
-        root = cls.find_data_dir() if ds_config.root is None else ds_config.root
+    def from_configs(
+        cls: Type[Self],
+        *,
+        dm_config: DataModuleConf,
+        ds_config: DictConfig,
+        split_config: SplitConf,
+    ) -> Self:
+        if ds_config.root is None:
+            root = cls.find_data_dir()
+        else:
+            root = str(Path(to_absolute_path(ds_config.root)).resolve())
         all_data: D = instantiate(ds_config, root=root, split=None)
-        # Use a fraction, governed by ``args.data_pcnt``, of the full dataset
         if split_config.data_prop is not None:
             all_data = stratified_split(all_data, default_train_prop=split_config.data_prop).train
         splits = cls._generate_splits(dataset=all_data, split_config=split_config)
-
-        return cls(train=splits.train, context=splits.context, test=splits.test, **dm_config)
+        return cls(
+            train=splits.train,
+            context=splits.context,
+            test=splits.test,
+            **dm_config,  # type: ignore
+        )
 
     def __iter__(self) -> Iterator[D]:
         yield from (self.train, self.context, self.test)
@@ -347,11 +389,11 @@ class DataModule(Generic[D]):
     def __str__(self) -> str:
         ds_name = self.train.__class__.__name__
         size_info = (
-            f"Size of training-set: {self.num_train_samples}\n"
-            f"Size of context-set: {self.num_context_samples}\n"
-            f"size of test-set: {self.num_test_samples}"
+            f"- Size of training-set: {self.num_train_samples}\n"
+            f"- Size of context-set: {self.num_context_samples}\n"
+            f"- Size of test-set: {self.num_test_samples}"
         )
-        return f"DataModule for dataset of type {ds_name}\n{size_info}"
+        return f"\nDataModule for dataset of type {ds_name}\n{size_info}"
 
     def denormalize(self, x: Tensor, *, inplace: bool = False) -> Tensor:
         if isinstance(self.train, CdtVisionDataset):

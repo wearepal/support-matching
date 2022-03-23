@@ -29,7 +29,7 @@ from advrep.optimisation import (
 from shared.configs import Config, DiscriminatorMethod, ReconstructionLoss
 from shared.data import DataModule
 from shared.models.configs import FcNet, conv_autoencoder, fc_autoencoder
-from shared.utils import AverageMeter, ClusterResults, load_results, readable_duration
+from shared.utils import AverageMeter, ClusterResults, readable_duration
 
 from .base import Algorithm
 
@@ -163,8 +163,6 @@ class AdvSemiSupervisedAlg(Algorithm):
             recon_loss_fn = nn.BCELoss(reduction="sum")
         elif self.enc_cfg.recon_loss is ReconstructionLoss.huber:
             recon_loss_fn = lambda x, y: 0.1 * F.smooth_l1_loss(x * 10, y * 10, reduction="sum")
-        elif self.enc_cfg.recon_loss is ReconstructionLoss.ce:
-            recon_loss_fn = PixelCrossEntropy(reduction="sum")
         elif self.enc_cfg.recon_loss is ReconstructionLoss.mixed:
             assert (
                 feature_group_slices is not None
@@ -274,19 +272,14 @@ class AdvSemiSupervisedAlg(Algorithm):
     ) -> tuple[Iterator[TernarySample[Tensor]], Iterator[NamedSample[Tensor]]]:
         train_dataloader = datamodule.train_dataloader()
         context_dataloader = datamodule.context_dataloader(cluster_results=cluster_results)
+        breakpoint()
 
         train_data_itr = iter(train_dataloader)
         context_data_itr = iter(context_dataloader)
 
         return train_data_itr, context_data_itr
 
-    def _fit(self, dm: DataModule) -> Self:
-        # Load cluster results
-        cluster_results = None
-        cluster_metrics: dict[str, float] | None = None
-        if self.train_cfg.cluster_label_file:
-            cluster_results, cluster_metrics = load_results(self.cfg)
-
+    def fit(self, dm: DataModule, cluster_results: ClusterResults | None = None) -> Self:
         # Construct the data iterators
         train_data_itr, context_data_itr = self._get_data_iterators(
             datamodule=dm, cluster_results=cluster_results
@@ -311,7 +304,7 @@ class AdvSemiSupervisedAlg(Algorithm):
                     dm=dm,
                     step=0,
                     save_summary=True,
-                    cluster_metrics=cluster_metrics,
+                    cluster_metrics=None,
                 )
 
         itr = start_itr

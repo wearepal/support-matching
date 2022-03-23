@@ -26,7 +26,7 @@ register_configs()
 def baseline_metrics(hydra_config: DictConfig) -> None:
     cfg = BaseConfig.from_hydra(hydra_config)
     cfg_dict = flatten_dict(as_pretty_dict(cfg))
-    data = DataModule.from_config(cfg)
+    data = DataModule.from_configs(cfg)
     train_data = data.train
     test_data = data.test
     train_data, test_data = get_data_tuples(train_data, test_data)

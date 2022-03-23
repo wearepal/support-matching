@@ -32,13 +32,13 @@ from clustering.models import (
     build_classifier,
 )
 from shared.configs import (
-    ClusterConfig,
+    ClusterConf,
     ClusteringLabel,
     ClusteringMethod,
     Config,
-    EncoderConfig,
+    EncoderConf,
     EncoderType,
-    MiscConfig,
+    MiscConf,
     PlMethod,
 )
 from shared.data.data_loading import DataModule, load_data
@@ -73,11 +73,11 @@ class Experiment(ExperimentBase):
 
     def __init__(
         self,
-        args: ClusterConfig,
+        args: ClusterConf,
         cfg: Config,
         data: DatasetConfig,
-        enc: EncoderConfig,
-        misc: MiscConfig,
+        enc: EncoderConf,
+        misc: MiscConf,
         model: BaseModel,
         s_dim: int,
         y_dim: int,

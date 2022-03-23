@@ -1,74 +1,62 @@
 """Simply call the main function."""
-from __future__ import annotations
+from dataclasses import dataclass
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Optional, Type, Union
 
-import attr
 from conduit.data.datasets.vision import Camelyon17, CelebA, ColoredMNIST
-from omegaconf.dictconfig import DictConfig
 from ranzen.decorators import implements
 from ranzen.hydra import Option, Relay
 
+from advrep.algs.supmatch import SupportMatching
 from shared.configs import Config
 from shared.configs.arguments import (
-    ASMConfig,
-    ClusterConfig,
-    DataModuleConfig,
-    EncoderConfig,
-    LoggingConfig,
-    MiscConfig,
-    SplitConfig,
+    ASMConf,
+    DataModuleConf,
+    EncoderConf,
+    LoggingConf,
+    MiscConf,
+    SplitConf,
 )
 
 
-@attr.define
-class ASMRelay(Relay):
-
-    ds: DictConfig
-    dm: DictConfig
-    split: DictConfig
-    misc: DictConfig
-    logging: DictConfig
-    clust: DictConfig
-    enc: DictConfig
-    alg: DictConfig
-    misc: DictConfig
-
+@dataclass
+class ASMRelay(Relay, Config):
     @classmethod
     @implements(Relay)
     def with_hydra(
         cls,
-        root: Path | str,
+        root: Union[Path, str],
         *,
         clear_cache: bool = False,
         instantiate_recursively: bool = False,
-        ds: list[type[Any] | Option],
+        ds: List[Union[Type[Any], Option]],
     ) -> None:
         super().with_hydra(
             root=root,
             clear_cache=clear_cache,
             instantiate_recursively=instantiate_recursively,
-            enc=[Option(EncoderConfig, "enc")],
-            alg=[Option(ASMConfig, "alg")],
-            clust=[Option(ClusterConfig, "clust")],
-            split=[Option(SplitConfig, "split")],
-            logging=[Option(LoggingConfig, "logging")],
-            dm=[Option(DataModuleConfig, "dm")],
-            misc=[Option(MiscConfig, "misc")],
+            enc=[Option(EncoderConf, "base")],
+            alg=[Option(ASMConf, "base")],
+            split=[Option(SplitConf, "base")],
+            logging=[Option(LoggingConf, "base")],
+            dm=[Option(DataModuleConf, "base")],
+            misc=[Option(MiscConf, "base")],
             ds=ds,
         )
 
     @implements(Relay)
-    def run(self, raw_config: dict[str, Any] | None = None) -> None:
+    def run(self, raw_config: Optional[Dict[str, Any]] = None) -> None:
         self.log(f"Current working directory: '{os.getcwd()}'")
+        alg = SupportMatching(cfg=self)
+        alg.run()
 
 
 if __name__ == "__main__":
-    ds_ops: list[type[Any] | Option] = [
-        Option(ColoredMNIST, name="cmnist"),  # type: ignore
-        Option(CelebA, name="celeba"),  # type: ignore
-        Option(Camelyon17, name="camelyon17"),  # type: ignore
+    ds_ops: List[Union[Type[Any], Option]] = [
+        Option(ColoredMNIST, name="cmnist"),
+        Option(CelebA, name="celeba"),
+        Option(Camelyon17, name="camelyon17"),
     ]
 
     ASMRelay.with_hydra(

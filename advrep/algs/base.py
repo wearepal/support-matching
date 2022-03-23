@@ -12,6 +12,7 @@ import yaml
 
 from shared.configs.arguments import Config
 from shared.data import DataModule
+from shared.utils.loadsave import ClusterResults
 from shared.utils.utils import as_pretty_dict, flatten_dict
 
 __all__ = ["Algorithm"]
@@ -34,7 +35,7 @@ class Algorithm(nn.Module):
         self.device = torch.device(self.train_cfg.device)
 
     @abstractmethod
-    def fit(self, dm: DataModule) -> Self:
+    def fit(self, dm: DataModule, cluster_results: ClusterResults | None = None) -> Self:
         ...
 
     def run(self) -> Self:
@@ -53,7 +54,7 @@ class Algorithm(nn.Module):
         local_dir = Path(".", "local_logging")
         local_dir.mkdir(exist_ok=True)
         run = wandb.init(
-            entity="wearepal",
+            entity="predictive-analytics-lab",
             project="support-matching",
             dir=str(local_dir),
             config=flatten_dict(as_pretty_dict(self.cfg)),
@@ -72,7 +73,11 @@ class Algorithm(nn.Module):
         )
 
         # ==== construct the data-module ====
-        dm = DataModule.from_config(self.cfg)
+        dm = DataModule.from_configs(
+            dm_config=self.cfg.dm,
+            ds_config=self.cfg.ds,
+            split_config=self.cfg.split,
+        )
         LOGGER.info(dm)
         # Fit the model to the data
         self.fit(dm=dm)

@@ -18,5 +18,7 @@ def build_classifier(
 
     num_classes = target_dim if target_dim > 1 else 2
     return Classifier(
-        model_fn(in_dim, target_dim), num_classes=num_classes, optimizer_kwargs=optimizer_kwargs
+        model_fn(in_dim, target_dim=target_dim),
+        num_classes=num_classes,
+        optimizer_kwargs=optimizer_kwargs,
     )

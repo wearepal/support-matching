@@ -5,7 +5,7 @@ from dataclasses import asdict
 from enum import Enum
 from functools import reduce
 from math import gcd
-from typing import Any, TypeVar
+from typing import Any, Iterable, TypeVar
 
 from omegaconf import OmegaConf
 from torch import Tensor
@@ -132,7 +132,7 @@ def as_pretty_dict(data_class: object) -> dict:
     return _clean_up_dict(asdict(data_class))
 
 
-def lcm(denominators: Sequence[int]) -> int:
+def lcm(denominators: Iterable[int]) -> int:
     """Least common multiplier."""
     return reduce(lambda a, b: a * b // gcd(a, b), denominators)
 

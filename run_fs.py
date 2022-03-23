@@ -87,7 +87,7 @@ def run(cfg: Config) -> None:
     run.__enter__()  # call the context manager dunders manually to avoid excessive indentation
 
     #  Load the datasets and wrap with dataloaders
-    dm = DataModule.from_config(cfg)
+    dm = DataModule.from_configs(cfg)
     input_shape = dm.dim_x
     #  Construct the network
     if isinstance(dm.train, ColoredMNIST):

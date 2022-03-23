@@ -26,7 +26,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
     @implements(AdvSemiSupervisedAlg)
     def _build_adversary(self, dm: DataModule) -> Discriminator:
         """Build the adversarial network."""
-        disc_input_shape: Sequence[int] = (
+        input_shape: Sequence[int] = (
             dm.dim_x if self.alg_cfg.train_on_recon else (self.enc_cfg.out_dim,)
         )
         if len(dm.dim_x) > 2 and self.alg_cfg.train_on_recon:
@@ -38,7 +38,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         else:
             disc_fn = FcNet(hidden_dims=self.alg_cfg.adv_hidden_dims, activation=nn.GELU())
             # FcNet first flattens the input
-            disc_input_shape = (prod(disc_input_shape),)
+            input_shape = (prod(input_shape),)
 
         if self.alg_cfg.aggregator_type is not None:
             final_proj = (
@@ -58,7 +58,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
             )
 
         return Discriminator(
-            model=disc_fn(disc_input_shape, 1),  # type: ignore
+            model=disc_fn(input_dim=input_shape[0], target_dim=1),
             double_adv_loss=self.alg_cfg.double_adv_loss,
             optimizer_kwargs=self.optimizer_kwargs,
             criterion=self.alg_cfg.adv_loss,
@@ -83,7 +83,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         """Train the discriminator while keeping the encoder fixed."""
         self._train("adversary")
         x_tr = self._sample_train(iterator_tr).x
-        x_ctx = self._sample_context(iterator_ctx=iterator_ctx)
+        x_ctx = self._sample_context(iterator_ctx)
 
         with torch.cuda.amp.autocast(enabled=self.train_cfg.use_amp):  # type: ignore
             encoding_tr = self.encoder.encode(x_tr, stochastic=True)
