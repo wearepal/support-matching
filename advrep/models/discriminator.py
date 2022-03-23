@@ -30,11 +30,11 @@ class Discriminator(ModelBase):
         if self.criterion is DiscriminatorLoss.logistic:
             loss_real = -F.softplus(real_scores)  # -log(sigmoid(real_scores_out))
             loss_fake = F.softplus(fake_scores)  # -log(1-sigmoid(fake_scores_out))
-            return (loss_real + loss_fake).mean()
+            return loss_real.mean() + loss_fake.mean()
         elif self.criterion is DiscriminatorLoss.logistic_ns:
             loss_real = F.softplus(-real_scores)  # -log(sigmoid(real_scores_out))
             loss_fake = F.softplus(fake_scores)  # -log(1-sigmoid(fake_scores_out))
-            return (loss_real + loss_fake).mean()
+            return loss_real.mean() + loss_fake.mean()
         else:  # WGAN Loss is just the difference between the mean scores for the real and fake data
             return real_scores.mean() - fake_scores.mean()
 

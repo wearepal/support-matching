@@ -20,7 +20,6 @@ from advrep.models import AutoEncoder, Classifier, EncodingSize, build_classifie
 from advrep.models.discriminator import Discriminator
 from advrep.optimisation import (
     MixedLoss,
-    PixelCrossEntropy,
     build_ae,
     log_metrics,
     restore_model,
@@ -268,21 +267,20 @@ class AdvSemiSupervisedAlg(Algorithm):
             self.adversary.train()
 
     def _get_data_iterators(
-        self, datamodule: DataModule, cluster_results: ClusterResults | None = None
+        self, dm: DataModule, *, cluster_results: ClusterResults | None = None
     ) -> tuple[Iterator[TernarySample[Tensor]], Iterator[NamedSample[Tensor]]]:
-        train_dataloader = datamodule.train_dataloader()
-        context_dataloader = datamodule.context_dataloader(cluster_results=cluster_results)
-        breakpoint()
+        dl_tr = dm.train_dataloader()
+        dl_ctx = dm.context_dataloader(cluster_results=cluster_results)
 
-        train_data_itr = iter(train_dataloader)
-        context_data_itr = iter(context_dataloader)
+        train_data_itr = iter(dl_tr)
+        context_data_itr = iter(dl_ctx)
 
         return train_data_itr, context_data_itr
 
     def fit(self, dm: DataModule, cluster_results: ClusterResults | None = None) -> Self:
         # Construct the data iterators
         train_data_itr, context_data_itr = self._get_data_iterators(
-            datamodule=dm, cluster_results=cluster_results
+            dm=dm, cluster_results=cluster_results
         )
         # ==== construct networks ====
         self._build(dm)
@@ -347,6 +345,6 @@ class AdvSemiSupervisedAlg(Algorithm):
             dm=dm,
             save_summary=True,
             step=itr,
-            cluster_metrics=cluster_metrics,
+            cluster_metrics=None,
         )
         return self

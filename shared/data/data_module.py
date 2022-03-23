@@ -105,8 +105,8 @@ class DataModule(Generic[D]):
 
     # DataLoader settings
     batch_size_tr: int
-    batch_size_ctx: int = attr.field()
-    batch_size_te: int = attr.field()
+    _batch_size_ctx: Optional[int] = None
+    _batch_size_te: Optional[int] = None
     num_samples_per_group_per_bag: int = 1
 
     num_workers: int = 4
@@ -115,13 +115,21 @@ class DataModule(Generic[D]):
 
     balanced_context: bool = False
 
-    @batch_size_ctx.default  # type: ignore
-    def _batch_size_ctx_default(self) -> int:
-        return self.batch_size_tr
+    @property
+    def batch_size_ctx(self) -> int:
+        return self.batch_size_tr if self._batch_size_ctx is None else self._batch_size_ctx
 
-    @batch_size_te.default  # type: ignore
-    def _batch_size_te_default(self) -> int:
-        return self.batch_size_tr
+    @batch_size_ctx.setter
+    def batch_size_ctx(self, value: Optional[int]) -> None:
+        self._batch_size_ctx = value
+
+    @property
+    def batch_size_te(self) -> int:
+        return self.batch_size_tr if self.batch_size_te is None else self.batch_size_te
+
+    @batch_size_te.setter
+    def batch_size_te(self, value: Optional[int]) -> None:
+        self._batch_size_te = value
 
     @classmethod
     def find_data_dir(cls: Type[Self]) -> str:
@@ -297,10 +305,9 @@ class DataModule(Generic[D]):
                 group_ids=group_ids,
                 batch_size=self.batch_size_ctx,
             )
-        dl = self._make_dataloader(
-            ds=self.context, batch_size=self.batch_size_ctx, batch_sampler=batch_sampler
+        return self._make_dataloader(
+            ds=self.context, batch_size=1, batch_sampler=batch_sampler
         )
-        return dl
 
     def test_dataloader(self) -> CdtDataLoader[TernarySample]:
         return self._make_dataloader(ds=self.test, batch_size=self.batch_size_te, shuffle=False)

@@ -110,10 +110,9 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
     @implements(AdvSemiSupervisedAlg)
     def _step_encoder(
-        self, x_ctx: Tensor, *, batch_tr: TernarySample, warmup: bool
+        self, x_ctx: Tensor, *, batch_tr: TernarySample[Tensor], warmup: bool
     ) -> tuple[Tensor, dict[str, float]]:
         """Compute the losses for the encoder and update its parameters."""
-        assert isinstance(batch_tr.x, Tensor)
         # Compute losses for the encoder.
         self._train("encoder")
         logging_dict = {}

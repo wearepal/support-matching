@@ -115,7 +115,7 @@ class AutoEncoder(nn.Module):
             just_s=self.decode(just_s, mode=mode),
         )
 
-    def forward(self, inputs: Tensor) -> SplitEncoding:
+    def forward(self, inputs: Tensor) -> SplitEncoding: # type: ignore
         return self.encode(inputs)
 
     def zero_grad(self, set_to_none: bool = False) -> None:
@@ -206,7 +206,7 @@ class AutoEncoder(nn.Module):
 
         recon_all = self.decode(encoding, s=s)
         recon_loss = recon_loss_fn(recon_all, x)
-        recon_loss /= x.nelement()
+        recon_loss /= x.numel()
         prior_loss = prior_loss_w * encoding.zy.norm(dim=1).mean()
         loss = recon_loss + prior_loss
         return encoding, loss, {"Loss reconstruction": recon_loss.item(), "Prior Loss": prior_loss}
