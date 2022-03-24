@@ -305,9 +305,7 @@ class DataModule(Generic[D]):
                 group_ids=group_ids,
                 batch_size=self.batch_size_ctx,
             )
-        return self._make_dataloader(
-            ds=self.context, batch_size=1, batch_sampler=batch_sampler
-        )
+        return self._make_dataloader(ds=self.context, batch_size=1, batch_sampler=batch_sampler)
 
     def test_dataloader(self) -> CdtDataLoader[TernarySample]:
         return self._make_dataloader(ds=self.test, batch_size=self.batch_size_te, shuffle=False)

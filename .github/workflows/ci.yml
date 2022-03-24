@@ -1,3 +1,4 @@
+---
 name: CI
 
 on:
@@ -71,13 +72,13 @@ jobs:
       with:
         path: .venv
         key: venv2-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
-    #----------------------------------------------
-    # install dependencies if cache does not exist
-    #----------------------------------------------
-    - name: Install dependencies
-      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-      run: poetry install --no-interaction --no-root
+    # #----------------------------------------------
+    # # install dependencies if cache does not exist
+    # #----------------------------------------------
+    # - name: Install dependencies
+    #   if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+    #   run: poetry install --no-interaction --no-root
 
-    - name: Run tests
-      run: |
-        poetry run python -m pytest -vv tests/
+    # - name: Run tests
+    #   run: |
+    #     poetry run python -m pytest -vv tests/

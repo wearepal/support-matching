@@ -76,5 +76,5 @@ class ModelBase(nn.Module):
         self.optimizer.step()
 
     @implements(nn.Module)
-    def forward(self, inputs: Tensor) -> Any: # type: ignore
+    def forward(self, inputs: Tensor) -> Any:  # type: ignore
         return self.model(inputs)

@@ -115,7 +115,7 @@ class AutoEncoder(nn.Module):
             just_s=self.decode(just_s, mode=mode),
         )
 
-    def forward(self, inputs: Tensor) -> SplitEncoding: # type: ignore
+    def forward(self, inputs: Tensor) -> SplitEncoding:  # type: ignore
         return self.encode(inputs)
 
     def zero_grad(self, set_to_none: bool = False) -> None:

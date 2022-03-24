@@ -99,11 +99,7 @@ class BaseSubmititLauncher(Launcher):
         specific_init_keys = {"max_num_timeout"}
 
         init_params.update(
-            **{
-                f"{self._EXECUTOR}_{x}": y
-                for x, y in params.items()
-                if x in specific_init_keys
-            }
+            **{f"{self._EXECUTOR}_{x}": y for x, y in params.items() if x in specific_init_keys}
         )
         init_keys = specific_init_keys | {"submitit_folder"}
         executor = submitit.AutoExecutor(cluster=self._EXECUTOR, **init_params)
@@ -118,8 +114,7 @@ class BaseSubmititLauncher(Launcher):
         executor.update_parameters(**params)
 
         log.info(
-            f"Submitit '{self._EXECUTOR}' sweep output dir : "
-            f"{self.config.hydra.sweep.dir}"
+            f"Submitit '{self._EXECUTOR}' sweep output dir : " f"{self.config.hydra.sweep.dir}"
         )
         sweep_dir = Path(str(self.config.hydra.sweep.dir))
         sweep_dir.mkdir(parents=True, exist_ok=True)
