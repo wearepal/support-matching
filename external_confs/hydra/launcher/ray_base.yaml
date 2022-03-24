@@ -1,0 +1,9 @@
+defaults:
+  - ray
+
+ray:
+  init:
+    num_cpus: null
+    num_gpus: null
+    address: auto
+    log_to_driver: false

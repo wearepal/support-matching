@@ -1,0 +1,15 @@
+# @package _global_
+
+# usage: +experiment=cmnist_subgroup_bias
+
+defaults:
+    - override /data: cmnist/2dig
+    - override /bias: cmnist/2dig/mildly_subs_miss_s
+    - override /enc: mnist
+    - override /adapt: cmnist/simplified
+    - override /clust: vague_spaceship_improved
+
+data:
+    context_pcnt: 0.5
+adapt:
+    iters: 12000

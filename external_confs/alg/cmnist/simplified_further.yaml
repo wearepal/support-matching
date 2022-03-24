@@ -1,0 +1,35 @@
+aggregator_type: gated
+batch_size: 64
+bag_size: 4
+
+double_adv_loss: true
+aggregator_hidden_dims:
+    - 100
+adv_hidden_dims:
+    - 100
+adv_lr: 0.0003
+adv_loss_w: 1.0
+num_adv_updates: 1
+enc_loss_w: 1.0
+encode_batch_size: 1000
+eval_epochs: 60
+eval_lr: 0.001
+eval_on_recon: false
+feat_attr: false
+gamma: 1.0
+iters: 5000
+prior_loss_w: 0.01
+log_freq: 150
+lr: 0.0003
+oversample: true
+pred_s_loss_w: 1.0
+pred_y_loss_w: 1.0
+recon_detach: true
+validate: true
+val_freq: 450
+train_on_recon: false
+vae: false
+vgg_weight: 0
+warmup_steps: 0
+weight_decay: 0
+zs_dim: 1
