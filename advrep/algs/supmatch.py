@@ -78,31 +78,31 @@ class SupportMatching(AdvSemiSupervisedAlg):
         self,
         iterator_tr: Iterator[TernarySample[Tensor]],
         *,
-        iterator_ctx: Iterator[NamedSample[Tensor]],
+        iterator_dep: Iterator[NamedSample[Tensor]],
     ) -> tuple[Tensor, dict[str, float]]:
         """Train the discriminator while keeping the encoder fixed."""
         self._train("adversary")
-        x_tr = self._sample_train(iterator_tr).x
-        x_ctx = self._sample_context(iterator_ctx)
+        x_tr = self._sample_tr(iterator_tr).x
+        x_dep = self._sample_dep(iterator_dep)
 
         with torch.cuda.amp.autocast(enabled=self.train_cfg.use_amp):  # type: ignore
             encoding_tr = self.encoder.encode(x_tr, stochastic=True)
             if not self.alg_cfg.train_on_recon:
-                encoding_ctx = self.encoder.encode(x_ctx, stochastic=True)
+                encoding_dep = self.encoder.encode(x_dep, stochastic=True)
 
             if self.alg_cfg.train_on_recon:
-                adv_input_ctx = x_ctx
+                adv_input_dep = x_dep
 
-            adv_loss = x_ctx.new_zeros(())
+            adv_loss = x_dep.new_zeros(())
             logging_dict = {}
             adv_input_tr = self._get_adv_input(encoding_tr)
             adv_input_tr = adv_input_tr.detach()
 
             if not self.alg_cfg.train_on_recon:
                 with torch.no_grad():
-                    adv_input_ctx = self._get_adv_input(encoding_ctx)  # type: ignore
+                    adv_input_dep = self._get_adv_input(encoding_dep)  # type: ignore
 
-            adv_loss = self.adversary.discriminator_loss(fake=adv_input_tr, real=adv_input_ctx)  # type: ignore
+            adv_loss = self.adversary.discriminator_loss(fake=adv_input_tr, real=adv_input_dep)  # type: ignore
 
         self._update_adversary(adv_loss)
 
@@ -110,7 +110,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
     @implements(AdvSemiSupervisedAlg)
     def _step_encoder(
-        self, x_ctx: Tensor, *, batch_tr: TernarySample[Tensor], warmup: bool
+        self, x_dep: Tensor, *, batch_tr: TernarySample[Tensor], warmup: bool
     ) -> tuple[Tensor, dict[str, float]]:
         """Compute the losses for the encoder and update its parameters."""
         # Compute losses for the encoder.
@@ -126,24 +126,24 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 s=batch_tr.s if self.alg_cfg.s_as_zs else None,  # using s for the reconstruction
             )
 
-            # ============================= recon loss for context set ============================
-            encoding_c, enc_loss_ctx, logging_dict_ctx = self.encoder.routine(
-                x_ctx,
+            # ============================ recon loss for deployment set ===========================
+            encoding_c, enc_loss_dep, logging_dict_dep = self.encoder.routine(
+                x_dep,
                 recon_loss_fn=self.recon_loss_fn,
                 prior_loss_w=self.alg_cfg.prior_loss_w,
             )
-            logging_dict.update({k: v + logging_dict_ctx[k] for k, v in logging_dict_tr.items()})
-            enc_loss_tr = 0.5 * (enc_loss_tr + enc_loss_ctx)  # take average of the two recon losses
+            logging_dict.update({k: v + logging_dict_dep[k] for k, v in logging_dict_tr.items()})
+            enc_loss_tr = 0.5 * (enc_loss_tr + enc_loss_dep)  # take average of the two recon losses
             enc_loss_tr *= self.alg_cfg.enc_loss_w
             logging_dict["Loss Generator"] = enc_loss_tr
             total_loss = enc_loss_tr
             # ================================= adversarial losses ================================
             if not warmup:
                 disc_input_tr = self._get_adv_input(encoding_t)
-                disc_input_ctx = self._get_adv_input(encoding_c)
+                disc_input_dep = self._get_adv_input(encoding_c)
 
                 if self.alg_cfg.adv_method is DiscriminatorMethod.nn:
-                    disc_loss = self.adversary.encoder_loss(fake=disc_input_tr, real=disc_input_ctx)
+                    disc_loss = self.adversary.encoder_loss(fake=disc_input_tr, real=disc_input_dep)
 
                 else:
                     x = disc_input_tr

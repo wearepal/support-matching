@@ -65,31 +65,31 @@ D = TypeVar("D", bound=Dataset)
 @attr.define(kw_only=True)
 class TrainContextTestSplit(Generic[D]):
     train: D
-    context: D
+    deployment: D
     test: D
 
     def __iter__(self) -> Iterator[D]:
-        yield from (self.train, self.context, self.test)
+        yield from (self.train, self.deployment, self.test)
 
     def num_samples(self) -> int:
-        return len(self.train) + len(self.context) + len(self.test)
+        return len(self.train) + len(self.deployment) + len(self.test)
 
     @property
-    def num_train_samples(self) -> int:
+    def num_samples_tr(self) -> int:
         return len(self.train)
 
     @property
-    def num_context_samples(self) -> int:
-        return len(self.context)
+    def num_samples_dep(self) -> int:
+        return len(self.deployment)
 
     @property
-    def num_test_samples(self) -> int:
+    def num_samples_te(self) -> int:
         return len(self.test)
 
 
 @attr.define(kw_only=True)
 class DataModule(Generic[D]):
-    LOGGER: ClassVar[logging.Logger] = init_logger("MissingSourceDataModule")
+    LOGGER: ClassVar[logging.Logger] = init_logger("DataModule")
 
     DATA_DIRS: ClassVar[Dict[str, str]] = {
         "turing": "/srv/galene0/shared/data",
@@ -99,12 +99,12 @@ class DataModule(Generic[D]):
     }
 
     train: D
-    context: D
+    deployment: D
     test: D
 
     # DataLoader settings
     batch_size_tr: int
-    _batch_size_ctx: Optional[int] = None
+    _batch_size_dep: Optional[int] = None
     _batch_size_te: Optional[int] = None
     num_samples_per_group_per_bag: int = 1
 
@@ -113,7 +113,7 @@ class DataModule(Generic[D]):
     pin_memory: bool = True
     seed: int = 47
 
-    gt_context: bool = False
+    gt_deployment: bool = False
     label_noise: float = attr.field(default=0)
     generator: torch.Generator = attr.field(init=False)
 
@@ -126,12 +126,12 @@ class DataModule(Generic[D]):
         self.generator = torch.Generator().manual_seed(self.seed)
 
     @property
-    def batch_size_ctx(self) -> int:
-        return self.batch_size_tr if self._batch_size_ctx is None else self._batch_size_ctx
+    def batch_size_dep(self) -> int:
+        return self.batch_size_tr if self._batch_size_dep is None else self._batch_size_dep
 
-    @batch_size_ctx.setter
-    def batch_size_ctx(self, value: Optional[int]) -> None:
-        self._batch_size_ctx = value
+    @batch_size_dep.setter
+    def batch_size_dep(self, value: Optional[int]) -> None:
+        self._batch_size_dep = value
 
     @property
     def batch_size_te(self) -> int:
@@ -152,8 +152,8 @@ class DataModule(Generic[D]):
         return len(self.train)
 
     @property
-    def num_context_samples(self) -> int:
-        return len(self.context)
+    def num_dep_samples(self) -> int:
+        return len(self.deployment)
 
     @property
     def num_test_samples(self) -> int:
@@ -308,7 +308,7 @@ class DataModule(Generic[D]):
         unique_inv[to_flip] %= len(unique)
         return unique[unique_inv]
 
-    def context_dataloader(
+    def deployment_dataloader(
         self,
         cluster_results: Optional[ClusterResults] = None,
         *,
@@ -316,13 +316,13 @@ class DataModule(Generic[D]):
     ) -> CdtDataLoader[TernarySample]:
         if eval:
             return self._make_dataloader(
-                ds=self.context, batch_size=self.batch_size_te, shuffle=False
+                ds=self.deployment, batch_size=self.batch_size_te, shuffle=False
             )
 
         group_ids = None
         # Use the ground-truth y/s labels for stratified sampling
-        if self.gt_context:
-            group_ids = get_group_ids(self.context)
+        if self.gt_deployment:
+            group_ids = get_group_ids(self.deployment)
             # Inject label-noise into the group identifiers.
             if self.label_noise > 0:
                 group_ids = self._inject_label_noise(
@@ -334,8 +334,8 @@ class DataModule(Generic[D]):
 
         if group_ids is None:
             batch_sampler = SequentialBatchSampler(
-                data_source=self.context,
-                batch_size=self.batch_size_ctx,
+                data_source=self.deployment,
+                batch_size=self.batch_size_dep,
                 shuffle=True,
                 training_mode=TrainingMode.step,
                 drop_last=False,
@@ -344,9 +344,9 @@ class DataModule(Generic[D]):
         else:
             batch_sampler = self._make_stratified_sampler(
                 group_ids=group_ids,
-                batch_size=self.batch_size_ctx,
+                batch_size=self.batch_size_dep,
             )
-        return self._make_dataloader(ds=self.context, batch_size=1, batch_sampler=batch_sampler)
+        return self._make_dataloader(ds=self.deployment, batch_size=1, batch_sampler=batch_sampler)
 
     def test_dataloader(self) -> CdtDataLoader[TernarySample]:
         return self._make_dataloader(ds=self.test, batch_size=self.batch_size_te, shuffle=False)
@@ -357,7 +357,7 @@ class DataModule(Generic[D]):
     ) -> TrainContextTestSplit[D]:
 
         context_data, test_data, train_data = dataset.random_split(
-            props=[split_config.context_prop, split_config.test_prop],
+            props=[split_config.dep_prop, split_config.test_prop],
             seed=split_config.seed,
         )
 
@@ -365,16 +365,16 @@ class DataModule(Generic[D]):
         train_data = stratified_split(
             train_data,
             default_train_prop=1.0,
-            train_props=split_config.subsample_train,
+            train_props=split_config.train_subsampling_props,
             seed=split_config.seed,
         ).train
 
-        if split_config.subsample_context:
+        if split_config.dep_subsampling_props:
             cls.LOGGER.info("Subsampling context set...")
             context_data = stratified_split(
                 train_data,
                 default_train_prop=1.0,
-                train_props=split_config.subsample_context,
+                train_props=split_config.dep_subsampling_props,
                 seed=split_config.seed,
             ).train
 
@@ -390,12 +390,12 @@ class DataModule(Generic[D]):
                 else split_config.train_transforms
             )
         if isinstance(context_data, CdtVisionDataset):
-            context_data.transform = split_config.context_transforms
+            context_data.transform = split_config.dep_transforms
             train_data = cast(CdtVisionDataset, train_data)
             context_data.transform = (
                 train_data.transform
-                if split_config.context_transforms is None
-                else split_config.context_transforms
+                if split_config.dep_transforms is None
+                else split_config.dep_transforms
             )
         if isinstance(test_data, CdtVisionDataset):
             test_data.transform = split_config.test_transforms
@@ -405,7 +405,7 @@ class DataModule(Generic[D]):
                 else split_config.test_transforms
             )
 
-        return TrainContextTestSplit(train=train_data, context=context_data, test=test_data)
+        return TrainContextTestSplit(train=train_data, deployment=context_data, test=test_data)
 
     @classmethod
     def from_configs(
@@ -427,19 +427,19 @@ class DataModule(Generic[D]):
         splits = cls._generate_splits(dataset=all_data, split_config=split_config)
         return cls(
             train=splits.train,
-            context=splits.context,
+            deployment=splits.deployment,
             test=splits.test,
             **dm_config,  # type: ignore
         )
 
     def __iter__(self) -> Iterator[D]:
-        yield from (self.train, self.context, self.test)
+        yield from (self.train, self.deployment, self.test)
 
     def __str__(self) -> str:
         ds_name = self.train.__class__.__name__
         size_info = (
             f"- Size of training-set: {self.num_train_samples}\n"
-            f"- Size of context-set: {self.num_context_samples}\n"
+            f"- Size of context-set: {self.num_dep_samples}\n"
             f"- Size of test-set: {self.num_test_samples}"
         )
         return f"\nDataModule for dataset of type {ds_name}\n{size_info}"

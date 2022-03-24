@@ -6,13 +6,11 @@ defaults:
 log_dataset: ''
 seed: 42
 transductive: false
-context_prop: 0.4
+dep_prop: 0.4
 test_prop: 0.2
 data_prop: null
-missing_s: null
-mixing_factor: 0
-subsample_context: null
-subsample_train: {1: {0: 0, 2: 0}}
+dep_subsampling_props: null
+train_subsampling_props: {1: {0: 0, 2: 0}}
 train_transforms:
     _target_: torchvision.transforms.Compose
     transforms:
@@ -27,4 +25,4 @@ train_transforms:
           std: [ 0.229, 0.224, 0.225 ]
 
 test_transforms: null
-context_transforms: null
+dep_transforms: null

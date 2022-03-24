@@ -6,13 +6,11 @@ defaults:
 log_dataset: ''
 seed: 42
 transductive: false
-context_prop: 0.4
+dep_prop: 0.4
 test_prop: 0.2
 data_prop: null
-missing_s: null
-mixing_factor: 0
-subsample_context: null
-subsample_train: null
+dep_subsampling_props: null
+train_subsampling_props: null
 train_transforms: null
 test_transforms: null
-context_transforms: null
+dep_transforms: null

@@ -57,10 +57,10 @@ class AdvSemiSupervisedAlg(Algorithm):
         self.optimizer_kwargs = {"lr": self.alg_cfg.adv_lr}
         self.grad_scaler = GradScaler() if self.train_cfg.use_amp else None
 
-    def _sample_context(self, iterator_ctx: Iterator[NamedSample[Tensor]]) -> Tensor:
-        return next(iterator_ctx).to(self.device).x
+    def _sample_dep(self, iterator_dep: Iterator[NamedSample[Tensor]]) -> Tensor:
+        return next(iterator_dep).to(self.device).x
 
-    def _sample_train(
+    def _sample_tr(
         self,
         iterator_tr: Iterator[TernarySample[Tensor]],
     ) -> TernarySample[Tensor]:
@@ -175,7 +175,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         self,
         iterator_tr: Iterator[TernarySample[Tensor]],
         *,
-        iterator_ctx: Iterator[NamedSample[Tensor]],
+        iterator_dep: Iterator[NamedSample[Tensor]],
         itr: int,
         dm: DataModule,
     ) -> dict[str, float]:
@@ -184,18 +184,18 @@ class AdvSemiSupervisedAlg(Algorithm):
         if (not warmup) and (self.alg_cfg.adv_method is DiscriminatorMethod.nn):
             # Train the discriminator on its own for a number of iterations
             for _ in range(self.alg_cfg.num_adv_updates):
-                self._step_adversary(iterator_tr=iterator_tr, iterator_ctx=iterator_ctx)
+                self._step_adversary(iterator_tr=iterator_tr, iterator_dep=iterator_dep)
 
-        batch_tr = self._sample_train(iterator_tr=iterator_tr)
-        x_ctx = self._sample_context(iterator_ctx=iterator_ctx)
-        _, logging_dict = self._step_encoder(x_ctx=x_ctx, batch_tr=batch_tr, warmup=warmup)
+        batch_tr = self._sample_tr(iterator_tr=iterator_tr)
+        x_dep = self._sample_dep(iterator_dep=iterator_dep)
+        _, logging_dict = self._step_encoder(x_dep=x_dep, batch_tr=batch_tr, warmup=warmup)
 
         wandb.log(logging_dict, step=itr)
 
         # Log images
         if ((itr % self.alg_cfg.log_freq) == 0) and (batch_tr.x.ndim == 4):
             self._log_recons(x=batch_tr.x, dm=dm, itr=itr, prefix="train")
-            self._log_recons(x=x_ctx, dm=dm, itr=itr, prefix="context")
+            self._log_recons(x=x_dep, dm=dm, itr=itr, prefix="deployment")
         return logging_dict
 
     @abstractmethod
@@ -210,13 +210,13 @@ class AdvSemiSupervisedAlg(Algorithm):
         self,
         iterator_tr: Iterator[TernarySample[Tensor]],
         *,
-        iterator_ctx: Iterator[NamedSample[Tensor]],
+        iterator_dep: Iterator[NamedSample[Tensor]],
     ) -> tuple[Tensor, dict[str, float]]:
         ...
 
     @abstractmethod
     def _step_encoder(
-        self, x_ctx: Tensor, *, batch_tr: TernarySample, warmup: bool
+        self, x_dep: Tensor, *, batch_tr: TernarySample, warmup: bool
     ) -> tuple[Tensor, dict[str, float]]:
         ...
 
@@ -270,18 +270,13 @@ class AdvSemiSupervisedAlg(Algorithm):
         self, dm: DataModule, *, cluster_results: ClusterResults | None = None
     ) -> tuple[Iterator[TernarySample[Tensor]], Iterator[NamedSample[Tensor]]]:
         dl_tr = dm.train_dataloader()
-        dl_ctx = dm.context_dataloader(cluster_results=cluster_results)
+        dl_dep = dm.deployment_dataloader(cluster_results=cluster_results)
 
-        train_data_itr = iter(dl_tr)
-        context_data_itr = iter(dl_ctx)
-
-        return train_data_itr, context_data_itr
+        return iter(dl_tr), iter(dl_dep)
 
     def fit(self, dm: DataModule, cluster_results: ClusterResults | None = None) -> Self:
         # Construct the data iterators
-        train_data_itr, context_data_itr = self._get_data_iterators(
-            dm=dm, cluster_results=cluster_results
-        )
+        iterator_tr, iterator_dep = self._get_data_iterators(dm=dm, cluster_results=cluster_results)
         # ==== construct networks ====
         self._build(dm)
 
@@ -310,10 +305,9 @@ class AdvSemiSupervisedAlg(Algorithm):
         loss_meters = defaultdict(AverageMeter)
 
         for itr in range(start_itr, self.alg_cfg.iters + 1):
-
             logging_dict = self._train_step(
-                iterator_tr=train_data_itr,
-                iterator_ctx=context_data_itr,
+                iterator_tr=iterator_tr,
+                iterator_dep=iterator_dep,
                 itr=itr,
                 dm=dm,
             )

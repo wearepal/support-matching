@@ -107,9 +107,9 @@ def log_metrics(
             invariant_to=invariant_to,
         )
 
-        if cfg.logging.mode is not WandbMode.disabled:
+        if cfg.log.mode is not WandbMode.disabled:
             s_count = dm.dim_s if dm.dim_s > 1 else 2
-            if cfg.logging.umap:
+            if cfg.log.umap:
                 _log_enc_statistics(test_eval.inv_s, step=step, s_count=s_count)
             if test_eval.inv_y is not None and cfg.alg.zs_dim == 1:
                 zs = test_eval.inv_y.x[:, 0].view((test_eval.inv_y.x.size(0),)).sigmoid()
@@ -136,15 +136,15 @@ def log_metrics(
         if cfg.alg.eval_s_from_zs is EvalTrainData.train:
             train_data = train_eval.inv_y  # the part that is invariant to y corresponds to zs
         else:
-            context = encode_dataset(
+            encoded_dep = encode_dataset(
                 cfg,
                 dm=dm,
-                dl=dm.context_dataloader(eval=True),
+                dl=dm.deployment_dataloader(eval=True),
                 encoder=encoder,
                 recons=cfg.alg.eval_on_recon,
                 invariant_to="y",
             )
-            train_data = context.inv_y
+            train_data = encoded_dep.inv_y
         dm_cp = gcopy(dm, deep=False, train=train_data, test=test_eval.inv_y)
         evaluate(
             cfg=cfg,
@@ -314,7 +314,7 @@ def evaluate(
     del train_loader  # try to prevent lock ups of the workers
     del test_loader
     # TODO: investigate why the histogram plotting fails when s_dim != 1
-    if (cfg.logging.mode is not WandbMode.disabled) and (dm.card_s == 2):
+    if (cfg.log.mode is not WandbMode.disabled) and (dm.card_s == 2):
         plot_histogram_by_source(soft_preds, s=sens, y=labels, step=step, name=name)
     preds = em.Prediction(hard=pd.Series(preds))
     sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=["subgroup"])
@@ -328,7 +328,7 @@ def evaluate(
         step=step,
         s_dim=dm.card_s,
         save_summary=save_summary,
-        use_wandb=(cfg.logging.mode is not WandbMode.disabled),
+        use_wandb=(cfg.log.mode is not WandbMode.disabled),
         additional_entries=cluster_metrics,
     )
 

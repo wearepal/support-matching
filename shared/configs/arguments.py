@@ -52,34 +52,32 @@ class SplitConf:
     log_dataset: str = ""
     seed: int = 42
     transductive: bool = False  # whether to include the test data in the pool of unlabelled data
-    context_prop: float = 0.4
+    dep_prop: float = 0.4
     test_prop: float = 0.2
     data_prop: Optional[float] = None
 
     # Dataset manipulation
-    missing_s: Optional[List[int]] = None
-    mixing_factor: float = 0  # How much of context should be mixed into training?
-    subsample_context: Optional[Dict[int, Any]] = None
-    subsample_train: Optional[Dict[int, Any]] = None
+    dep_subsampling_props: Optional[Dict[int, Any]] = None
+    train_subsampling_props: Optional[Dict[int, Any]] = None
 
     # transforms for image datasets
     train_transforms: Any = None
     test_transforms: Any = None
-    context_transforms: Any = None
+    dep_transforms: Any = None
 
 
 @dataclass
 class DataModuleConf:
     # DataLoader settings
     batch_size_tr: int = 1
-    batch_size_ctx: Optional[int] = None
+    batch_size_dep: Optional[int] = None
     batch_size_te: Optional[int] = None
     num_samples_per_group_per_bag: int = 1
 
     num_workers: int = 0
     persist_workers: bool = False
     pin_memory: bool = True
-    gt_context: bool = False
+    gt_deployment: bool = False
     label_noise: float = 0.0
 
 
@@ -243,7 +241,7 @@ class ASMConf(AlgConf):
 
     # Discriminator settings
     adv_loss: DiscriminatorLoss = DiscriminatorLoss.logistic_ns
-    # Whether to use the context set when computing the encoder's adversarial loss
+    # Whether to use the deployment set when computing the encoder's adversarial loss
     double_adv_loss: bool = True
     adv_method: DiscriminatorMethod = DiscriminatorMethod.nn
     mmd_kernel: MMDKernel = MMDKernel.rq

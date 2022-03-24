@@ -4,7 +4,7 @@ defaults:
   - defaults
   - _self_
 batch_size_tr: 1
-batch_size_ctx: null
+batch_size_dep: null
 batch_size_te: null
 num_samples_per_group_per_bag: 1
 num_workers: 0

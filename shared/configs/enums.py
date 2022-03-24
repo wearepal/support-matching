@@ -6,7 +6,7 @@ __all__ = [
     "CelebaAttributes",
     "ClusteringLabel",
     "ClusteringMethod",
-    "ContextMode",
+    "DeploymentMode",
     "DiscriminatorLoss",
     "DiscriminatorMethod",
     "EncoderType",
@@ -189,7 +189,7 @@ class EvalTrainData(Enum):
     """Dataset to use for training during evaluation."""
 
     train = auto()
-    context = auto()
+    deployment = auto()
 
 
 class AdaptationMethod(Enum):
@@ -207,7 +207,7 @@ class FsMethod(Enum):
     domind = auto()
 
 
-class ContextMode(Enum):
+class DeploymentMode(Enum):
     ground_truth = auto()
     cluster_labels = auto()
     unlabelled = auto()
