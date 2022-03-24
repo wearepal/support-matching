@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "suds"
+name = "support-matching"
 version = "0.2.0"
-description = "Fair distribution matching"
+description = "Addressing Missing Sources with Adversarial Support-Matching"
 authors = ["PAL <info@wearepal.com>"]
 packages = [
   { include = "clustering" },
