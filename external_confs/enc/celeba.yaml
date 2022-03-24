@@ -1,4 +1,0 @@
-out_dim: 128
-levels: 5
-init_chans: 32
-recon_loss: l2

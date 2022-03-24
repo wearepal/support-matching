@@ -1,0 +1,12 @@
+---
+defaults:
+  - base
+  - _self_
+batch_size_tr: 16
+batch_size_ctx: null
+batch_size_te: 256
+num_samples_per_group_per_bag: 2
+num_workers: 4
+persist_workers: false
+pin_memory: true
+balanced_context: false

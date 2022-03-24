@@ -316,7 +316,8 @@ class DataModule(Generic[D]):
     ) -> TrainContextTestSplit[D]:
 
         context_data, test_data, train_data = dataset.random_split(
-            props=[split_config.context_prop, split_config.test_prop]
+            props=[split_config.context_prop, split_config.test_prop],
+            seed=split_config.seed,
         )
 
         cls.LOGGER.info("Subsampling training set...")
@@ -373,6 +374,8 @@ class DataModule(Generic[D]):
         ds_config: DictConfig,
         split_config: SplitConf,
     ) -> Self:
+        split_config = instantiate(split_config)
+
         if ds_config.root is None:
             root = cls.find_data_dir()
         else:

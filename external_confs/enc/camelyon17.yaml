@@ -1,0 +1,10 @@
+
+---
+defaults:
+  - base
+  - _self_
+out_dim: 100
+levels: 5
+init_chans: 64
+recon_loss: l2
+checkpoint_path: ''

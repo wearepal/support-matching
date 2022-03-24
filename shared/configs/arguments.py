@@ -15,7 +15,6 @@ from hydra.core.hydra_config import HydraConfig
 from hydra.utils import instantiate
 from omegaconf import DictConfig, MISSING, OmegaConf
 import torch
-import torchvision.transforms as T
 
 from .enums import (
     AggregatorType,
@@ -60,7 +59,6 @@ class SplitConf:
     # Dataset manipulation
     missing_s: Optional[List[int]] = None
     mixing_factor: float = 0  # How much of context should be mixed into training?
-    adult_biased_train: bool = True  # if True, make the training set biased, based on mixing factor
     subsample_context: Optional[Dict[int, Any]] = None
     subsample_train: Optional[Dict[int, Any]] = None
 
@@ -90,7 +88,7 @@ class LoggingConf:
     exp_group: str = ""  # experiment group; should be unique for a specific setting
     log_method: str = ""  # arbitrary string that's appended to the experiment group name
     mode: WandbMode = WandbMode.online
-    save_dir: str = "experiments/asm"
+    save_dir: str = "outputs/asm"
     results_csv: str = ""  # name of CSV file to save results to
     umap: bool = False  # whether to create UMAP plots
 
@@ -245,9 +243,8 @@ class ASMConf(AlgConf):
 
     # Discriminator settings
     adv_loss: DiscriminatorLoss = DiscriminatorLoss.logistic_ns
-    double_adv_loss: bool = (
-        True  # Whether to use the context set when computing the encoder's adversarial loss
-    )
+    # Whether to use the context set when computing the encoder's adversarial loss
+    double_adv_loss: bool = True
     adv_method: DiscriminatorMethod = DiscriminatorMethod.nn
     mmd_kernel: MMDKernel = MMDKernel.rq
     mmd_scales: List[float] = field(default_factory=list)
@@ -263,8 +260,7 @@ class ASMConf(AlgConf):
     # Training settings
     lr: float = 1e-3
     adv_lr: float = 3e-4
-    enc_loss_w: float = 0
-    gen_loss_weight: float = 1
+    enc_loss_w: float = 1
     adv_loss_w: float = 1
     num_adv_updates: int = 3
     distinguish_weight: float = 1
