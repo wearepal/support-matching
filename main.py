@@ -60,7 +60,7 @@ if __name__ == "__main__":
     ]
 
     ASMRelay.with_hydra(
-        root="conf2",
+        root="conf",
         clear_cache=True,
         instantiate_recursively=False,
         ds=ds_ops,

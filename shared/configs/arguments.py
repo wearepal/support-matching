@@ -79,8 +79,8 @@ class DataModuleConf:
     num_workers: int = 0
     persist_workers: bool = False
     pin_memory: bool = True
-
-    balanced_context: bool = False
+    gt_context: bool = False
+    label_noise: float = 0.0
 
 
 @dataclass

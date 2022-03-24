@@ -92,7 +92,6 @@ class DataModule(Generic[D]):
     LOGGER: ClassVar[logging.Logger] = init_logger("MissingSourceDataModule")
 
     DATA_DIRS: ClassVar[Dict[str, str]] = {
-        "m900382.inf.susx.ac.uk": "/Users/tk324/PycharmProjects/NoSINN/data",
         "turing": "/srv/galene0/shared/data",
         "fear": "/srv/galene0/shared/data",
         "hydra": "/srv/galene0/shared/data",
@@ -112,8 +111,19 @@ class DataModule(Generic[D]):
     num_workers: int = 4
     persist_workers: bool = False
     pin_memory: bool = True
+    seed: int = 47
 
-    balanced_context: bool = False
+    gt_context: bool = False
+    label_noise: float = attr.field(default=0)
+    generator: torch.Generator = attr.field(init=False)
+
+    @label_noise.validator
+    def validate_label_noise(self, attribute: str, value: float) -> None:
+        if not 0 <= value <= 1:
+            raise ValueError(f"'{attribute}' must be in the range [0, 1].")
+
+    def __attrs_post_init__(self) -> None:
+        self.generator = torch.Generator().manual_seed(self.seed)
 
     @property
     def batch_size_ctx(self) -> int:
@@ -213,6 +223,7 @@ class DataModule(Generic[D]):
             pin_memory=self.pin_memory,
             drop_last=drop_last,
             persistent_workers=self.persist_workers,
+            generator=self.generator,
             batch_sampler=batch_sampler,
         )
 
@@ -253,6 +264,7 @@ class DataModule(Generic[D]):
             multipliers=multipliers,
             training_mode=TrainingMode.step,
             drop_last=False,
+            generator=self.generator,
         )
 
     def train_dataloader(
@@ -277,9 +289,29 @@ class DataModule(Generic[D]):
             batch_sampler=batch_sampler,
         )
 
+    @staticmethod
+    def _inject_label_noise(
+        labels: Tensor,
+        *,
+        noise_level: float,
+        generator: torch.Generator,
+        inplace: bool = True,
+    ) -> Tensor:
+        if not 0 <= noise_level <= 1:
+            raise ValueError("Noise-level must be in the range [0, 1].")
+        if not inplace:
+            labels = labels.clone()
+        unique, unique_inv = labels.unique(return_inverse=True)
+        num_to_flip = round(noise_level * len(labels))
+        to_flip = torch.randperm(len(labels), generator=generator)[:num_to_flip]
+        unique_inv[to_flip] += torch.randint(low=1, high=len(unique), size=(num_to_flip,))
+        unique_inv[to_flip] %= len(unique)
+        return unique[unique_inv]
+
     def context_dataloader(
         self,
         cluster_results: Optional[ClusterResults] = None,
+        *,
         eval: bool = False,
     ) -> CdtDataLoader[TernarySample]:
         if eval:
@@ -287,11 +319,19 @@ class DataModule(Generic[D]):
                 ds=self.context, batch_size=self.batch_size_te, shuffle=False
             )
 
-        group_ids: Optional[Tensor] = None
-        if self.balanced_context:
+        group_ids = None
+        # Use the ground-truth y/s labels for stratified sampling
+        if self.gt_context:
             group_ids = get_group_ids(self.context)
+            # Inject label-noise into the group identifiers.
+            if self.label_noise > 0:
+                group_ids = self._inject_label_noise(
+                    group_ids, noise_level=self.label_noise, generator=self.generator
+                )
+
         elif cluster_results is not None:
             group_ids = cluster_results.class_ids
+
         if group_ids is None:
             batch_sampler = SequentialBatchSampler(
                 data_source=self.context,
@@ -299,6 +339,7 @@ class DataModule(Generic[D]):
                 shuffle=True,
                 training_mode=TrainingMode.step,
                 drop_last=False,
+                generator=self.generator,
             )
         else:
             batch_sampler = self._make_stratified_sampler(
