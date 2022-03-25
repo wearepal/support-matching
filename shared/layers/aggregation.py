@@ -31,7 +31,7 @@ class Aggregator(nn.Module):
 
         This is the only certified way of producing bags. Use all other methods at your own risk.
         """
-        return batch.view(-1, self.bag_size, *batch.shape[1:])
+        return batch.view(self.bag_size, *batch.shape[1:], -1).movedim(-1, 0)
 
 
 class KvqAttentionAggregator(Aggregator):
@@ -44,7 +44,7 @@ class KvqAttentionAggregator(Aggregator):
         dropout: float = 0.0,
         final_proj: ModelFactory | None = None,
         output_dim: int = 1,
-    ):
+    ) -> None:
         super().__init__(bag_size=bag_size)
         self.latent_dim = latent_dim
         self.attn = nn.MultiheadAttention(
@@ -100,6 +100,7 @@ class GatedAttentionAggregator(Aggregator):
         self.attention_weights: Tensor
 
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
+        inputs = inputs.flatten(start_dim=1)
         logits = torch.tanh(inputs @ self.V.t()) * torch.sigmoid(inputs @ self.U.t()) @ self.w.t()
         logits_batched = self.batch_to_bags(logits)
         weights = logits_batched.softmax(dim=1)

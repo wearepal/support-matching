@@ -34,7 +34,7 @@ __all__ = ["AdvSemiSupervisedAlg"]
 class AdvSemiSupervisedAlg(Algorithm):
     """Base class for adversarial semi-supervsied methods."""
 
-    _PBAR_COL: ClassVar[str] = "#00FF00"
+    _PBAR_COL: ClassVar[str] = "#ff0000"
 
     encoder: AutoEncoder
     adversary: Discriminator
