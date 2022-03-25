@@ -47,8 +47,7 @@ class Algorithm(nn.Module):
 
         random_seed(self.misc_cfg.seed, use_cuda=self.use_gpu)
 
-        ds_name = self.ds_cfg["_target_"]
-        group = f"{ds_name}.{self.__class__.__name__}"
+        group = f".{self.__class__.__name__}"
         if self.log_cfg.log_method:
             group += "." + self.log_cfg.log_method
         if self.log_cfg.exp_group:

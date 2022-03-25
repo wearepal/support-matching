@@ -1,7 +1,6 @@
 """Simply call the main function."""
 from dataclasses import dataclass
 import os
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Type, Union
 
 from conduit.data.datasets.vision import Camelyon17, CelebA, ColoredMNIST
