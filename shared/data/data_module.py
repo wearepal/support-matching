@@ -134,7 +134,7 @@ class DataModule(Generic[D]):
 
     @property
     def batch_size_te(self) -> int:
-        return self.batch_size_tr if self.batch_size_te is None else self.batch_size_te
+        return self.batch_size_tr if self._batch_size_te is None else self._batch_size_te
 
     @batch_size_te.setter
     def batch_size_te(self, value: Optional[int]) -> None:
