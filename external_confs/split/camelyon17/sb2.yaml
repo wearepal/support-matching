@@ -1,0 +1,10 @@
+---
+defaults:
+  - /schema/split: camelyon17/base
+  - _self_
+
+log_dataset: 'subgrou_bias_10_12'
+dep_prop: 0.4
+test_prop: 0.2
+dep_subsampling_props: null
+train_subsampling_props: {1: {0: 0, 2: 0}}
