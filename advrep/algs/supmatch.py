@@ -8,11 +8,10 @@ from torch import Tensor
 import torch.nn as nn
 
 from advrep.models import AutoEncoder, Discriminator, SplitEncoding
-from advrep.optimisation import log_attention, log_images, mmd2
+from advrep.optimisation import log_images, mmd2
 from shared.configs import DiscriminatorMethod
 from shared.data.data_module import DataModule
 from shared.layers import Aggregator
-from shared.layers.aggregation import GatedAttentionAggregator
 from shared.models.configs import FcNet
 
 from .adv import AdvSemiSupervisedAlg

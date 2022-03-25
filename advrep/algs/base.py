@@ -9,7 +9,6 @@ import torch
 from torch import Tensor
 import torch.nn as nn
 import wandb
-import yaml
 
 from shared.configs.arguments import Config
 from shared.data import DataModule
@@ -46,8 +45,15 @@ class Algorithm(nn.Module):
         """Loads the data and fits and evaluates the model."""
 
         random_seed(self.misc_cfg.seed, use_cuda=self.use_gpu)
+        # ==== construct the data-module ====
+        dm = DataModule.from_configs(
+            dm_config=self.cfg.dm,
+            ds_config=self.cfg.ds,
+            split_config=self.cfg.split,
+        )
+        LOGGER.info(dm)
 
-        group = f".{self.__class__.__name__}"
+        group = f"{dm.train.__class__.__name__}.{self.__class__.__name__}"
         if self.log_cfg.log_method:
             group += "." + self.log_cfg.log_method
         if self.log_cfg.exp_group:
@@ -66,13 +72,6 @@ class Algorithm(nn.Module):
             mode=self.log_cfg.mode.name,
         )
 
-        # ==== construct the data-module ====
-        dm = DataModule.from_configs(
-            dm_config=self.cfg.dm,
-            ds_config=self.cfg.ds,
-            split_config=self.cfg.split,
-        )
-        LOGGER.info(dm)
         # Fit the model to the data
         self.fit(dm=dm)
         # finish logging for the current run
