@@ -9,7 +9,6 @@ weight_decay: 0
 warmup_steps: 0
 distinguish_warmup: false
 gamma: 1.0
-train_on_recon: false
 recon_detach: true
 eval_on_recon: false
 eval_epochs: 40
@@ -50,7 +49,6 @@ pred_s_loss_w: 1
 prior_loss_w: 0.01
 pred_y_hidden_dims: null
 use_pretrained_enc: false
-zs_dim: 1
 zs_transform: none
 s_as_zs: false
 s_pred_with_bias: true

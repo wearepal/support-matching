@@ -5,22 +5,35 @@ import torch
 from torch import Tensor, nn
 import torch.nn.functional as F
 
-from advrep.models.base import ModelBase
+from advrep.models.base import Model
 from shared.configs.enums import DiscriminatorLoss
+from shared.layers.aggregation import Aggregator
 
 __all__ = ["Discriminator"]
 
 
-class Discriminator(ModelBase):
+class Discriminator(Model):
     def __init__(
         self,
-        model: nn.Module,
+        backbone: nn.Module,
         *,
+        aggregator: Aggregator,
         double_adv_loss: bool,
+        lr: float = 5.0e-4,
+        optimizer_cls: str = "torch.optim.AdamW",
         criterion: DiscriminatorLoss = DiscriminatorLoss.logistic,
         optimizer_kwargs: dict[str, Any] | None = None,
     ) -> None:
-        super().__init__(model, optimizer_kwargs=optimizer_kwargs)
+        model = backbone if aggregator is None else nn.Sequential(backbone, aggregator)
+        super().__init__(
+            model=model,
+            lr=lr,
+            optimizer_cls=optimizer_cls,
+            optimizer_kwargs=optimizer_kwargs,
+        )
+        self.backbone = backbone
+        self.aggregator = aggregator
+
         self.double_adv_loss = double_adv_loss
         self.criterion = criterion
 

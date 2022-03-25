@@ -9,11 +9,11 @@ from ranzen.decorators import implements
 from ranzen.hydra import Option, Relay
 
 from advrep.algs.supmatch import SupportMatching
+from advrep.models.autoencoder import ResNetAE, SimpleConvAE
 from shared.configs import Config
 from shared.configs.arguments import (
     ASMConf,
     DataModuleConf,
-    EncoderConf,
     LoggingConf,
     MiscConf,
     SplitConf,
@@ -31,17 +31,18 @@ class ASMRelay(Relay, Config):
         clear_cache: bool = False,
         instantiate_recursively: bool = False,
         ds: List[Union[Type[Any], Option]],
+        enc: List[Union[Type[Any], Option]],
     ) -> None:
         super().with_hydra(
             root=root,
             clear_cache=clear_cache,
             instantiate_recursively=instantiate_recursively,
-            enc=[Option(EncoderConf, "base")],
             alg=[Option(ASMConf, "base")],
             split=[Option(SplitConf, "base")],
             logging=[Option(LoggingConf, "base")],
             dm=[Option(DataModuleConf, "base")],
             misc=[Option(MiscConf, "base")],
+            enc=enc,
             ds=ds,
         )
 
@@ -58,10 +59,15 @@ if __name__ == "__main__":
         Option(CelebA, name="celeba"),
         Option(Camelyon17, name="camelyon17"),
     ]
+    ae_ops: List[Union[Type[Any], Option]] = [
+        Option(SimpleConvAE, name="simple"),
+        Option(ResNetAE, name="resnet"),
+    ]
 
     ASMRelay.with_hydra(
         root="conf",
         clear_cache=True,
         instantiate_recursively=False,
         ds=ds_ops,
+        enc=ae_ops,
     )

@@ -1,7 +1,16 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import logging
-from typing import Any, Dict, Generic, Optional, Sequence, TypeVar, overload
+from typing import (
+    Any,
+    Dict,
+    Generic,
+    Optional,
+    Sequence,
+    TYPE_CHECKING,
+    TypeVar,
+    overload,
+)
 from typing_extensions import Literal
 
 from conduit.data import CdtDataLoader
@@ -26,7 +35,6 @@ from tqdm import tqdm
 import umap
 import wandb
 
-from advrep.models import AutoEncoder, Classifier, SplitEncoding
 from shared.configs import Config, EvalTrainData, WandbMode
 from shared.data.data_module import DataModule, Dataset
 from shared.data.utils import group_id_to_label, labels_to_group_id
@@ -34,6 +42,10 @@ from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
 from shared.utils import compute_metrics, plot_histogram_by_source, prod
 
 from .utils import log_images
+
+if TYPE_CHECKING:
+    from advrep.models.autoencoder import AutoEncoder, SplitEncoding
+    from advrep.models.classifier import Classifier
 
 __all__ = [
     "InvariantDatasets",
@@ -269,7 +281,7 @@ def fit_classifier(
         input_dim = prod(dm.dim_x)
     clf_base = clf_fn(input_dim, target_dim=dm.card_y)
 
-    clf = Classifier(clf_base, num_classes=dm.num_classes, optimizer_kwargs=optimizer_kwargs)
+    clf = Classifier(clf_base, optimizer_kwargs=optimizer_kwargs)
 
     train_dl = dm.train_dataloader(
         batch_size=cfg.alg.eval_batch_size, balance=cfg.alg.balanced_eval
@@ -314,7 +326,7 @@ def evaluate(
     del train_loader  # try to prevent lock ups of the workers
     del test_loader
     # TODO: investigate why the histogram plotting fails when s_dim != 1
-    if (cfg.log.mode is not WandbMode.disabled) and (dm.card_s == 2):
+    if (cfg.logging.mode is not WandbMode.disabled) and (dm.card_s == 2):
         plot_histogram_by_source(soft_preds, s=sens, y=labels, step=step, name=name)
     preds = em.Prediction(hard=pd.Series(preds))
     sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=["subgroup"])
@@ -328,7 +340,7 @@ def evaluate(
         step=step,
         s_dim=dm.card_s,
         save_summary=save_summary,
-        use_wandb=(cfg.log.mode is not WandbMode.disabled),
+        use_wandb=(cfg.logging.mode is not WandbMode.disabled),
         additional_entries=cluster_metrics,
     )
 
@@ -400,7 +412,7 @@ def encode_dataset(
             all_y.append(batch.y)
 
             # don't do the zs transform here because we might want to look at the raw distribution
-            encodings = encoder.encode(x, stochastic=False, do_zs_transform=False)
+            encodings = encoder.encode(x, transform_zs=False)
 
             if invariant_to in ("s", "both"):
                 all_inv_s.append(
@@ -454,12 +466,9 @@ def _get_classifer_input(
 ) -> Tensor:
     if recons:
         # `zs_m` has zs zeroed out
-        if cfg.alg.train_on_recon:
-            zs_m, zy_m = encoder.mask(encodings, random=True)
-        else:
-            # if we didn't train with the random encodings, it probably doesn't make much
-            # sense to evaluate with them; better to use null-sampling
-            zs_m, zy_m = encoder.mask(encodings, random=False)
+        # if we didn't train with the random encodings, it probably doesn't make much
+        # sense to evaluate with them; better to use null-sampling
+        zs_m, zy_m = encodings.mask(random=False)
         z_m = zs_m if invariant_to == "s" else zy_m
         x_m = encoder.decode(z_m, mode="hard")
 
@@ -468,7 +477,7 @@ def _get_classifer_input(
             x_m = x_m.clamp(min=0, max=1)
         classifier_input = x_m
     else:
-        zs_m, zy_m = encoder.mask(encodings)
+        zs_m, zy_m = encodings.mask()
         # `zs_m` has zs zeroed out
         z_m = zs_m if invariant_to == "s" else zy_m
         classifier_input = z_m.join()

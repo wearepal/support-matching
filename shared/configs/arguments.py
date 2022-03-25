@@ -1,18 +1,9 @@
 from dataclasses import dataclass, field
 import logging
 import shlex
-from typing import Any, Dict, List, Optional, Protocol, Type, TypeVar
-from typing_extensions import runtime_checkable
+from typing import Any, Dict, List, Optional
 
-from albumentations.pytorch import ToTensorV2  # type: ignore
-from conduit.hydra.conduit.data.datasets.conf import (
-    Camelyon17Conf,
-    CelebAConf,
-    ColoredMNISTConf,
-)
-from hydra.core.config_store import ConfigStore
 from hydra.core.hydra_config import HydraConfig
-from hydra.utils import instantiate
 from omegaconf import DictConfig, MISSING, OmegaConf
 import torch
 
@@ -26,10 +17,8 @@ from .enums import (
     EvalTrainData,
     MMDKernel,
     PlMethod,
-    ReconstructionLoss,
     VaeStd,
     WandbMode,
-    ZsTransform,
 )
 
 __all__ = [
@@ -38,9 +27,7 @@ __all__ = [
     "SplitConf",
     "ClusterConf",
     "Config",
-    "EncoderConf",
     "MiscConf",
-    "register_configs",
 ]
 
 
@@ -189,23 +176,7 @@ class ClusterConf:
 
 
 @dataclass
-class EncoderConf:
-    """Flags that are shared between "adapt" and "clustering" but which don't concern data."""
-
-    out_dim: int = 64
-    levels: int = 4
-    init_chans: int = 32
-    recon_loss: ReconstructionLoss = ReconstructionLoss.l2
-    checkpoint_path: str = ""
-
-
-@runtime_checkable
-class AlgConf(Protocol):
-    ...
-
-
-@dataclass
-class ASMConf(AlgConf):
+class ASMConf:
     """Flags for disentangling."""
 
     # mixup: bool = False
@@ -216,7 +187,6 @@ class ASMConf(AlgConf):
     warmup_steps: int = 0
     distinguish_warmup: bool = False
     gamma: float = 1.0  # Gamma value for Exponential Learning Rate scheduler.
-    train_on_recon: bool = False  # whether to train the discriminator on recons or encodings
     recon_detach: bool = True  # Whether to apply the stop gradient operator to the reconstruction.
     eval_on_recon: bool = False
 
@@ -270,12 +240,8 @@ class ASMConf(AlgConf):
     # Encoder settings (that are not shared with the clustering code)
     use_pretrained_enc: bool = False
     zs_dim: int = 1
-    zs_transform: ZsTransform = ZsTransform.none
     s_as_zs: bool = False  # if True, pass `s` instead of `zs` to the decoder for the training set
     s_pred_with_bias: bool = True  # if False, the s predictor has no bias term in the output layer
-
-
-C = TypeVar("C", bound="BaseConfig")
 
 
 @dataclass
@@ -289,33 +255,14 @@ class BaseConfig:
     logging: LoggingConf = MISSING
     cmd: str = ""  # don't set this in the yaml file (or anywhere really); it will get overwritten
 
-    @classmethod
-    def from_hydra(cls: Type[C], hydra_config: DictConfig) -> C:
-        """Instantiate class based on a hydra config."""
-        conf: object = OmegaConf.to_object(hydra_config)  # type: ignore
-        assert isinstance(conf, cls), f"The given hydra config did not correspond to class {cls}."
-        conf.cmd = reconstruct_cmd()
-
-        return conf
-
 
 @dataclass
 class Config(BaseConfig):
     """Config used for clustering and disentangling."""
 
     # clust: ClusterConf = MISSING
-    enc: EncoderConf = MISSING
+    enc: DictConfig = MISSING
     alg: ASMConf = MISSING
-
-    def second_stage(self) -> None:
-        return instantiate(self.alg, cfg=self).run()
-
-
-def register_configs() -> None:
-    cs = ConfigStore.instance()
-    cs.store(node=ColoredMNISTConf, name="cmnist", package="data", group="data/schema")
-    cs.store(node=CelebAConf, name="celeba", package="data", group="data/schema")
-    cs.store(node=Camelyon17Conf, name="camelyon17", package="data", group="data/schema")
 
 
 def reconstruct_cmd() -> str:
@@ -329,24 +276,3 @@ def reconstruct_cmd() -> str:
 def _join(split_command: List[str]) -> str:
     """Concatenate the tokens of the list split_command and return a string."""
     return " ".join(shlex.quote(arg) for arg in split_command)
-
-
-# @attr.define
-# class FsConfig:
-#     """Arguments for models run via the run_fs script."""
-
-#     context_mode: ContextMode = ContextMode.unlabelled
-
-#     # Optimization settings
-#     epochs: int = 60
-#     lr: float = 1e-3
-#     weight_decay: float = 0
-#     eta: float = 0.5
-
-#     # Method of chocie
-#     method: FsMethod = FsMethod.erm
-#     # gDRO-specific arguments
-#     alpha: float = 1.0
-#     normalize_loss: bool = False
-#     gamma: float = 0.1
-#     generalization_adjustment: Optional[List[float]] = None

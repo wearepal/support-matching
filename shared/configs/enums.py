@@ -16,10 +16,8 @@ __all__ = [
     "MMDKernel",
     "PlMethod",
     "QuantizationLevel",
-    "ReconstructionLoss",
     "VaeStd",
     "WandbMode",
-    "ZsTransform",
 ]
 
 
@@ -38,16 +36,6 @@ class EncoderType(Enum):
     ae = auto()
     vae = auto()
     rotnet = auto()
-
-
-class ReconstructionLoss(Enum):
-    """Reconstruction loss."""
-
-    l1 = auto()
-    l2 = auto()
-    bce = auto()
-    huber = auto()
-    mixed = auto()
 
 
 class VaeStd(Enum):
@@ -89,7 +77,7 @@ class MMDKernel(Enum):
 
 
 class AggregatorType(Enum):
-    """Which aggreagation function to use (if any)."""
+    """Which aggregation function to use."""
 
     from shared.layers import GatedAttentionAggregator, KvqAttentionAggregator
 
@@ -103,13 +91,6 @@ class DiscriminatorLoss(Enum):
     wasserstein = auto()
     logistic_ns = auto()
     logistic = auto()
-
-
-class ZsTransform(Enum):
-    """How to transform the z_s partition."""
-
-    none = auto()
-    round_ste = auto()
 
 
 class QuantizationLevel(Enum):

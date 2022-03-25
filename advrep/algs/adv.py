@@ -1,34 +1,26 @@
 from __future__ import annotations
 from abc import abstractmethod
 from collections import defaultdict
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 import logging
 from pathlib import Path
 import time
 from typing_extensions import Literal, Self
 
 from conduit.data.structures import NamedSample, TernarySample
-from hydra.utils import to_absolute_path
+from hydra.utils import instantiate, to_absolute_path
 import torch
 from torch import Tensor
 from torch.cuda.amp.grad_scaler import GradScaler
-import torch.nn as nn
-import torch.nn.functional as F
 import wandb
 
-from advrep.models import AutoEncoder, Classifier, EncodingSize, build_classifier
+from advrep.models import AutoEncoder, Classifier
 from advrep.models.discriminator import Discriminator
-from advrep.optimisation import (
-    MixedLoss,
-    build_ae,
-    log_metrics,
-    restore_model,
-    save_model,
-)
-from shared.configs import Config, DiscriminatorMethod, ReconstructionLoss
+from advrep.optimisation import log_metrics, restore_model, save_model
+from shared.configs import Config, DiscriminatorMethod
 from shared.data import DataModule
-from shared.models.configs import FcNet, conv_autoencoder, fc_autoencoder
-from shared.utils import AverageMeter, ClusterResults, readable_duration
+from shared.models.configs import FcNet
+from shared.utils import AverageMeter, readable_duration
 
 from .base import Algorithm
 
@@ -40,10 +32,8 @@ __all__ = ["AdvSemiSupervisedAlg"]
 class AdvSemiSupervisedAlg(Algorithm):
     """Base class for adversarial semi-supervsied methods."""
 
-    _encoding_size: EncodingSize
     encoder: AutoEncoder
     adversary: Discriminator
-    recon_loss_fn: Callable[[Tensor, Tensor], Tensor]
     predictor_y: Classifier | None
     predictor_s: Classifier | None
 
@@ -54,7 +44,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         super().__init__(cfg=cfg)
         self.enc_cfg = cfg.enc
         self.alg_cfg = cfg.alg
-        self.optimizer_kwargs = {"lr": self.alg_cfg.adv_lr}
+        self.adv_lr = self.alg_cfg.adv_lr
         self.grad_scaler = GradScaler() if self.train_cfg.use_amp else None
 
     def _sample_dep(self, iterator_dep: Iterator[NamedSample[Tensor]]) -> Tensor:
@@ -71,107 +61,44 @@ class AdvSemiSupervisedAlg(Algorithm):
         dm: DataModule,
     ) -> AutoEncoder:
         input_shape = dm.dim_x
-        s_dim = dm.card_s
-        if len(input_shape) > 2:
-            encoder, decoder, latent_dim = conv_autoencoder(
-                input_shape,
-                initial_hidden_channels=self.enc_cfg.init_chans,
-                encoding_dim=self.enc_cfg.out_dim,
-                decoding_dim=input_shape[0],
-                levels=self.enc_cfg.levels,
-                decoder_out_act=None,
-                variational=self.alg_cfg.vae,
-            )
-        else:
-            encoder, decoder, latent_dim = fc_autoencoder(
-                input_shape,
-                hidden_channels=self.enc_cfg.init_chans,
-                encoding_dim=self.enc_cfg.out_dim,
-                levels=self.enc_cfg.levels,
-                variational=self.alg_cfg.vae,
-            )
-
-        zs_dim = self.alg_cfg.zs_dim
-        zy_dim = latent_dim - zs_dim
-        self._encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim)
-
-        LOGGER.info(f"Encoding dim: {latent_dim}, {self._encoding_size}")
-
-        encoder = build_ae(
-            cfg=self.cfg,
-            encoder=encoder,
-            decoder=decoder,
-            encoding_size=self._encoding_size,
-            s_dim=s_dim,
-            feature_group_slices=dm.feature_group_slices,
+        ae: AutoEncoder = instantiate(
+            self.enc_cfg, input_shape=input_shape, feature_group_slices=dm.feature_group_slices
         )
-
-        # load pretrained encoder if one is provided
-        if self.enc_cfg.checkpoint_path:
-            save_dict = torch.load(self.enc_cfg.checkpoint_path, map_location=self.device)
-            encoder.load_state_dict(save_dict["encoder"])
-
-        return encoder
+        LOGGER.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
+        return ae
 
     @abstractmethod
-    def _build_adversary(self, dm: DataModule) -> Discriminator:
+    def _build_adversary(self, encoder: AutoEncoder, *, dm: DataModule) -> Discriminator:
         ...
 
     def _build_predictors(
-        self, y_dim: int, *, s_dim: int
+        self, encoder: AutoEncoder, y_dim: int, *, s_dim: int
     ) -> tuple[Classifier | None, Classifier | None]:
         predictor_y = None
         if self.alg_cfg.pred_y_loss_w > 0:
-            predictor_y = build_classifier(
-                input_shape=(self._encoding_size.zy,),  # this is always trained on encodings
-                target_dim=y_dim,
-                model_fn=FcNet(hidden_dims=self.alg_cfg.pred_y_hidden_dims),
-                optimizer_kwargs=self.optimizer_kwargs,
-            )
+            model = FcNet(
+                hidden_dims=self.alg_cfg.pred_y_hidden_dims,
+            )(input_dim=encoder.encoding_size.zy, target_dim=y_dim)
+            predictor_y = Classifier(model=model, lr=self.adv_lr)
         predictor_s = None
         if self.alg_cfg.pred_s_loss_w > 0:
-            predictor_s = build_classifier(
-                input_shape=(self._encoding_size.zs,),  # this is always trained on encodings
-                target_dim=s_dim,
-                model_fn=FcNet(
-                    hidden_dims=None,  # no hidden layers
-                    final_layer_bias=self.alg_cfg.s_pred_with_bias,
-                ),
-                optimizer_kwargs=self.optimizer_kwargs,
-            )
+            model = FcNet(
+                hidden_dims=None,  # no hidden layers
+                final_layer_bias=self.alg_cfg.s_pred_with_bias,
+            )(input_dim=encoder.encoding_size.zs, target_dim=s_dim)
+            predictor_s = Classifier(model=model, lr=self.adv_lr)
+
         return predictor_y, predictor_s
 
     def _build(self, dm: DataModule) -> None:
         self.encoder = self._build_encoder(dm=dm)
-        self.recon_loss_fn = self._get_recon_loss_fn(feature_group_slices=dm.feature_group_slices)
-        self.adversary = self._build_adversary(dm=dm)
+        self.adversary = self._build_adversary(encoder=self.encoder, dm=dm)
         self.predictor_y, self.predictor_s = self._build_predictors(
-            y_dim=dm.card_y, s_dim=dm.card_s
+            encoder=self.encoder, y_dim=dm.card_y, s_dim=dm.card_s
         )
         self.to(self.train_cfg.device)
 
-    def _get_recon_loss_fn(
-        self, feature_group_slices: dict[str, list[slice]] | None = None
-    ) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
-        recon_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
-        if self.enc_cfg.recon_loss is ReconstructionLoss.l1:
-            recon_loss_fn = nn.L1Loss(reduction="sum")
-        elif self.enc_cfg.recon_loss is ReconstructionLoss.l2:
-            recon_loss_fn = nn.MSELoss(reduction="sum")
-        elif self.enc_cfg.recon_loss is ReconstructionLoss.bce:
-            recon_loss_fn = nn.BCELoss(reduction="sum")
-        elif self.enc_cfg.recon_loss is ReconstructionLoss.huber:
-            recon_loss_fn = lambda x, y: 0.1 * F.smooth_l1_loss(x * 10, y * 10, reduction="sum")
-        elif self.enc_cfg.recon_loss is ReconstructionLoss.mixed:
-            assert (
-                feature_group_slices is not None
-            ), "can only do multi enc_loss with feature groups"
-            recon_loss_fn = MixedLoss(feature_group_slices, reduction="sum")
-        else:
-            raise ValueError(f"{self.enc_cfg.recon_loss} is an invalid reconstruction loss.")
-        return recon_loss_fn
-
-    def _train_step(
+    def training_step(
         self,
         iterator_tr: Iterator[TernarySample[Tensor]],
         *,
@@ -194,15 +121,14 @@ class AdvSemiSupervisedAlg(Algorithm):
 
         # Log images
         if ((itr % self.alg_cfg.log_freq) == 0) and (batch_tr.x.ndim == 4):
-            self._log_recons(x=batch_tr.x, dm=dm, itr=itr, prefix="train")
-            self._log_recons(x=x_dep, dm=dm, itr=itr, prefix="deployment")
+            with torch.no_grad():
+                self.log_recons(x=batch_tr.x, dm=dm, itr=itr, prefix="train")
+                self.log_recons(x=x_dep, dm=dm, itr=itr, prefix="deployment")
         return logging_dict
 
     @abstractmethod
     @torch.no_grad()
-    def _log_recons(
-        self, x: Tensor, *, dm: DataModule, itr: int, prefix: str | None = None
-    ) -> None:
+    def log_recons(self, x: Tensor, *, dm: DataModule, itr: int, prefix: str | None = None) -> None:
         ...
 
     @abstractmethod
@@ -267,16 +193,16 @@ class AdvSemiSupervisedAlg(Algorithm):
             self.adversary.train()
 
     def _get_data_iterators(
-        self, dm: DataModule, *, cluster_results: ClusterResults | None = None
+        self, dm: DataModule, *, group_ids: Tensor | None = None
     ) -> tuple[Iterator[TernarySample[Tensor]], Iterator[NamedSample[Tensor]]]:
         dl_tr = dm.train_dataloader()
-        dl_dep = dm.deployment_dataloader(cluster_results=cluster_results)
+        dl_dep = dm.deployment_dataloader(group_ids=group_ids)
 
         return iter(dl_tr), iter(dl_dep)
 
-    def fit(self, dm: DataModule, cluster_results: ClusterResults | None = None) -> Self:
+    def fit(self, dm: DataModule, *, group_ids: Tensor | None = None) -> Self:
         # Construct the data iterators
-        iterator_tr, iterator_dep = self._get_data_iterators(dm=dm, cluster_results=cluster_results)
+        iterator_tr, iterator_dep = self._get_data_iterators(dm=dm, group_ids=group_ids)
         # ==== construct networks ====
         self._build(dm)
 
@@ -297,7 +223,6 @@ class AdvSemiSupervisedAlg(Algorithm):
                     dm=dm,
                     step=0,
                     save_summary=True,
-                    cluster_metrics=None,
                 )
 
         itr = start_itr
@@ -305,7 +230,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         loss_meters = defaultdict(AverageMeter)
 
         for itr in range(start_itr, self.alg_cfg.iters + 1):
-            logging_dict = self._train_step(
+            logging_dict = self.training_step(
                 iterator_tr=iterator_tr,
                 iterator_dep=iterator_dep,
                 itr=itr,

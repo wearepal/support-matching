@@ -6,13 +6,13 @@ from typing_extensions import Self
 
 from ranzen.torch import random_seed
 import torch
+from torch import Tensor
 import torch.nn as nn
 import wandb
 import yaml
 
 from shared.configs.arguments import Config
 from shared.data import DataModule
-from shared.utils.loadsave import ClusterResults
 from shared.utils.utils import as_pretty_dict, flatten_dict
 
 __all__ = ["Algorithm"]
@@ -35,7 +35,7 @@ class Algorithm(nn.Module):
         self.device = torch.device(self.train_cfg.device)
 
     @abstractmethod
-    def fit(self, dm: DataModule, cluster_results: ClusterResults | None = None) -> Self:
+    def fit(self, dm: DataModule, group_ids: Tensor | None = None) -> Self:
         ...
 
     def run(self) -> Self:

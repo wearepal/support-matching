@@ -310,7 +310,7 @@ class DataModule(Generic[D]):
 
     def deployment_dataloader(
         self,
-        cluster_results: Optional[ClusterResults] = None,
+        group_ids: Optional[Tensor] = None,
         *,
         eval: bool = False,
     ) -> CdtDataLoader[TernarySample]:
@@ -319,7 +319,6 @@ class DataModule(Generic[D]):
                 ds=self.deployment, batch_size=self.batch_size_te, shuffle=False
             )
 
-        group_ids = None
         # Use the ground-truth y/s labels for stratified sampling
         if self.gt_deployment:
             group_ids = get_group_ids(self.deployment)
@@ -328,9 +327,6 @@ class DataModule(Generic[D]):
                 group_ids = self._inject_label_noise(
                     group_ids, noise_level=self.label_noise, generator=self.generator
                 )
-
-        elif cluster_results is not None:
-            group_ids = cluster_results.class_ids
 
         if group_ids is None:
             batch_sampler = SequentialBatchSampler(
@@ -356,7 +352,7 @@ class DataModule(Generic[D]):
         cls: Type[Self], dataset: D, split_config: SplitConf
     ) -> TrainContextTestSplit[D]:
 
-        context_data, test_data, train_data = dataset.random_split(
+        dep_data, test_data, train_data = dataset.random_split(
             props=[split_config.dep_prop, split_config.test_prop],
             seed=split_config.seed,
         )
@@ -371,8 +367,8 @@ class DataModule(Generic[D]):
 
         if split_config.dep_subsampling_props:
             cls.LOGGER.info("Subsampling context set...")
-            context_data = stratified_split(
-                train_data,
+            dep_data = stratified_split(
+                dep_data,
                 default_train_prop=1.0,
                 train_props=split_config.dep_subsampling_props,
                 seed=split_config.seed,
@@ -380,7 +376,7 @@ class DataModule(Generic[D]):
 
         # Enable transductive learning (i.e. using the test data for semi-supervised learning)
         if split_config.transductive:
-            context_data = context_data.cat(test_data, inplace=False)
+            dep_data = dep_data.cat(test_data, inplace=False)
 
         # Assign transforms if datasets are vision ones
         if isinstance(train_data, CdtVisionDataset):
@@ -389,10 +385,10 @@ class DataModule(Generic[D]):
                 if split_config.train_transforms is None
                 else split_config.train_transforms
             )
-        if isinstance(context_data, CdtVisionDataset):
-            context_data.transform = split_config.dep_transforms
+        if isinstance(dep_data, CdtVisionDataset):
+            dep_data.transform = split_config.dep_transforms
             train_data = cast(CdtVisionDataset, train_data)
-            context_data.transform = (
+            dep_data.transform = (
                 train_data.transform
                 if split_config.dep_transforms is None
                 else split_config.dep_transforms
@@ -405,7 +401,7 @@ class DataModule(Generic[D]):
                 else split_config.test_transforms
             )
 
-        return TrainContextTestSplit(train=train_data, deployment=context_data, test=test_data)
+        return TrainContextTestSplit(train=train_data, deployment=dep_data, test=test_data)
 
     @classmethod
     def from_configs(
