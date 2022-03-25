@@ -56,7 +56,6 @@ class SplitConf:
 @dataclass
 class DataModuleConf:
     batch_size_tr: int = 1
-    batch_size_dep: Optional[int] = None
     batch_size_te: Optional[int] = None
     num_samples_per_group_per_bag: int = 1
     num_workers: int = 0

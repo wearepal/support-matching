@@ -35,7 +35,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
             aggregator_cls: type[Aggregator] = self.alg_cfg.aggregator_type.value
             aggregator = aggregator_cls(
                 embed_dim=self.alg_cfg.aggregator_input_dim,
-                bag_size=dm.bag_size,
+                batch_size=dm.batch_size_tr,
                 final_proj=final_proj,
                 **self.alg_cfg.aggregator_kwargs,
             )
@@ -116,7 +116,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
             logging_dict.update({k: v + logging_dict_dep[k] for k, v in logging_dict_tr.items()})
             enc_loss_tr = 0.5 * (enc_loss_tr + enc_loss_dep)  # take average of the two recon losses
             enc_loss_tr *= self.alg_cfg.enc_loss_w
-            logging_dict["Loss Encoder"] = enc_loss_tr
+            logging_dict["Loss Encoder"] = enc_loss_tr.detach().cpu().item()
             total_loss = enc_loss_tr
             # ================================= adversarial losses ================================
             if not warmup:
@@ -141,7 +141,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
                     )
                 disc_loss *= self.alg_cfg.adv_loss_w
                 total_loss += disc_loss
-                logging_dict["Loss Discriminator"] = disc_loss
+                logging_dict["Loss Discriminator"] = disc_loss.detach().cpu().item()
 
             if self.predictor_y is not None:
                 # predictor is on encodings; predict y from the part that is invariant to s
@@ -149,7 +149,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
                     encoding_t.zy, target=batch_tr.y
                 )
                 pred_y_loss *= self.alg_cfg.pred_y_loss_w
-                logging_dict["Loss Predictor y"] = pred_y_loss.item()
+                logging_dict["Loss Predictor y"] = pred_y_loss.detach().cpu().item()
                 logging_dict["Accuracy Predictor y"] = pred_y_acc
                 total_loss += pred_y_loss
             if self.predictor_s is not None:
@@ -157,7 +157,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
                     encoding_t.zs, target=batch_tr.s
                 )
                 pred_s_loss *= self.alg_cfg.pred_s_loss_w
-                logging_dict["Loss Predictor s"] = pred_s_loss.item()
+                logging_dict["Loss Predictor s"] = pred_s_loss.detach().cpu().item()
                 logging_dict["Accuracy Predictor s"] = pred_s_acc
                 total_loss += pred_s_loss
 
@@ -178,15 +178,9 @@ class SupportMatching(AdvSemiSupervisedAlg):
     @implements(AdvSemiSupervisedAlg)
     def log_recons(self, x: Tensor, *, dm: DataModule, itr: int, prefix: str | None = None) -> None:
         """Log the reconstructed and original images."""
-
         num_blocks = min(4, len(x))
         rows_per_block = min(8, len(x) // num_blocks)
         num_samples = num_blocks * rows_per_block
-
-        # else:
-        #     # take enough bags to have 32 samples
-        #     num_sampled_bags = ((num_blocks * rows_per_block - 1) // dm.bag_size) + 1
-        #     num_samples = num_sampled_bags * dm.bag_size
 
         sample = x[:num_samples]
         encoding = self.encoder.encode(sample)

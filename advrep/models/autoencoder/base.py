@@ -212,11 +212,17 @@ class AutoEncoder(Model):
         # it only makes sense to transform zs if we're actually going to use it
         encoding = self.encode(x, transform_zs=s is None)
         recon_all = self.decode(encoding, s=s)
+
         recon_loss = self.recon_loss_fn(recon_all, x)
         recon_loss /= x.numel()
         prior_loss = prior_loss_w * encoding.zy.norm(dim=1).mean()
         loss = recon_loss + prior_loss
-        return encoding, loss, {"Loss reconstruction": recon_loss.item(), "Prior Loss": prior_loss}
+
+        logging_dict = {
+            "Loss Reconstruction": recon_loss.detach().cpu().item(),
+            "Prior Loss": prior_loss.detach().cpu().item(),
+        }
+        return encoding, loss, logging_dict
 
     def forward(self, inputs: Tensor) -> SplitEncoding:
         return self.encode(inputs)

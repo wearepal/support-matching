@@ -1,6 +1,5 @@
 from __future__ import annotations
 from abc import abstractmethod
-from collections import defaultdict
 from collections.abc import Iterator
 import logging
 from pathlib import Path
@@ -22,7 +21,6 @@ from advrep.optimisation import log_metrics, restore_model, save_model
 from shared.configs import Config, DiscriminatorMethod
 from shared.data import DataModule
 from shared.models.configs import FcNet
-from shared.utils import AverageMeter, readable_duration
 
 from .base import Algorithm
 
@@ -227,42 +225,30 @@ class AdvSemiSupervisedAlg(Algorithm):
                     dm=dm,
                     step=0,
                     save_summary=True,
+                    device=self.device,
                 )
 
         itr = start_itr
-        start_time = time.monotonic()
-        loss_meters = defaultdict(AverageMeter)
-
-        for itr in tqdm(
-            range(start_itr, self.alg_cfg.iters + 1),
+        with tqdm(
+            total=self.alg_cfg.iters - start_itr,
             desc="Training",
             colour=self._PBAR_COL,
-        ):
-            logging_dict = self.training_step(
-                iterator_tr=iterator_tr,
-                iterator_dep=iterator_dep,
-                itr=itr,
-                dm=dm,
-            )
-            for name, value in logging_dict.items():
-                loss_meters[name].update(value)
-
-            if itr % self.alg_cfg.log_freq == 0:
-                log_string = " | ".join(
-                    f"{name}: {loss.avg:.5g}" for name, loss in loss_meters.items()
+        ) as pbar:
+            for itr in tqdm(
+                range(start_itr, self.alg_cfg.iters + 1),
+            ):
+                logging_dict = self.training_step(
+                    iterator_tr=iterator_tr,
+                    iterator_dep=iterator_dep,
+                    itr=itr,
+                    dm=dm,
                 )
-                elapsed = time.monotonic() - start_time
-                LOGGER.info(
-                    f"[TRN] Iteration {itr} | Elapsed: {readable_duration(elapsed)} | "
-                    f"Iterations/s: {self.alg_cfg.log_freq / elapsed} | {log_string}"
-                )
+                pbar.set_postfix(logging_dict)
+                pbar.update()
 
-                loss_meters.clear()
-                start_time = time.monotonic()
-
-            if self.alg_cfg.validate and itr % self.alg_cfg.val_freq == 0:
-                log_metrics(self.cfg, encoder=self.encoder, dm=dm, step=itr)
-                save_model(self.cfg, save_dir, model=self.encoder, itr=itr)
+                if self.alg_cfg.validate and itr % self.alg_cfg.val_freq == 0:
+                    log_metrics(self.cfg, encoder=self.encoder, dm=dm, step=itr, device=self.device)
+                    save_model(self.cfg, save_dir, model=self.encoder, itr=itr)
 
         LOGGER.info("Training has finished.")
 
@@ -273,5 +259,6 @@ class AdvSemiSupervisedAlg(Algorithm):
             save_summary=True,
             step=itr,
             cluster_metrics=None,
+            device=self.device,
         )
         return self

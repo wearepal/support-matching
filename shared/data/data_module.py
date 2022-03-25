@@ -103,7 +103,6 @@ class DataModule(Generic[D]):
 
     # DataLoader settings
     batch_size_tr: int
-    _batch_size_dep: Optional[int] = None
     _batch_size_te: Optional[int] = None
     num_samples_per_group_per_bag: int = 1
 
@@ -123,14 +122,6 @@ class DataModule(Generic[D]):
 
     def __attrs_post_init__(self) -> None:
         self.generator = torch.Generator().manual_seed(self.seed)
-
-    @property
-    def batch_size_dep(self) -> int:
-        return self.batch_size_tr if self._batch_size_dep is None else self._batch_size_dep
-
-    @batch_size_dep.setter
-    def batch_size_dep(self, value: Optional[int]) -> None:
-        self._batch_size_dep = value
 
     @property
     def batch_size_te(self) -> int:
@@ -330,7 +321,7 @@ class DataModule(Generic[D]):
         if group_ids is None:
             batch_sampler = SequentialBatchSampler(
                 data_source=self.deployment,
-                batch_size=self.batch_size_dep,
+                batch_size=self.batch_size_tr,
                 shuffle=True,
                 training_mode=TrainingMode.step,
                 drop_last=False,
@@ -339,7 +330,7 @@ class DataModule(Generic[D]):
         else:
             batch_sampler = self._make_stratified_sampler(
                 group_ids=group_ids,
-                batch_size=self.batch_size_dep,
+                batch_size=self.batch_size_tr,
             )
         return self._make_dataloader(ds=self.deployment, batch_size=1, batch_sampler=batch_sampler)
 

@@ -18,11 +18,11 @@ __all__ = [
 
 
 class Aggregator(nn.Module):
-    bag_size: int
+    batch_size: int
 
-    def __init__(self, bag_size: int, *, output_dim: int = 1, **kwargs: Any) -> None:
+    def __init__(self, batch_size: int, *, output_dim: int = 1, **kwargs: Any) -> None:
         super().__init__()
-        self.bag_size = bag_size
+        self.batch_size = batch_size
 
     def batch_to_bags(self, batch: Tensor) -> Tensor:
         """
@@ -30,7 +30,7 @@ class Aggregator(nn.Module):
 
         This is the only certified way of producing bags. Use all other methods at your own risk.
         """
-        return batch.view(self.bag_size, *batch.shape[1:], -1).movedim(-1, 0)
+        return batch.view(-1, *batch.shape[1:], self.batch_size).movedim(-1, 0)
 
 
 class KvqAttentionAggregator(Aggregator):
@@ -38,13 +38,13 @@ class KvqAttentionAggregator(Aggregator):
         self,
         embed_dim: int,
         *,
-        bag_size: int,
+        batch_size: int,
         activation: Literal["relu", "gelu"] = "relu",
         dropout: float = 0.0,
         final_proj: ModelFactory | None = None,
         output_dim: int = 1,
     ) -> None:
-        super().__init__(bag_size=bag_size, output_dim=output_dim)
+        super().__init__(batch_size=batch_size, output_dim=output_dim)
         self.latent_dim = embed_dim
         self.attn = nn.MultiheadAttention(
             embed_dim=embed_dim, num_heads=1, dropout=dropout, bias=True
@@ -78,11 +78,11 @@ class GatedAttentionAggregator(Aggregator):
         self,
         embed_dim: int,
         *,
-        bag_size: int,
+        batch_size: int,
         final_proj: ModelFactory | None = None,
         output_dim: int = 1,
     ) -> None:
-        super().__init__(bag_size=bag_size, output_dim=output_dim)
+        super().__init__(batch_size=batch_size, output_dim=output_dim)
         self.V = nn.Parameter(torch.empty(embed_dim, embed_dim), requires_grad=True)
         self.U = nn.Parameter(torch.empty(embed_dim, embed_dim), requires_grad=True)
         self.w = nn.Parameter(torch.empty(1, embed_dim), requires_grad=True)

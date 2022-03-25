@@ -90,6 +90,7 @@ def log_metrics(
     dm: DataModule,
     encoder: AutoEncoder,
     step: int,
+    device: str | torch.device,
     save_summary: bool = False,
     cluster_metrics: Optional[Dict[str, float]] = None,
 ) -> None:
@@ -104,6 +105,7 @@ def log_metrics(
         dl=dm.train_dataloader(eval=True),
         encoder=encoder,
         recons=cfg.alg.eval_on_recon,
+        device=device,
         invariant_to=invariant_to,
     )
     if cfg.alg.eval_on_recon:
@@ -116,6 +118,7 @@ def log_metrics(
             dl=dm.test_dataloader(),
             encoder=encoder,
             recons=False,
+            device=device,
             invariant_to=invariant_to,
         )
 
@@ -141,6 +144,7 @@ def log_metrics(
         eval_on_recon=cfg.alg.eval_on_recon,
         pred_s=False,
         save_summary=save_summary,
+        device=device,
         cluster_metrics=cluster_metrics,
     )
 
@@ -154,6 +158,7 @@ def log_metrics(
                 dl=dm.deployment_dataloader(eval=True),
                 encoder=encoder,
                 recons=cfg.alg.eval_on_recon,
+                device=device,
                 invariant_to="y",
             )
             train_data = encoded_dep.inv_y
@@ -163,6 +168,7 @@ def log_metrics(
             dm=dm,
             step=step,
             name="s_from_zs",
+            device=device,
             eval_on_recon=cfg.alg.eval_on_recon,
             pred_s=True,
             save_summary=save_summary,
@@ -249,6 +255,7 @@ def fit_classifier(
     dm: DataModule,
     train_on_recon: bool,
     pred_s: bool,
+    device: str | torch.device,
 ) -> Classifier:
     input_dim = dm.dim_x[0]
     optimizer_kwargs = {"lr": cfg.alg.eval_lr}
@@ -288,12 +295,12 @@ def fit_classifier(
     )
     test_dl = dm.test_dataloader()
 
-    clf.to(torch.device(cfg.misc.device))
+    clf.to(torch.device(device))
     clf.fit(
         train_data=train_dl,
         test_data=test_dl,
         epochs=cfg.alg.eval_epochs,
-        device=torch.device(cfg.misc.device),
+        device=torch.device(device),
         pred_s=pred_s,
     )
 
@@ -305,6 +312,7 @@ def evaluate(
     *,
     dm: DataModule,
     step: int,
+    device: str | torch.device,
     name: str = "",
     eval_on_recon: bool = True,
     pred_s: bool = False,
@@ -312,16 +320,11 @@ def evaluate(
     cluster_metrics: Optional[Dict[str, float]] = None,
 ):
 
-    clf = fit_classifier(
-        cfg,
-        dm=dm,
-        train_on_recon=eval_on_recon,
-        pred_s=pred_s,
-    )
+    clf = fit_classifier(cfg, dm=dm, train_on_recon=eval_on_recon, pred_s=pred_s, device=device)
 
     # TODO: the soft predictions should only be computed if they're needed
     preds, labels, sens, soft_preds = clf.predict_dataset(
-        dm.test_dataloader(), device=torch.device(cfg.misc.device), with_soft=True
+        dm.test_dataloader(), device=torch.device(device), with_soft=True
     )
     del train_loader  # try to prevent lock ups of the workers
     del test_loader
@@ -356,6 +359,7 @@ def encode_dataset(
     dl: CdtDataLoader[TernarySample],
     encoder: AutoEncoder,
     recons: bool,
+    device: str | torch.device,
     invariant_to: Literal["y"] = ...,
 ) -> InvariantDatasets[Dataset, None]:
     ...
@@ -369,6 +373,7 @@ def encode_dataset(
     dl: CdtDataLoader[TernarySample],
     encoder: AutoEncoder,
     recons: bool,
+    device: str | torch.device,
     invariant_to: Literal["s"] = ...,
 ) -> InvariantDatasets[None, Dataset]:
     ...
@@ -382,6 +387,7 @@ def encode_dataset(
     dl: CdtDataLoader[TernarySample],
     encoder: AutoEncoder,
     recons: bool,
+    device: str | torch.device,
     invariant_to: Literal["both"],
 ) -> InvariantDatasets[Dataset, Dataset]:
     ...
@@ -394,6 +400,7 @@ def encode_dataset(
     dl: CdtDataLoader[TernarySample],
     encoder: AutoEncoder,
     recons: bool,
+    device: str | torch.device,
     invariant_to: InvariantAttr = "s",
 ) -> InvariantDatasets:
     LOGGER.info("Encoding dataset...")
@@ -402,7 +409,7 @@ def encode_dataset(
     all_s = []
     all_y = []
 
-    device = torch.device(cfg.misc.device)
+    device = torch.device(device)
 
     with torch.set_grad_enabled(False):
         for batch in tqdm(dl):
