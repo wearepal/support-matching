@@ -35,7 +35,7 @@ class Algorithm(nn.Module):
         self.device = torch.device(self.train_cfg.device)
 
     @abstractmethod
-    def fit(self, dm: DataModule, group_ids: Tensor | None = None) -> Self:
+    def fit(self, dm: DataModule, *, group_ids: Tensor | None = None) -> Self:
         ...
 
     def run(self) -> Self:
