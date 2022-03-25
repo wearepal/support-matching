@@ -64,8 +64,9 @@ class DataModuleConf:
     num_workers: int = 0
     persist_workers: bool = False
     pin_memory: bool = True
-    gt_deployment: bool = False
+    gt_deployment: bool = True
     label_noise: float = 0.0
+    seed: float = 47
 
 
 @dataclass

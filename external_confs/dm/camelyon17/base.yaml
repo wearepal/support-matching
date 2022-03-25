@@ -10,5 +10,5 @@ num_workers: 4
 persist_workers: false
 pin_memory: true
 seed: 47
-gt_context: false
+gt_deployment: false
 label_noise: 0.0

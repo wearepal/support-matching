@@ -54,7 +54,7 @@ __all__ = [
     "D",
     "DataModule",
     "Dataset",
-    "TrainContextTestSplit",
+    "TrainDepSplit",
 ]
 
 
@@ -63,7 +63,7 @@ D = TypeVar("D", bound=Dataset)
 
 
 @attr.define(kw_only=True)
-class TrainContextTestSplit(Generic[D]):
+class TrainDepSplit(Generic[D]):
     train: D
     deployment: D
     test: D
@@ -348,9 +348,7 @@ class DataModule(Generic[D]):
         return self._make_dataloader(ds=self.test, batch_size=self.batch_size_te, shuffle=False)
 
     @classmethod
-    def _generate_splits(
-        cls: Type[Self], dataset: D, split_config: SplitConf
-    ) -> TrainContextTestSplit[D]:
+    def _generate_splits(cls: Type[Self], dataset: D, split_config: SplitConf) -> TrainDepSplit[D]:
 
         dep_data, test_data, train_data = dataset.random_split(
             props=[split_config.dep_prop, split_config.test_prop],
@@ -366,7 +364,7 @@ class DataModule(Generic[D]):
         ).train
 
         if split_config.dep_subsampling_props:
-            cls.LOGGER.info("Subsampling context set...")
+            cls.LOGGER.info("Subsampling deployment set...")
             dep_data = stratified_split(
                 dep_data,
                 default_train_prop=1.0,
@@ -401,7 +399,7 @@ class DataModule(Generic[D]):
                 else split_config.test_transforms
             )
 
-        return TrainContextTestSplit(train=train_data, deployment=dep_data, test=test_data)
+        return TrainDepSplit(train=train_data, deployment=dep_data, test=test_data)
 
     @classmethod
     def from_configs(
@@ -435,7 +433,7 @@ class DataModule(Generic[D]):
         ds_name = self.train.__class__.__name__
         size_info = (
             f"- Size of training-set: {self.num_train_samples}\n"
-            f"- Size of context-set: {self.num_dep_samples}\n"
+            f"- Size of deployment-set: {self.num_dep_samples}\n"
             f"- Size of test-set: {self.num_test_samples}"
         )
         return f"\nDataModule for dataset of type {ds_name}\n{size_info}"

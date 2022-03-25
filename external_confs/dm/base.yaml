@@ -10,6 +10,6 @@ num_samples_per_group_per_bag: 1
 num_workers: 0
 persist_workers: false
 pin_memory: true
-seed: 47
-gt_context: false
+gt_deployment: true
 label_noise: 0.0
+seed: 47
