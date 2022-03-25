@@ -39,12 +39,12 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 else None
             )
             aggregator_cls: type[Aggregator] = self.alg_cfg.aggregator_type.value
-            aggregator = aggregator_cls(
+            aggregator: Aggregator = aggregator_cls(
                 latent_dim=self.alg_cfg.aggregator_input_dim,
                 bag_size=dm.bag_size,
                 final_proj=final_proj,
                 **self.alg_cfg.aggregator_kwargs,
-            )()
+            )
             backbone = nn.Sequential(backbone, nn.GELU())
             disc_fn = ModelAggregatorWrapper(
                 disc_fn, aggregator, input_dim=self.alg_cfg.aggregator_input_dim

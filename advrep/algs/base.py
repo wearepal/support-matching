@@ -63,15 +63,6 @@ class Algorithm(nn.Module):
             mode=self.log_cfg.mode.name,
         )
 
-        LOGGER.info(
-            yaml.dump(
-                as_pretty_dict(self.cfg),
-                default_flow_style=False,
-                allow_unicode=True,
-                sort_keys=True,
-            )
-        )
-
         # ==== construct the data-module ====
         dm = DataModule.from_configs(
             dm_config=self.cfg.dm,

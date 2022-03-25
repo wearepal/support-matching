@@ -5,6 +5,7 @@ from collections.abc import Iterator
 import logging
 from pathlib import Path
 import time
+from typing import ClassVar
 from typing_extensions import Literal, Self
 
 from conduit.data.structures import NamedSample, TernarySample
@@ -12,6 +13,7 @@ from hydra.utils import instantiate, to_absolute_path
 import torch
 from torch import Tensor
 from torch.cuda.amp.grad_scaler import GradScaler
+from tqdm import tqdm
 import wandb
 
 from advrep.models import AutoEncoder, Classifier
@@ -31,6 +33,8 @@ __all__ = ["AdvSemiSupervisedAlg"]
 
 class AdvSemiSupervisedAlg(Algorithm):
     """Base class for adversarial semi-supervsied methods."""
+
+    _PBAR_COL: ClassVar[str] = "#00FF00"
 
     encoder: AutoEncoder
     adversary: Discriminator
@@ -110,7 +114,11 @@ class AdvSemiSupervisedAlg(Algorithm):
         warmup = itr < self.alg_cfg.warmup_steps
         if (not warmup) and (self.alg_cfg.adv_method is DiscriminatorMethod.nn):
             # Train the discriminator on its own for a number of iterations
-            for _ in range(self.alg_cfg.num_adv_updates):
+            for _ in tqdm(
+                range(self.alg_cfg.num_adv_updates),
+                desc="Updating Discriminator",
+                colour=self._PBAR_COL,
+            ):
                 self._step_adversary(iterator_tr=iterator_tr, iterator_dep=iterator_dep)
 
         batch_tr = self._sample_tr(iterator_tr=iterator_tr)
@@ -229,7 +237,11 @@ class AdvSemiSupervisedAlg(Algorithm):
         start_time = time.monotonic()
         loss_meters = defaultdict(AverageMeter)
 
-        for itr in range(start_itr, self.alg_cfg.iters + 1):
+        for itr in tqdm(
+            range(start_itr, self.alg_cfg.iters + 1),
+            desc="Training",
+            colour=self._PBAR_COL,
+        ):
             logging_dict = self.training_step(
                 iterator_tr=iterator_tr,
                 iterator_dep=iterator_dep,

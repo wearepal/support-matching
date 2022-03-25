@@ -78,27 +78,28 @@ class KvqAttentionAggregator(Aggregator):
 class GatedAttentionAggregator(Aggregator):
     def __init__(
         self,
-        in_dim: int,
+        latent_dim: int,
+        *,
         bag_size: int,
         embed_dim: int = 128,
         final_proj: ModelFactory | None = None,
         output_dim: int = 1,
     ) -> None:
         super().__init__(bag_size=bag_size)
-        self.V = torch.empty(embed_dim, in_dim, requires_grad=True)
-        self.U = torch.empty(embed_dim, in_dim, requires_grad=True)
+        self.V = torch.empty(embed_dim, latent_dim, requires_grad=True)
+        self.U = torch.empty(embed_dim, latent_dim, requires_grad=True)
         self.w = torch.empty(1, embed_dim, requires_grad=True)
         nn.init.xavier_normal_(self.V)
         nn.init.xavier_normal_(self.U)
         nn.init.xavier_normal_(self.w)
         if final_proj is not None:
-            self.final_proj = final_proj(in_dim, target_dim=output_dim)
+            self.final_proj = final_proj(latent_dim, target_dim=output_dim)
         else:
-            self.final_proj = nn.Linear(in_features=in_dim, out_features=output_dim)
+            self.final_proj = nn.Linear(in_features=latent_dim, out_features=output_dim)
         self.output_dim = output_dim
         self.attention_weights: Tensor
 
-    def forward(self, inputs: Tensor) -> Tensor:
+    def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
         logits = torch.tanh(inputs @ self.V.t()) * torch.sigmoid(inputs @ self.U.t()) @ self.w.t()
         logits_batched = self.batch_to_bags(logits)
         weights = logits_batched.softmax(dim=1)

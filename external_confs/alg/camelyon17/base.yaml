@@ -1,6 +1,5 @@
 ---
 defaults:
-  - /schema/alg: base
   - base
   - _self_
 iters: 50000
@@ -36,11 +35,10 @@ aggregator_input_dim: 32
 aggregator_hidden_dims:
     - 256
     - 256
-aggregator_kwargs: 
+# aggregator_kwargs: 
 lr: 0.0003
 adv_lr: 0.0003
 enc_loss_w: 1
-enc_loss_weight: 1
 adv_loss_w: 1
 num_adv_updates: 1
 distinguish_weight: 1
@@ -49,6 +47,5 @@ pred_s_loss_w: 1
 prior_loss_w: 0.01
 pred_y_hidden_dims: null
 use_pretrained_enc: false
-zs_transform: none
 s_as_zs: false
 s_pred_with_bias: true
