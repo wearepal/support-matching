@@ -45,7 +45,6 @@ from torch import Tensor
 import torchvision.transforms.transforms as T
 
 from shared.configs.arguments import DataModuleConf, SplitConf
-from shared.utils.loadsave import ClusterResults
 from shared.utils.utils import lcm
 
 from .utils import group_id_to_label
@@ -448,7 +447,7 @@ class DataModule(Generic[D]):
                         stats = MeanStd(mean=_tform.mean, std=_tform.std)
 
                     elif isinstance(_tform, (T.Compose, A.Compose)):
-                        inner_tforms = list(_tform.transforms)
+                        inner_tforms = _tform.transforms
                         for inner_tform in inner_tforms[::-1]:
                             stats = _get_stats(inner_tform)
                             if stats is not None:

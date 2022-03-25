@@ -117,7 +117,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
             logging_dict.update({k: v + logging_dict_dep[k] for k, v in logging_dict_tr.items()})
             enc_loss_tr = 0.5 * (enc_loss_tr + enc_loss_dep)  # take average of the two recon losses
             enc_loss_tr *= self.alg_cfg.enc_loss_w
-            logging_dict["Loss Generator"] = enc_loss_tr
+            logging_dict["Loss Encoder"] = enc_loss_tr
             total_loss = enc_loss_tr
             # ================================= adversarial losses ================================
             if not warmup:
@@ -180,15 +180,14 @@ class SupportMatching(AdvSemiSupervisedAlg):
     def log_recons(self, x: Tensor, *, dm: DataModule, itr: int, prefix: str | None = None) -> None:
         """Log the reconstructed and original images."""
 
-        rows_per_block = 8
-        num_blocks = 4
-        if self.alg_cfg.aggregator_type is None:
-            num_sampled_bags = 0  # this is only defined here to make the linter happy
-            num_samples = num_blocks * rows_per_block
-        else:
-            # take enough bags to have 32 samples
-            num_sampled_bags = ((num_blocks * rows_per_block - 1) // dm.bag_size) + 1
-            num_samples = num_sampled_bags * dm.bag_size
+        num_blocks = min(4, len(x))
+        rows_per_block = min(8, len(x) // num_blocks)
+        num_samples = num_blocks * rows_per_block
+
+        # else:
+        #     # take enough bags to have 32 samples
+        #     num_sampled_bags = ((num_blocks * rows_per_block - 1) // dm.bag_size) + 1
+        #     num_samples = num_sampled_bags * dm.bag_size
 
         sample = x[:num_samples]
         encoding = self.encoder.encode(sample)
@@ -200,11 +199,11 @@ class SupportMatching(AdvSemiSupervisedAlg):
             recons.append(recon.rand_s)
             caption += " | rand_s"
 
-        to_log: list[Tensor] = [sample]
+        to_log = [sample]
         for recon_ in recons:
             to_log.append(recon_)
-        ncols = len(to_log)
 
+        ncols = len(to_log)
         interleaved = torch.stack(to_log, dim=1).view(ncols * num_samples, *sample.shape[1:])
 
         log_images(
@@ -218,17 +217,3 @@ class SupportMatching(AdvSemiSupervisedAlg):
             prefix=prefix,
             caption=caption,
         )
-
-        if isinstance(self.discriminator.aggregator, GatedAttentionAggregator):
-            self.discriminator(encoding.zy)
-            attention_weights = self.discriminator.aggregator.attention_weights
-            log_attention(
-                self.cfg,
-                images=sample,
-                attention_weights=attention_weights,  # type: ignore
-                name="attention Weights",
-                step=itr,
-                nbags=num_sampled_bags,
-                ncols=ncols,
-                prefix=prefix,
-            )

@@ -22,30 +22,6 @@ from shared.configs.arguments import (
 
 @dataclass
 class ASMRelay(Relay, Config):
-    @classmethod
-    @implements(Relay)
-    def with_hydra(
-        cls,
-        root: Union[Path, str],
-        *,
-        clear_cache: bool = False,
-        instantiate_recursively: bool = False,
-        ds: List[Union[Type[Any], Option]],
-        enc: List[Union[Type[Any], Option]],
-    ) -> None:
-        super().with_hydra(
-            root=root,
-            clear_cache=clear_cache,
-            instantiate_recursively=instantiate_recursively,
-            alg=[Option(ASMConf, "base")],
-            split=[Option(SplitConf, "base")],
-            logging=[Option(LoggingConf, "base")],
-            dm=[Option(DataModuleConf, "base")],
-            misc=[Option(MiscConf, "base")],
-            enc=enc,
-            ds=ds,
-        )
-
     @implements(Relay)
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> None:
         self.log(f"Current working directory: '{os.getcwd()}'")
@@ -68,6 +44,11 @@ if __name__ == "__main__":
         root="conf",
         clear_cache=True,
         instantiate_recursively=False,
+        dm=[Option(DataModuleConf, "base")],
         ds=ds_ops,
+        split=[Option(SplitConf, "base")],
         enc=ae_ops,
+        alg=[Option(ASMConf, "base")],
+        logging=[Option(LoggingConf, "base")],
+        misc=[Option(MiscConf, "base")],
     )
