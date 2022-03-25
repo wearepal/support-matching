@@ -34,7 +34,7 @@ __all__ = ["AdvSemiSupervisedAlg"]
 class AdvSemiSupervisedAlg(Algorithm):
     """Base class for adversarial semi-supervsied methods."""
 
-    _PBAR_COL: ClassVar[str] = "#ff0000"
+    _PBAR_COL: ClassVar[str] = "#ffe252"
 
     encoder: AutoEncoder
     adversary: Discriminator
@@ -114,11 +114,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         warmup = itr < self.alg_cfg.warmup_steps
         if (not warmup) and (self.alg_cfg.adv_method is DiscriminatorMethod.nn):
             # Train the discriminator on its own for a number of iterations
-            for _ in tqdm(
-                range(self.alg_cfg.num_adv_updates),
-                desc="Updating Discriminator",
-                colour=self._PBAR_COL,
-            ):
+            for _ in range(self.alg_cfg.num_adv_updates):
                 self._step_adversary(iterator_tr=iterator_tr, iterator_dep=iterator_dep)
 
         batch_tr = self._sample_tr(iterator_tr=iterator_tr)

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator
 
 from conduit.data.structures import NamedSample, TernarySample
 from ranzen import implements
@@ -11,10 +11,9 @@ from advrep.models import AutoEncoder, Discriminator, SplitEncoding
 from advrep.optimisation import log_attention, log_images, mmd2
 from shared.configs import DiscriminatorMethod
 from shared.data.data_module import DataModule
-from shared.layers import Aggregator, ModelAggregatorWrapper
+from shared.layers import Aggregator
 from shared.layers.aggregation import GatedAttentionAggregator
 from shared.models.configs import FcNet
-from shared.utils import prod
 
 from .adv import AdvSemiSupervisedAlg
 
@@ -25,11 +24,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
     @implements(AdvSemiSupervisedAlg)
     def _build_adversary(self, encoder: AutoEncoder, *, dm: DataModule) -> Discriminator:
         """Build the adversarial network."""
-        input_shape: Sequence[int] = (encoder.latent_dim,)
         disc_fn = FcNet(hidden_dims=self.alg_cfg.adv_hidden_dims, activation=nn.GELU())
-        # FcNet first flattens the input
-        input_shape = (prod(input_shape),)
-        backbone = disc_fn(input_dim=input_shape[0], target_dim=1)
 
         aggregator = None
         if self.alg_cfg.aggregator_type is not None:
@@ -39,16 +34,21 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 else None
             )
             aggregator_cls: type[Aggregator] = self.alg_cfg.aggregator_type.value
-            aggregator: Aggregator = aggregator_cls(
-                latent_dim=self.alg_cfg.aggregator_input_dim,
+            aggregator = aggregator_cls(
+                embed_dim=self.alg_cfg.aggregator_input_dim,
                 bag_size=dm.bag_size,
                 final_proj=final_proj,
                 **self.alg_cfg.aggregator_kwargs,
             )
-            backbone = nn.Sequential(backbone, nn.GELU())
-            disc_fn = ModelAggregatorWrapper(
-                disc_fn, aggregator, input_dim=self.alg_cfg.aggregator_input_dim
+            backbone = disc_fn(
+                input_dim=encoder.encoding_size.zy, target_dim=self.alg_cfg.aggregator_input_dim
             )
+            backbone = nn.Sequential(nn.GELU(), backbone)
+        else:
+            backbone = disc_fn(input_dim=encoder.encoding_size.zy, target_dim=1)
+
+        gn = nn.GroupNorm(num_groups=1, num_channels=encoder.encoding_size.zy)
+        backbone = nn.Sequential(gn, backbone)
 
         return Discriminator(
             backbone=backbone,
@@ -80,14 +80,13 @@ class SupportMatching(AdvSemiSupervisedAlg):
         x_dep = self._sample_dep(iterator_dep)
 
         with torch.cuda.amp.autocast(enabled=self.train_cfg.use_amp):  # type: ignore
-            encoding_tr = self.encoder.encode(x_tr)
-            encoding_dep = self.encoder.encode(x_dep)
+            with torch.no_grad():
+                encoding_tr = self.encoder.encode(x_tr)
+                encoding_dep = self.encoder.encode(x_dep)
 
-            adv_loss = x_dep.new_zeros(())
             logging_dict = {}
-            adv_input_tr = self._get_disc_input(encoding_tr).detach()
-            adv_input_dep = self._get_disc_input(encoding_dep)  # type: ignore
-
+            adv_input_tr = self._get_disc_input(encoding_tr)
+            adv_input_dep = self._get_disc_input(encoding_dep)
             adv_loss = self.adversary.discriminator_loss(fake=adv_input_tr, real=adv_input_dep)  # type: ignore
 
         self._update_adversary(adv_loss)
@@ -170,8 +169,9 @@ class SupportMatching(AdvSemiSupervisedAlg):
     @torch.no_grad()
     def _get_disc_input(self, encoding: SplitEncoding, *, detach: bool = False) -> Tensor:
         """Construct the input that the discriminator expects; either zy or reconstructed zy."""
-        zs_m, _ = encoding.mask(detach=detach)
-        return zs_m.join()
+        # zs_m, _ = encoding.mask(detach=detach)
+        # return zs_m.join()
+        return encoding.zy
 
     @torch.no_grad()
     @implements(AdvSemiSupervisedAlg)
@@ -218,7 +218,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         )
 
         if isinstance(self.adversary.aggregator, GatedAttentionAggregator):
-            self.adversary(self._get_disc_input(encoding))
+            self.adversary(encoding.zy)
             attention_weights = self.adversary.aggregator.attention_weights
             log_attention(
                 self.cfg,

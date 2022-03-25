@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any
+from typing import Any, Optional
 
 import torch
 from torch import Tensor, nn
@@ -17,7 +17,7 @@ class Discriminator(Model):
         self,
         backbone: nn.Module,
         *,
-        aggregator: Aggregator,
+        aggregator: Optional[Aggregator],
         double_adv_loss: bool,
         lr: float = 5.0e-4,
         optimizer_cls: str = "torch.optim.AdamW",

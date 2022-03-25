@@ -18,10 +18,9 @@ __all__ = [
 
 
 class Aggregator(nn.Module):
-    output_dim: int
     bag_size: int
 
-    def __init__(self, bag_size: int, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, bag_size: int, *, output_dim: int = 1, **kwargs: Any) -> None:
         super().__init__()
         self.bag_size = bag_size
 
@@ -37,7 +36,7 @@ class Aggregator(nn.Module):
 class KvqAttentionAggregator(Aggregator):
     def __init__(
         self,
-        latent_dim: int,
+        embed_dim: int,
         *,
         bag_size: int,
         activation: Literal["relu", "gelu"] = "relu",
@@ -45,15 +44,15 @@ class KvqAttentionAggregator(Aggregator):
         final_proj: ModelFactory | None = None,
         output_dim: int = 1,
     ) -> None:
-        super().__init__(bag_size=bag_size)
-        self.latent_dim = latent_dim
+        super().__init__(bag_size=bag_size, output_dim=output_dim)
+        self.latent_dim = embed_dim
         self.attn = nn.MultiheadAttention(
-            embed_dim=latent_dim, num_heads=1, dropout=dropout, bias=True
+            embed_dim=embed_dim, num_heads=1, dropout=dropout, bias=True
         )
         if final_proj is not None:
-            self.final_proj = final_proj(latent_dim, target_dim=output_dim)
+            self.final_proj = final_proj(embed_dim, target_dim=output_dim)
         else:
-            self.final_proj = nn.Linear(in_features=latent_dim, out_features=output_dim)
+            self.final_proj = nn.Linear(in_features=embed_dim, out_features=output_dim)
 
         if activation == "relu":
             self.act = F.relu
@@ -61,7 +60,6 @@ class KvqAttentionAggregator(Aggregator):
             self.act = F.gelu
         else:
             raise ValueError(f"Unknown activation {activation}")
-        self.output_dim = output_dim
 
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
         # `attn` expects the *second* dimension to be the batch dimension
@@ -78,30 +76,33 @@ class KvqAttentionAggregator(Aggregator):
 class GatedAttentionAggregator(Aggregator):
     def __init__(
         self,
-        latent_dim: int,
+        embed_dim: int,
         *,
         bag_size: int,
-        embed_dim: int = 128,
         final_proj: ModelFactory | None = None,
         output_dim: int = 1,
     ) -> None:
-        super().__init__(bag_size=bag_size)
-        self.V = torch.empty(embed_dim, latent_dim, requires_grad=True)
-        self.U = torch.empty(embed_dim, latent_dim, requires_grad=True)
+        super().__init__(bag_size=bag_size, output_dim=output_dim)
+        self.V = torch.empty(embed_dim, embed_dim, requires_grad=True)
+        self.U = torch.empty(embed_dim, embed_dim, requires_grad=True)
         self.w = torch.empty(1, embed_dim, requires_grad=True)
         nn.init.xavier_normal_(self.V)
         nn.init.xavier_normal_(self.U)
         nn.init.xavier_normal_(self.w)
         if final_proj is not None:
-            self.final_proj = final_proj(latent_dim, target_dim=output_dim)
+            self.final_proj = final_proj(embed_dim, target_dim=output_dim)
         else:
-            self.final_proj = nn.Linear(in_features=latent_dim, out_features=output_dim)
-        self.output_dim = output_dim
+            self.final_proj = nn.Linear(in_features=embed_dim, out_features=output_dim)
         self.attention_weights: Tensor
 
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
         inputs = inputs.flatten(start_dim=1)
-        logits = torch.tanh(inputs @ self.V.t()) * torch.sigmoid(inputs @ self.U.t()) @ self.w.t()
+        try:
+            logits = (
+                torch.tanh(inputs @ self.V.t()) * torch.sigmoid(inputs @ self.U.t()) @ self.w.t()
+            )
+        except:
+            breakpoint()
         logits_batched = self.batch_to_bags(logits)
         weights = logits_batched.softmax(dim=1)
         self.attention_weights = weights.squeeze(-1).detach().cpu()
