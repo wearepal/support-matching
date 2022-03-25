@@ -7,7 +7,5 @@ cluster_label_file: ''
 resume: null
 evaluate: false
 seed: 42
-use_gpu: false
 use_amp: false
-device: 'cpu'
 gpu: 0

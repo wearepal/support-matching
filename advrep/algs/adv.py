@@ -37,7 +37,7 @@ class AdvSemiSupervisedAlg(Algorithm):
     _PBAR_COL: ClassVar[str] = "#ffe252"
 
     encoder: AutoEncoder
-    adversary: Discriminator
+    discriminator: Discriminator
     predictor_y: Classifier | None
     predictor_s: Classifier | None
 
@@ -49,10 +49,10 @@ class AdvSemiSupervisedAlg(Algorithm):
         self.enc_cfg = cfg.enc
         self.alg_cfg = cfg.alg
         self.adv_lr = self.alg_cfg.adv_lr
-        self.grad_scaler = GradScaler() if self.train_cfg.use_amp else None
+        self.grad_scaler = GradScaler() if self.use_amp else None
 
     def _sample_dep(self, iterator_dep: Iterator[NamedSample[Tensor]]) -> Tensor:
-        return next(iterator_dep).to(self.device).x
+        return next(iterator_dep).x.to(self.device, non_blocking=True)
 
     def _sample_tr(
         self,
@@ -72,7 +72,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         return ae
 
     @abstractmethod
-    def _build_adversary(self, encoder: AutoEncoder, *, dm: DataModule) -> Discriminator:
+    def _build_discriminator(self, encoder: AutoEncoder, *, dm: DataModule) -> Discriminator:
         ...
 
     def _build_predictors(
@@ -96,11 +96,11 @@ class AdvSemiSupervisedAlg(Algorithm):
 
     def _build(self, dm: DataModule) -> None:
         self.encoder = self._build_encoder(dm=dm)
-        self.adversary = self._build_adversary(encoder=self.encoder, dm=dm)
+        self.discriminator = self._build_discriminator(encoder=self.encoder, dm=dm)
         self.predictor_y, self.predictor_s = self._build_predictors(
             encoder=self.encoder, y_dim=dm.card_y, s_dim=dm.card_s
         )
-        self.to(self.train_cfg.device)
+        self.to(self.device)
 
     def training_step(
         self,
@@ -115,7 +115,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         if (not warmup) and (self.alg_cfg.adv_method is DiscriminatorMethod.nn):
             # Train the discriminator on its own for a number of iterations
             for _ in range(self.alg_cfg.num_adv_updates):
-                self._step_adversary(iterator_tr=iterator_tr, iterator_dep=iterator_dep)
+                self._step_discriminator(iterator_tr=iterator_tr, iterator_dep=iterator_dep)
 
         batch_tr = self._sample_tr(iterator_tr=iterator_tr)
         x_dep = self._sample_dep(iterator_dep=iterator_dep)
@@ -136,7 +136,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         ...
 
     @abstractmethod
-    def _step_adversary(
+    def _step_discriminator(
         self,
         iterator_tr: Iterator[TernarySample[Tensor]],
         *,
@@ -170,31 +170,31 @@ class AdvSemiSupervisedAlg(Algorithm):
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
             self.grad_scaler.update()
 
-    def _update_adversary(self, loss: Tensor) -> None:
-        self.adversary.zero_grad()
+    def _update_discriminator(self, loss: Tensor) -> None:
+        self.discriminator.zero_grad()
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
             loss = self.grad_scaler.scale(loss)  # type: ignore
         loss.backward()
 
-        self.adversary.step(grad_scaler=self.grad_scaler)
+        self.discriminator.step(grad_scaler=self.grad_scaler)
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
             self.grad_scaler.update()
 
-    def _train(self, mode: Literal["encoder", "adversary"]) -> None:
+    def _train(self, mode: Literal["encoder", "discriminator"]) -> None:
         if mode == "encoder":
             self.encoder.train()
             if self.predictor_y is not None:
                 self.predictor_y.train()
             if self.predictor_s is not None:
                 self.predictor_s.train()
-            self.adversary.eval()
+            self.discriminator.eval()
         else:
             self.encoder.eval()
             if self.predictor_y is not None:
                 self.predictor_y.eval()
             if self.predictor_s is not None:
                 self.predictor_s.eval()
-            self.adversary.train()
+            self.discriminator.train()
 
     def _get_data_iterators(
         self, dm: DataModule, *, group_ids: Tensor | None = None
@@ -216,11 +216,11 @@ class AdvSemiSupervisedAlg(Algorithm):
 
         start_itr = 1  # start at 1 so that the val_freq works correctly
         # Resume from checkpoint
-        if self.train_cfg.resume is not None:
+        if self.misc_cfg.resume is not None:
             LOGGER.info("Restoring encoder's weights from checkpoint")
-            encoder, start_itr = restore_model(self.cfg, Path(self.train_cfg.resume), self.encoder)
+            encoder, start_itr = restore_model(self.cfg, Path(self.misc_cfg.resume), self.encoder)
 
-            if self.train_cfg.evaluate:
+            if self.misc_cfg.evaluate:
                 log_metrics(
                     cfg=self.cfg,
                     encoder=encoder,

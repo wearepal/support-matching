@@ -87,19 +87,8 @@ class MiscConf:
     resume: Optional[str] = None
     evaluate: bool = False
     seed: int = 42
-    use_gpu: bool = False
     use_amp: bool = False  # Whether to use mixed-precision training
-    device: str = "cpu"
     gpu: int = 0  # which GPU to use (if available)
-
-    def __post_init__(self) -> None:
-        # ==== check GPU ====
-        self.use_gpu = torch.cuda.is_available() and self.gpu >= 0
-        self.device = f"cuda:{self.gpu}" if self.use_gpu else "cpu"
-        LOGGER.info(f"{torch.cuda.device_count()} GPUs available. Using device '{self.device}'")
-
-        if not self.use_gpu:  # If cuda is not enabled, set use_amp to False to avoid warning
-            self.use_amp = False
 
 
 @dataclass

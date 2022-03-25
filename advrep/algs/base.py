@@ -27,12 +27,16 @@ class Algorithm(nn.Module):
 
         super().__init__()
         self.cfg = cfg
-        self.train_cfg = cfg.misc
+        self.misc_cfg = cfg.misc
         self.ds_cfg = cfg.ds
         self.dm_cfg = cfg.dm
         self.split_cfg = cfg.split
         self.log_cfg = cfg.logging
-        self.device = torch.device(self.train_cfg.device)
+
+        self.use_gpu = torch.cuda.is_available() and self.misc_cfg.gpu >= 0
+        self.device = f"cuda:{self.misc_cfg.gpu}" if self.use_gpu else "cpu"
+        self.use_amp = self.misc_cfg.use_amp and self.use_gpu
+        LOGGER.info(f"{torch.cuda.device_count()} GPUs available. Using device '{self.device}'")
 
     @abstractmethod
     def fit(self, dm: DataModule, *, group_ids: Tensor | None = None) -> Self:
@@ -41,7 +45,7 @@ class Algorithm(nn.Module):
     def run(self) -> Self:
         """Loads the data and fits and evaluates the model."""
 
-        random_seed(self.train_cfg.seed, use_cuda=self.train_cfg.use_gpu)
+        random_seed(self.misc_cfg.seed, use_cuda=self.use_gpu)
 
         ds_name = self.ds_cfg["_target_"]
         group = f"{ds_name}.{self.__class__.__name__}"

@@ -22,7 +22,7 @@ __all__ = ["SupportMatching"]
 
 class SupportMatching(AdvSemiSupervisedAlg):
     @implements(AdvSemiSupervisedAlg)
-    def _build_adversary(self, encoder: AutoEncoder, *, dm: DataModule) -> Discriminator:
+    def _build_discriminator(self, encoder: AutoEncoder, *, dm: DataModule) -> Discriminator:
         """Build the adversarial network."""
         disc_fn = FcNet(hidden_dims=self.alg_cfg.adv_hidden_dims, activation=nn.GELU())
 
@@ -68,30 +68,30 @@ class SupportMatching(AdvSemiSupervisedAlg):
         return super()._build_encoder(dm)
 
     @implements(AdvSemiSupervisedAlg)
-    def _step_adversary(
+    def _step_discriminator(
         self,
         iterator_tr: Iterator[TernarySample[Tensor]],
         *,
         iterator_dep: Iterator[NamedSample[Tensor]],
     ) -> tuple[Tensor, dict[str, float]]:
         """Train the discriminator while keeping the encoder fixed."""
-        self._train("adversary")
+        self._train("discriminator")
         x_tr = self._sample_tr(iterator_tr).x
         x_dep = self._sample_dep(iterator_dep)
 
-        with torch.cuda.amp.autocast(enabled=self.train_cfg.use_amp):  # type: ignore
+        with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):  # type: ignore
             with torch.no_grad():
                 encoding_tr = self.encoder.encode(x_tr)
                 encoding_dep = self.encoder.encode(x_dep)
 
             logging_dict = {}
-            adv_input_tr = self._get_disc_input(encoding_tr)
-            adv_input_dep = self._get_disc_input(encoding_dep)
-            adv_loss = self.adversary.discriminator_loss(fake=adv_input_tr, real=adv_input_dep)  # type: ignore
+            disc_input_tr = self._get_disc_input(encoding_tr)
+            disc_input_dep = self._get_disc_input(encoding_dep)
+            disc_loss = self.discriminator.discriminator_loss(fake=disc_input_tr, real=disc_input_dep)  # type: ignore
 
-        self._update_adversary(adv_loss)
+        self._update_discriminator(disc_loss)
 
-        return adv_loss, logging_dict
+        return disc_loss, logging_dict
 
     @implements(AdvSemiSupervisedAlg)
     def _step_encoder(
@@ -102,7 +102,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         self._train("encoder")
         logging_dict = {}
 
-        with torch.cuda.amp.autocast(enabled=self.train_cfg.use_amp):  # type: ignore
+        with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):  # type: ignore
             # ============================= recon loss for training set ===========================
             encoding_t, enc_loss_tr, logging_dict_tr = self.encoder.training_step(
                 batch_tr.x,
@@ -125,7 +125,9 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 disc_input_dep = self._get_disc_input(encoding_c)
 
                 if self.alg_cfg.adv_method is DiscriminatorMethod.nn:
-                    disc_loss = self.adversary.encoder_loss(fake=disc_input_tr, real=disc_input_dep)
+                    disc_loss = self.discriminator.encoder_loss(
+                        fake=disc_input_tr, real=disc_input_dep
+                    )
 
                 else:
                     x = disc_input_tr
@@ -217,9 +219,9 @@ class SupportMatching(AdvSemiSupervisedAlg):
             caption=caption,
         )
 
-        if isinstance(self.adversary.aggregator, GatedAttentionAggregator):
-            self.adversary(encoding.zy)
-            attention_weights = self.adversary.aggregator.attention_weights
+        if isinstance(self.discriminator.aggregator, GatedAttentionAggregator):
+            self.discriminator(encoding.zy)
+            attention_weights = self.discriminator.aggregator.attention_weights
             log_attention(
                 self.cfg,
                 images=sample,

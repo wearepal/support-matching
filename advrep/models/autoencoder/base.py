@@ -151,20 +151,20 @@ class AutoEncoder(Model):
 
     def decode(
         self,
-        enc: SplitEncoding,
+        split_encoding: SplitEncoding,
         *,
         s: Tensor | None = None,
         mode: Literal["soft", "hard", "relaxed"] = "soft",
     ) -> Tensor:
         if s is not None:  # we've been given the ground-truth labels for reconstruction
-            card_s = enc.zy.size(1)
+            card_s = split_encoding.zy.size(1)
             if card_s > 1:
                 s = cast(Tensor, F.one_hot(s.long(), num_classes=card_s))
             else:
                 s = s.view(-1, 1)
-            enc = replace(enc, zs=s.float())
+            split_encoding = replace(split_encoding, zs=s.float())
 
-        decoding = self.decoder(enc.join())
+        decoding = self.decoder(split_encoding.join())
         if mode in ("hard", "relaxed") and self.feature_group_slices:
             discrete_outputs_ls: list[Tensor] = []
             stop_index = 0
@@ -211,7 +211,6 @@ class AutoEncoder(Model):
     ) -> tuple[SplitEncoding, Tensor, dict[str, float]]:
         # it only makes sense to transform zs if we're actually going to use it
         encoding = self.encode(x, transform_zs=s is None)
-
         recon_all = self.decode(encoding, s=s)
         recon_loss = self.recon_loss_fn(recon_all, x)
         recon_loss /= x.numel()

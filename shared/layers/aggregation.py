@@ -83,9 +83,9 @@ class GatedAttentionAggregator(Aggregator):
         output_dim: int = 1,
     ) -> None:
         super().__init__(bag_size=bag_size, output_dim=output_dim)
-        self.V = torch.empty(embed_dim, embed_dim, requires_grad=True)
-        self.U = torch.empty(embed_dim, embed_dim, requires_grad=True)
-        self.w = torch.empty(1, embed_dim, requires_grad=True)
+        self.V = nn.Parameter(torch.empty(embed_dim, embed_dim), requires_grad=True)
+        self.U = nn.Parameter(torch.empty(embed_dim, embed_dim), requires_grad=True)
+        self.w = nn.Parameter(torch.empty(1, embed_dim), requires_grad=True)
         nn.init.xavier_normal_(self.V)
         nn.init.xavier_normal_(self.U)
         nn.init.xavier_normal_(self.w)
@@ -97,12 +97,7 @@ class GatedAttentionAggregator(Aggregator):
 
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
         inputs = inputs.flatten(start_dim=1)
-        try:
-            logits = (
-                torch.tanh(inputs @ self.V.t()) * torch.sigmoid(inputs @ self.U.t()) @ self.w.t()
-            )
-        except:
-            breakpoint()
+        logits = torch.tanh(inputs @ self.V.t()) * torch.sigmoid(inputs @ self.U.t()) @ self.w.t()
         logits_batched = self.batch_to_bags(logits)
         weights = logits_batched.softmax(dim=1)
         self.attention_weights = weights.squeeze(-1).detach().cpu()
@@ -112,7 +107,7 @@ class GatedAttentionAggregator(Aggregator):
 
 
 class ModelAggregatorWrapper(ModelFactory[nn.Sequential]):
-    def __init__(self, model_fn: ModelFactory, aggregator: Aggregator, input_dim: int) -> None:
+    def __init__(self, model_fn: ModelFactory, *, aggregator: Aggregator, input_dim: int) -> None:
         self.model_fn = model_fn
         self.aggregator = aggregator
         self.input_dim = input_dim
