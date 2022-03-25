@@ -234,9 +234,7 @@ class AdvSemiSupervisedAlg(Algorithm):
             desc="Training",
             colour=self._PBAR_COL,
         ) as pbar:
-            for itr in tqdm(
-                range(start_itr, self.alg_cfg.iters + 1),
-            ):
+            for itr in range(start_itr, self.alg_cfg.iters + 1):
                 logging_dict = self.training_step(
                     iterator_tr=iterator_tr,
                     iterator_dep=iterator_dep,
