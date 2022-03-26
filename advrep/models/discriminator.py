@@ -8,10 +8,10 @@ from advrep.models.base import Model
 from shared.configs.enums import DiscriminatorLoss
 from shared.layers.aggregation import Aggregator
 
-__all__ = ["Discriminator"]
+__all__ = ["SetDiscriminator"]
 
 
-class Discriminator(Model):
+class SetDiscriminator(Model):
     def __init__(
         self,
         backbone: nn.Module,

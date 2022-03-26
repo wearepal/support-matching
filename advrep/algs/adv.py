@@ -16,7 +16,7 @@ from tqdm import tqdm
 import wandb
 
 from advrep.models import AutoEncoder, Classifier
-from advrep.models.discriminator import Discriminator
+from advrep.models.discriminator import SetDiscriminator
 from advrep.optimisation import log_metrics, restore_model, save_model
 from shared.configs import Config, DiscriminatorMethod
 from shared.data import DataModule
@@ -35,7 +35,7 @@ class AdvSemiSupervisedAlg(Algorithm):
     _PBAR_COL: ClassVar[str] = "#ffe252"
 
     encoder: AutoEncoder
-    discriminator: Discriminator
+    discriminator: SetDiscriminator
     predictor_y: Classifier | None
     predictor_s: Classifier | None
 
@@ -70,7 +70,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         return ae
 
     @abstractmethod
-    def _build_discriminator(self, encoder: AutoEncoder, *, dm: DataModule) -> Discriminator:
+    def _build_discriminator(self, encoder: AutoEncoder, *, dm: DataModule) -> SetDiscriminator:
         ...
 
     def _build_predictors(

@@ -288,6 +288,8 @@ def fit_classifier(
         input_dim = prod(dm.dim_x)
     clf_base = clf_fn(input_dim, target_dim=dm.card_y)
 
+    from advrep.models.classifier import Classifier
+
     clf = Classifier(clf_base, optimizer_kwargs=optimizer_kwargs)
 
     train_dl = dm.train_dataloader(

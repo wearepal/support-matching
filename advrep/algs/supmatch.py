@@ -7,7 +7,7 @@ import torch
 from torch import Tensor
 import torch.nn as nn
 
-from advrep.models import AutoEncoder, Discriminator, SplitEncoding
+from advrep.models import AutoEncoder, SetDiscriminator, SplitEncoding
 from advrep.optimisation import log_images, mmd2
 from shared.configs import DiscriminatorMethod
 from shared.data.data_module import DataModule
@@ -21,7 +21,7 @@ __all__ = ["SupportMatching"]
 
 class SupportMatching(AdvSemiSupervisedAlg):
     @implements(AdvSemiSupervisedAlg)
-    def _build_discriminator(self, encoder: AutoEncoder, *, dm: DataModule) -> Discriminator:
+    def _build_discriminator(self, encoder: AutoEncoder, *, dm: DataModule) -> SetDiscriminator:
         """Build the adversarial network."""
         disc_fn = FcNet(hidden_dims=self.alg_cfg.adv_hidden_dims, activation=nn.GELU())
 
@@ -49,7 +49,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         gn = nn.GroupNorm(num_groups=1, num_channels=encoder.encoding_size.zy)
         backbone = nn.Sequential(gn, backbone)
 
-        return Discriminator(
+        return SetDiscriminator(
             backbone=backbone,
             aggregator=aggregator,
             double_adv_loss=self.alg_cfg.double_adv_loss,
@@ -130,7 +130,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
                 else:
                     x = disc_input_tr
-                    y = self._get_disc_input(encoding_c, detach=True)
+                    y = self._get_disc_input(encoding_c).detach()
                     disc_loss = mmd2(
                         x=x,
                         y=y,
@@ -168,10 +168,8 @@ class SupportMatching(AdvSemiSupervisedAlg):
         return total_loss, logging_dict
 
     @torch.no_grad()
-    def _get_disc_input(self, encoding: SplitEncoding, *, detach: bool = False) -> Tensor:
+    def _get_disc_input(self, encoding: SplitEncoding) -> Tensor:
         """Construct the input that the discriminator expects; either zy or reconstructed zy."""
-        # zs_m, _ = encoding.mask(detach=detach)
-        # return zs_m.join()
         return encoding.zy
 
     @torch.no_grad()
