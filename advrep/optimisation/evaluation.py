@@ -100,7 +100,6 @@ def log_metrics(
 
     LOGGER.info("Encoding training set...")
     train_eval = encode_dataset(
-        cfg,
         dm=dm,
         dl=dm.train_dataloader(eval=True, num_workers=0),
         encoder=encoder,
@@ -113,7 +112,6 @@ def log_metrics(
         test_eval = dm.test
     else:
         test_eval = encode_dataset(
-            cfg,
             dm=dm,
             dl=dm.test_dataloader(num_workers=0),
             encoder=encoder,
@@ -153,7 +151,6 @@ def log_metrics(
             train_data = train_eval.inv_y  # the part that is invariant to y corresponds to zs
         else:
             encoded_dep = encode_dataset(
-                cfg,
                 dm=dm,
                 dl=dm.deployment_dataloader(eval=True, num_workers=0),
                 encoder=encoder,
@@ -328,8 +325,6 @@ def evaluate(
     preds, labels, sens, soft_preds = clf.predict_dataset(
         dm.test_dataloader(), device=torch.device(device), with_soft=True
     )
-    del train_loader  # try to prevent lock ups of the workers
-    del test_loader
     # TODO: investigate why the histogram plotting fails when s_dim != 1
     if (cfg.logging.mode is not WandbMode.disabled) and (dm.card_s == 2):
         plot_histogram_by_source(soft_preds, s=sens, y=labels, step=step, name=name)
@@ -355,7 +350,6 @@ InvariantAttr = Literal["s", "y", "both"]
 
 @overload
 def encode_dataset(
-    cfg: Config,
     *,
     dm: DataModule,
     dl: CdtDataLoader[TernarySample],
@@ -369,7 +363,6 @@ def encode_dataset(
 
 @overload
 def encode_dataset(
-    cfg: Config,
     *,
     dm: DataModule,
     dl: CdtDataLoader[TernarySample],
@@ -383,7 +376,6 @@ def encode_dataset(
 
 @overload
 def encode_dataset(
-    cfg: Config,
     *,
     dm: DataModule,
     dl: CdtDataLoader[TernarySample],
@@ -396,7 +388,6 @@ def encode_dataset(
 
 
 def encode_dataset(
-    cfg: Config,
     *,
     dm: DataModule,
     dl: CdtDataLoader[TernarySample],
