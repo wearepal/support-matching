@@ -198,7 +198,6 @@ class SupportMatching(AdvSemiSupervisedAlg):
         interleaved = torch.stack(to_log, dim=1).view(ncols * num_samples, *sample.shape[1:])
 
         log_images(
-            self.cfg,
             images=interleaved,
             dm=dm,
             name="reconstructions",

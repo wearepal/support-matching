@@ -71,7 +71,6 @@ class InvariantDatasets(Generic[DY, DS]):
 
 
 def log_sample_images(
-    cfg: Config,
     *,
     data: CdtVisionDataset,
     dm: DataModule,
@@ -81,7 +80,7 @@ def log_sample_images(
 ) -> None:
     inds = torch.randperm(len(data))[:num_samples]
     images = data[inds.tolist()]
-    log_images(cfg, images=images, dm=dm, name=f"Samples from {name}", prefix="eval", step=step)
+    log_images(images=images, dm=dm, name=f"Samples from {name}", prefix="eval", step=step)
 
 
 def log_metrics(
@@ -317,7 +316,7 @@ def evaluate(
     pred_s: bool = False,
     save_summary: bool = False,
     cluster_metrics: Optional[Dict[str, float]] = None,
-):
+) -> None:
 
     clf = fit_classifier(cfg, dm=dm, train_on_recon=eval_on_recon, pred_s=pred_s, device=device)
 
@@ -342,6 +341,7 @@ def evaluate(
         save_summary=save_summary,
         use_wandb=(cfg.logging.mode is not WandbMode.disabled),
         additional_entries=cluster_metrics,
+        prefix="test",
     )
 
 

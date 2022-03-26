@@ -8,6 +8,7 @@ from typing import ClassVar
 from typing_extensions import Literal, Self
 
 from conduit.data.structures import NamedSample, TernarySample
+from conduit.models.utils import prefix_keys
 from hydra.utils import instantiate, to_absolute_path
 import torch
 from torch import Tensor
@@ -118,6 +119,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         batch_tr = self._sample_tr(iterator_tr=iterator_tr)
         x_dep = self._sample_dep(iterator_dep=iterator_dep)
         _, logging_dict = self._step_encoder(x_dep=x_dep, batch_tr=batch_tr, warmup=warmup)
+        logging_dict = prefix_keys(logging_dict, prefix="train", sep="/")
 
         wandb.log(logging_dict, step=itr)
 

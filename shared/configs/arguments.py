@@ -190,7 +190,7 @@ class ASMConf:
     # Misc
     validate: bool = True
     val_freq: int = 1_000  # how often to do validation
-    log_freq: int = 50
+    log_freq: int = 150
     feat_attr: bool = False
 
     vgg_weight: float = 0

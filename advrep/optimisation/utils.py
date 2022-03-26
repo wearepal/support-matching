@@ -25,10 +25,9 @@ LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 def log_images(
-    cfg: Config,
+    images: Tensor,
     *,
     dm: DataModule,
-    images: Tensor,
     name: str,
     step: int,
     nsamples: int | Sequence[int] = 64,
@@ -38,7 +37,7 @@ def log_images(
     caption: str | None = None,
 ):
     """Make a grid of the given images, save them in a file and log them with W&B"""
-    prefix = "train_" if prefix is None else f"{prefix}_"
+    prefix = "train/" if prefix is None else f"{prefix}/"
 
     if isinstance(dm.train, CdtVisionDataset):
         images = dm.denormalize(images)
