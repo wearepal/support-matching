@@ -47,8 +47,8 @@ T = TypeVar("T", Tensor, npt.NDArray[np.integer])
 def accuracy_per_subgroup(y_pred: T, *, y_true: T, s: T) -> List[float]:
     unique_fn = torch.unique if isinstance(y_pred, Tensor) else np.unique
     s_unique, s_counts = unique_fn(s, return_counts=True)
-    s_m = s[:, None] == s_unique[None]
-    hits = y_pred == y_true
+    s_m = s.flatten()[:, None] == s_unique[None]
+    hits = y_pred.flatten() == y_true.flatten()
     return ((hits[:, None] * s_m).sum(0) / s_counts).tolist()
 
 
