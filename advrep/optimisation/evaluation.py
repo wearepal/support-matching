@@ -102,7 +102,7 @@ def log_metrics(
     train_eval = encode_dataset(
         cfg,
         dm=dm,
-        dl=dm.train_dataloader(eval=True),
+        dl=dm.train_dataloader(eval=True, num_workers=0),
         encoder=encoder,
         recons=cfg.alg.eval_on_recon,
         device=device,
@@ -115,16 +115,16 @@ def log_metrics(
         test_eval = encode_dataset(
             cfg,
             dm=dm,
-            dl=dm.test_dataloader(),
+            dl=dm.test_dataloader(num_workers=0),
             encoder=encoder,
             recons=False,
             device=device,
             invariant_to=invariant_to,
         )
 
-        if cfg.log.mode is not WandbMode.disabled:
+        if cfg.logging.mode is not WandbMode.disabled:
             s_count = dm.dim_s if dm.dim_s > 1 else 2
-            if cfg.log.umap:
+            if cfg.logging.umap:
                 _log_enc_statistics(test_eval.inv_s, step=step, s_count=s_count)
             if test_eval.inv_y is not None and cfg.alg.zs_dim == 1:
                 zs = test_eval.inv_y.x[:, 0].view((test_eval.inv_y.x.size(0),)).sigmoid()
@@ -424,7 +424,6 @@ def encode_dataset(
             if invariant_to in ("s", "both"):
                 all_inv_s.append(
                     _get_classifer_input(
-                        cfg,
                         dm=dm,
                         encodings=encodings,
                         encoder=encoder,
@@ -436,7 +435,6 @@ def encode_dataset(
             if invariant_to in ("y", "both"):
                 all_inv_y.append(
                     _get_classifer_input(
-                        cfg,
                         dm=dm,
                         encodings=encodings,
                         encoder=encoder,
@@ -463,9 +461,8 @@ def encode_dataset(
 
 
 def _get_classifer_input(
-    cfg: Config,
-    *,
     dm: DataModule,
+    *,
     encodings: SplitEncoding,
     encoder: AutoEncoder,
     recons: bool,

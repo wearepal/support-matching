@@ -115,7 +115,7 @@ class DataModule(Generic[D]):
     label_noise: float = attr.field(default=0)
     generator: torch.Generator = attr.field(init=False)
 
-    @label_noise.validator
+    @label_noise.validator  # type: ignore
     def validate_label_noise(self, attribute: str, value: float) -> None:
         if not 0 <= value <= 1:
             raise ValueError(f"'{attribute}' must be in the range [0, 1].")
@@ -203,13 +203,14 @@ class DataModule(Generic[D]):
         shuffle: bool = False,
         drop_last: bool = False,
         batch_sampler: Optional[BatchSamplerBase] = None,
+        num_workers: Optional[int] = None,
     ) -> CdtDataLoader[TernarySample]:
         """Make DataLoader."""
         return CdtDataLoader(
             ds,
             batch_size=batch_size if batch_sampler is None else 1,
             shuffle=shuffle,
-            num_workers=self.num_workers,
+            num_workers=self.num_workers if num_workers is None else num_workers,
             pin_memory=self.pin_memory,
             drop_last=drop_last,
             persistent_workers=self.persist_workers,
@@ -258,7 +259,12 @@ class DataModule(Generic[D]):
         )
 
     def train_dataloader(
-        self, eval: bool = False, *, balance: bool = True, batch_size: Optional[int] = None
+        self,
+        eval: bool = False,
+        *,
+        balance: bool = True,
+        batch_size: Optional[int] = None,
+        num_workers: Optional[int] = None,
     ) -> CdtDataLoader[TernarySample]:
         if eval:
             return self._make_dataloader(
@@ -277,6 +283,7 @@ class DataModule(Generic[D]):
             ds=self.train,
             batch_size=batch_size,
             batch_sampler=batch_sampler,
+            num_workers=num_workers,
         )
 
     @staticmethod
@@ -303,6 +310,7 @@ class DataModule(Generic[D]):
         group_ids: Optional[Tensor] = None,
         *,
         eval: bool = False,
+        num_workers: Optional[int] = None,
     ) -> CdtDataLoader[TernarySample]:
         if eval:
             return self._make_dataloader(
@@ -332,10 +340,20 @@ class DataModule(Generic[D]):
                 group_ids=group_ids,
                 batch_size=self.batch_size_tr,
             )
-        return self._make_dataloader(ds=self.deployment, batch_size=1, batch_sampler=batch_sampler)
+        return self._make_dataloader(
+            ds=self.deployment,
+            batch_size=1,
+            batch_sampler=batch_sampler,
+            num_workers=num_workers,
+        )
 
-    def test_dataloader(self) -> CdtDataLoader[TernarySample]:
-        return self._make_dataloader(ds=self.test, batch_size=self.batch_size_te, shuffle=False)
+    def test_dataloader(self, num_workers: Optional[int] = None) -> CdtDataLoader[TernarySample]:
+        return self._make_dataloader(
+            ds=self.test,
+            batch_size=self.batch_size_te,
+            shuffle=False,
+            num_workers=num_workers,
+        )
 
     @classmethod
     def _generate_splits(cls: Type[Self], dataset: D, split_config: SplitConf) -> TrainDepSplit[D]:
