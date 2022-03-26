@@ -1,0 +1,26 @@
+---
+defaults:
+  - /schema/split: base
+  - defaults
+  - _self_
+log_dataset: ''
+seed: 42
+transductive: false
+dep_prop: 0.4
+test_prop: 0.2
+data_prop: null
+dep_subsampling_props:
+    0:
+        0: 0.7
+        1: 0.4
+    1:
+        0: 0.2
+        
+train_subsampling_props:
+    0:
+        1: 0.3
+    1:
+        0: 0.0
+train_transforms: null
+test_transforms: null
+dep_transforms: null

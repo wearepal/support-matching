@@ -219,7 +219,7 @@ class DataModule(Generic[D]):
         )
 
     @staticmethod
-    def _get_multipliers(group_ids: Tensor, *, card_s: int) -> Dict[int, int]:
+    def get_group_multipliers(group_ids: Tensor, *, card_s: int) -> Dict[int, int]:
         """This is a standalone function only because then we can have a unit test for it."""
         unique_ids = group_ids.unique(sorted=False).tolist()
 
@@ -245,7 +245,7 @@ class DataModule(Generic[D]):
     def _make_stratified_sampler(
         self, group_ids: Tensor, *, batch_size: int
     ) -> StratifiedBatchSampler:
-        multipliers = self._get_multipliers(group_ids, card_s=self.test.card_s)
+        multipliers = self.get_group_multipliers(group_ids, card_s=self.test.card_s)
         num_samples_per_group = self.num_samples_per_group_per_bag * batch_size
         return StratifiedBatchSampler(
             group_ids=group_ids.squeeze().tolist(),

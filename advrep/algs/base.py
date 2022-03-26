@@ -44,7 +44,10 @@ class Algorithm(nn.Module):
     def run(self) -> Self:
         """Loads the data and fits and evaluates the model."""
 
+        # ==== set global variables ====
         random_seed(self.misc_cfg.seed, use_cuda=self.use_gpu)
+        torch.multiprocessing.set_sharing_strategy("file_system")
+
         # ==== construct the data-module ====
         dm = DataModule.from_configs(
             dm_config=self.cfg.dm,

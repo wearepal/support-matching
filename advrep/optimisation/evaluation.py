@@ -155,7 +155,7 @@ def log_metrics(
             encoded_dep = encode_dataset(
                 cfg,
                 dm=dm,
-                dl=dm.deployment_dataloader(eval=True),
+                dl=dm.deployment_dataloader(eval=True, num_workers=0),
                 encoder=encoder,
                 recons=cfg.alg.eval_on_recon,
                 device=device,
