@@ -25,7 +25,7 @@ class SimpleConvAE(AutoEncoder):
         levels: int = 4,
         init_chans: int = 32,
     ) -> None:
-        self.level = levels
+        self.levels = levels
         self.init_chans = init_chans
         super().__init__(
             input_shape=input_shape,

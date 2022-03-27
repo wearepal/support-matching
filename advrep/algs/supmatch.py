@@ -161,7 +161,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 logging_dict["Accuracy Predictor s"] = pred_s_acc
                 total_loss += pred_s_loss
 
-        logging_dict["Loss Total"] = total_loss
+        logging_dict["Loss Total"] = total_loss.detach().cpu().item()
 
         self._update_encoder(total_loss)
 
