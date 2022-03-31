@@ -92,7 +92,7 @@ def compute_metrics(
         per_sens_metrics=[em.Accuracy(), em.ProbPos(), em.TPR(), em.TNR()],  # type: ignore
         diffs_and_ratios=s_dim < 4,  # this just gets too much with higher s dim
     )
-    metrics["Robust Accuracy"] = robust_accuracy(
+    metrics["Robust_Accuracy"] = robust_accuracy(
         y_pred=predictions.hard.to_numpy(),
         y_true=actual.y.to_numpy(),
         s=actual.s.to_numpy(),

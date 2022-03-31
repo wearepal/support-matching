@@ -9,8 +9,8 @@ transductive: false
 dep_prop: 0.4
 test_prop: 0.2
 data_prop: null
-dep_subsampling_props: null
-train_subsampling_props: {1: {0: 0, 2: 0}}
+dep_subsampling_props: {1: 0.1}
+train_subsampling_props: {1: {0: 0, 1: 0, 2: 0.1, 3: 0.1, 4: 0.1}}
 train_transforms:
     _target_: torchvision.transforms.Compose
     transforms:
