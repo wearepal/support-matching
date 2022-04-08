@@ -28,7 +28,9 @@ def accuracy(logits: Tensor, *, targets: Tensor) -> float:
     preds = (logits > 0).long() if logits.ndim == 1 else logits.argmax(dim=1)
     return (preds == targets).float().mean().item()
 
+
 P = ParamSpec("P")
+
 
 class Classifier(Model):
     """Wrapper for classifier models."""

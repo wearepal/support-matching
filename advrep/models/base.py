@@ -12,6 +12,7 @@ __all__ = ["Model"]
 
 P = ParamSpec("P")
 
+
 class Model(nn.Module, Generic[P]):
     def __init__(
         self,
