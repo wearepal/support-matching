@@ -1,7 +1,7 @@
 from __future__ import annotations
 import logging
-from typing import Any, Tuple, Union, overload
-from typing_extensions import Literal
+from typing import Any, Callable, Iterator, Tuple, Union, overload
+from typing_extensions import Concatenate, Literal, ParamSpec
 
 from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import TernarySample
@@ -9,6 +9,7 @@ from conduit.types import Loss
 from ranzen.torch.loss import CrossEntropyLoss
 import torch
 from torch import Tensor, nn
+from torch.optim.optimizer import Optimizer
 from tqdm import trange
 
 from advrep.models.base import Model
@@ -27,6 +28,7 @@ def accuracy(logits: Tensor, *, targets: Tensor) -> float:
     preds = (logits > 0).long() if logits.ndim == 1 else logits.argmax(dim=1)
     return (preds == targets).float().mean().item()
 
+P = ParamSpec("P")
 
 class Classifier(Model):
     """Wrapper for classifier models."""
@@ -34,11 +36,11 @@ class Classifier(Model):
     def __init__(
         self,
         model: nn.Module,
-        *,
+        *args: P.args,
         lr: float = 5.0e-4,
-        optimizer_cls: str = "torch.optim.AdamW",
-        optimizer_kwargs: dict[str, Any] | None = None,
+        optimizer_cls: Callable[Concatenate[Iterator, float, P], Optimizer] = torch.optim.AdamW,
         criterion: Loss | None = None,
+        **optimizer_kwargs: P.kwargs,
     ) -> None:
         super().__init__(
             model, optimizer_cls=optimizer_cls, lr=lr, optimizer_kwargs=optimizer_kwargs

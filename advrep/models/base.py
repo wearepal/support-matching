@@ -1,23 +1,25 @@
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Generic, Iterator, Optional
+from typing_extensions import Concatenate, ParamSpec
 
-from hydra.utils import instantiate
-from omegaconf.dictconfig import DictConfig
 from ranzen.decorators import implements
+import torch
 from torch import Tensor
 from torch.cuda.amp.grad_scaler import GradScaler
 import torch.nn as nn
+from torch.optim.optimizer import Optimizer
 
 __all__ = ["Model"]
 
+P = ParamSpec("P")
 
-class Model(nn.Module):
+class Model(nn.Module, Generic[P]):
     def __init__(
         self,
         model: nn.Module,
-        *,
+        *args: P.args,
         lr: float = 5.0e-4,
-        optimizer_cls: str = "torch.optim.AdamW",
-        optimizer_kwargs: Optional[Dict[str, Any]] = None,
+        optimizer_cls: Callable[Concatenate[Iterator, float, P], Optimizer] = torch.optim.AdamW,
+        **optimizer_kwargs: P.kwargs,
     ) -> None:
         super().__init__()
         self.model = model
@@ -25,10 +27,7 @@ class Model(nn.Module):
         self.optimizer_kwargs = optimizer_kwargs
         self.optimizer_cls = optimizer_cls
 
-        optimizer_config = DictConfig({"_target_": self.optimizer_cls})
-        if self.optimizer_kwargs is not None:
-            optimizer_config.update(self.optimizer_kwargs)
-        self.optimizer = instantiate(optimizer_config, params=self.parameters(), lr=self.lr)
+        self.optimizer = optimizer_cls(self.parameters(), self.lr, **optimizer_kwargs)
 
     def step(self, grad_scaler: Optional[GradScaler] = None) -> None:
         if grad_scaler is not None:

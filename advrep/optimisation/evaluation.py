@@ -286,7 +286,7 @@ def fit_classifier(
 
     from advrep.models.classifier import Classifier
 
-    clf = Classifier(clf_base, optimizer_kwargs=optimizer_kwargs)
+    clf = Classifier(clf_base, **optimizer_kwargs)
 
     train_dl = dm.train_dataloader(
         batch_size=cfg.alg.eval_batch_size, balance=cfg.alg.balanced_eval
