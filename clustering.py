@@ -1,5 +1,6 @@
 from enum import Enum
-from typing import Dict, Final, Iterable, List, Tuple
+from pathlib import Path
+from typing import Any, Dict, Final, Iterable, List, Tuple, TypedDict, TypeVar
 
 import clip
 from conduit.data.datasets.utils import CdtDataLoader, stratified_split
@@ -8,6 +9,13 @@ from conduit.data.datasets.vision.celeba import CelebAttr
 from conduit.data.structures import TernarySample
 import numpy as np
 import numpy.typing as npt
+from scipy.optimize import linear_sum_assignment
+from sklearn.cluster import KMeans
+from sklearn.metrics import (
+    adjusted_mutual_info_score,
+    adjusted_rand_score,
+    normalized_mutual_info_score,
+)
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
@@ -16,14 +24,9 @@ from tqdm import tqdm
 from shared.configs.arguments import SplitConf
 from shared.data.data_module import DataModule
 from shared.data.utils import labels_to_group_id
-from sklearn.cluster import KMeans
-from sklearn.metrics import (
-    adjusted_mutual_info_score,
-    adjusted_rand_score,
-    normalized_mutual_info_score,
-)
 
 DOWNLOAD_ROOT: Final = "/srv/galene0/shared/models/clip/"
+ENCODINGS_FILE: Final = Path("encoded_celeba.npz")
 
 
 class CLIPVersion(Enum):
@@ -37,7 +40,51 @@ class CLIPVersion(Enum):
     ViT_L14 = "ViT-L/14"
 
 
+class NpzContent(TypedDict):
+    train: npt.NDArray
+    train_ids: npt.NDArray
+    dep: npt.NDArray
+    test: npt.NDArray
+    test_ids: npt.NDArray
+
+
 def main() -> None:
+    if ENCODINGS_FILE.exists():
+        print("Loading encodings from file...")
+        with ENCODINGS_FILE.open("rb") as f:
+            enc: NpzContent = np.load(f)
+            to_cluster = np.concatenate([enc["train"], enc["dep"]], axis=0)
+            to_test = enc["test"]
+            test_labels = enc["test_ids"]
+
+            centroids = np.stack(
+                get_centroids(enc["train"], enc["train_ids"], enc["dep"], [0, 1, 2, 3]), axis=0
+            )
+        print("Done.")
+    else:
+        train_enc, train_group_ids, deployment_enc, test_enc, test_group_ids = generate_encodings()
+        to_cluster = torch.cat([train_enc, deployment_enc], dim=0).numpy()
+        to_test = test_enc.numpy()
+        test_labels = test_group_ids.numpy()
+
+        centroids = torch.stack(
+            get_centroids(train_enc, train_group_ids, deployment_enc, [0, 1, 2, 3]), dim=0
+        ).numpy()
+
+    print("Using kmeans++")
+    kmeans = KMeans(n_clusters=4, init="k-means++", n_init=10)
+    kmeans.fit(to_cluster)
+    clusters = kmeans.predict(to_test)
+    evaluate(test_labels, clusters)
+
+    print("Using pre-computed centroids")
+    kmeans = KMeans(n_clusters=4, init=centroids, n_init=1)
+    kmeans.fit(to_cluster)
+    clusters = kmeans.predict(to_test)
+    evaluate(test_labels, clusters)
+
+
+def generate_encodings() -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
     print("Loading CLIP model (downloading if needed)...", flush=True)
     model, transforms = clip.load(
         name=CLIPVersion.ViT_L14.value, device="cpu", download_root=DOWNLOAD_ROOT
@@ -62,28 +109,15 @@ def main() -> None:
     del visual_model
     torch.cuda.empty_cache()
 
-    to_save = {
-        "train": train_enc,
-        "train_ids": train_group_ids,
-        "dep": deployment_enc,
-        "test": test_enc,
-        "test_ids": test_group_ids,
+    to_save: NpzContent = {
+        "train": train_enc.numpy(),
+        "train_ids": train_group_ids.numpy(),
+        "dep": deployment_enc.numpy(),
+        "test": test_enc.numpy(),
+        "test_ids": test_group_ids.numpy(),
     }
     save_encoding(to_save)
-
-    centroids = get_centroids(train_enc, train_group_ids, deployment_enc, [0, 1, 2, 3])
-
-    print("Using kmeans++")
-    kmeans = KMeans(n_clusters=4, init="k-means++", n_init=10)
-    kmeans.fit(torch.cat([train_enc, deployment_enc], dim=0).numpy())
-    clusters = kmeans.predict(test_enc.numpy())
-    evaluate(test_group_ids, clusters)
-
-    print("Using pre-computed centroids")
-    kmeans = KMeans(n_clusters=4, init=centroids.numpy(), n_init=1)
-    kmeans.fit(torch.cat([train_enc, deployment_enc], dim=0).numpy())
-    clusters = kmeans.predict(test_enc.numpy())
-    evaluate(test_group_ids, clusters)
+    return train_enc, train_group_ids, deployment_enc, test_enc, test_group_ids
 
 
 def get_data(
@@ -119,33 +153,70 @@ def encode(model: nn.Module, dl: CdtDataLoader[TernarySample[Tensor]]) -> Tuple[
     return torch.cat(encoded, dim=0), torch.cat(group_ids, dim=0)
 
 
-def save_encoding(all_encodings: Dict[str, Tensor]) -> None:
+def save_encoding(all_encodings: NpzContent) -> None:
     print("Saving encodings to 'encoded_celeba.npz'...")
-    np.savez_compressed("encoded_celeba.npz", **{k: v.numpy() for k, v in all_encodings.items()})
+    np.savez_compressed(ENCODINGS_FILE, **all_encodings)
     print("Done.")
 
 
+T = TypeVar("T", Tensor, npt.NDArray[Any])
+
+
 def get_centroids(
-    train_enc: Tensor, train_group_ids: Tensor, deployment_enc: Tensor, all_group_ids: Iterable[int]
-) -> Tensor:
-    centroids: List[Tensor] = []
+    train_enc: T, train_group_ids: T, deployment_enc: T, all_group_ids: Iterable[int]
+) -> List[T]:
+    centroids: List[T] = []
     for group in all_group_ids:
         mask = train_group_ids == group
         if mask.sum() > 0:
-            centroids.append(train_enc[mask].mean(dim=0))
+            centroid: T = train_enc[mask].mean(0)
+            centroids.append(centroid)
         else:
             del deployment_enc
             raise NotImplementedError(
                 "For some of the groups we obviously have no samples from the training set."
                 "In this case, have to make use of the deployment set somehow."
             )
-    return torch.stack(centroids, dim=0)
+    return centroids
 
 
-def evaluate(test_group_ids: Tensor, clusters: npt.NDArray) -> None:
-    print(f"ARI: {adjusted_rand_score(test_group_ids.numpy(), clusters)}")
-    print(f"AMI: {adjusted_mutual_info_score(test_group_ids.numpy(), clusters)}")
-    print(f"NMI: {normalized_mutual_info_score(test_group_ids.numpy(), clusters)}")
+def evaluate(test_group_ids: npt.NDArray, clusters: npt.NDArray) -> None:
+    print(f"ARI: {adjusted_rand_score(test_group_ids, clusters)}")
+    print(f"AMI: {adjusted_mutual_info_score(test_group_ids, clusters)}")
+    print(f"NMI: {normalized_mutual_info_score(test_group_ids, clusters)}")
+    print(f"Accuracy: {compute_accuracy(test_group_ids, clusters)}")
+
+
+def compute_accuracy(
+    test_group_ids: npt.NDArray[np.int64], clusters: npt.NDArray[np.int64]
+) -> float:
+    # in order to solve the assignment problem, we find the assignment that maximizes counts
+    counts = count_cooccurrances(test_group_ids, clusters)
+    row_ind, col_ind = linear_sum_assignment(counts, maximize=True)
+    num_corectly_assigned = counts[row_ind, col_ind].sum()
+    return num_corectly_assigned / test_group_ids.shape[0]
+
+
+def count_cooccurrances(
+    test_group_ids: npt.NDArray[np.int64], clusters: npt.NDArray[np.int64]
+) -> npt.NDArray[np.int64]:
+    """Count how often every possible pair of group ID and cluster ID co-occur."""
+    counts: Dict[Tuple[int, int], int] = {}
+    max_group = 0
+    max_cluster = 0
+    for group in np.unique(test_group_ids):
+        for cluster in np.unique(clusters):
+            counts[(group, cluster)] = np.count_nonzero(
+                (test_group_ids == group) & (clusters == cluster)
+            )
+            if cluster > max_cluster:
+                max_cluster = cluster
+        if group > max_group:
+            max_group = group
+    counts_np = np.zeros((max_group + 1, max_cluster + 1), dtype=np.int64)
+    for (group, cluster), count in counts.items():
+        counts_np[group, cluster] = count
+    return counts_np
 
 
 if __name__ == "__main__":
