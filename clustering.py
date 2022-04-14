@@ -224,5 +224,43 @@ def count_cooccurrances(
     return counts_np
 
 
+def furthest_first_traversal(dep_enc: Tensor, centroids: List[Tensor], num_clusters: int) -> Tensor:
+    num_predefined = len(centroids)
+    assert num_predefined > 0, "need some seeds, man"
+    # add the centroids to the samples
+    samples = torch.cat([torch.cat(centroids, dim=0), dep_enc], dim=0)
+    idxs = torch.arange(samples.shape[0])
+    sampled_idxs = list(range(num_predefined))
+    # Compute the euclidean distance between all pairs
+    dists = get_dists(samples)
+    # Mask indicating whether a sample is still yet to be sampled (1=unsampled, 0=sampled)
+    # - updating a mask is far more efficnet than reconstructing the list of unsampled indexes every
+    # iteration (however, we do have to be careful about the 'meta-indexing' it introduces)
+    unsampled_m = torch.ones_like(samples, dtype=torch.bool)
+    # Mark the predefined centroids as visited
+    unsampled_m[torch.arange(num_predefined)] = 0
+
+    # Begin the furthest-first traversal algorithm
+    while len(sampled_idxs) < num_clusters:
+        # p := argmax min_{i\inB}(d(x, x_i)); i.e. select the point which maximizes the minimum
+        # squared Euclidean-distance to all previously selected points
+        # NOTE: The argmax index is relative to the unsampled indexes
+        rel_idx = torch.argmax(torch.min(dists[~unsampled_m][:, unsampled_m], dim=0).values)
+        # Retrieve the index corresponding to the previously-computed argmax index
+        to_sample = idxs[unsampled_m][rel_idx]
+        sampled_idxs.append(int(to_sample))
+        # Update the mask, which corresponds to moving the sampled index from the unsampled pool to
+        # the sampled pool
+        unsampled_m[unsampled_m.nonzero()[rel_idx]] = 0
+
+    return samples[sampled_idxs]
+
+
+def get_dists(embeddings: Tensor) -> Tensor:
+    dist_mat = embeddings @ embeddings.t()
+    sq = dist_mat.diagonal().view(embeddings.size(0), 1)
+    return -2 * dist_mat + sq + sq.t()
+
+
 if __name__ == "__main__":
     main()
