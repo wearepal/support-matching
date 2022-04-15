@@ -1,6 +1,6 @@
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Final, Iterable, List, Tuple, TypedDict, TypeVar
+from typing import Dict, Final, Iterable, List, NamedTuple, Tuple, TypedDict
 
 import clip
 from conduit.data.datasets.utils import CdtDataLoader, stratified_split
@@ -28,6 +28,7 @@ from shared.data.utils import labels_to_group_id
 DOWNLOAD_ROOT: Final = "/srv/galene0/shared/models/clip/"
 ENCODINGS_FILE: Final = Path("encoded_celeba.npz")
 NUM_CLUSTERS: Final = 4
+USE_FFT: Final = True
 
 
 class CLIPVersion(Enum):
@@ -41,75 +42,63 @@ class CLIPVersion(Enum):
     ViT_L14 = "ViT-L/14"
 
 
-class NpzContent(TypedDict):
-    train: npt.NDArray
-    train_ids: npt.NDArray
-    dep: npt.NDArray
-    test: npt.NDArray
-    test_ids: npt.NDArray
+class Encodings(NamedTuple):
+    """Result of encoding the data."""
+
+    to_cluster: npt.NDArray  # This is passed directly to sklearn's kmeans algorithm.
+    train: Tensor  # This is used to compute the pre-defined starting points.
+    train_labels: Tensor  # Same as above.
+    dep: Tensor  # This is used to compute the other starting points.
+    test: npt.NDArray  # This is used for evaluation.
+    test_labels: npt.NDArray[np.int32]  # Same as above.
 
 
 def main() -> None:
     if ENCODINGS_FILE.exists():
-        print("Loading encodings from file...")
-        with ENCODINGS_FILE.open("rb") as f:
-            enc: NpzContent = np.load(f)
-            to_cluster = np.concatenate([enc["train"], enc["dep"]], axis=0)
-            to_test = enc["test"]
-            test_labels = enc["test_ids"]
-            other_data = enc["dep"]
-
-            centroids = np.stack(
-                precomputed_centroids(enc["train"], enc["train_ids"], range(NUM_CLUSTERS)), axis=0
-            )
-        print("Done.")
+        enc = load_encodings(ENCODINGS_FILE)
     else:
-        train_enc, train_group_ids, deployment_enc, test_enc, test_group_ids = generate_encodings()
-        to_cluster = torch.cat([train_enc, deployment_enc], dim=0).numpy()
-        to_test = test_enc.numpy()
-        test_labels = test_group_ids.numpy()
-        other_data = deployment_enc.numpy()
+        enc = generate_encodings()
 
-        centroids = torch.stack(
-            precomputed_centroids(train_enc, train_group_ids, range(NUM_CLUSTERS)), dim=0
-        ).numpy()
+    centroids: Tensor = precomputed_centroids(enc.train, enc.train_labels, range(NUM_CLUSTERS))
 
     print("Using kmeans++")
     kmeans = KMeans(n_clusters=NUM_CLUSTERS, init="k-means++", n_init=10)
-    kmeans.fit(to_cluster)
-    clusters = kmeans.predict(to_test)
-    evaluate(test_labels, clusters)
+    kmeans.fit(enc.to_cluster)
+    clusters = kmeans.predict(enc.test)
+    evaluate(enc.test_labels, clusters)
 
     print("Using pre-computed centroids")
     if centroids.shape[0] < NUM_CLUSTERS:
-        print("Using kmeans++ to generate additional initial clusters...")
-        additional_centroids, _ = kmeans_plusplus(
-            other_data, n_clusters=NUM_CLUSTERS - centroids.shape[0], random_state=0
-        )
-        centroids = np.concatenate([centroids, additional_centroids], axis=0)
+        if USE_FFT:
+            print("Using furthest-first traversal to generate additional initial clusters...")
+            centroids_np = furthest_first_traversal(enc.dep, centroids, NUM_CLUSTERS).numpy()
+        else:
+            print("Using kmeans++ to generate additional initial clusters...")
+            additional_centroids, _ = kmeans_plusplus(
+                enc.dep.numpy(), n_clusters=NUM_CLUSTERS - centroids.shape[0], random_state=0
+            )
+            centroids_np = np.concatenate([centroids.numpy(), additional_centroids], axis=0)
         print("Done.")
-    kmeans = KMeans(n_clusters=NUM_CLUSTERS, init=centroids, n_init=1)
-    kmeans.fit(to_cluster)
-    clusters = kmeans.predict(to_test)
-    evaluate(test_labels, clusters)
-
-
-T = TypeVar("T", Tensor, npt.NDArray[Any])
+    else:
+        centroids_np = centroids.numpy()
+    kmeans = KMeans(n_clusters=NUM_CLUSTERS, init=centroids_np, n_init=1)
+    kmeans.fit(enc.to_cluster)
+    clusters = kmeans.predict(enc.test)
+    evaluate(enc.test_labels, clusters)
 
 
 def precomputed_centroids(
-    train_enc: T, train_group_ids: T, all_group_ids: Iterable[int]
-) -> List[T]:
-    centroids: List[T] = []
+    train_enc: Tensor, train_group_ids: Tensor, all_group_ids: Iterable[int]
+) -> Tensor:
+    centroids: List[Tensor] = []
     for group in all_group_ids:
         mask = train_group_ids == group
         if mask.sum() > 0:
-            centroid: T = train_enc[mask].mean(0)
-            centroids.append(centroid)
-    return centroids
+            centroids.append(train_enc[mask].mean(0))
+    return torch.cat(centroids, dim=0)
 
 
-def generate_encodings() -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
+def generate_encodings() -> Encodings:
     """Generate encodings by putting the data through a pre-trained model."""
     print("Loading CLIP model (downloading if needed)...", flush=True)
     model, transforms = clip.load(
@@ -143,7 +132,14 @@ def generate_encodings() -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
         "test_ids": test_group_ids.numpy(),
     }
     save_encoding(to_save)
-    return train_enc, train_group_ids, deployment_enc, test_enc, test_group_ids
+    return Encodings(
+        to_cluster=torch.cat([train_enc, deployment_enc], dim=0).numpy(),
+        train=train_enc,
+        train_labels=train_group_ids,
+        dep=deployment_enc,
+        test=test_enc.numpy(),
+        test_labels=test_group_ids.numpy(),
+    )
 
 
 def get_data(
@@ -179,13 +175,39 @@ def encode(model: nn.Module, dl: CdtDataLoader[TernarySample[Tensor]]) -> Tuple[
     return torch.cat(encoded, dim=0), torch.cat(group_ids, dim=0)
 
 
+class NpzContent(TypedDict):
+    """Content of the npz file (which is basically a dictionary)."""
+
+    train: npt.NDArray
+    train_ids: npt.NDArray
+    dep: npt.NDArray
+    test: npt.NDArray
+    test_ids: npt.NDArray[np.int32]
+
+
 def save_encoding(all_encodings: NpzContent) -> None:
     print("Saving encodings to 'encoded_celeba.npz'...")
     np.savez_compressed(ENCODINGS_FILE, **all_encodings)
     print("Done.")
 
 
-def evaluate(test_group_ids: npt.NDArray, clusters: npt.NDArray) -> None:
+def load_encodings(fpath: Path) -> Encodings:
+    print("Loading encodings from file...")
+    with fpath.open("rb") as f:
+        loaded: NpzContent = np.load(f)
+        enc = Encodings(
+            train=torch.from_numpy(loaded["train"]),
+            train_labels=torch.from_numpy(loaded["train_ids"]),
+            dep=torch.from_numpy(loaded["dep"]),
+            test=loaded["test"],
+            test_labels=loaded["test_ids"],
+            to_cluster=np.concatenate([loaded["train"], loaded["dep"]], axis=0),
+        )
+    print("Done.")
+    return enc
+
+
+def evaluate(test_group_ids: npt.NDArray[np.int32], clusters: npt.NDArray[np.int32]) -> None:
     print(f"ARI: {adjusted_rand_score(test_group_ids, clusters)}")
     print(f"AMI: {adjusted_mutual_info_score(test_group_ids, clusters)}")
     print(f"NMI: {normalized_mutual_info_score(test_group_ids, clusters)}")
@@ -193,7 +215,7 @@ def evaluate(test_group_ids: npt.NDArray, clusters: npt.NDArray) -> None:
 
 
 def compute_accuracy(
-    test_group_ids: npt.NDArray[np.int64], clusters: npt.NDArray[np.int64]
+    test_group_ids: npt.NDArray[np.int32], clusters: npt.NDArray[np.int32]
 ) -> float:
     # in order to solve the assignment problem, we find the assignment that maximizes counts
     counts = count_cooccurrances(test_group_ids, clusters)
@@ -203,8 +225,8 @@ def compute_accuracy(
 
 
 def count_cooccurrances(
-    test_group_ids: npt.NDArray[np.int64], clusters: npt.NDArray[np.int64]
-) -> npt.NDArray[np.int64]:
+    test_group_ids: npt.NDArray[np.int32], clusters: npt.NDArray[np.int32]
+) -> npt.NDArray[np.int32]:
     """Count how often every possible pair of group ID and cluster ID co-occur."""
     counts: Dict[Tuple[int, int], int] = {}
     max_group = 0
@@ -218,44 +240,44 @@ def count_cooccurrances(
                 max_cluster = cluster
         if group > max_group:
             max_group = group
-    counts_np = np.zeros((max_group + 1, max_cluster + 1), dtype=np.int64)
+    counts_np = np.zeros((max_group + 1, max_cluster + 1), dtype=np.int32)
     for (group, cluster), count in counts.items():
         counts_np[group, cluster] = count
     return counts_np
 
 
-def furthest_first_traversal(dep_enc: Tensor, centroids: List[Tensor], num_clusters: int) -> Tensor:
-    num_predefined = len(centroids)
-    assert num_predefined > 0, "need some seeds, man"
-    # add the centroids to the samples
-    samples = torch.cat([torch.cat(centroids, dim=0), dep_enc], dim=0)
-    idxs = torch.arange(samples.shape[0])
+def furthest_first_traversal(dep_enc: Tensor, centroids: Tensor, num_clusters: int) -> Tensor:
+    num_predefined = centroids.shape[0]
+    # Add the centroids to the samples
+    samples = torch.cat([centroids, dep_enc], dim=0)
     sampled_idxs = list(range(num_predefined))
     # Compute the euclidean distance between all pairs
     dists = get_dists(samples)
     # Mask indicating whether a sample is still yet to be sampled (1=unsampled, 0=sampled)
-    # - updating a mask is far more efficnet than reconstructing the list of unsampled indexes every
-    # iteration (however, we do have to be careful about the 'meta-indexing' it introduces)
+    # - updating a mask is far more efficient than reconstructing the list of unsampled indexes
+    # every iteration (however, we do have to be careful about the 'meta-indexing' it introduces)
     unsampled_m = torch.ones_like(samples, dtype=torch.bool)
     # Mark the predefined centroids as visited
-    unsampled_m[torch.arange(num_predefined)] = 0
+    unsampled_m[sampled_idxs] = 0
 
     # Begin the furthest-first traversal algorithm
     while len(sampled_idxs) < num_clusters:
         # p := argmax min_{i\inB}(d(x, x_i)); i.e. select the point which maximizes the minimum
         # squared Euclidean-distance to all previously selected points
         # NOTE: The argmax index is relative to the unsampled indexes
-        rel_idx = torch.argmax(torch.min(dists[~unsampled_m][:, unsampled_m], dim=0).values)
-        # Retrieve the index corresponding to the previously-computed argmax index
-        to_sample = idxs[unsampled_m][rel_idx]
-        sampled_idxs.append(int(to_sample))
+        max_idx_rel = torch.argmax(torch.min(dists[~unsampled_m][:, unsampled_m], dim=0).values)
+        # Retrieve the absolute index corresponding to the previously-computed argmax index
+        max_idx_abs = unsampled_m.nonzero()[max_idx_rel]
         # Update the mask, which corresponds to moving the sampled index from the unsampled pool to
         # the sampled pool
-        unsampled_m[unsampled_m.nonzero()[rel_idx]] = 0
+        unsampled_m[max_idx_abs] = 0
+        # Append it to the list as well to avoid having to recompute it later
+        sampled_idxs.append(int(max_idx_abs))
 
     return samples[sampled_idxs]
 
 
+@torch.jit.script
 def get_dists(embeddings: Tensor) -> Tensor:
     dist_mat = embeddings @ embeddings.t()
     sq = dist_mat.diagonal().view(embeddings.size(0), 1)
