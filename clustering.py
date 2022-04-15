@@ -93,7 +93,7 @@ def precomputed_centroids(
     centroids: List[Tensor] = []
     for group in all_group_ids:
         mask = train_group_ids == group
-        if mask.sum() > 0:
+        if mask.count_nonzero() > 0:
             centroids.append(train_enc[mask].mean(0))
     return torch.cat(centroids, dim=0)
 
