@@ -2,6 +2,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, Final, Iterable, List, NamedTuple, Tuple, TypedDict
 
+import faiss
 import clip
 from conduit.data.datasets.utils import CdtDataLoader, stratified_split
 from conduit.data.datasets.vision import CelebA
@@ -10,6 +11,7 @@ from conduit.data.structures import TernarySample
 import numpy as np
 import numpy.typing as npt
 from scipy.optimize import linear_sum_assignment
+from scipy.spatial.distance import pdist, squareform
 from sklearn.cluster import KMeans, kmeans_plusplus
 from sklearn.metrics import (
     adjusted_mutual_info_score,
@@ -59,16 +61,19 @@ def main() -> None:
     else:
         enc = generate_encodings()
 
-    centroids: Tensor = precomputed_centroids(enc.train, enc.train_labels, range(NUM_CLUSTERS))
-
-    print("Using kmeans++")
-    kmeans = KMeans(n_clusters=NUM_CLUSTERS, init="k-means++", n_init=10)
-    kmeans.fit(enc.to_cluster)
-    clusters = kmeans.predict(enc.test)
-    evaluate(enc.test_labels, clusters)
+    if False:
+        print("Using kmeans++")
+        kmeans = KMeans(n_clusters=NUM_CLUSTERS, init="k-means++", n_init=10)
+        kmeans.fit(enc.to_cluster)
+        clusters = kmeans.predict(enc.test)
+        evaluate(enc.test_labels, clusters)
 
     print("Using pre-computed centroids")
+    # known_group_ids = range(NUM_CLUSTERS)
+    known_group_ids = [0, 1, 3]
+    centroids: Tensor = precomputed_centroids(enc.train, enc.train_labels, known_group_ids)
     if centroids.shape[0] < NUM_CLUSTERS:
+        print(f"Need additional clusters: {NUM_CLUSTERS - centroids.shape[0]}")
         if USE_FFT:
             print("Using furthest-first traversal to generate additional initial clusters...")
             centroids_np = furthest_first_traversal(enc.dep, centroids, NUM_CLUSTERS).numpy()
@@ -90,11 +95,12 @@ def main() -> None:
 def precomputed_centroids(
     train_enc: Tensor, train_group_ids: Tensor, all_group_ids: Iterable[int]
 ) -> Tensor:
+    """Determine centroids from group IDs."""
     centroids: List[Tensor] = []
     for group in all_group_ids:
         mask = train_group_ids == group
         if mask.count_nonzero() > 0:
-            centroids.append(train_enc[mask].mean(0))
+            centroids.append(train_enc[mask].mean(0, keepdim=True))
     return torch.cat(centroids, dim=0)
 
 
@@ -256,7 +262,7 @@ def furthest_first_traversal(dep_enc: Tensor, centroids: Tensor, num_clusters: i
     # Mask indicating whether a sample is still yet to be sampled (1=unsampled, 0=sampled)
     # - updating a mask is far more efficient than reconstructing the list of unsampled indexes
     # every iteration (however, we do have to be careful about the 'meta-indexing' it introduces)
-    unsampled_m = torch.ones_like(samples, dtype=torch.bool)
+    unsampled_m = samples.new_ones(samples.size(0), dtype=torch.bool)
     # Mark the predefined centroids as visited
     unsampled_m[sampled_idxs] = 0
 
@@ -277,11 +283,29 @@ def furthest_first_traversal(dep_enc: Tensor, centroids: Tensor, num_clusters: i
     return samples[sampled_idxs]
 
 
-@torch.jit.script
+# @torch.jit.script
 def get_dists(embeddings: Tensor) -> Tensor:
-    dist_mat = embeddings @ embeddings.t()
-    sq = dist_mat.diagonal().view(embeddings.size(0), 1)
-    return -2 * dist_mat + sq + sq.t()
+    print("pairwise difference...")
+    # res = faiss.StandardGpuResources()
+    # n = embeddings.shape[0]
+    # out = np.empty((n, n), dtype=np.float32)
+    # dist = torch.from_numpy(
+    #     faiss.pairwise_distance_gpu(res, embeddings.numpy(), embeddings.numpy(), out, faiss.METRIC_INNER_PRODUCT)
+    # )
+    dist = torch.from_numpy(
+        faiss.pairwise_distances(
+            embeddings.numpy(),
+            embeddings.numpy(),  # mt=faiss.METRIC_INNER_PRODUCT
+        )
+    )
+    # dist = torch.from_numpy(squareform(pdist(embeddings.numpy())))
+    # embeddings = embeddings.to("cuda:0")
+    # dist = F.pdist(embeddings).cpu()
+    print("done.")
+    return dist
+    # dist_mat = embeddings @ embeddings.t()
+    # sq = dist_mat.diagonal().view(embeddings.size(0), 1)
+    # return -2 * dist_mat + sq + sq.t()
 
 
 if __name__ == "__main__":

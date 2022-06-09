@@ -207,43 +207,6 @@ optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
-name = "conduit"
-version = "0.0.1.dev0"
-description = "Lightweight framework for channeling the power of PyTorch Lightning"
-category = "main"
-optional = false
-python-versions = "^3.8.0"
-develop = false
-
-[package.dependencies]
-albumentations = "^1.0.0"
-attrs = "^21.2.0"
-gdown = "^3.13.0"
-hydra-core = "^1.1.1"
-lightning-bolts = "^0.3.4"
-numpy = "^1.22.3"
-opencv-python = "^4.5.3"
-pandas = "^1.3.3"
-pytorch-lightning = "^1.5.0"
-ranzen = {version = "^1.2.1", extras = ["hydra"]}
-soundfile = {version = "*", markers = "platform_system == \"Windows\""}
-sox = {version = "*", markers = "platform_system == \"Linux\" or platform_system == \"macOS\""}
-torch = ">=1.9.1"
-torchaudio = ">=0.9.1"
-torchvision = ">=0.10.1"
-typing-extensions = ">=4.0.0"
-
-[package.extras]
-all = ["ethicml (>=0.3.5,<0.4.0)"]
-fair = ["ethicml (>=0.3.5,<0.4.0)"]
-
-[package.source]
-type = "git"
-url = "https://github.com/wearepal/conduit.git"
-reference = "main"
-resolved_reference = "eab0973c4e5c54e691b10d0fc8af3cde65412179"
-
-[[package]]
 name = "cycler"
 version = "0.11.0"
 description = "Composable style cycles"
@@ -345,7 +308,7 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "fsspec"
-version = "2022.2.0"
+version = "2022.5.0"
 description = "File-system specification"
 category = "main"
 optional = false
@@ -376,6 +339,7 @@ s3 = ["s3fs"]
 sftp = ["paramiko"]
 smb = ["smbprotocol"]
 ssh = ["paramiko"]
+tqdm = ["tqdm"]
 
 [[package]]
 name = "future"
@@ -1203,9 +1167,6 @@ python-versions = ">=3.7.1,<4.0.0"
 [package.dependencies]
 hydra-core = {version = ">=1.1.0,<2.0.0", optional = true, markers = "extra == \"all\" or extra == \"hydra\""}
 neoconfigen = {version = ">=2.0.0,<3.0.0", optional = true, markers = "extra == \"all\" or extra == \"hydra\""}
-pandas = {version = ">=1.3.1,<2.0.0", optional = true, markers = "extra == \"all\" or extra == \"wandb\""}
-pytorch-lightning = {version = ">=1.4.2,<2.0.0", optional = true, markers = "extra == \"all\" or extra == \"pl\""}
-wandb = {version = ">=0.12.0,<0.13.0", optional = true, markers = "extra == \"all\" or extra == \"wandb\""}
 
 [package.extras]
 torch = ["torch (>=1.8,<2.0)", "numpy (>=1.20.3,<2.0.0)"]
@@ -1565,6 +1526,43 @@ python-versions = ">=3.7.0"
 typing-extensions = "*"
 
 [[package]]
+name = "torch-conduit"
+version = "0.1.2-alpha.0"
+description = "Lightweight framework for channeling the power of PyTorch Lightning"
+category = "main"
+optional = false
+python-versions = "^3.8.0"
+develop = false
+
+[package.dependencies]
+albumentations = "^1.0.0"
+attrs = "^21.2.0"
+gdown = "^3.13.0"
+hydra-core = "^1.1.1"
+lightning-bolts = "^0.3.4"
+numpy = "^1.22.3"
+opencv-python = "^4.5.3"
+pandas = "^1.3.3"
+pytorch-lightning = "^1.5.0"
+ranzen = {version = "^1.2.1", extras = ["hydra"]}
+soundfile = {version = "*", markers = "platform_system == \"Windows\""}
+sox = {version = "*", markers = "platform_system == \"Linux\" or platform_system == \"macOS\""}
+torch = ">=1.11.0"
+torchaudio = ">=0.9.1"
+torchvision = ">=0.10.1"
+typing-extensions = ">=4.0.0"
+
+[package.extras]
+all = ["ethicml (==0.5.0)"]
+fair = ["ethicml (==0.5.0)"]
+
+[package.source]
+type = "git"
+url = "https://github.com/wearepal/conduit.git"
+reference = "main"
+resolved_reference = "2d4829a9c08012cc43186505a403d8fcb690a201"
+
+[[package]]
 name = "torchaudio"
 version = "0.11.0"
 description = "An audio package for PyTorch"
@@ -1825,7 +1823,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8, <3.10"
-content-hash = "8aaacc22618baabd84b631640f79c02abd670324479e4729c02f0d274380371e"
+content-hash = "9ce831d9f1a495b4fd5645c92759860db2bb040e1b41b962b1b09064acbb0771"
 
 [metadata.files]
 absl-py = [
@@ -2038,7 +2036,6 @@ colorama = [
     {file = "colorama-0.4.4-py2.py3-none-any.whl", hash = "sha256:9f47eda37229f68eee03b24b9748937c7dc3868f906e8ba69fbcbdd3bc5dc3e2"},
     {file = "colorama-0.4.4.tar.gz", hash = "sha256:5941b2b48a20143d2267e95b1c2a7603ce057ee39fd88e7329b0c292aa16869b"},
 ]
-conduit = []
 cycler = [
     {file = "cycler-0.11.0-py3-none-any.whl", hash = "sha256:3a27e95f763a428a739d2add979fa7494c912a32c17c4c38c4d5f082cad165a3"},
     {file = "cycler-0.11.0.tar.gz", hash = "sha256:9c87405839a19696e837b3b818fed3f5f69f16f1eec1a1ad77e043dcea9c772f"},
@@ -2150,8 +2147,8 @@ frozenlist = [
     {file = "frozenlist-1.3.0.tar.gz", hash = "sha256:ce6f2ba0edb7b0c1d8976565298ad2deba6f8064d2bebb6ffce2ca896eb35b0b"},
 ]
 fsspec = [
-    {file = "fsspec-2022.2.0-py3-none-any.whl", hash = "sha256:eb9c9d9aee49d23028deefffe53e87c55d3515512c63f57e893710301001449a"},
-    {file = "fsspec-2022.2.0.tar.gz", hash = "sha256:20322c659538501f52f6caa73b08b2ff570b7e8ea30a86559721d090e473ad5c"},
+    {file = "fsspec-2022.5.0-py3-none-any.whl", hash = "sha256:2c198c50eb541a80bbd03540b07602c4a957366f3fb416a1f270d34bd4ff0926"},
+    {file = "fsspec-2022.5.0.tar.gz", hash = "sha256:7a5459c75c44e760fbe6a3ccb1f37e81e023cde7da8ba20401258d877ec483b4"},
 ]
 future = [
     {file = "future-0.18.2.tar.gz", hash = "sha256:b1bead90b70cf6ec3f0710ae53a525360fa360d306a86583adc6bf83a4db537d"},
@@ -2626,6 +2623,7 @@ numpy = [
     {file = "numpy-1.22.3-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:8251ed96f38b47b4295b1ae51631de7ffa8260b5b087808ef09a39a9d66c97ab"},
     {file = "numpy-1.22.3-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:48a3aecd3b997bf452a2dedb11f4e79bc5bfd21a1d4cc760e703c31d57c84b3e"},
     {file = "numpy-1.22.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a3bae1a2ed00e90b3ba5f7bd0a7c7999b55d609e0c54ceb2b076a25e345fa9f4"},
+    {file = "numpy-1.22.3-cp310-cp310-win32.whl", hash = "sha256:f950f8845b480cffe522913d35567e29dd381b0dc7e4ce6a4a9f9156417d2430"},
     {file = "numpy-1.22.3-cp310-cp310-win_amd64.whl", hash = "sha256:08d9b008d0156c70dc392bb3ab3abb6e7a711383c3247b410b39962263576cd4"},
     {file = "numpy-1.22.3-cp38-cp38-macosx_10_14_x86_64.whl", hash = "sha256:201b4d0552831f7250a08d3b38de0d989d6f6e4658b709a02a73c524ccc6ffce"},
     {file = "numpy-1.22.3-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:f8c1f39caad2c896bc0018f699882b345b2a63708008be29b1f355ebf6f933fe"},
@@ -3184,6 +3182,7 @@ torch = [
     {file = "torch-1.11.0-cp39-none-macosx_10_9_x86_64.whl", hash = "sha256:50fd9bf85c578c871c28f1cb0ace9dfc6024401c7f399b174fb0f370899f4454"},
     {file = "torch-1.11.0-cp39-none-macosx_11_0_arm64.whl", hash = "sha256:0e48af66ad755f0f9c5f2664028a414f57c49d6adc37e77e06fe0004da4edb61"},
 ]
+torch-conduit = []
 torchaudio = [
     {file = "torchaudio-0.11.0-cp310-cp310-macosx_10_15_x86_64.whl", hash = "sha256:8363e3db0a8af5820fd7d3bf8396a0af23dc8221c9a9d4b60e2e389805492944"},
     {file = "torchaudio-0.11.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:d3a3b2cceb95f04ed936da33bc53bd666dab0715a79db33ae4719852241dc2d2"},
