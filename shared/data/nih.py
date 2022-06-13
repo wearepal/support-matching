@@ -1,4 +1,4 @@
-from enum import Enum, auto
+from enum import Enum
 from pathlib import Path
 from typing import Optional, Union, cast
 
@@ -16,7 +16,20 @@ class NiHSensAttr(Enum):
 
 
 class NiHTargetAttr(Enum):
-    CARDIOMEGALY = auto()
+    ATELECTASIS = "Atelectasis"
+    CARDIOMEGALY = "Cardiomegaly"
+    CONSOLIDATION = "Consolidation"
+    EDEMA = "Edema"
+    EFFUSION = "Effusion"
+    EMPHYSEMA = "Emphysema"
+    FIBROSIS = "Fibrosis"
+    HERNIA = "Hernia"
+    INFILTRATION = "Infiltration"
+    MASS = "Mass"
+    NODULE = "Nodule"
+    PLEURAL_THICKENING = "Pleural_Thickening"
+    PNEUMONIA = "Pneumonia"
+    PNEUMOTHORAX = "Pneumothorax"
 
 
 class NIHChestXRayDataset(CdtVisionDataset):
@@ -28,18 +41,16 @@ class NIHChestXRayDataset(CdtVisionDataset):
         transform: Optional[ImageTform] = None,
     ) -> None:
         self.root = Path(root)
-        self.metadata = cast(pd.DataFrame, pd.read_csv(self.root / "Data_Entry_2017"))
-        s = torch.as_tensor(
-            self.metadata[sens_attr.value].factorize()[0].to_numpy(), dtype=torch.long
-        )
-        y_pd = self.metadata["Finding Labels"]
-        y_pd = y_pd.str.split("|", expand=True)
-        mlb = MultiLabelBinarizer().fit(y_pd)
-        y_pd = pd.DataFrame(mlb.transform(y_pd), columns=mlb.classes_)
+        self.metadata = cast(pd.DataFrame, pd.read_csv(self.root / "Data_Entry_2017.csv"))
+        s = torch.as_tensor(self.metadata[sens_attr.value].factorize()[0], dtype=torch.long)
+        y_str = self.metadata["Finding Labels"].str.split("|")
+        self.encoder = MultiLabelBinarizer().fit(y_str)
+        y_encoded = pd.DataFrame(self.encoder.transform(y_str), columns=self.encoder.classes_)
+        y_encoded.drop("No Finding", axis=1, inplace=True)
         if target_attr is not None:
-            y_pd = y_pd[target_attr.value]
-        y = torch.as_tensor(y_pd.to_numpy(), dtype=torch.long)
-        image_index_flat = self.root.glob("**/*")
+            y_encoded = y_encoded[target_attr.value]
+        y = torch.as_tensor(y_encoded.to_numpy(), dtype=torch.long)
+        image_index_flat = self.root.glob("*/*/*")
         self.metadata["Image Index"] = sorted(list(image_index_flat))
         x = self.metadata["Image Index"].to_numpy()
         super().__init__(image_dir=self.root, x=x, s=s, y=y, transform=transform)
