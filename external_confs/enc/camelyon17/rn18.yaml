@@ -1,0 +1,18 @@
+---
+defaults:
+  - /schema/enc: resnet
+  - defaults
+  - _self_
+input_shape: 
+latent_dim: 128
+zs_dim: 1
+zs_transform: none
+feature_group_slices: null
+lr: 0.0005
+optimizer_cls: 'torch.optim.AdamW'
+optimizer_kwargs: null
+recon_loss_fn: l2
+version: RN18
+first_conv: false
+maxpool1: false
+enc_out_dim: 512

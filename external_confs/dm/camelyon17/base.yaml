@@ -1,0 +1,13 @@
+---
+defaults:
+  - base
+  - _self_
+batch_size_tr: 16
+batch_size_te: 256
+num_samples_per_group_per_bag: 1
+num_workers: 8
+persist_workers: false
+pin_memory: true
+seed: 47
+gt_deployment: false
+label_noise: 0.0

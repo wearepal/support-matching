@@ -1,42 +1,30 @@
 """Utility functions."""
 from __future__ import annotations
-from collections.abc import Iterable, Iterator, MutableMapping, Sequence
+from collections.abc import MutableMapping, Sequence
 from dataclasses import asdict
 from enum import Enum
 from functools import reduce
 from math import gcd
-import os
-import random
-from typing import Any, TypeVar
-from typing_extensions import Literal, Protocol
+from typing import Any, Iterable, TypeVar
 
-import numpy as np
 from omegaconf import OmegaConf
-import torch
-from torch import Tensor, nn
+from torch import Tensor
 from torch.utils.data import DataLoader
 
-from shared.configs import ClusteringLabel, Config, DatasetConfig, MiscConfig
+from shared.configs.enums import ClusteringLabel
+from shared.data.utils import labels_to_group_id
 
 __all__ = [
     "AverageMeter",
-    "ExperimentBase",
-    "ModelFn",
-    "RunningAverageMeter",
     "as_pretty_dict",
-    "class_id_to_label",
     "count_parameters",
     "flatten_dict",
     "get_class_id",
     "get_data_dim",
     "get_joint_probability",
-    "inf_generator",
-    "label_to_class_id",
     "lcm",
     "prod",
-    "random_seed",
     "readable_duration",
-    "save_checkpoint",
 ]
 
 T = TypeVar("T")
@@ -44,48 +32,11 @@ T = TypeVar("T")
 Int = TypeVar("Int", Tensor, int)
 
 
-class ExperimentBase:
-    """Experiment singleton base class."""
-
-    def __init__(
-        self,
-        cfg: Config,
-        data_cfg: DatasetConfig,
-        misc_cfg: MiscConfig,
-    ) -> None:
-        self.cfg = cfg
-        self.data_cfg = data_cfg
-        self.misc_cfg = misc_cfg
-
-    def to_device(self, *tensors: Tensor) -> Tensor | tuple[Tensor, ...]:
-        """Place tensors on the correct device."""
-        moved = [tensor.to(self.misc_cfg.device, non_blocking=True) for tensor in tensors]
-        return moved[0] if len(moved) == 1 else tuple(moved)
-
-
-class ModelFn(Protocol):
-    def __call__(self, input_dim: int, target_dim: int) -> nn.Module:
-        ...
-
-
 def get_data_dim(data_loader: DataLoader) -> tuple[int, ...]:
     x = next(iter(data_loader))[0]
     x_dim = x.shape[1:]
 
     return tuple(x_dim)
-
-
-def label_to_class_id(*, s: Int, y: Int, s_count: int) -> Int:
-    assert s_count > 1
-    return y * s_count + s
-
-
-def class_id_to_label(class_id: Int, s_count: int, label: Literal["s", "y"]) -> Int:
-    assert s_count > 1
-    if label == "s":
-        return class_id % s_count
-    else:
-        return class_id // s_count
 
 
 class AverageMeter:
@@ -107,65 +58,9 @@ class AverageMeter:
         self.avg = self.sum / self.count
 
 
-class RunningAverageMeter:
-    """Computes and stores the average and current value"""
-
-    def __init__(self, momentum=0.99):
-        self.momentum = momentum
-        self.reset()
-
-    def reset(self):
-        self.val = None
-        self.avg = 0
-
-    def update(self, val):
-        if self.val is None:
-            self.avg = val
-        else:
-            self.avg = self.avg * self.momentum + val * (1 - self.momentum)
-        self.val = val
-
-
-def inf_generator(iterable: Iterable[T]) -> Iterator[T]:
-    """Get DataLoaders in a single infinite loop.
-
-    for i, (x, y) in enumerate(inf_generator(train_loader))
-    """
-    iterator = iter(iterable)
-    # try to take one element to ensure that the iterator is not empty
-    first_value = next(iterator, None)
-    if first_value is not None:
-        yield first_value
-    else:
-        raise RuntimeError("The given iterable is empty.")
-    while True:
-        try:
-            yield next(iterator)
-        except StopIteration:
-            iterator = iter(iterable)
-
-
-def save_checkpoint(state, save, epoch):
-    if not os.path.exists(save):
-        os.makedirs(save)
-    filename = os.path.join(save, "checkpt-%04d.pth" % epoch)
-    torch.save(state, filename)
-
-
 def count_parameters(model):
     """Count all parameters (that have a gradient) in the given model"""
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-
-def random_seed(seed_value, use_cuda) -> None:
-    np.random.seed(seed_value)  # cpu vars
-    torch.manual_seed(seed_value)  # cpu  vars
-    random.seed(seed_value)  # Python
-    if use_cuda:
-        torch.cuda.manual_seed(seed_value)
-        torch.cuda.manual_seed_all(seed_value)  # gpu vars
-        torch.backends.cudnn.deterministic = True  # needed
-        torch.backends.cudnn.benchmark = False
 
 
 def prod(seq: Sequence[T]) -> T:
@@ -237,7 +132,7 @@ def as_pretty_dict(data_class: object) -> dict:
     return _clean_up_dict(asdict(data_class))
 
 
-def lcm(denominators):
+def lcm(denominators: Iterable[int]) -> int:
     """Least common multiplier."""
     return reduce(lambda a, b: a * b // gcd(a, b), denominators)
 
@@ -248,7 +143,7 @@ def get_class_id(*, s: Tensor, y: Tensor, s_count: int, to_cluster: ClusteringLa
     elif to_cluster == ClusteringLabel.y:
         class_id = y
     else:
-        class_id = label_to_class_id(s=s, y=y, s_count=s_count)
+        class_id = labels_to_group_id(s=s, y=y, s_count=s_count)
     return class_id.view(-1)
 
 

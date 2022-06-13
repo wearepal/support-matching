@@ -104,7 +104,7 @@ def _mix_rbf_kernel(
     )
 
     for sigma, wt in zip(scales, wts):
-        gamma = 1.0 / (2 * sigma ** 2)
+        gamma = 1.0 / (2 * sigma**2)
         k_xx = wt * torch.exp(-gamma * xx_sqnorm)
         k_xy += wt * torch.exp(-gamma * xy_sqnorm)
         k_yy += wt * torch.exp(-gamma * yy_sqnorm)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 import logging
-from typing import Any, Callable, cast
+from typing import Any, Callable
 
 import numpy as np
 import torch

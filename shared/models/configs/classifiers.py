@@ -2,14 +2,18 @@ from typing import List, Optional, Sequence, Union
 
 from torch import nn
 
-from shared.layers.aggregation import Aggregator
-from shared.utils import ModelFn, prod
+from shared.models.factory import ModelFactory
+from shared.utils import prod
 
-__all__ = ["Mp32x23Net", "Mp64x64Net", "FcNet", "ModelAggregatorWrapper"]
+__all__ = [
+    "FcNet",
+    "Mp32x23Net",
+    "Mp64x64Net",
+]
 
 
-class Mp32x23Net:
-    def __init__(self, batch_norm: bool):
+class Mp32x23Net(ModelFactory[nn.Sequential]):
+    def __init__(self, batch_norm: bool) -> None:
         self.batch_norm = batch_norm
 
     def _conv_block(
@@ -25,7 +29,7 @@ class Mp32x23Net:
         _block += [nn.LeakyReLU()]
         return _block
 
-    def __call__(self, input_dim: int, target_dim: int) -> nn.Sequential:
+    def __call__(self, input_dim: int, *, target_dim: int) -> nn.Sequential:
         layers = []
         layers.extend(self._conv_block(input_dim, 64, 5, 1, 0))
         layers += [nn.MaxPool2d(2, 2)]
@@ -45,13 +49,13 @@ class Mp32x23Net:
         return nn.Sequential(*layers)
 
 
-class FcNet:
+class FcNet(ModelFactory[nn.Sequential]):
     def __init__(
         self,
         hidden_dims: Optional[Sequence[int]],
         activation: nn.Module = nn.SELU(),
         final_layer_bias: bool = True,
-    ):
+    ) -> None:
         self.hidden_dims = hidden_dims
         self.activation = activation
         self.final_layer_bias = final_layer_bias
@@ -62,7 +66,7 @@ class FcNet:
         _block += [self.activation]
         return _block
 
-    def __call__(self, input_dim: Union[int, Sequence[int]], target_dim: int) -> nn.Sequential:
+    def __call__(self, input_dim: Union[int, Sequence[int]], *, target_dim: int) -> nn.Sequential:
         hidden_dims = self.hidden_dims or []
 
         layers: List[nn.Module] = [nn.Flatten()]
@@ -78,8 +82,8 @@ class FcNet:
         return nn.Sequential(*layers)
 
 
-class Mp64x64Net:
-    def __init__(self, batch_norm: bool):
+class Mp64x64Net(ModelFactory[nn.Sequential]):
+    def __init__(self, batch_norm: bool) -> None:
         self.batch_norm = batch_norm
 
     def _conv_block(
@@ -94,7 +98,7 @@ class Mp64x64Net:
         _block += [nn.LeakyReLU()]
         return _block
 
-    def __call__(self, input_dim: int, target_dim: int) -> nn.Sequential:
+    def __call__(self, input_dim: int, *, target_dim: int) -> nn.Sequential:
         layers = []
         layers.extend(self._conv_block(input_dim, 64, 5, 1, 0))
         layers += [nn.MaxPool2d(2, 2)]
@@ -115,14 +119,3 @@ class Mp64x64Net:
         layers += [nn.Linear(512, target_dim)]
 
         return nn.Sequential(*layers)
-
-
-class ModelAggregatorWrapper:
-    def __init__(self, model_fn: ModelFn, aggregator: Aggregator, input_dim: int):
-        self.model_fn = model_fn
-        self.aggregator = aggregator
-        self.input_dim = input_dim
-
-    def __call__(self, input_dim: int, target_dim: int) -> nn.Module:
-        assert target_dim == self.aggregator.output_dim
-        return nn.Sequential(self.model_fn(input_dim, self.input_dim), nn.GELU(), self.aggregator)

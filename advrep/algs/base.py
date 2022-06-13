@@ -2,87 +2,81 @@ from __future__ import annotations
 from abc import abstractmethod
 import logging
 from pathlib import Path
+from typing_extensions import Self
 
+from ranzen.torch import random_seed
+import torch
 from torch import Tensor
 import torch.nn as nn
 import wandb
-import yaml
 
 from shared.configs.arguments import Config
-from shared.data.data_loading import DatasetTriplet, load_dataset
-from shared.utils.utils import as_pretty_dict, flatten_dict, random_seed
+from shared.data import DataModule
+from shared.utils.utils import as_pretty_dict, flatten_dict
 
-__all__ = ["AlgBase"]
+__all__ = ["Algorithm"]
 
 LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
-class AlgBase(nn.Module):
+class Algorithm(nn.Module):
     """Base class for algorithms."""
 
-    def __init__(
-        self,
-        cfg: Config,
-    ) -> None:
+    def __init__(self, cfg: Config) -> None:
+
         super().__init__()
         self.cfg = cfg
-        self.data_cfg = cfg.data
         self.misc_cfg = cfg.misc
-        self.bias_cfg = cfg.bias
+        self.ds_cfg = cfg.ds
+        self.dm_cfg = cfg.dm
+        self.split_cfg = cfg.split
+        self.log_cfg = cfg.logging
 
-    def _to_device(self, *tensors: Tensor) -> Tensor | tuple[Tensor, ...]:
-        """Place tensors on the correct device."""
-        moved = [tensor.to(self.misc_cfg.device, non_blocking=True) for tensor in tensors]
-
-        return moved[0] if len(moved) == 1 else tuple(moved)
+        self.use_gpu = torch.cuda.is_available() and self.misc_cfg.gpu >= 0
+        self.device = f"cuda:{self.misc_cfg.gpu}" if self.use_gpu else "cpu"
+        self.use_amp = self.misc_cfg.use_amp and self.use_gpu
+        LOGGER.info(f"{torch.cuda.device_count()} GPUs available. Using device '{self.device}'")
 
     @abstractmethod
-    def _fit(self, datasets: DatasetTriplet) -> AlgBase:
+    def fit(self, dm: DataModule, *, group_ids: Tensor | None = None) -> Self:
         ...
 
-    def run(self) -> None:
+    def run(self) -> Self:
         """Loads the data and fits and evaluates the model."""
 
-        random_seed(self.misc_cfg.seed, self.misc_cfg.use_gpu)
+        # ==== set global variables ====
+        random_seed(self.misc_cfg.seed, use_cuda=self.use_gpu)
+        torch.multiprocessing.set_sharing_strategy("file_system")
 
-        group = f"{self.data_cfg.log_name}.{self.__class__.__name__}"
-        if self.misc_cfg.log_method:
-            group += "." + self.misc_cfg.log_method
-        if self.misc_cfg.exp_group:
-            group += "." + self.misc_cfg.exp_group
-        if self.bias_cfg.log_dataset:
-            group += "." + self.bias_cfg.log_dataset
+        # ==== construct the data-module ====
+        dm = DataModule.from_configs(
+            dm_config=self.cfg.dm,
+            ds_config=self.cfg.ds,
+            split_config=self.cfg.split,
+        )
+        LOGGER.info(dm)
+
+        group = f"{dm.train.__class__.__name__}.{self.__class__.__name__}"
+        if self.log_cfg.log_method:
+            group += "." + self.log_cfg.log_method
+        if self.log_cfg.exp_group:
+            group += "." + self.log_cfg.exp_group
+        if self.split_cfg.log_dataset:
+            group += "." + self.split_cfg.log_dataset
         local_dir = Path(".", "local_logging")
         local_dir.mkdir(exist_ok=True)
         run = wandb.init(
             entity="predictive-analytics-lab",
-            project="suds",
+            project="support-matching",
             dir=str(local_dir),
             config=flatten_dict(as_pretty_dict(self.cfg)),
             group=group if group else None,
             reinit=True,
-            mode=self.misc_cfg.wandb.name,
+            mode=self.log_cfg.mode.name,
         )
 
-        LOGGER.info(
-            yaml.dump(
-                as_pretty_dict(self.cfg),
-                default_flow_style=False,
-                allow_unicode=True,
-                sort_keys=True,
-            )
-        )
-
-        # ==== construct dataset ====
-        datasets: DatasetTriplet = load_dataset(self.cfg)
-        LOGGER.info(
-            "Size of context-set: {}, training-set: {}, test-set: {}".format(
-                len(datasets.context),  # type: ignore
-                len(datasets.train),  # type: ignore
-                len(datasets.test),  # type: ignore
-            )
-        )
         # Fit the model to the data
-        self._fit(datasets=datasets)
+        self.fit(dm=dm)
         # finish logging for the current run
-        run.finish()
+        run.finish()  # type: ignore
+        return self

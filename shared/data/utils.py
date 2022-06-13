@@ -1,13 +1,24 @@
-from typing import NamedTuple
+from typing import TypeVar
+from typing_extensions import Literal
 
 from torch import Tensor
 
-__all__ = ["Batch"]
+__all__ = [
+    "labels_to_group_id",
+    "group_id_to_label",
+]
+
+I = TypeVar("I", Tensor, int)
 
 
-class Batch(NamedTuple):
-    """A data structure for reducing clutter."""
+def labels_to_group_id(*, s: I, y: I, s_count: int) -> I:
+    assert s_count > 1
+    return y * s_count + s
 
-    x: Tensor
-    s: Tensor
-    y: Tensor
+
+def group_id_to_label(group_id: I, *, s_count: int, label: Literal["s", "y"]) -> I:
+    assert s_count > 1
+    if label == "s":
+        return group_id % s_count
+    else:
+        return group_id // s_count

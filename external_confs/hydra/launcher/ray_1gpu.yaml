@@ -1,0 +1,6 @@
+defaults:
+  - ray_base
+
+ray:
+  remote:
+    num_gpus: 1 # how many GPUs this task needs

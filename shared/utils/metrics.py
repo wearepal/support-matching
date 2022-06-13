@@ -2,12 +2,25 @@ from __future__ import annotations
 from collections.abc import Mapping
 import logging
 from pathlib import Path
+from typing import List, TypeVar
 
+from conduit.models.utils import prefix_keys
 import ethicml as em
+import numpy as np
+import numpy.typing as npt
 import pandas as pd
+import torch
+from torch import Tensor
 import wandb
 
-__all__ = ["compute_metrics", "make_tuple_from_data", "print_metrics", "write_results_to_csv"]
+__all__ = [
+    "accuracy_per_subgroup",
+    "compute_metrics",
+    "make_tuple_from_data",
+    "print_metrics",
+    "robust_accuracy",
+    "write_results_to_csv",
+]
 
 log = logging.getLogger(__name__.split(".")[-1].upper())
 
@@ -28,8 +41,24 @@ def make_tuple_from_data(
     return em.DataTuple(x=train_x, s=train.s, y=train_y), em.DataTuple(x=test_x, s=test.s, y=test_y)
 
 
+T = TypeVar("T", Tensor, npt.NDArray[np.integer])
+
+
+def accuracy_per_subgroup(y_pred: T, *, y_true: T, s: T) -> List[float]:
+    unique_fn = torch.unique if isinstance(y_pred, Tensor) else np.unique
+    s_unique, s_counts = unique_fn(s, return_counts=True)
+    s_m = s.flatten()[:, None] == s_unique[None]
+    hits = y_pred.flatten() == y_true.flatten()
+    return ((hits[:, None] * s_m).sum(0) / s_counts).tolist()
+
+
+def robust_accuracy(y_pred: T, *, y_true: T, s: T) -> float:
+    return min(accuracy_per_subgroup(y_pred=y_pred, y_true=y_true, s=s))
+
+
 def compute_metrics(
     predictions: em.Prediction,
+    *,
     actual: em.DataTuple,
     model_name: str,
     step: int,
@@ -38,36 +67,43 @@ def compute_metrics(
     save_summary: bool = False,
     use_wandb: bool = False,
     additional_entries: Mapping[str, float] | None = None,
+    prefix: str | None = None,
 ) -> dict[str, float]:
     """Compute accuracy and fairness metrics and log them.
 
-    Args:
-        predictions: predictions in a format that is compatible with EthicML
-        actual: labels for the predictions
-        model_name: name of the model used
-        step: step of training (needed for logging to W&B)
-        s_dim: dimension of s
-        exp_name: name of the experiment
-        save_summary: if True, a summary will be saved to wandb
-        use_wandb: whether to use wandb at all
-        additional_entries: entries that should go with in the summary
-    Returns:
-        dictionary with the computed metrics
+    :param predictions: predictions in a format that is compatible with EthicML
+    :param actual: labels for the predictions
+    :param model_name: name of the model used
+    :param step: step of training (needed for logging to W&B)
+    :param s_dim: dimension of s
+    :param exp_name: name of the experiment
+    :param save_summary: if True, a summary will be saved to wandb
+    :param use_wandb: whether to use wandb at all
+    :param additional_entries: entries that should go with in the summary
+
+    :returns: dictionary with the computed metrics
     """
 
-    predictions._info = {}
+    predictions._info = {}  # type: ignore
     metrics = em.run_metrics(
-        predictions,
-        actual,
-        metrics=[em.Accuracy(), em.TPR(), em.TNR(), em.RenyiCorrelation()],
-        per_sens_metrics=[em.Accuracy(), em.ProbPos(), em.TPR(), em.TNR()],
+        predictions=predictions,
+        actual=actual,
+        metrics=[em.Accuracy(), em.TPR(), em.TNR(), em.RenyiCorrelation()],  # type: ignore
+        per_sens_metrics=[em.Accuracy(), em.ProbPos(), em.TPR(), em.TNR()],  # type: ignore
         diffs_and_ratios=s_dim < 4,  # this just gets too much with higher s dim
+    )
+    metrics["Robust_Accuracy"] = robust_accuracy(
+        y_pred=predictions.hard.to_numpy(),
+        y_true=actual.y.to_numpy(),
+        s=actual.s.to_numpy(),
     )
     # replace the slash; it's causing problems
     metrics = {k.replace("/", "÷"): v for k, v in metrics.items()}
     metrics = {f"{k} ({model_name})": v for k, v in metrics.items()}
     if exp_name:
         metrics = {f"{exp_name}/{k}": v for k, v in metrics.items()}
+    if prefix is not None:
+        metrics = prefix_keys(metrics, prefix=prefix, sep="/")
 
     if use_wandb:
         wandb.log(metrics, step=step)
@@ -76,9 +112,9 @@ def compute_metrics(
             external = additional_entries or {}
 
             for metric_name, value in metrics.items():
-                wandb.run.summary[metric_name] = value
+                wandb.run.summary[metric_name] = value  # type: ignore
             for metric_name, value in external.items():
-                wandb.run.summary[metric_name] = value
+                wandb.run.summary[metric_name] = value  # type: ignore
 
     log.info(f"Results for {exp_name or ''} ({model_name}):")
     print_metrics(metrics)

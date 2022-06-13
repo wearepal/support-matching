@@ -1,0 +1,14 @@
+#
+# usage: hydra/launcher=slurm_fear
+#
+defaults:
+  - submitit_slurm
+
+partition: fear
+cpus_per_task: 10  # we could use up to 20 CPUs
+mem_gb: 30  # specify memory when using fractional GPUs
+timeout_min: 99999  # 99999 minutes = a few months
+
+additional_parameters:
+  # gres: "gpu:1"  # 1 GPU
+  gres: "mps:7"  # 7 GB of GPU memory

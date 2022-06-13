@@ -1,0 +1,10 @@
+defaults:
+    # run config
+    - baseline_schema
+    - data: cmnist/2dig
+    - bias: cmnist/no_bias
+    - misc: baselines
+    - fs_args: erm
+
+    # hydra config
+    - override hydra/job_logging: custom

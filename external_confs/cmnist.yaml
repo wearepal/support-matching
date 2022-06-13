@@ -1,0 +1,19 @@
+---
+defaults:
+  - /schema/ds: cmnist
+  - defaults
+  - _self_
+root: 
+download: true
+transform: null
+label_map: null
+colors: null
+num_colors: 10
+scale: 0.2
+correlation: null
+binarize: false
+greyscale: false
+background: false
+black: true
+split: null
+seed: 42

@@ -41,8 +41,8 @@ def test_simple(group_ids: list[int]):
     assert 700 <= indexes[3] < 1500
     assert indexes[4] < 100
 
-    agg = Aggregator(bag_size=15)
-    bagged_indexes = agg.bag_batch(torch.from_numpy(indexes[: 15 * 7]))
+    agg = Aggregator(batch_size=15)
+    bagged_indexes = agg.batch_to_bags(torch.from_numpy(indexes[: 15 * 7]))
     # bagged_indexes = bagged_indexes.transpose(0, 1)
     first_bag = bagged_indexes[0]
     assert first_bag[0] < 100

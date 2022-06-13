@@ -1,0 +1,11 @@
+---
+defaults:
+  - /schema/misc: base
+  - defaults
+  - _self_
+cluster_label_file: ''
+resume: null
+evaluate: false
+seed: 42
+use_amp: false
+gpu: 0

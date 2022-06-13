@@ -2,12 +2,11 @@ from enum import Enum, auto
 
 __all__ = [
     "AdaptationMethod",
-    "AdultDatasetSplit",
     "AggregatorType",
     "CelebaAttributes",
     "ClusteringLabel",
     "ClusteringMethod",
-    "ContextMode",
+    "DeploymentMode",
     "DiscriminatorLoss",
     "DiscriminatorMethod",
     "EncoderType",
@@ -17,10 +16,8 @@ __all__ = [
     "MMDKernel",
     "PlMethod",
     "QuantizationLevel",
-    "ReconstructionLoss",
     "VaeStd",
     "WandbMode",
-    "ZsTransform",
 ]
 
 
@@ -39,17 +36,6 @@ class EncoderType(Enum):
     ae = auto()
     vae = auto()
     rotnet = auto()
-
-
-class ReconstructionLoss(Enum):
-    """Reconstruction loss."""
-
-    l1 = auto()
-    l2 = auto()
-    bce = auto()
-    huber = auto()
-    ce = auto()
-    mixed = auto()
 
 
 class VaeStd(Enum):
@@ -91,11 +77,12 @@ class MMDKernel(Enum):
 
 
 class AggregatorType(Enum):
-    """Which aggreagation function to use (if any)."""
+    """Which aggregation function to use."""
 
-    none = auto()
-    kvq = auto()
-    gated = auto()
+    from shared.layers import GatedAttentionAggregator, KvqAttentionAggregator
+
+    kvq = KvqAttentionAggregator
+    gated = GatedAttentionAggregator
 
 
 class DiscriminatorLoss(Enum):
@@ -104,13 +91,6 @@ class DiscriminatorLoss(Enum):
     wasserstein = auto()
     logistic_ns = auto()
     logistic = auto()
-
-
-class ZsTransform(Enum):
-    """How to transform the z_s partition."""
-
-    none = auto()
-    round_ste = auto()
 
 
 class QuantizationLevel(Enum):
@@ -190,14 +170,14 @@ class EvalTrainData(Enum):
     """Dataset to use for training during evaluation."""
 
     train = auto()
-    context = auto()
+    deployment = auto()
 
 
 class AdaptationMethod(Enum):
     """Method to use for adaptation."""
 
     laftr = auto()
-    suds = auto()
+    asm = auto()
 
 
 class FsMethod(Enum):
@@ -208,7 +188,7 @@ class FsMethod(Enum):
     domind = auto()
 
 
-class ContextMode(Enum):
+class DeploymentMode(Enum):
     ground_truth = auto()
     cluster_labels = auto()
     unlabelled = auto()
