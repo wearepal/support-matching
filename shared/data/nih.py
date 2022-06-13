@@ -5,6 +5,7 @@ from typing import Optional, Union, cast
 from conduit.data.datasets.utils import ImageTform
 from conduit.data.datasets.vision.base import CdtVisionDataset
 import pandas as pd
+from sklearn.preprocessing import MultiLabelBinarizer
 import torch
 
 __all__ = ["NIHChestXRayDataset"]
@@ -31,12 +32,13 @@ class NIHChestXRayDataset(CdtVisionDataset):
         s = torch.as_tensor(
             self.metadata[sens_attr.value].factorize()[0].to_numpy(), dtype=torch.long
         )
-        y = self.metadata["Finding Labels"]
-        y = y.str.split("|", expand=True)
+        y_pd = self.metadata["Finding Labels"]
+        y_pd = y_pd.str.split("|", expand=True)
+        mlb = MultiLabelBinarizer().fit(y_pd)
+        y_pd = pd.DataFrame(mlb.transform(y_pd), columns=mlb.classes_)
         if target_attr is not None:
-            y = y[target_attr.value]
-        y = torch.as_tensor(y.to_numpy(), dtype=torch.long)
-
+            y_pd = y_pd[target_attr.value]
+        y = torch.as_tensor(y_pd.to_numpy(), dtype=torch.long)
         image_index_flat = self.root.glob("**/*")
         self.metadata["Image Index"] = sorted(list(image_index_flat))
         x = self.metadata["Image Index"].to_numpy()
