@@ -1,11 +1,8 @@
-from enum import Enum
 from pathlib import Path
 from typing import Dict, Final, Iterable, List, NamedTuple, Tuple, TypedDict
 
 import clip
-from conduit.data.datasets.utils import CdtDataLoader, stratified_split
-from conduit.data.datasets.vision import CelebA
-from conduit.data.datasets.vision.celeba import CelebAttr
+from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import TernarySample
 import numpy as np
 import numpy.typing as npt
@@ -20,26 +17,15 @@ import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
 from tqdm import tqdm
+from ethicml import metrics, Prediction, DataTuple
+import pandas as pd
 
-from shared.configs.arguments import SplitConf
-from shared.data.data_module import DataModule
 from shared.data.utils import labels_to_group_id
+from data_loading import get_data, DOWNLOAD_ROOT, CLIPVersion
 
-DOWNLOAD_ROOT: Final = "/srv/galene0/shared/models/clip/"
 ENCODINGS_FILE: Final = Path("encoded_celeba.npz")
 NUM_CLUSTERS: Final = 4
 USE_FFT: Final = True
-
-
-class CLIPVersion(Enum):
-    RN50 = "RN50"
-    RN101 = "RN101"
-    RN50x4 = "RN50x4"
-    RN50x16 = "RN50x16"
-    RN50x64 = "RN50x64"
-    ViT_B32 = "ViT-B/32"
-    ViT_B16 = "ViT-B/16"
-    ViT_L14 = "ViT-L/14"
 
 
 class Encodings(NamedTuple):
@@ -59,7 +45,7 @@ def main() -> None:
     else:
         enc = generate_encodings()
 
-    if False:
+    if True:
         print("Using kmeans++")
         kmeans = KMeans(n_clusters=NUM_CLUSTERS, init="k-means++", n_init=10)
         kmeans.fit(enc.to_cluster)
@@ -113,13 +99,7 @@ def generate_encodings() -> Encodings:
     visual_model.to("cuda:0")
     # out_dim = visual_model.output_dim
 
-    data_settings = SplitConf(
-        # data_prop=0.01,  # for testing
-        train_transforms=transforms,
-        dep_transforms=transforms,
-        test_transforms=transforms,
-    )
-    dm = get_data(data_settings, superclass=CelebAttr.Smiling, subclass=CelebAttr.Male)
+    dm = get_data(transforms, batch_size_tr=150)
 
     train_enc, train_group_ids = encode(visual_model, dm.train_dataloader(eval=True))
     deployment_enc, _ = encode(visual_model, dm.deployment_dataloader(eval=True))
@@ -143,25 +123,6 @@ def generate_encodings() -> Encodings:
         dep=deployment_enc,
         test=test_enc.numpy(),
         test_labels=test_group_ids.numpy(),
-    )
-
-
-def get_data(
-    split_config: SplitConf, superclass: CelebAttr, subclass: CelebAttr
-) -> DataModule[CelebA]:
-    root = DataModule.find_data_dir()
-    all_data = CelebA(root=root, download=False, superclass=superclass, subclass=subclass)
-    if split_config.data_prop is not None:
-        print("Making data smaller...", flush=True)
-        all_data = stratified_split(all_data, default_train_prop=split_config.data_prop).train
-        print("Done.")
-    splits = DataModule._generate_splits(dataset=all_data, split_config=split_config)
-    print("Done.")
-    return DataModule(
-        train=splits.train,
-        deployment=splits.deployment,
-        test=splits.test,
-        batch_size_tr=150,
     )
 
 
@@ -215,6 +176,11 @@ def evaluate(test_group_ids: npt.NDArray[np.int32], clusters: npt.NDArray[np.int
     print(f"ARI: {adjusted_rand_score(test_group_ids, clusters)}")
     print(f"AMI: {adjusted_mutual_info_score(test_group_ids, clusters)}")
     print(f"NMI: {normalized_mutual_info_score(test_group_ids, clusters)}")
+    y = pd.DataFrame(test_group_ids)
+    renyi = metrics.RenyiCorrelation(metrics.DependencyTarget.y).score(
+        Prediction(pd.Series(clusters)), DataTuple(y, y, y)
+    )
+    print(f"Renyi: {renyi}")
     print(f"Accuracy: {compute_accuracy(test_group_ids, clusters)}")
 
 
