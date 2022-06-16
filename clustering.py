@@ -2,7 +2,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, Final, Iterable, List, NamedTuple, Tuple, TypedDict
 
-import faiss
 import clip
 from conduit.data.datasets.utils import CdtDataLoader, stratified_split
 from conduit.data.datasets.vision import CelebA
@@ -11,7 +10,6 @@ from conduit.data.structures import TernarySample
 import numpy as np
 import numpy.typing as npt
 from scipy.optimize import linear_sum_assignment
-from scipy.spatial.distance import pdist, squareform
 from sklearn.cluster import KMeans, kmeans_plusplus
 from sklearn.metrics import (
     adjusted_mutual_info_score,
@@ -252,13 +250,20 @@ def count_cooccurrances(
     return counts_np
 
 
-def furthest_first_traversal(dep_enc: Tensor, centroids: Tensor, num_clusters: int) -> Tensor:
+def furthest_first_traversal(
+    dep_enc: Tensor, centroids: Tensor, num_clusters: int, use_gpu: bool = True
+) -> Tensor:
     num_predefined = centroids.shape[0]
     # Add the centroids to the samples
     samples = torch.cat([centroids, dep_enc], dim=0)
     sampled_idxs = list(range(num_predefined))
     # Compute the euclidean distance between all pairs
-    dists = get_dists(samples)
+    print("pairwise difference...")
+    if use_gpu:
+        # on the GPU, we have to do it batch-wise
+        dists = batchwise_pdist(samples.to("cuda:0"), chunk_size=1000).cpu()
+    else:
+        dists = torch.cdist(samples, samples)
     # Mask indicating whether a sample is still yet to be sampled (1=unsampled, 0=sampled)
     # - updating a mask is far more efficient than reconstructing the list of unsampled indexes
     # every iteration (however, we do have to be careful about the 'meta-indexing' it introduces)
@@ -283,29 +288,33 @@ def furthest_first_traversal(dep_enc: Tensor, centroids: Tensor, num_clusters: i
     return samples[sampled_idxs]
 
 
-# @torch.jit.script
-def get_dists(embeddings: Tensor) -> Tensor:
-    print("pairwise difference...")
-    # res = faiss.StandardGpuResources()
-    # n = embeddings.shape[0]
-    # out = np.empty((n, n), dtype=np.float32)
-    # dist = torch.from_numpy(
-    #     faiss.pairwise_distance_gpu(res, embeddings.numpy(), embeddings.numpy(), out, faiss.METRIC_INNER_PRODUCT)
-    # )
-    dist = torch.from_numpy(
-        faiss.pairwise_distances(
-            embeddings.numpy(),
-            embeddings.numpy(),  # mt=faiss.METRIC_INNER_PRODUCT
-        )
-    )
-    # dist = torch.from_numpy(squareform(pdist(embeddings.numpy())))
-    # embeddings = embeddings.to("cuda:0")
-    # dist = F.pdist(embeddings).cpu()
-    print("done.")
+def batchwise_pdist(x: Tensor, chunk_size: int, p_norm: float = 2.0) -> Tensor:
+    """Compute pdist in batches.
+
+    This is necessary because if you compute pdist directly, it doesn't fit into memory.
+    """
+    chunks = torch.split(x, chunk_size)
+
+    columns: List[Tensor] = []
+    for chunk in tqdm(chunks):
+        shards = [torch.cdist(chunk, other_chunk, p_norm) for other_chunk in chunks]
+        column = torch.cat(shards, dim=1)
+        # the result has to be moved to the CPU; otherwise we'll run out of GPU memory
+        columns.append(column.cpu())
+
+        # free up memory
+        for shard in shards:
+            del shard
+        del column
+        torch.cuda.empty_cache()
+
+    dist = torch.cat(columns, dim=0)
+
+    # free up memory
+    for column in columns:
+        del column
+    torch.cuda.empty_cache()
     return dist
-    # dist_mat = embeddings @ embeddings.t()
-    # sq = dist_mat.diagonal().view(embeddings.size(0), 1)
-    # return -2 * dist_mat + sq + sq.t()
 
 
 if __name__ == "__main__":
