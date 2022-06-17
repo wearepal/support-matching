@@ -16,36 +16,41 @@ from data_loading import CLIPVersion, DOWNLOAD_ROOT, get_data
 from shared.data.utils import labels_to_group_id
 
 CLIP_VER: Final = CLIPVersion.RN50x4
-BATCH_SIZE: Final = 2
-NUM_ITERS: Final = 1000
+# CLIP_VER: Final = CLIPVersion.ViT_L14
+BATCH_SIZE: Final = 4
+NUM_ITERS: Final = 2000
 EVAL_STEPS: Final = 100
-NUM_EVAL: Final = 200
+NUM_EVAL: Final = 400
+S_COUNT: Final = 2
+Y_COUNT: Final = 2
+LR: Final = 1e-3
+NUM_WORKERS: Final = 10
 
 
 def main() -> None:
     print("Loading CLIP model (downloading if needed)...", flush=True)
-    model, transforms = clip.load(
-        # name=CLIPVersion.ViT_L14.value, device="cpu", download_root=DOWNLOAD_ROOT
-        name=CLIP_VER.value,
-        device="cpu",
-        download_root=DOWNLOAD_ROOT,
-    )
+    model, transforms = clip.load(name=CLIP_VER.value, device="cpu", download_root=DOWNLOAD_ROOT)
     print("Done.")
     visual_model = model.visual
     device = torch.device("cuda:0")
-    model = nn.Sequential(visual_model, nn.Linear(visual_model.output_dim, 4))
+    model = nn.Sequential(visual_model, nn.Linear(visual_model.output_dim, S_COUNT * Y_COUNT))
     model.to(device)
     dm = get_data(transforms, batch_size_tr=BATCH_SIZE)
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = optim.Adam(model.parameters(), lr=LR)
     run = wandb.init(
         entity="predictive-analytics-lab",
         project="clip-finetuning",
-        config={"clip_ver": CLIP_VER, "batch_size": BATCH_SIZE, "num_iters": NUM_ITERS},
+        config={
+            "clip_version": CLIP_VER,
+            "batch_size": BATCH_SIZE,
+            "num_iters": NUM_ITERS,
+            "learning_rate": LR,
+        },
     )
     assert run is not None
     train(
         model,
-        train_data=dm.train_dataloader(balance=False),
+        train_data=dm.train_dataloader(balance=True, num_workers=NUM_WORKERS),
         eval_data=dm.test_dataloader(),
         optimizer=optimizer,
         iters=NUM_ITERS,
@@ -69,11 +74,11 @@ def train(
         x = sample.x.to(device, non_blocking=True)
         s = sample.s.to(device, non_blocking=True)
         y = sample.y.to(device, non_blocking=True)
-        group_id = labels_to_group_id(s=s, y=y, s_count=2)
+        group_id = labels_to_group_id(s=s, y=y, s_count=S_COUNT)
 
         optimizer.zero_grad()
         output = model(x)
-        loss = F.nll_loss(output, group_id)
+        loss = F.cross_entropy(output, group_id, reduction="mean")
         loss.backward()
         optimizer.step()
 
@@ -85,7 +90,7 @@ def train(
         wandb.log(to_log, step=step)
         if step % EVAL_STEPS == 0:
             last_acc = eval(model, eval_data, device, step)
-        pbar.set_postfix(loss=loss.item(), acc=last_acc)
+        pbar.set_postfix(loss=loss.item(), last_acc=last_acc)
 
 
 def eval(
@@ -106,6 +111,7 @@ def predict(
     eval_data: CdtDataLoader[TernarySample[Tensor]],
     device: torch.device,
 ) -> Tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
+    model.eval()
     all_preds: List[Tensor] = []
     all_s: List[Tensor] = []
     all_y: List[Tensor] = []
