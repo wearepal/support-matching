@@ -19,7 +19,7 @@ classifiers=[
 readme="README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10,<3.11"
+python = ">=3.9.11,<3.11"
 GitPython = { version = ">=2.1.11" }
 hydra-core = { version = "^1.1.0" }
 hydra-submitit-launcher = { version = "^1.1.5" }
