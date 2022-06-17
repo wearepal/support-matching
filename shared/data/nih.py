@@ -17,7 +17,7 @@ class NiHSensAttr(Enum):
 
 class NiHTargetAttr(Enum):
     """
-    Fraction of labels that are positive for each 'finding':
+    Fraction of labels that are positive for each thoracic disease:
         Atelectasis           0.103095
         Cardiomegaly          0.024759
         Consolidation         0.041625
@@ -31,9 +31,9 @@ class NiHTargetAttr(Enum):
         Nodule                0.056466
         Pleural_Thickening    0.030191
         Pneumonia             0.012763
-        Pneumothorax          0.047289
+        Pneumothorax          0.04728
 
-    The same as above but conditioned on 'Patient Gender':
+    The same as above but conditioned on gender:
         Atelectasis  Cardiomegaly  Consolidation     Edema  Effusion  Emphysema  Fibrosis    Hernia  Infiltration      Mass    Nodule  Pleural_Thickening  Pneumonia  Pneumothorax
 Gender
 F          0.095387      0.030115       0.041021  0.022530  0.120582   0.018573  0.015806  0.002686      0.173575  0.046187  0.054244            0.027532   0.012157      0.052993
