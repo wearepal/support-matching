@@ -23,7 +23,7 @@ EVAL_STEPS: Final = 100
 NUM_EVAL: Final = 400
 S_COUNT: Final = 2
 Y_COUNT: Final = 2
-LR: Final = 1e-3
+LR: Final = 1e-5
 NUM_WORKERS: Final = 10
 
 
