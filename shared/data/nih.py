@@ -12,7 +12,7 @@ __all__ = ["NIHChestXRayDataset"]
 
 
 class NiHSensAttr(Enum):
-    GENDER = "Patient Gender"
+    gender = "Patient Gender"
 
 
 class NiHTargetAttr(Enum):
@@ -40,28 +40,28 @@ class NiHTargetAttr(Enum):
     M          0.109031      0.020635       0.042090  0.019009  0.117382   0.025418  0.014446  0.001516      0.180407  0.055715  0.058178            0.032239   0.013230      0.042895
     """
 
-    ATELECTASIS = "Atelectasis"
-    CARDIOMEGALY = "Cardiomegaly"
-    CONSOLIDATION = "Consolidation"
-    EDEMA = "Edema"
-    EFFUSION = "Effusion"
-    EMPHYSEMA = "Emphysema"
-    FIBROSIS = "Fibrosis"
-    HERNIA = "Hernia"
-    INFILTRATION = "Infiltration"
-    MASS = "Mass"
-    NODULE = "Nodule"
-    PLEURAL_THICKENING = "Pleural_Thickening"
-    PNEUMONIA = "Pneumonia"
-    PNEUMOTHORAX = "Pneumothorax"
+    atelectasis = "Atelectasis"
+    cardiomegaly = "Cardiomegaly"
+    consolidation = "Consolidation"
+    edema = "Edema"
+    effusion = "Effusion"
+    emphysema = "Emphysema"
+    fibrosis = "Fibrosis"
+    hernia = "Hernia"
+    infiltration = "Infiltration"
+    mass = "Mass"
+    nodule = "Nodule"
+    pleural_thickening = "Pleural_Thickening"
+    pneumonia = "Pneumonia"
+    pneumothorax = "Pneumothorax"
 
 
 class NIHChestXRayDataset(CdtVisionDataset):
     def __init__(
         self,
         root: Union[Path, str],
-        sens_attr: NiHSensAttr = NiHSensAttr.GENDER,
-        target_attr: Optional[NiHTargetAttr] = NiHTargetAttr.CARDIOMEGALY,
+        sens_attr: NiHSensAttr = NiHSensAttr.gender,
+        target_attr: Optional[NiHTargetAttr] = NiHTargetAttr.cardiomegaly,
         transform: Optional[ImageTform] = None,
     ) -> None:
         self.root = Path(root)

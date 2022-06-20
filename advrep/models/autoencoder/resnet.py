@@ -1,6 +1,6 @@
 from __future__ import annotations
 from enum import Enum
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, ClassVar, Dict, List, Optional, Sequence
 from typing_extensions import TypeAlias
 
 import torch
@@ -205,6 +205,8 @@ class DecoderBottleneck(nn.Module):
 
 
 class ResNetEncoder(nn.Module):
+    OUT_DIM: ClassVar[int] = 512
+
     def __init__(
         self,
         block: type[EncoderBlock] | type[EncoderBottleneck],
@@ -234,7 +236,7 @@ class ResNetEncoder(nn.Module):
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
+        self.layer4 = self._make_layer(block, self.OUT_DIM, layers[3], stride=2)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
     def _make_layer(
@@ -407,12 +409,11 @@ class ResNetAE(AutoEncoder):
         version: ResNetVersion = ResNetVersion.RN18,
         first_conv: bool = False,
         maxpool1: bool = False,
-        enc_out_dim: int = 512,
     ) -> None:
         self.version = version
         self.first_conv = first_conv
         self.maxpool1 = maxpool1
-        self.enc_out_dim = enc_out_dim
+        self.enc_out_dim = ResNetEncoder.OUT_DIM
 
         super().__init__(
             input_shape=input_shape,
@@ -440,7 +441,7 @@ class ResNetAE(AutoEncoder):
             first_conv=self.first_conv,
             maxpool1=self.maxpool1,
         )
-        fc = nn.Linear(self.enc_out_dim, self.latent_dim)
+        fc = nn.Linear(encoder.OUT_DIM, self.latent_dim)
         encoder = nn.Sequential(encoder, fc)
 
         return encoder, decoder

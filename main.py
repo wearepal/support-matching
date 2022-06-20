@@ -17,6 +17,7 @@ from shared.configs.arguments import (
     MiscConf,
     SplitConf,
 )
+from shared.data.nih import NIHChestXRayDataset
 
 
 @dataclass
@@ -33,6 +34,7 @@ if __name__ == "__main__":
         Option(ColoredMNIST, name="cmnist"),
         Option(CelebA, name="celeba"),
         Option(Camelyon17, name="camelyon17"),
+        Option(NIHChestXRayDataset, name="nih"),
     ]
     ae_ops: List[Union[Type[Any], Option]] = [
         Option(SimpleConvAE, name="simple"),

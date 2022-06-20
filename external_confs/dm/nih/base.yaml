@@ -1,0 +1,14 @@
+---
+defaults:
+  - /schema/dm: base
+  - defaults
+  - _self_
+batch_size_tr: 1
+batch_size_te: null
+num_samples_per_group_per_bag: 1
+num_workers: 0
+persist_workers: false
+pin_memory: true
+gt_deployment: true
+label_noise: 0.0
+seed: 47

@@ -1,0 +1,27 @@
+# @package _global_
+
+# usage: +experiment=nih_sb
+
+defaults:
+    - override /dm: nih
+    - override /split: nih/sb
+    - override /enc: nih/rn50
+
+dm:
+    batch_size_tr: 64
+    batch_size_te: 256
+    label_noise: 0
+
+enc:
+    recon_loss_fn: l1
+
+alg:
+    num_adv_updates: 1
+    prior_loss: 0
+    log_freq: 250
+    pred_y_loss_w: 0
+    pred_s_loss_w: 0
+    warmup_steps: 0
+
+logging:
+    exp_group: nih_sb 
