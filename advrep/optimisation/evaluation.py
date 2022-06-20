@@ -16,10 +16,10 @@ from typing_extensions import Literal
 from conduit.data import CdtDataLoader
 from conduit.data.datasets.base import CdtDataset
 from conduit.data.datasets.vision.base import CdtVisionDataset
+from conduit.data.datasets.vision.celeba import CelebA
 from conduit.data.datasets.vision.cmnist import ColoredMNIST
 from conduit.data.structures import TernarySample
 import ethicml as em
-from ethicml.data.vision_data.celeba import CelebA
 from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
 import numpy as np
