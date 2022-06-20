@@ -1,7 +1,0 @@
-method: gdro
-epochs: 60
-alpha: 1.0
-normalize_loss: True
-gamma: 0.1
-weight_decay: 0.1
-lr: 1.e-4

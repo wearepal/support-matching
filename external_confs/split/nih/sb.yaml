@@ -1,7 +1,6 @@
 ---
 defaults:
   - /schema/split: base
-  - defaults
   - _self_
 log_dataset: 'subgroup_bias_10'
 seed: 42
@@ -23,7 +22,7 @@ train_transforms:
           mean: [ 0.485, 0.456, 0.406 ] 
           std: [ 0.229, 0.224, 0.225 ]
 
-train_transforms:
+test_transforms:
     _target_: torchvision.transforms.Compose
     transforms:
         - _target_: torchvision.transforms.Resize

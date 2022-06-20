@@ -236,7 +236,7 @@ class ResNetEncoder(nn.Module):
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
-        self.layer4 = self._make_layer(block, self.OUT_DIM, layers[3], stride=2)
+        self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
     def _make_layer(
@@ -441,7 +441,7 @@ class ResNetAE(AutoEncoder):
             first_conv=self.first_conv,
             maxpool1=self.maxpool1,
         )
-        fc = nn.Linear(encoder.OUT_DIM, self.latent_dim)
+        fc = nn.Linear(encoder.inplanes, self.latent_dim)
         encoder = nn.Sequential(encoder, fc)
 
         return encoder, decoder

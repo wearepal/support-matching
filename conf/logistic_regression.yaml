@@ -1,8 +1,0 @@
-defaults:
-    - logistic_regression_schema
-    - data: adult/gender
-    - bias: adult/no_bias
-    - misc: baselines
-
-    # hydra config
-    - override hydra/job_logging: custom

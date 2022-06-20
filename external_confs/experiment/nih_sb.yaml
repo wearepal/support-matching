@@ -3,21 +3,22 @@
 # usage: +experiment=nih_sb
 
 defaults:
-    - override /dm: nih
+    - override /ds: nih
+    - override /dm: nih/base
     - override /split: nih/sb
-    - override /enc: nih/rn50
+    - override /enc: nih/rn
 
 dm:
-    batch_size_tr: 64
-    batch_size_te: 256
+    batch_size_tr: 8
+    batch_size_te: 64
     label_noise: 0
-
+    num_samples_per_group_per_bag: 1
 enc:
     recon_loss_fn: l1
 
 alg:
     num_adv_updates: 1
-    prior_loss: 0
+    prior_loss_w: 0
     log_freq: 250
     pred_y_loss_w: 0
     pred_s_loss_w: 0

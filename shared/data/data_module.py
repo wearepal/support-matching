@@ -423,7 +423,7 @@ class DataModule(Generic[D]):
             root = cls.find_data_dir()
         else:
             root = str(Path(to_absolute_path(ds_config.root)).resolve())
-        all_data: D = instantiate(ds_config, root=root, split=None)
+        all_data: D = instantiate(ds_config, root=root)
         if split_config.data_prop is not None:
             all_data = stratified_split(all_data, default_train_prop=split_config.data_prop).train
         splits = cls._generate_splits(dataset=all_data, split_config=split_config)
