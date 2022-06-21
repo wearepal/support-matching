@@ -66,6 +66,7 @@ class NIHChestXRayDataset(CdtVisionDataset):
     ) -> None:
         self.root = Path(root)
         self.metadata = cast(pd.DataFrame, pd.read_csv(self.root / "Data_Entry_2017.csv"))
+        # In the case of Patient Gender, factorize yields the mapping: M -> 0, F -> 1
         s = torch.as_tensor(self.metadata[sens_attr.value].factorize()[0], dtype=torch.long)
         findings_str = self.metadata["Finding Labels"].str.split("|")
         self.encoder = MultiLabelBinarizer().fit(findings_str)
