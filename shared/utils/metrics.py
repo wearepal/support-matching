@@ -6,6 +6,8 @@ from typing import List, TypeVar
 
 from conduit.models.utils import prefix_keys
 import ethicml as em
+import ethicml.metrics as emm
+from ethicml.utility.data_structures import LabelTuple
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
@@ -38,7 +40,9 @@ def make_tuple_from_data(
         train_y = train.y
         test_y = test.y
 
-    return em.DataTuple(x=train_x, s=train.s, y=train_y), em.DataTuple(x=test_x, s=test.s, y=test_y)
+    return em.DataTuple.from_df(x=train_x, s=train.s, y=train_y), em.DataTuple.from_df(
+        x=test_x, s=test.s, y=test_y
+    )
 
 
 T = TypeVar("T", Tensor, npt.NDArray[np.integer])
@@ -59,7 +63,7 @@ def robust_accuracy(y_pred: T, *, y_true: T, s: T) -> float:
 def compute_metrics(
     predictions: em.Prediction,
     *,
-    actual: em.DataTuple,
+    actual: LabelTuple,
     model_name: str,
     step: int,
     s_dim: int,
@@ -88,8 +92,8 @@ def compute_metrics(
     metrics = em.run_metrics(
         predictions=predictions,
         actual=actual,
-        metrics=[em.Accuracy(), em.TPR(), em.TNR(), em.RenyiCorrelation()],  # type: ignore
-        per_sens_metrics=[em.Accuracy(), em.ProbPos(), em.TPR(), em.TNR()],  # type: ignore
+        metrics=[emm.Accuracy(), emm.TPR(), emm.TNR(), emm.RenyiCorrelation()],  # type: ignore
+        per_sens_metrics=[emm.Accuracy(), emm.ProbPos(), emm.TPR(), emm.TNR()],  # type: ignore
         diffs_and_ratios=s_dim < 4,  # this just gets too much with higher s dim
     )
     metrics["Robust_Accuracy"] = robust_accuracy(
