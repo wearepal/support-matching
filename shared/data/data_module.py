@@ -268,7 +268,10 @@ class DataModule(Generic[D]):
     ) -> CdtDataLoader[TernarySample]:
         if eval:
             return self._make_dataloader(
-                ds=self.train, batch_size=self.batch_size_te, shuffle=False
+                ds=self.train,
+                batch_size=self.batch_size_te,
+                shuffle=False,
+                num_workers=num_workers,
             )
         if balance:
             group_ids = get_group_ids(self.train)

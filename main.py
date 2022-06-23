@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Type, Union
 from conduit.data.datasets.vision import Camelyon17, CelebA, ColoredMNIST
 from ranzen.decorators import implements
 from ranzen.hydra import Option, Relay
+import torch
 
 from advrep.algs.supmatch import SupportMatching
 from advrep.models.autoencoder import ResNetAE, SimpleConvAE
@@ -18,6 +19,8 @@ from shared.configs.arguments import (
     SplitConf,
 )
 from shared.data.nih import NIHChestXRayDataset
+
+torch.multiprocessing.set_sharing_strategy("file_system")
 
 
 @dataclass

@@ -17,6 +17,7 @@ enc:
     recon_loss_fn: l1
 
 alg:
+    balanced_eval: true
     num_adv_updates: 1
     prior_loss_w: 0
     log_freq: 250
