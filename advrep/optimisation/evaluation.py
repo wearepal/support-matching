@@ -290,9 +290,9 @@ def fit_classifier(
     clf = Classifier(clf_base, optimizer_kwargs=optimizer_kwargs)
 
     train_dl = dm.train_dataloader(
-        batch_size=cfg.alg.eval_batch_size, balance=cfg.alg.balanced_eval
+        batch_size=cfg.alg.eval_batch_size, balance=cfg.alg.balanced_eval, num_workers=0
     )
-    test_dl = dm.test_dataloader()
+    test_dl = dm.test_dataloader(num_workers=0)
 
     clf.to(torch.device(device))
     clf.fit(
