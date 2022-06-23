@@ -4,8 +4,10 @@ from typing import Dict, Final, Iterable, List, NamedTuple, Tuple, TypedDict
 import clip
 from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import TernarySample
+from ethicml import DataTuple, Prediction, metrics
 import numpy as np
 import numpy.typing as npt
+import pandas as pd
 from scipy.optimize import linear_sum_assignment
 from sklearn.cluster import KMeans, kmeans_plusplus
 from sklearn.metrics import (
@@ -17,11 +19,9 @@ import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
 from tqdm import tqdm
-from ethicml import metrics, Prediction, DataTuple
-import pandas as pd
 
+from data_loading import DOWNLOAD_ROOT, MODEL_PATH, CLIPVersion, get_data
 from shared.data.utils import labels_to_group_id
-from data_loading import get_data, DOWNLOAD_ROOT, CLIPVersion
 
 ENCODINGS_FILE: Final = Path("encoded_celeba.npz")
 NUM_CLUSTERS: Final = 4
@@ -92,10 +92,15 @@ def generate_encodings() -> Encodings:
     """Generate encodings by putting the data through a pre-trained model."""
     print("Loading CLIP model (downloading if needed)...", flush=True)
     model, transforms = clip.load(
-        name=CLIPVersion.ViT_L14.value, device="cpu", download_root=DOWNLOAD_ROOT
+        name=CLIPVersion.RN50.value, device="cpu", download_root=DOWNLOAD_ROOT
     )
     print("Done.")
     visual_model = model.visual
+
+    if Path(MODEL_PATH).exists():
+        print("Loading finetuned weights...")
+        visual_model.load_state_dict(torch.load(MODEL_PATH))
+        print("Done.")
     visual_model.to("cuda:0")
     # out_dim = visual_model.output_dim
 

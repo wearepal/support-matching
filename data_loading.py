@@ -8,9 +8,10 @@ from conduit.data.datasets.vision.celeba import CelebAttr
 from shared.configs.arguments import SplitConf
 from shared.data.data_module import DataModule
 
-__all__ = ["get_data", "DOWNLOAD_ROOT", "CLIPVersion"]
+__all__ = ["get_data", "DOWNLOAD_ROOT", "CLIPVersion", "MODEL_PATH"]
 
 DOWNLOAD_ROOT: Final = "/srv/galene0/shared/models/clip/"
+MODEL_PATH: Final = "./finetuned.pt"
 
 
 class CLIPVersion(Enum):
