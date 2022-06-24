@@ -11,7 +11,7 @@ distinguish_warmup: false
 gamma: 1.0
 recon_detach: true
 eval_on_recon: false
-eval_epochs: 40
+eval_steps: 1000
 eval_lr: 0.001
 eval_batch_size: 256
 balanced_eval: false

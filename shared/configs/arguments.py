@@ -180,7 +180,7 @@ class ASMConf:
     eval_on_recon: bool = False
 
     # Evaluation settings
-    eval_epochs: int = 40
+    eval_steps: int = 40
     eval_lr: float = 1e-3
     eval_batch_size: int = 256
     balanced_eval: bool = False  # Whether to balance the training set during evaluation

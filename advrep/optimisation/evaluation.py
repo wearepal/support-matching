@@ -101,7 +101,7 @@ def log_metrics(
     LOGGER.info("Encoding training set...")
     train_eval = encode_dataset(
         dm=dm,
-        dl=dm.train_dataloader(eval=True, num_workers=0),
+        dl=dm.train_dataloader(eval=True, batch_size=dm.batch_size_te),
         encoder=encoder,
         recons=cfg.alg.eval_on_recon,
         device=device,
@@ -113,7 +113,7 @@ def log_metrics(
     else:
         test_eval = encode_dataset(
             dm=dm,
-            dl=dm.test_dataloader(num_workers=0),
+            dl=dm.test_dataloader(),
             encoder=encoder,
             recons=False,
             device=device,
@@ -162,7 +162,7 @@ def log_metrics(
         dm_cp = gcopy(dm, deep=False, train=train_data, test=test_eval.inv_y)
         evaluate(
             cfg=cfg,
-            dm=dm,
+            dm=dm_cp,
             step=step,
             name="s_from_zs",
             device=device,
@@ -290,15 +290,15 @@ def fit_classifier(
     clf = Classifier(clf_base, optimizer_kwargs=optimizer_kwargs)
 
     train_dl = dm.train_dataloader(
-        batch_size=cfg.alg.eval_batch_size, balance=cfg.alg.balanced_eval, num_workers=0
+        batch_size=cfg.alg.eval_batch_size, balance=cfg.alg.balanced_eval
     )
-    test_dl = dm.test_dataloader(num_workers=0)
+    test_dl = dm.test_dataloader()
 
     clf.to(torch.device(device))
     clf.fit(
         train_data=train_dl,
         test_data=test_dl,
-        epochs=cfg.alg.eval_epochs,
+        steps=cfg.alg.eval_steps,
         device=torch.device(device),
         pred_s=pred_s,
     )
@@ -405,7 +405,7 @@ def encode_dataset(
 
     device = torch.device(device)
 
-    with torch.set_grad_enabled(False):
+    with torch.no_grad():
         for batch in tqdm(dl):
 
             x = batch.x.to(device, non_blocking=True)
