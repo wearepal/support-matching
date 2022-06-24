@@ -29,4 +29,4 @@ alg:
     warmup_steps: ${ alg.iters }
 
 logging:
-    exp_group: nih_sb 
+    exp_group: nih_sb10_ae_baseline

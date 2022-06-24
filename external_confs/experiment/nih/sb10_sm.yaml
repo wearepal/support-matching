@@ -29,4 +29,4 @@ alg:
     eval_steps: 5.e3
 
 logging:
-    exp_group: nih_sb 
+    exp_group: nih_sb10_sm
