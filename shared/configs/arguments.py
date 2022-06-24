@@ -180,10 +180,10 @@ class ASMConf:
     eval_on_recon: bool = False
 
     # Evaluation settings
-    eval_steps: int = 40
-    eval_lr: float = 1e-3
+    eval_steps: int = 10000
+    eval_lr: float = 1e-4
     eval_batch_size: int = 256
-    balanced_eval: bool = False  # Whether to balance the training set during evaluation
+    balanced_eval: bool = True  # Whether to balance the training set during evaluation
     eval_s_from_zs: Optional[EvalTrainData] = None  # Train a classifier to predict s from zs
     eval_hidden_dims: Optional[List[int]] = None
 

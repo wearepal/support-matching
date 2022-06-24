@@ -1,6 +1,6 @@
 # @package _global_
 
-# usage: +experiment=nih_sb
+# usage: +experiment=nih/sb10_ae_baseline
 
 defaults:
     - override /ds: nih
@@ -17,13 +17,16 @@ enc:
     recon_loss_fn: l1
 
 alg:
+    iters: 1e4
     balanced_eval: true
-    num_adv_updates: 1
+    eval_steps: 5.e3
+    eval_lr: 1.e-4
+    num_adv_updates: 0
     prior_loss_w: 0
     log_freq: 250
     pred_y_loss_w: 0
     pred_s_loss_w: 0
-    warmup_steps: 0
+    warmup_steps: ${ alg.iters }
 
 logging:
     exp_group: nih_sb 

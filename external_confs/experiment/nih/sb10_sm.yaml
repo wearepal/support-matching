@@ -1,0 +1,32 @@
+# @package _global_
+
+# usage: +experiment=nih/sb10_sm
+
+defaults:
+    - override /ds: nih
+    - override /dm: nih/base
+    - override /split: nih/sb
+    - override /enc: nih/rn
+
+dm:
+    batch_size_tr: 8
+    batch_size_te: 64
+    label_noise: 0
+    num_samples_per_group_per_bag: 1
+enc:
+    recon_loss_fn: l1
+
+alg:
+    iters: 10000
+    balanced_eval: true
+    num_adv_updates: 1
+    prior_loss_w: 0
+    log_freq: 250
+    pred_y_loss_w: 0
+    pred_s_loss_w: 0
+    warmup_steps: 0
+    eval_lr: 1.e-4
+    eval_steps: 5.e3
+
+logging:
+    exp_group: nih_sb 
