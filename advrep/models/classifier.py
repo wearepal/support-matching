@@ -160,5 +160,6 @@ class Classifier(Model):
                 pbar.set_postfix(step=step + 1, avg_test_acc=acc)
             else:
                 pbar.set_postfix(step=step + 1)
+            pbar.update()
 
         pbar.close()

@@ -26,7 +26,7 @@ alg:
     pred_s_loss_w: 0
     warmup_steps: 0
     eval_lr: 1.e-4
-    eval_steps: 5.e3
+    eval_steps: 5000
 
 logging:
     exp_group: nih_sb10_sm
