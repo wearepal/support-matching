@@ -1,16 +1,10 @@
-"""Simply call the main function."""
-from dataclasses import dataclass
-import os
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, List, Type, Union
 
 from conduit.data.datasets.vision import Camelyon17, CelebA, ColoredMNIST
-from ranzen.decorators import implements
-from ranzen.hydra import Option, Relay
+from ranzen.hydra import Option
 import torch
 
-from advrep.algs.supmatch import SupportMatching
 from advrep.models.autoencoder import ResNetAE, SimpleConvAE
-from shared.configs import Config
 from shared.configs.arguments import (
     ASMConf,
     DataModuleConf,
@@ -19,17 +13,9 @@ from shared.configs.arguments import (
     SplitConf,
 )
 from shared.data.nih import NIHChestXRayDataset
+from shared.relay import ASMRelay
 
 torch.multiprocessing.set_sharing_strategy("file_system")
-
-
-@dataclass
-class ASMRelay(Relay, Config):
-    @implements(Relay)
-    def run(self, raw_config: Optional[Dict[str, Any]] = None) -> None:
-        self.log(f"Current working directory: '{os.getcwd()}'")
-        alg = SupportMatching(cfg=self)
-        alg.run()
 
 
 if __name__ == "__main__":
