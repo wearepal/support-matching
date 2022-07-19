@@ -231,6 +231,8 @@ class ASMConf:
     zs_dim: int = 1
     s_as_zs: bool = False  # if True, pass `s` instead of `zs` to the decoder for the training set
     s_pred_with_bias: bool = True  # if False, the s predictor has no bias term in the output layer
+    ga_steps: int = 1
+    max_grad_norm: Optional[float] = 5.0
 
 
 @dataclass
