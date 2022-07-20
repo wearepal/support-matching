@@ -113,6 +113,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         dm: DataModule,
     ) -> dict[str, float]:
         warmup = itr < self.alg_cfg.warmup_steps
+        ga_weight = 1 / self.alg_cfg.num_adv_updates
         if (not warmup) and (self.alg_cfg.adv_method is DiscriminatorMethod.nn):
             # Train the discriminator on its own for a number of iterations
             for _ in range(self.alg_cfg.num_adv_updates):
@@ -120,7 +121,7 @@ class AdvSemiSupervisedAlg(Algorithm):
                     loss, _ = self._discriminator_loss(
                         iterator_tr=iterator_tr, iterator_dep=iterator_dep
                     )
-                    self.backward(loss)
+                    self.backward(loss / ga_weight)
                 self._update_discriminator()
 
         batch_tr = self._sample_tr(iterator_tr=iterator_tr)
@@ -128,7 +129,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         logging_dict: dict[str, float] = defaultdict(float)
         for _ in range(self.alg_cfg.ga_steps):
             loss, logging_dict_s = self._encoder_loss(x_dep=x_dep, batch_tr=batch_tr, warmup=warmup)
-            self.backward(loss)
+            self.backward(loss / ga_weight)
             # Average the logging dict over the gradient-accumulation steps
             for k, v in logging_dict_s.items():
                 logging_dict[k] = logging_dict[k] + (v / self.alg_cfg.ga_steps)
