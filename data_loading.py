@@ -24,6 +24,7 @@ class CLIPVersion(Enum):
     ViT_B16 = "ViT-B/16"
     ViT_L14 = "ViT-L/14"
 
+
 CLIP_VER: Final = CLIPVersion.RN50
 # CLIP_VER: Final = CLIPVersion.ViT_L14
 
@@ -34,6 +35,9 @@ def get_data(transforms, batch_size_tr: int) -> DataModule[CelebA]:
         train_transforms=transforms,
         dep_transforms=transforms,
         test_transforms=transforms,
+        # subsampling
+        train_subsampling_props={0: {1: 0.3}, 1: {0: 0.0}},
+        dep_subsampling_props={0: {0: 0.7, 1: 0.4}, 1: {0: 0.2}},
     )
     return get_dm(
         data_settings,
