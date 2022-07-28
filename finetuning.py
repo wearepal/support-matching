@@ -65,31 +65,39 @@ def train(
     optimizer: optim.Optimizer,
     iters: int,
     device: torch.device,
-):
+) -> None:
     model.train()
     pbar = tqdm(islice(train_data, iters), total=iters)
     last_acc = 0.0
+    loss_fn = nn.CrossEntropyLoss(reduction="mean")
     for step, sample in enumerate(pbar, start=1):
         x = sample.x.to(device, non_blocking=True)
         s = sample.s.to(device, non_blocking=True)
         y = sample.y.to(device, non_blocking=True)
         group_id = labels_to_group_id(s=s, y=y, s_count=S_COUNT)
 
-        optimizer.zero_grad()
-        output = model(x)
-        loss = F.cross_entropy(output, group_id, reduction="mean")
-        loss.backward()
-        optimizer.step()
+        _, loss = generic_train_step(model, x, group_id, loss_fn, optimizer)
 
         to_log = {
-            "loss": loss.item(),
+            "loss": loss,
             "s1_share": sample.s.float().mean().item(),
             "y1_share": sample.y.float().mean().item(),
         }
         wandb.log(to_log, step=step)
         if step % EVAL_STEPS == 0:
             last_acc = eval(model, eval_data, device, step)
-        pbar.set_postfix(loss=loss.item(), last_acc=last_acc)
+        pbar.set_postfix(loss=loss, last_acc=last_acc)
+
+
+def generic_train_step(
+    model: nn.Module, inputs: Tensor, targets: Tensor, loss_fn, optimizer: optim.Optimizer
+) -> Tuple[Tensor, float]:
+    optimizer.zero_grad()
+    output = model(inputs)
+    loss = loss_fn(output, targets)
+    loss.backward()
+    optimizer.step()
+    return output, loss.item()
 
 
 def eval(
