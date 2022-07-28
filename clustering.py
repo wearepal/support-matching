@@ -20,7 +20,7 @@ from torch import Tensor, nn
 from torch.nn import functional as F
 from tqdm import tqdm
 
-from data_loading import DOWNLOAD_ROOT, MODEL_PATH, CLIPVersion, get_data
+from data_loading import CLIP_VER, DOWNLOAD_ROOT, MODEL_PATH, get_data
 from shared.data.utils import labels_to_group_id
 
 ENCODINGS_FILE: Final = Path("encoded_celeba.npz")
@@ -91,9 +91,7 @@ def precomputed_centroids(
 def generate_encodings() -> Encodings:
     """Generate encodings by putting the data through a pre-trained model."""
     print("Loading CLIP model (downloading if needed)...", flush=True)
-    model, transforms = clip.load(
-        name=CLIPVersion.RN50.value, device="cpu", download_root=DOWNLOAD_ROOT
-    )
+    model, transforms = clip.load(name=CLIP_VER.value, device="cpu", download_root=DOWNLOAD_ROOT)
     print("Done.")
     visual_model = model.visual
 

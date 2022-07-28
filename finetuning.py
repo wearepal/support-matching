@@ -12,11 +12,9 @@ import torch.nn.functional as F
 from tqdm import tqdm
 import wandb
 
-from data_loading import DOWNLOAD_ROOT, MODEL_PATH, CLIPVersion, get_data
+from data_loading import DOWNLOAD_ROOT, MODEL_PATH, CLIP_VER, get_data
 from shared.data.utils import labels_to_group_id
 
-CLIP_VER: Final = CLIPVersion.RN50
-# CLIP_VER: Final = CLIPVersion.ViT_L14
 BATCH_SIZE: Final = 10
 NUM_ITERS: Final = 2000
 EVAL_STEPS: Final = 100
