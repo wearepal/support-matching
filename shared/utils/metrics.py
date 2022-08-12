@@ -1,6 +1,5 @@
 from __future__ import annotations
 from collections.abc import Mapping
-from functools import partial
 import logging
 from pathlib import Path
 
@@ -39,14 +38,6 @@ def make_tuple_from_data(
     return em.DataTuple.from_df(x=train_x, s=train.s, y=train_y), em.DataTuple.from_df(
         x=test_x, s=test.s, y=test_y
     )
-
-
-robust_tpr = cdtm.subclasswise_metric(
-    comparator=partial(cdtm.conditional_equal, y_true_cond=1), aggregator=cdtm.Aggregator.MIN
-)
-robust_tnr = cdtm.subclasswise_metric(
-    comparator=partial(cdtm.conditional_equal, y_true_cond=0), aggregator=cdtm.Aggregator.MIN
-)
 
 
 def compute_metrics(
@@ -91,9 +82,9 @@ def compute_metrics(
     s_t = torch.as_tensor(torch.as_tensor(actual.s, dtype=torch.long))
     cdt_metrics = {
         "Robust_Accuracy": cdtm.robust_accuracy,
-        "Balanced_Accuracy": cdtm.group_balanced_accuracy,
-        "Robust_TPR": robust_tpr,
-        "Robust_TNR": robust_tnr,
+        "Balanced_Accuracy": cdtm.subclass_balanced_accuracy,
+        "Robust_TPR": cdtm.robust_tpr,
+        "Robust_TNR": cdtm.robust_tnr,
     }
     for name, fn in cdt_metrics.items():
         metrics[name] = fn(y_pred=y_pred_t, y_true=y_true_t, s=s_t).item()
