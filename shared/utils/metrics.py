@@ -1,9 +1,11 @@
 from __future__ import annotations
 from collections.abc import Mapping
+from functools import partial
 import logging
 from pathlib import Path
 from typing import List, TypeVar
 
+from conduit import metrics as cdtm
 from conduit.models.utils import prefix_keys
 import ethicml as em
 import ethicml.metrics as emm
@@ -16,11 +18,9 @@ from torch import Tensor
 import wandb
 
 __all__ = [
-    "accuracy_per_subgroup",
     "compute_metrics",
     "make_tuple_from_data",
     "print_metrics",
-    "robust_accuracy",
     "write_results_to_csv",
 ]
 
@@ -45,19 +45,12 @@ def make_tuple_from_data(
     )
 
 
-T = TypeVar("T", Tensor, npt.NDArray[np.integer])
-
-
-def accuracy_per_subgroup(y_pred: T, *, y_true: T, s: T) -> List[float]:
-    unique_fn = torch.unique if isinstance(y_pred, Tensor) else np.unique
-    s_unique, s_counts = unique_fn(s, return_counts=True)
-    s_m = s.flatten()[:, None] == s_unique[None]
-    hits = y_pred.flatten() == y_true.flatten()
-    return ((hits[:, None] * s_m).sum(0) / s_counts).tolist()
-
-
-def robust_accuracy(y_pred: T, *, y_true: T, s: T) -> float:
-    return min(accuracy_per_subgroup(y_pred=y_pred, y_true=y_true, s=s))
+robust_tpr = cdtm.subclasswise_metric(
+    comparator=partial(cdtm.conditional_equal, y_true_cond=1), aggregator=cdtm.Aggregator.MIN
+)
+robust_tnr = cdtm.subclasswise_metric(
+    comparator=partial(cdtm.conditional_equal, y_true_cond=0), aggregator=cdtm.Aggregator.MIN
+)
 
 
 def compute_metrics(
@@ -96,11 +89,18 @@ def compute_metrics(
         per_sens_metrics=[emm.Accuracy(), emm.ProbPos(), emm.TPR(), emm.TNR()],  # type: ignore
         diffs_and_ratios=s_dim < 4,  # this just gets too much with higher s dim
     )
-    metrics["Robust_Accuracy"] = robust_accuracy(
-        y_pred=predictions.hard.to_numpy(),
-        y_true=actual.y.to_numpy(),
-        s=actual.s.to_numpy(),
-    )
+    # Convert to tensor for compatibility with conduit-derived metrics.
+    y_pred_t = torch.as_tensor(torch.as_tensor(predictions.hard, dtype=torch.long))
+    y_true_t = torch.as_tensor(torch.as_tensor(actual.y, dtype=torch.long))
+    s_t = torch.as_tensor(torch.as_tensor(actual.s, dtype=torch.long))
+    cdt_metrics = {
+        "Robust_Accuracy": cdtm.robust_accuracy,
+        "Balanced_Accuracy": cdtm.group_balanced_accuracy,
+        "Robust_TPR": robust_tpr,
+        "Robust_TNR": robust_tnr,
+    }
+    for name, fn in cdt_metrics.items():
+        metrics[name] = fn(y_pred=y_pred_t, y_true=y_true_t, s=s_t).item()
     # replace the slash; it's causing problems
     metrics = {k.replace("/", "÷"): v for k, v in metrics.items()}
     metrics = {f"{k} ({model_name})": v for k, v in metrics.items()}

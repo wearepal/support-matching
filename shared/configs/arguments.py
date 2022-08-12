@@ -41,6 +41,7 @@ class SplitConf:
     transductive: bool = False  # whether to include the test data in the pool of unlabelled data
     dep_prop: float = 0.4
     test_prop: float = 0.2
+    # The propotion of the dataset to use overall (pre-splitting)
     data_prop: Optional[float] = None
 
     # Dataset manipulation
