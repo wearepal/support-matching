@@ -356,7 +356,7 @@ class DataModule(Generic[D]):
         )
 
     @classmethod
-    def _generate_splits(cls: Type[Self], dataset: D, split_config: SplitConf) -> TrainDepSplit[D]:
+    def generate_splits(cls: Type[Self], dataset: D, split_config: SplitConf) -> TrainDepSplit[D]:
 
         dep_data, test_data, train_data = dataset.random_split(
             props=[split_config.dep_prop, split_config.test_prop],
@@ -426,7 +426,7 @@ class DataModule(Generic[D]):
         all_data: D = instantiate(ds_config, root=root, split=None)
         if split_config.data_prop is not None:
             all_data = stratified_split(all_data, default_train_prop=split_config.data_prop).train
-        splits = cls._generate_splits(dataset=all_data, split_config=split_config)
+        splits = cls.generate_splits(dataset=all_data, split_config=split_config)
         return cls(
             train=splits.train,
             deployment=splits.deployment,

@@ -2,17 +2,17 @@ from itertools import islice
 from typing import Final, List, Tuple
 
 import clip
+from conduit import metrics as cdtm
 from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import TernarySample
-import numpy.typing as npt
-from sklearn.metrics import accuracy_score
+from conduit.types import Loss
+from data_loading import CLIP_VER, DOWNLOAD_ROOT, MODEL_PATH, get_data
+from ranzen.torch import CrossEntropyLoss
 import torch
 from torch import Tensor, nn, optim
-import torch.nn.functional as F
 from tqdm import tqdm
 import wandb
 
-from data_loading import DOWNLOAD_ROOT, MODEL_PATH, CLIP_VER, get_data
 from shared.data.utils import labels_to_group_id
 
 BATCH_SIZE: Final = 10
@@ -23,14 +23,16 @@ S_COUNT: Final = 2
 Y_COUNT: Final = 2
 LR: Final = 1e-5
 NUM_WORKERS: Final = 10
+GPU: int = 0
 
 
 def main() -> None:
     print("Loading CLIP model (downloading if needed)...", flush=True)
     model, transforms = clip.load(name=CLIP_VER.value, device="cpu", download_root=DOWNLOAD_ROOT)
     print("Done.")
+    use_gpu = torch.cuda.is_available() and GPU >= 0
+    device = torch.device(f"cuda:{GPU}" if use_gpu else "cpu")
     visual_model = model.visual
-    device = torch.device("cuda:0")
     model = nn.Sequential(visual_model, nn.Linear(visual_model.output_dim, S_COUNT * Y_COUNT))
     model.to(device)
     dm = get_data(transforms, batch_size_tr=BATCH_SIZE)
@@ -69,14 +71,16 @@ def train(
     model.train()
     pbar = tqdm(islice(train_data, iters), total=iters)
     last_acc = 0.0
-    loss_fn = nn.CrossEntropyLoss(reduction="mean")
+    loss_fn = CrossEntropyLoss(reduction="mean")
     for step, sample in enumerate(pbar, start=1):
         x = sample.x.to(device, non_blocking=True)
         s = sample.s.to(device, non_blocking=True)
         y = sample.y.to(device, non_blocking=True)
         group_id = labels_to_group_id(s=s, y=y, s_count=S_COUNT)
 
-        _, loss = generic_train_step(model, x, group_id, loss_fn, optimizer)
+        _, loss = generic_train_step(
+            model, inputs=x, targets=group_id, loss_fn=loss_fn, optimizer=optimizer
+        )
 
         to_log = {
             "loss": loss,
@@ -90,11 +94,11 @@ def train(
 
 
 def generic_train_step(
-    model: nn.Module, inputs: Tensor, targets: Tensor, loss_fn, optimizer: optim.Optimizer
+    model: nn.Module, *, inputs: Tensor, targets: Tensor, loss_fn: Loss, optimizer: optim.Optimizer
 ) -> Tuple[Tensor, float]:
-    optimizer.zero_grad()
     output = model(inputs)
     loss = loss_fn(output, targets)
+    optimizer.zero_grad()
     loss.backward()
     optimizer.step()
     return output, loss.item()
@@ -108,7 +112,7 @@ def eval(
 ) -> float:
     preds, s, y = predict(model, eval_data, device)
     group_ids = labels_to_group_id(s=s, y=y, s_count=2)
-    accuracy = accuracy_score(group_ids, preds)
+    accuracy = cdtm.accuracy(y_pred=preds, y_true=group_ids).item()
     wandb.log({"accuracy": accuracy}, step=step)
     return accuracy
 
@@ -117,21 +121,21 @@ def predict(
     model: nn.Module,
     eval_data: CdtDataLoader[TernarySample[Tensor]],
     device: torch.device,
-) -> Tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
+) -> Tuple[Tensor, Tensor, Tensor]:
     model.eval()
     all_preds: List[Tensor] = []
     all_s: List[Tensor] = []
     all_y: List[Tensor] = []
-    with torch.set_grad_enabled(False):
+    with torch.no_grad():
         for sample in islice(eval_data, NUM_EVAL):
             logits = model(sample.x.to(device, non_blocking=True))
             all_preds.append(torch.argmax(logits, dim=-1).detach().cpu())
             all_s.append(sample.s)
             all_y.append(sample.y)
 
-    preds = torch.cat(all_preds).numpy()
-    s = torch.cat(all_s).numpy()
-    y = torch.cat(all_y).numpy()
+    preds = torch.cat(all_preds)
+    s = torch.cat(all_s)
+    y = torch.cat(all_y)
     return preds, s, y
 
 

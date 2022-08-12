@@ -4,6 +4,7 @@ from typing import Dict, Final, Iterable, List, NamedTuple, Tuple, TypedDict
 import clip
 from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import TernarySample
+from data_loading import CLIP_VER, DOWNLOAD_ROOT, MODEL_PATH, get_data
 from ethicml import DataTuple, Prediction, metrics
 import numpy as np
 import numpy.typing as npt
@@ -20,7 +21,6 @@ from torch import Tensor, nn
 from torch.nn import functional as F
 from tqdm import tqdm
 
-from data_loading import CLIP_VER, DOWNLOAD_ROOT, MODEL_PATH, get_data
 from shared.data.utils import labels_to_group_id
 
 ENCODINGS_FILE: Final = Path("encoded_celeba.npz")
@@ -55,12 +55,16 @@ def main() -> None:
     print("Using pre-computed centroids")
     # known_group_ids = range(NUM_CLUSTERS)
     known_group_ids = [0, 1, 3]
-    centroids: Tensor = precomputed_centroids(enc.train, enc.train_labels, known_group_ids)
+    centroids: Tensor = precompute_centroids(
+        enc.train, train_group_ids=enc.train_labels, all_group_ids=known_group_ids
+    )
     if centroids.shape[0] < NUM_CLUSTERS:
         print(f"Need additional clusters: {NUM_CLUSTERS - centroids.shape[0]}")
         if USE_FFT:
             print("Using furthest-first traversal to generate additional initial clusters...")
-            centroids_np = furthest_first_traversal(enc.dep, centroids, NUM_CLUSTERS).numpy()
+            centroids_np = furthest_first_traversal(
+                enc.dep, centroids=centroids, num_clusters=NUM_CLUSTERS
+            ).numpy()
         else:
             print("Using kmeans++ to generate additional initial clusters...")
             additional_centroids, _ = kmeans_plusplus(
@@ -76,8 +80,8 @@ def main() -> None:
     evaluate(enc.test_labels, clusters)
 
 
-def precomputed_centroids(
-    train_enc: Tensor, train_group_ids: Tensor, all_group_ids: Iterable[int]
+def precompute_centroids(
+    train_enc: Tensor, *, train_group_ids: Tensor, all_group_ids: Iterable[int]
 ) -> Tensor:
     """Determine centroids from group IDs."""
     centroids: List[Tensor] = []
@@ -104,9 +108,9 @@ def generate_encodings() -> Encodings:
 
     dm = get_data(transforms, batch_size_tr=150)
 
-    train_enc, train_group_ids = encode(visual_model, dm.train_dataloader(eval=True))
-    deployment_enc, _ = encode(visual_model, dm.deployment_dataloader(eval=True))
-    test_enc, test_group_ids = encode(visual_model, dm.test_dataloader())
+    train_enc, train_group_ids = encode(visual_model, dl=dm.train_dataloader(eval=True))
+    deployment_enc, _ = encode(visual_model, dl=dm.deployment_dataloader(eval=True))
+    test_enc, test_group_ids = encode(visual_model, dl=dm.test_dataloader())
     del model
     del visual_model
     torch.cuda.empty_cache()
@@ -129,11 +133,11 @@ def generate_encodings() -> Encodings:
     )
 
 
-def encode(model: nn.Module, dl: CdtDataLoader[TernarySample[Tensor]]) -> Tuple[Tensor, Tensor]:
+def encode(model: nn.Module, *, dl: CdtDataLoader[TernarySample[Tensor]]) -> Tuple[Tensor, Tensor]:
     encoded: List[Tensor] = []
     group_ids: List[Tensor] = []
-    print("start encoding...", flush=True)
-    with torch.set_grad_enabled(False):
+    print("Beginning encoding...", flush=True)
+    with torch.no_grad():
         for sample in tqdm(dl, total=len(dl)):
             enc = model(sample.x.to("cuda:0", non_blocking=True)).detach()
             # normalize so we're doing cosine similarity
@@ -220,7 +224,7 @@ def count_cooccurrances(
 
 
 def furthest_first_traversal(
-    dep_enc: Tensor, centroids: Tensor, num_clusters: int, use_gpu: bool = True
+    dep_enc: Tensor, *, centroids: Tensor, num_clusters: int, use_gpu: bool = True
 ) -> Tensor:
     num_predefined = centroids.shape[0]
     # Add the centroids to the samples
@@ -232,7 +236,7 @@ def furthest_first_traversal(
         # on the GPU, we have to do it batch-wise
         dists = batchwise_pdist(samples.to("cuda:0"), chunk_size=1000).cpu()
     else:
-        dists = torch.cdist(samples, samples)
+        dists = torch.cdist(x1=samples, x2=samples)
     # Mask indicating whether a sample is still yet to be sampled (1=unsampled, 0=sampled)
     # - updating a mask is far more efficient than reconstructing the list of unsampled indexes
     # every iteration (however, we do have to be careful about the 'meta-indexing' it introduces)
@@ -257,7 +261,7 @@ def furthest_first_traversal(
     return samples[sampled_idxs]
 
 
-def batchwise_pdist(x: Tensor, chunk_size: int, p_norm: float = 2.0) -> Tensor:
+def batchwise_pdist(x: Tensor, *, chunk_size: int, p_norm: float = 2.0) -> Tensor:
     """Compute pdist in batches.
 
     This is necessary because if you compute pdist directly, it doesn't fit into memory.

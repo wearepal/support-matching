@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Final
 
-from conduit.data.datasets.utils import stratified_split
+from conduit.data.datasets.utils import ImageTform, stratified_split
 from conduit.data.datasets.vision import CelebA
 from conduit.data.datasets.vision.celeba import CelebAttr
 
@@ -29,7 +29,7 @@ CLIP_VER: Final = CLIPVersion.RN50
 # CLIP_VER: Final = CLIPVersion.ViT_L14
 
 
-def get_data(transforms, batch_size_tr: int) -> DataModule[CelebA]:
+def get_data(transforms: ImageTform, batch_size_tr: int) -> DataModule[CelebA]:
     data_settings = SplitConf(
         # data_prop=0.01,  # for testing
         train_transforms=transforms,
@@ -56,7 +56,7 @@ def get_dm(
         print("Making data smaller...", flush=True)
         all_data = stratified_split(all_data, default_train_prop=split_config.data_prop).train
         print("Done.")
-    splits = DataModule._generate_splits(dataset=all_data, split_config=split_config)
+    splits = DataModule.generate_splits(dataset=all_data, split_config=split_config)
     print("Done.")
     return DataModule(
         train=splits.train,
