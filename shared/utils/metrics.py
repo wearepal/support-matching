@@ -3,18 +3,14 @@ from collections.abc import Mapping
 from functools import partial
 import logging
 from pathlib import Path
-from typing import List, TypeVar
 
 from conduit import metrics as cdtm
 from conduit.models.utils import prefix_keys
 import ethicml as em
 import ethicml.metrics as emm
 from ethicml.utility.data_structures import LabelTuple
-import numpy as np
-import numpy.typing as npt
 import pandas as pd
 import torch
-from torch import Tensor
 import wandb
 
 __all__ = [
