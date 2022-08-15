@@ -1,7 +1,6 @@
 ---
 defaults:
-  - /schema/alg: base
-  - defaults
+  - base
   - _self_
 iters: 50000
 early_stopping: 30
@@ -13,12 +12,12 @@ recon_detach: true
 eval_on_recon: false
 eval_steps: 1000
 eval_lr: 0.001
-eval_batch_size: 256
+eval_batch_size: 16
 balanced_eval: false
 eval_s_from_zs: null
 eval_hidden_dims: null
 validate: true
-val_freq: 1000
+val_freq: 500
 log_freq: 50
 feat_attr: false
 vgg_weight: 0
@@ -28,26 +27,25 @@ stochastic: false
 adv_loss: logistic_ns
 double_adv_loss: true
 adv_method: nn
-mmd_kernel: rq
-# mmd_scales: ???
-# mmd_wts: ???
-mmd_add_dot: 0.0
-# adv_hidden_dims: ???
-aggregator_type: null
+adv_hidden_dims:
+    - 256
+    - 256
+aggregator_type: gated
 aggregator_input_dim: 32
-# aggregator_hidden_dims: ???
-# aggregator_kwargs: ???
-lr: 0.001
+aggregator_hidden_dims:
+    - 256
+    - 256
+# aggregator_kwargs: 
+lr: 0.0003
 adv_lr: 0.0003
 enc_loss_w: 1
 adv_loss_w: 1
-num_adv_updates: 3
+num_adv_updates: 1
 distinguish_weight: 1
 pred_y_loss_w: 1
-pred_s_loss_w: 0
-prior_loss_w: 0
+pred_s_loss_w: 1
+prior_loss_w: 0.01
 pred_y_hidden_dims: null
 use_pretrained_enc: false
-zs_transform: none
 s_as_zs: false
 s_pred_with_bias: true

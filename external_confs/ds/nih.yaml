@@ -1,0 +1,8 @@
+---
+defaults:
+  - /schema/ds: nih
+  - _self_
+root: 
+transform: null
+sens_attr: gender
+target_attr: infiltration

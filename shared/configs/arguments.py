@@ -102,7 +102,7 @@ class ClusterConf:
     num_workers: int = 4
 
     # Evaluation settings
-    eval_epochs: int = 40
+    eval_steps: int = 1000
     eval_lr: float = 1e-3
     encode_batch_size: int = 1000
 
@@ -180,10 +180,10 @@ class ASMConf:
     eval_on_recon: bool = False
 
     # Evaluation settings
-    eval_epochs: int = 40
-    eval_lr: float = 1e-3
+    eval_steps: int = 10000
+    eval_lr: float = 1e-4
     eval_batch_size: int = 256
-    balanced_eval: bool = False  # Whether to balance the training set during evaluation
+    balanced_eval: bool = True  # Whether to balance the training set during evaluation
     eval_s_from_zs: Optional[EvalTrainData] = None  # Train a classifier to predict s from zs
     eval_hidden_dims: Optional[List[int]] = None
 
@@ -231,6 +231,8 @@ class ASMConf:
     zs_dim: int = 1
     s_as_zs: bool = False  # if True, pass `s` instead of `zs` to the decoder for the training set
     s_pred_with_bias: bool = True  # if False, the s predictor has no bias term in the output layer
+    ga_steps: int = 1
+    max_grad_norm: Optional[float] = 5.0
 
 
 @dataclass

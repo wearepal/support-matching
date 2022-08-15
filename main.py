@@ -1,15 +1,10 @@
-"""Simply call the main function."""
-from dataclasses import dataclass
-import os
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, List, Type, Union
 
 from conduit.data.datasets.vision import Camelyon17, CelebA, ColoredMNIST
-from ranzen.decorators import implements
-from ranzen.hydra import Option, Relay
+from ranzen.hydra import Option
+import torch
 
-from advrep.algs.supmatch import SupportMatching
 from advrep.models.autoencoder import ResNetAE, SimpleConvAE
-from shared.configs import Config
 from shared.configs.arguments import (
     ASMConf,
     DataModuleConf,
@@ -17,15 +12,10 @@ from shared.configs.arguments import (
     MiscConf,
     SplitConf,
 )
+from shared.data.nih import NIHChestXRayDataset
+from shared.relay import ASMRelay
 
-
-@dataclass
-class ASMRelay(Relay, Config):
-    @implements(Relay)
-    def run(self, raw_config: Optional[Dict[str, Any]] = None) -> None:
-        self.log(f"Current working directory: '{os.getcwd()}'")
-        alg = SupportMatching(cfg=self)
-        alg.run()
+torch.multiprocessing.set_sharing_strategy("file_system")
 
 
 if __name__ == "__main__":
@@ -33,6 +23,7 @@ if __name__ == "__main__":
         Option(ColoredMNIST, name="cmnist"),
         Option(CelebA, name="celeba"),
         Option(Camelyon17, name="camelyon17"),
+        Option(NIHChestXRayDataset, name="nih"),
     ]
     ae_ops: List[Union[Type[Any], Option]] = [
         Option(SimpleConvAE, name="simple"),

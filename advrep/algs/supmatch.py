@@ -67,7 +67,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         return super()._build_encoder(dm)
 
     @implements(AdvSemiSupervisedAlg)
-    def _step_discriminator(
+    def _discriminator_loss(
         self,
         iterator_tr: Iterator[TernarySample[Tensor]],
         *,
@@ -88,12 +88,10 @@ class SupportMatching(AdvSemiSupervisedAlg):
             disc_input_dep = self._get_disc_input(encoding_dep)
             disc_loss = self.discriminator.discriminator_loss(fake=disc_input_tr, real=disc_input_dep)  # type: ignore
 
-        self._update_discriminator(disc_loss)
-
         return disc_loss, logging_dict
 
     @implements(AdvSemiSupervisedAlg)
-    def _step_encoder(
+    def _encoder_loss(
         self, x_dep: Tensor, *, batch_tr: TernarySample[Tensor], warmup: bool
     ) -> tuple[Tensor, dict[str, float]]:
         """Compute the losses for the encoder and update its parameters."""
@@ -162,8 +160,6 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 total_loss += pred_s_loss
 
         logging_dict["Loss Total"] = total_loss.detach().cpu().item()
-
-        self._update_encoder(total_loss)
 
         return total_loss, logging_dict
 
