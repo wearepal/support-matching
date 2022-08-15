@@ -43,6 +43,7 @@ ranzen = {version = "^1.2.6", extras = ["hydra"]}
 torch = "^1.11.0"
 torch-conduit = "^0.1.1"
 ethicml = "1.0.0a2"
+clip = { git = "https://github.com/openai/CLIP.git", branch = "main" }
 
 [tool.poetry.dev-dependencies]
 black = "*"

@@ -85,7 +85,7 @@ def log_sample_images(
 
 
 def log_metrics(
-    cfg: Config,
+    cfg: Config,  # TODO: decompose cfg into separate arguments
     *,
     dm: DataModule,
     encoder: AutoEncoder,
