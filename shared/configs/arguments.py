@@ -5,18 +5,13 @@ from typing import Any, Dict, List, Optional
 
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, MISSING, OmegaConf
-import torch
 
 from .enums import (
     AggregatorType,
-    ClusteringLabel,
-    ClusteringMethod,
     DiscriminatorLoss,
     DiscriminatorMethod,
-    EncoderType,
     EvalTrainData,
     MMDKernel,
-    PlMethod,
     VaeStd,
     WandbMode,
 )

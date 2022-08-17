@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from hydra.utils import instantiate
 from ranzen.decorators import implements
 from ranzen.hydra import Relay
 from ranzen.torch import random_seed
@@ -10,6 +11,7 @@ import torch
 import wandb
 
 from advrep.algs.supmatch import SupportMatching
+from clustering.pipeline import KmeansOnClipEncodings
 from shared.configs import Config
 from shared.data import DataModule
 from shared.utils.utils import as_pretty_dict, flatten_dict
@@ -51,7 +53,20 @@ class ASMRelay(Relay, Config):
             mode=self.logging.mode.name,
         )
 
-        # clusterer = Clusterer
-        debiaser = SupportMatching(cfg=self)
+        # === Initialise the debiaser ===
+        debiaser = SupportMatching(
+            alg_cfg=self.alg,
+            enc_cfg=self.enc,
+            misc_cfg=self.misc,
+            log_cfg=self.logging,
+        )
+        # === Cluster if not using the ground-truth labels for balancing ===
+        if not dm.gt_deployment:
+            clusterer: KmeansOnClipEncodings = instantiate(self.clust, _partial_=True)(
+                gpu=self.misc.gpu  # Set both phases to use the same device for convenience
+            )
+            # === Fit and evaluate the clusterer ===
+            dm.deployment_ids = clusterer.run(dm=dm)
+        # === Train and evaluate the debiaser ===
         debiaser.run(dm=dm)
         run.finish()  # type: ignore

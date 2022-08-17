@@ -1,8 +1,7 @@
 from dataclasses import dataclass, field
 from itertools import islice
-from typing import List, Tuple
+from typing import List, Optional, Tuple, Union
 
-import clip
 from conduit import metrics as cdtm
 from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import TernarySample
@@ -23,17 +22,20 @@ __all__ = ["FineTuner"]
 
 @dataclass(eq=False)
 class FineTuner(DcModule):
-
-    batch_size: int = 10
+    batch_size: int = 16
     steps: int = 2000
-    val_freq: int = 100
-    val_batches: int = 400
+    val_freq: Union[int, float] = 0.1
+    val_batches: Union[int, float] = 1.0
     lr: float = 1e-5
     gpu: int = 0
-    save_path: str = ""
-    download_root: str = ""
-    model_path: str = "./finetuned.pt"
-    loss_fn: CrossEntropyLoss = field(init=False, default_factory=CrossEntropyLoss)
+    save_path: Optional[str] = None
+    loss_fn: Loss = field(default_factory=CrossEntropyLoss)
+
+    def __post_init__(self) -> None:
+        if isinstance(self.val_freq, float) and (not (0 <= self.val_freq <= 1)):
+            raise AttributeError("If 'val_freq' is a float, it must be in the range [0, 1].")
+        if isinstance(self.val_batches, float) and (not (0 <= self.val_batches <= 1)):
+            raise AttributeError("If 'val_batches' is a float, it must be in the range [0, 1].")
 
     def run(self, dm: DataModule, *, backbone: nn.Module, out_dim: int) -> None:
         dm = gcopy(dm)
@@ -56,7 +58,9 @@ class FineTuner(DcModule):
             device=device,
             card_s=dm.card_s,
         )
-        torch.save(backbone.state_dict(), f=self.model_path)
+        if self.save_path is not None:
+            torch.save(backbone.state_dict(), f=self.save_path)
+        model.cpu()
 
     def train_loop(
         self,
@@ -72,15 +76,14 @@ class FineTuner(DcModule):
         model.train()
         pbar = tqdm(islice(train_loader, steps), total=steps)
         last_acc = 0.0
+        val_freq = self.val_freq if isinstance(self.val_freq, int) else round(self.val_freq * steps)
         for step, sample in enumerate(pbar, start=1):
             x = sample.x.to(device, non_blocking=True)
             s = sample.s.to(device, non_blocking=True)
             y = sample.y.to(device, non_blocking=True)
             group_id = labels_to_group_id(s=s, y=y, s_count=card_s)
 
-            _, loss = self.train_step(
-                model, inputs=x, targets=group_id, loss_fn=loss_fn, optimizer=optimizer
-            )
+            _, loss = self.train_step(model, inputs=x, targets=group_id, optimizer=optimizer)
 
             to_log = {
                 "loss": loss,
@@ -88,7 +91,7 @@ class FineTuner(DcModule):
                 "y1_share": sample.y.float().mean().item(),
             }
             wandb.log(to_log, step=step)
-            if step % self.val_freq == 0:
+            if step % val_freq == 0:
                 last_acc = self.validate(model, val_loader=val_loader, device=device, step=step)
             pbar.set_postfix(loss=loss, last_acc=last_acc)
 
@@ -98,11 +101,10 @@ class FineTuner(DcModule):
         *,
         inputs: Tensor,
         targets: Tensor,
-        loss_fn: Loss,
         optimizer: optim.Optimizer,
     ) -> Tuple[Tensor, float]:
         output = model(inputs)
-        loss = loss_fn(output, targets)
+        loss = self.loss_fn(output, targets)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -121,7 +123,12 @@ class FineTuner(DcModule):
         all_s: List[Tensor] = []
         all_y: List[Tensor] = []
         with torch.no_grad():
-            for sample in islice(val_loader, self.val_batches):
+            val_batches = (
+                self.val_batches
+                if isinstance(self.val_batches, int)
+                else round(self.val_batches * len(val_loader))
+            )
+            for sample in islice(val_loader, val_batches):
                 logits = model(sample.x.to(device, non_blocking=True))
                 all_preds.append(torch.argmax(logits, dim=-1).detach().cpu())
                 all_s.append(sample.s)

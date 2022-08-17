@@ -9,6 +9,7 @@ from sklearn.cluster import KMeans as _KMeans
 from sklearn.cluster import kmeans_plusplus
 import torch
 from torch import Tensor
+import torch.nn.functional as F
 from tqdm import tqdm
 
 from shared.data import DataModule
@@ -25,25 +26,35 @@ __all__ = [
 LOGGER = logging.getLogger(__file__)
 
 
-def fft_init(x: Tensor, *, centroids: Tensor, num_clusters: int, use_gpu: bool = True) -> Tensor:
-    num_predefined = centroids.shape[0]
+def fft_init(
+    x: Tensor,
+    *,
+    centroids: Tensor,
+    num_clusters: int,
+    device: str | torch.device | None = None,
+    chunk_size: int = 1000,
+) -> Tensor:
+    num_predefined = len(centroids)
     # Add the centroids to the samples
     xc = torch.cat([centroids, x], dim=0)
     sampled_idxs = list(range(num_predefined))
     # Compute the euclidean distance between all pairs
-    LOGGER.info("pairwise difference...")
-    if use_gpu:
+    LOGGER.info("Computing pairwise differences...")
+    if device is None:
+        device = torch.device("cpu")
+    elif isinstance(device, str):
+        device = torch.device(device)
+    if device.type == "cuda":
         # on the GPU, we have to do it batch-wise
-        dists = batchwise_pdist(xc.to("cuda:0"), chunk_size=1000).cpu()
+        dists = batchwise_pdist(xc.to(device), chunk_size=chunk_size).cpu()
     else:
         dists = torch.cdist(x1=xc, x2=xc)
     # Mask indicating whether a sample is still yet to be sampled (1=unsampled, 0=sampled)
     # - updating a mask is far more efficient than reconstructing the list of unsampled indexes
     # every iteration (however, we do have to be careful about the 'meta-indexing' it introduces)
-    unsampled_m = xc.new_ones(len(xc), dtype=torch.bool)
+    unsampled_m = xc.new_ones((len(xc),), dtype=torch.bool)
     # Mark the predefined centroids as visited
     unsampled_m[sampled_idxs] = 0
-
     # Begin the furthest-first traversal algorithm
     while len(sampled_idxs) < num_clusters:
         # p := argmax min_{i\inB}(d(x, x_i)); i.e. select the point which maximizes the minimum
@@ -79,14 +90,14 @@ def batchwise_pdist(x: Tensor, *, chunk_size: int, p_norm: float = 2.0) -> Tenso
         for shard in shards:
             del shard
         del column
-        torch.cuda.empty_cache()
+        torch.cuda.empty_cache()  # type: ignore
 
     dists = torch.cat(columns, dim=0)
 
     # free up memory
     for column in columns:
         del column
-    torch.cuda.empty_cache()
+    torch.cuda.empty_cache()  # type: ignore
     return dists
 
 
@@ -104,50 +115,65 @@ def precompute_centroids(
 
 @dataclass
 class KMeans:
-
     n_init: int = 10
-    use_fft: bool = False
-    use_labels: bool = False
+    fft_cluster_init: bool = False
+    supervised_cluster_init: bool = False
     _fitted_model: Optional[_KMeans] = None
+    spherical: bool = True
+    gpu: int = 0
 
-    def fit(self, dm: DataModule, *, enc: Encodings) -> None:
+    def fit(self, dm: DataModule, *, encodings: Encodings) -> None:
+
+        if self.spherical:
+            # l2-normalize the encodings so Euclidean distance is converted into cosine distance.
+            encodings.normalize_(p=2)
         train_clusters = dm.group_ids_tr.unique()
         dep_clusters = dm.group_ids_dep.unique()
         n_clusters = len(dep_clusters)
 
-        if self.use_labels:
+        use_gpu = torch.cuda.is_available() and self.gpu >= 0
+        device = torch.device(f"cuda:{self.gpu}" if use_gpu else "cpu")
+
+        if self.supervised_cluster_init:
             LOGGER.info("Using pre-computed centroids")
             centroids: Tensor = precompute_centroids(
-                enc.train, train_group_ids=enc.train_labels, all_group_ids=train_clusters
+                encodings.train,
+                train_group_ids=encodings.train_labels,
+                all_group_ids=train_clusters,
             )
             if len(centroids) < n_clusters:
                 LOGGER.info(f"Need additional clusters: {n_clusters - len(centroids)}")
-                if self.use_fft:
+                if self.fft_cluster_init:
                     LOGGER.info(
                         "Using furthest-first traversal to generate additional initial clusters..."
                     )
                     centroids_np = fft_init(
-                        enc.dep, centroids=centroids, num_clusters=n_clusters
+                        encodings.dep,
+                        centroids=centroids,
+                        num_clusters=n_clusters,
+                        device=device,
                     ).numpy()
                 else:
                     LOGGER.info("Using kmeans++ to generate additional initial clusters...")
                     additional_centroids, _ = kmeans_plusplus(
-                        enc.dep.numpy(), n_clusters=n_clusters - len(centroids), random_state=0
+                        encodings.dep.numpy(),
+                        n_clusters=n_clusters - len(centroids),
+                        random_state=0,
                     )
                     centroids_np = np.concatenate([centroids.numpy(), additional_centroids], axis=0)
                 LOGGER.info("Done.")
             else:
                 centroids_np = centroids.numpy()
             kmeans = _KMeans(n_clusters=n_clusters, init=centroids_np, n_init=1)
-            kmeans.fit(enc.to_cluster)
-            preds = kmeans.predict(enc.test)
-            evaluate(y_true=enc.test_labels, y_pred=preds)
+            kmeans.fit(encodings.to_cluster)
+            preds = kmeans.predict(encodings.test)
+            evaluate(y_true=encodings.test_labels, y_pred=preds)
         else:
             LOGGER.info("Using kmeans++")
             kmeans = _KMeans(n_clusters=n_clusters, init="k-means++", n_init=self.n_init)
-            kmeans.fit(enc.to_cluster)
-            preds = kmeans.predict(enc.test)
-            evaluate(y_true=enc.test_labels, y_pred=preds)
+            kmeans.fit(encodings.to_cluster)
+            preds = kmeans.predict(encodings.test)
+            evaluate(y_true=encodings.test_labels, y_pred=preds)
 
         self._fitted_model = kmeans
 

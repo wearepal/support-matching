@@ -4,13 +4,13 @@ from pathlib import Path
 from typing import Sequence, TypeVar
 
 from conduit.data.datasets.vision.base import CdtVisionDataset
+from omegaconf import DictConfig
 import torch
 from torch import Tensor, nn
 import torchvision
 import torchvision.transforms.functional as TF
 import wandb
 
-from shared.configs import Config
 from shared.data.data_module import DataModule
 from shared.utils import as_pretty_dict, flatten_dict
 
@@ -100,17 +100,15 @@ def log_attention(
     wandb.log({prefix + name: shw}, step=step)
 
 
-def save_model(cfg: Config, save_dir: Path, model: nn.Module, itr: int, best: bool = False) -> Path:
+def save_model(save_dir: Path, *, model: nn.Module, itr: int, best: bool = False) -> Path:
     if best:
         filename = save_dir / "checkpt_best.pth"
     else:
         filename = save_dir / f"checkpt_epoch{itr}.pth"
     save_dict = {
-        "args": flatten_dict(as_pretty_dict(cfg)),
         "model": model.state_dict(),
         "itr": itr,
     }
-
     torch.save(save_dict, filename)
 
     return filename
@@ -119,10 +117,7 @@ def save_model(cfg: Config, save_dir: Path, model: nn.Module, itr: int, best: bo
 M = TypeVar("M", bound=nn.Module)
 
 
-def restore_model(cfg: Config, filename: Path, model: M) -> tuple[M, int]:
+def restore_model(filename: Path, *, model: M) -> tuple[M, int]:
     chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
-    args_chkpt = chkpt["args"]
-    assert cfg.enc.levels == args_chkpt["enc.levels"]
-
     model.load_state_dict(chkpt["model"])
     return model, chkpt["itr"]

@@ -5,6 +5,7 @@ from ranzen.hydra import Option
 import torch
 
 from advrep.models.autoencoder import ResNetAE, SimpleConvAE
+from clustering.pipeline import KmeansOnClipEncodings
 from shared.configs.arguments import (
     ASMConf,
     DataModuleConf,
@@ -37,6 +38,7 @@ if __name__ == "__main__":
         dm=[Option(DataModuleConf, "base")],
         ds=ds_ops,
         split=[Option(SplitConf, "base")],
+        clust=[Option(KmeansOnClipEncodings, "base")],
         enc=ae_ops,
         alg=[Option(ASMConf, "base")],
         logging=[Option(LoggingConf, "base")],

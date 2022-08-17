@@ -1,16 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import logging
-from typing import (
-    Any,
-    Dict,
-    Generic,
-    Optional,
-    Sequence,
-    TYPE_CHECKING,
-    TypeVar,
-    overload,
-)
+from typing import Any, Generic, Optional, Sequence, TYPE_CHECKING, TypeVar, overload
 from typing_extensions import Literal
 
 from conduit.data import CdtDataLoader
@@ -36,11 +27,11 @@ from tqdm import tqdm
 import umap
 import wandb
 
-from shared.configs import Config, EvalTrainData, WandbMode
+from shared.configs import EvalTrainData, WandbMode
 from shared.data.data_module import DataModule, Dataset
 from shared.data.utils import group_id_to_label, labels_to_group_id
 from shared.models.configs.classifiers import FcNet, Mp32x23Net, Mp64x64Net
-from shared.utils import compute_metrics, plot_histogram_by_source, prod
+from shared.utils import compute_metrics, prod
 
 from .utils import log_images
 
@@ -85,29 +76,37 @@ def log_sample_images(
 
 
 def log_metrics(
-    cfg: Config,  # TODO: decompose cfg into separate arguments
-    *,
     dm: DataModule,
+    *,
     encoder: AutoEncoder,
     step: int,
     device: str | torch.device,
     save_summary: bool = False,
-    cluster_metrics: Optional[Dict[str, float]] = None,
+    cluster_metrics: Optional[dict[str, float]] = None,
+    eval_steps: int = 10000,
+    eval_on_recon: bool = False,
+    eval_batch_size: int = 100,
+    eval_hidden_dims: list[int] | None,
+    eval_lr: float = 1.0e-4,
+    balanced_eval: bool = True,
+    eval_s_from_zs: Optional[EvalTrainData] = None,
+    wandb_mode: WandbMode = WandbMode.online,
+    umap: bool = False,
 ) -> None:
     """Compute and log a variety of metrics."""
     encoder.eval()
-    invariant_to = "both" if cfg.alg.eval_s_from_zs is not None else "s"
+    invariant_to = "both" if eval_s_from_zs is not None else "s"
 
     LOGGER.info("Encoding training set...")
     train_eval = encode_dataset(
         dm=dm,
         dl=dm.train_dataloader(eval=True, batch_size=dm.batch_size_te),
         encoder=encoder,
-        recons=cfg.alg.eval_on_recon,
+        recons=eval_on_recon,
         device=device,
         invariant_to=invariant_to,
     )
-    if cfg.alg.eval_on_recon:
+    if eval_on_recon:
         # don't encode test dataset
         test_eval = dm.test
     else:
@@ -120,11 +119,11 @@ def log_metrics(
             invariant_to=invariant_to,
         )
 
-        if cfg.logging.mode is not WandbMode.disabled:
+        if wandb_mode is not WandbMode.disabled:
             s_count = dm.dim_s if dm.dim_s > 1 else 2
-            if cfg.logging.umap:
+            if umap:
                 _log_enc_statistics(test_eval.inv_s, step=step, s_count=s_count)
-            if test_eval.inv_y is not None and cfg.alg.zs_dim == 1:
+            if test_eval.inv_y is not None and (test_eval.inv_y.x[0].size(1) == 1):
                 zs = test_eval.inv_y.x[:, 0].view((test_eval.inv_y.x.size(0),)).sigmoid()
                 zs_np = zs.detach().cpu().numpy()
                 fig, plot = plt.subplots(dpi=200, figsize=(6, 4))
@@ -136,39 +135,48 @@ def log_metrics(
     dm_cp = gcopy(dm, deep=False, train=train_eval.inv_s, test=test_eval.inv_s)
     LOGGER.info("\nComputing metrics...")
     evaluate(
-        cfg=cfg,
         dm=dm_cp,
         step=step,
-        eval_on_recon=cfg.alg.eval_on_recon,
+        eval_on_recon=eval_on_recon,
         pred_s=False,
         save_summary=save_summary,
         device=device,
         cluster_metrics=cluster_metrics,
+        wandb_mode=wandb_mode,
+        eval_steps=eval_steps,
+        eval_lr=eval_lr,
+        eval_hidden_dims=eval_hidden_dims,
+        eval_batch_size=eval_batch_size,
+        balanced_eval=balanced_eval,
     )
 
-    if cfg.alg.eval_s_from_zs is not None:
-        if cfg.alg.eval_s_from_zs is EvalTrainData.train:
+    if eval_s_from_zs is not None:
+        if eval_s_from_zs is EvalTrainData.train:
             train_data = train_eval.inv_y  # the part that is invariant to y corresponds to zs
         else:
             encoded_dep = encode_dataset(
                 dm=dm,
                 dl=dm.deployment_dataloader(eval=True, num_workers=0),
                 encoder=encoder,
-                recons=cfg.alg.eval_on_recon,
+                recons=eval_on_recon,
                 device=device,
                 invariant_to="y",
             )
             train_data = encoded_dep.inv_y
         dm_cp = gcopy(dm, deep=False, train=train_data, test=test_eval.inv_y)
         evaluate(
-            cfg=cfg,
             dm=dm_cp,
             step=step,
             name="s_from_zs",
             device=device,
-            eval_on_recon=cfg.alg.eval_on_recon,
+            eval_on_recon=eval_on_recon,
             pred_s=True,
             save_summary=save_summary,
+            eval_steps=eval_steps,
+            eval_lr=eval_lr,
+            eval_hidden_dims=eval_hidden_dims,
+            eval_batch_size=eval_batch_size,
+            balanced_eval=balanced_eval,
         )
 
 
@@ -247,15 +255,19 @@ def visualize_clusters(
 
 
 def fit_classifier(
-    cfg: Config,
-    *,
     dm: DataModule,
+    *,
     train_on_recon: bool,
     pred_s: bool,
     device: str | torch.device,
+    batch_size: int = 100,
+    steps: int = 10000,
+    lr: float = 1.0e-4,
+    hidden_dims: Optional[list[int]] = None,
+    balanced_sampling: bool = True,
 ) -> Classifier:
     input_dim = dm.dim_x[0]
-    optimizer_kwargs = {"lr": cfg.alg.eval_lr}
+    optimizer_kwargs = {"lr": lr}
 
     if train_on_recon:
         if isinstance(dm.train, CdtVisionDataset):
@@ -281,7 +293,7 @@ def fit_classifier(
             optimizer_kwargs["weight_decay"] = 1e-8
             clf_fn = _adult_fc_net
     else:
-        clf_fn = FcNet(hidden_dims=cfg.alg.eval_hidden_dims)
+        clf_fn = FcNet(hidden_dims=hidden_dims)
         input_dim = prod(dm.dim_x)
     clf_base = clf_fn(input_dim, target_dim=dm.card_y)
 
@@ -289,16 +301,14 @@ def fit_classifier(
 
     clf = Classifier(clf_base, optimizer_kwargs=optimizer_kwargs)
 
-    train_dl = dm.train_dataloader(
-        batch_size=cfg.alg.eval_batch_size, balance=cfg.alg.balanced_eval
-    )
+    train_dl = dm.train_dataloader(batch_size=batch_size, balance=balanced_sampling)
     test_dl = dm.test_dataloader()
 
     clf.to(torch.device(device))
     clf.fit(
         train_data=train_dl,
         test_data=test_dl,
-        steps=cfg.alg.eval_steps,
+        steps=steps,
         device=torch.device(device),
         pred_s=pred_s,
     )
@@ -307,19 +317,33 @@ def fit_classifier(
 
 
 def evaluate(
-    cfg: Config,
-    *,
     dm: DataModule,
+    *,
     step: int,
     device: str | torch.device,
+    eval_batch_size: int,
+    eval_hidden_dims: list[int] | None = None,
+    eval_lr: float = 1.0e-4,
+    eval_steps: int = 10000,
     name: str = "",
     eval_on_recon: bool = True,
     pred_s: bool = False,
     save_summary: bool = False,
-    cluster_metrics: Optional[Dict[str, float]] = None,
+    cluster_metrics: dict[str, float] | None = None,
+    balanced_eval: bool = True,
+    wandb_mode: WandbMode = WandbMode.online,
 ) -> None:
-
-    clf = fit_classifier(cfg, dm=dm, train_on_recon=eval_on_recon, pred_s=pred_s, device=device)
+    clf = fit_classifier(
+        dm=dm,
+        train_on_recon=eval_on_recon,
+        pred_s=pred_s,
+        device=device,
+        steps=eval_steps,
+        lr=eval_lr,
+        batch_size=eval_batch_size,
+        hidden_dims=eval_hidden_dims,
+        balanced_sampling=balanced_eval,
+    )
 
     # TODO: the soft predictions should only be computed if they're needed
     preds, labels, sens, _ = clf.predict_dataset(
@@ -340,7 +364,7 @@ def evaluate(
         step=step,
         s_dim=dm.card_s,
         save_summary=save_summary,
-        use_wandb=(cfg.logging.mode is not WandbMode.disabled),
+        use_wandb=wandb_mode is not WandbMode.disabled,
         additional_entries=cluster_metrics,
         prefix="test",
     )

@@ -99,6 +99,7 @@ class DataModule(Generic[D]):
 
     train: D
     deployment: D
+    deployment_ids: Optional[Tensor] = None
     test: D
 
     # DataLoader settings
@@ -325,11 +326,10 @@ class DataModule(Generic[D]):
 
     def deployment_dataloader(
         self,
-        group_ids: Optional[Tensor] = None,
         *,
         eval: bool = False,
         num_workers: Optional[int] = None,
-        batch_size: Optional[int],
+        batch_size: Optional[int] = None,
     ) -> CdtDataLoader[TernarySample]:
         batch_size = self.batch_size_te if batch_size is None else batch_size
         if eval:
@@ -343,6 +343,8 @@ class DataModule(Generic[D]):
                 group_ids = self._inject_label_noise(
                     group_ids, noise_level=self.label_noise, generator=self.generator
                 )
+        else:
+            group_ids = self.deployment_ids
 
         if group_ids is None:
             batch_sampler = SequentialBatchSampler(
@@ -473,6 +475,7 @@ class DataModule(Generic[D]):
         dm_config: DataModuleConf,
         ds_config: DictConfig,
         split_config: SplitConf,
+        deployment_ids: Optional[Tensor] = None,
     ) -> Self:
         split_config = instantiate(split_config)
 
@@ -489,6 +492,7 @@ class DataModule(Generic[D]):
             deployment=splits.deployment,
             test=splits.test,
             **dm_config,  # type: ignore
+            deployment_ids=deployment_ids,
         )
 
     def __iter__(self) -> Iterator[D]:
