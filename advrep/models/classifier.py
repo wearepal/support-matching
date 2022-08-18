@@ -130,7 +130,7 @@ class Classifier(Model):
         LOGGER.info("Training classifier...")
         # Test after every 20% of the total number of training iterations by default.
         if isinstance(test_interval, float):
-            test_interval = max(1, round(0.20 * steps))
+            test_interval = max(1, round(test_interval * steps))
         self.model.train()
 
         pbar = trange(steps)

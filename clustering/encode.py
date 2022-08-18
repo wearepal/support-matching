@@ -67,6 +67,7 @@ def generate_encodings(
     dm: DataModule,
     *,
     encoder: nn.Module,
+    device: str | torch.device,
     batch_size_tr: int | None = None,
     batch_size_te: int | None = None,
     transforms: ImageTform | None = None,
@@ -77,46 +78,48 @@ def generate_encodings(
     if transforms is not None:
         dm.set_transforms_all(transforms)
 
-    encoder.to("cuda:0")
+    encoder.to(device)
 
     train_enc, train_group_ids = encode_with_group_ids(
-        encoder, dl=dm.train_dataloader(eval=True, batch_size=batch_size_tr)
+        encoder,
+        dl=dm.train_dataloader(eval=True, batch_size=batch_size_tr),
+        device=device,
     )
     deployment_enc, _ = encode_with_group_ids(
-        encoder, dl=dm.deployment_dataloader(eval=True, batch_size=batch_size_te)
+        encoder,
+        dl=dm.deployment_dataloader(eval=True, batch_size=batch_size_te),
+        device=device,
     )
-    test_enc, test_group_ids = encode_with_group_ids(encoder, dl=dm.test_dataloader())
+    test_enc, test_group_ids = encode_with_group_ids(
+        encoder, dl=dm.test_dataloader(), device=device
+    )
     torch.cuda.empty_cache()
 
-    if save_path is not None:
-        to_save: NpzContent = {
-            "train": train_enc.numpy(),
-            "train_ids": train_group_ids.numpy(),
-            "dep": deployment_enc.numpy(),
-            "test": test_enc.numpy(),
-            "test_ids": test_group_ids.numpy(),
-        }
-        save_encoding(to_save, file=save_path)
-
-    return Encodings(
+    encodings = Encodings(
         train=train_enc,
         train_labels=train_group_ids,
         dep=deployment_enc,
         test=test_enc.numpy(),
         test_labels=test_group_ids.numpy(),
     )
+    if save_path is not None:
+        encodings.save(save_path)
+    return encodings
 
 
 @torch.no_grad()
 def encode_with_group_ids(
-    model: nn.Module, *, dl: CdtDataLoader[TernarySample[Tensor]]
+    model: nn.Module,
+    *,
+    dl: CdtDataLoader[TernarySample[Tensor]],
+    device: str | torch.device,
 ) -> tuple[Tensor, Tensor]:
     encoded: list[Tensor] = []
     group_ids: list[Tensor] = []
-    LOGGER.info("Beginning encoding...")
+    LOGGER.info("Encoding data...")
     with torch.no_grad():
         for sample in tqdm(dl, total=len(dl)):
-            enc = model(sample.x.to("cuda:0", non_blocking=True)).detach()
+            enc = model(sample.x.to(device, non_blocking=True)).detach()
             # normalize so we're doing cosine similarity
             encoded.append(enc.cpu())
             group_ids.append(labels_to_group_id(s=sample.s, y=sample.y, s_count=2))

@@ -1,25 +1,24 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import logging
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
+from ranzen.torch import batchwise_pdist
 from sklearn.cluster import KMeans as _KMeans
 from sklearn.cluster import kmeans_plusplus
 import torch
 from torch import Tensor
-import torch.nn.functional as F
-from tqdm import tqdm
 
 from shared.data import DataModule
+from shared.data.utils import resolve_device
 
 from .encode import Encodings
 from .metrics import evaluate
 
 __all__ = [
     "KMeans",
-    "batchwise_pdist",
     "fft_init",
 ]
 
@@ -72,35 +71,6 @@ def fft_init(
     return xc[sampled_idxs]
 
 
-def batchwise_pdist(x: Tensor, *, chunk_size: int, p_norm: float = 2.0) -> Tensor:
-    """Compute pdist in batches.
-
-    This is necessary because if you compute pdist directly, it doesn't fit into memory.
-    """
-    chunks = torch.split(x, split_size_or_sections=chunk_size)
-
-    columns: list[Tensor] = []
-    for chunk in tqdm(chunks):
-        shards = [torch.cdist(chunk, other_chunk, p_norm) for other_chunk in chunks]
-        column = torch.cat(shards, dim=1)
-        # the result has to be moved to the CPU; otherwise we'll run out of GPU memory
-        columns.append(column.cpu())
-
-        # free up memory
-        for shard in shards:
-            del shard
-        del column
-        torch.cuda.empty_cache()  # type: ignore
-
-    dists = torch.cat(columns, dim=0)
-
-    # free up memory
-    for column in columns:
-        del column
-    torch.cuda.empty_cache()  # type: ignore
-    return dists
-
-
 def precompute_centroids(
     train_enc: Tensor, *, train_group_ids: Tensor, all_group_ids: Iterable[int]
 ) -> Tensor:
@@ -118,21 +88,18 @@ class KMeans:
     n_init: int = 10
     fft_cluster_init: bool = False
     supervised_cluster_init: bool = False
-    _fitted_model: Optional[_KMeans] = None
     spherical: bool = True
-    gpu: int = 0
+    device: Union[int, str, torch.device] = 0
+    _fitted_model: Optional[_KMeans] = field(init=False, default=None)
 
     def fit(self, dm: DataModule, *, encodings: Encodings) -> None:
-
+        device = resolve_device(self.device)
         if self.spherical:
             # l2-normalize the encodings so Euclidean distance is converted into cosine distance.
             encodings.normalize_(p=2)
         train_clusters = dm.group_ids_tr.unique()
         dep_clusters = dm.group_ids_dep.unique()
         n_clusters = len(dep_clusters)
-
-        use_gpu = torch.cuda.is_available() and self.gpu >= 0
-        device = torch.device(f"cuda:{self.gpu}" if use_gpu else "cpu")
 
         if self.supervised_cluster_init:
             LOGGER.info("Using pre-computed centroids")

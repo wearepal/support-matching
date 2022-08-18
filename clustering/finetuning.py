@@ -14,8 +14,7 @@ import torch.nn as nn
 from tqdm import tqdm
 import wandb
 
-from shared.data import DataModule
-from shared.data.utils import labels_to_group_id
+from shared.data import DataModule, labels_to_group_id, resolve_device
 
 __all__ = ["FineTuner"]
 
@@ -27,7 +26,7 @@ class FineTuner(DcModule):
     val_freq: Union[int, float] = 0.1
     val_batches: Union[int, float] = 1.0
     lr: float = 1e-5
-    gpu: int = 0
+    device: Union[int, str, torch.device] = 0
     save_path: Optional[str] = None
     loss_fn: Loss = field(default_factory=CrossEntropyLoss)
 
@@ -40,8 +39,7 @@ class FineTuner(DcModule):
     def run(self, dm: DataModule, *, backbone: nn.Module, out_dim: int) -> None:
         dm = gcopy(dm)
         dm.batch_size_tr = self.batch_size
-        use_gpu = torch.cuda.is_available() and self.gpu >= 0
-        device = torch.device(f"cuda:{self.gpu}" if use_gpu else "cpu")
+        device = resolve_device(self.device)
 
         model = nn.Sequential(
             backbone, nn.Linear(in_features=out_dim, out_features=dm.num_sources_dep)

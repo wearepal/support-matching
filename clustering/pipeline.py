@@ -5,7 +5,7 @@ from ranzen.torch.module import DcModule
 import torch
 from torch import Tensor
 
-from shared.data import DataModule
+from shared.data import DataModule, resolve_device
 
 from .encoder import ClipVersion, ClipVisualEncoder
 from .kmeans import KMeans
@@ -30,16 +30,17 @@ class KmeansOnClipEncodings(DcModule):
     supervised_cluster_init: bool = False
     n_init: int = 10
 
-    _fitted_model: Optional[KMeans] = field(init=False)
     cache_encoder: bool = False
-    encoder: Optional[ClipVisualEncoder] = field(init=False)
+    encoder: Optional[ClipVisualEncoder] = field(init=False, default=None)
+    _fitted_kmeans: Optional[KMeans] = field(init=False, default=None)
 
     def run(self, dm: DataModule, *, use_cached_encoder: bool = False) -> Tensor:
+        device = resolve_device(self.gpu)
         kmeans = KMeans(
             spherical=self.spherical,
             supervised_cluster_init=self.supervised_cluster_init,
             n_init=self.n_init,
-            gpu=self.gpu,
+            device=device,
         )
         if self.encoder is None or not use_cached_encoder:
             encoder = ClipVisualEncoder(
@@ -54,13 +55,14 @@ class KmeansOnClipEncodings(DcModule):
                     lr=self.ft_lr,
                     val_freq=self.ft_val_freq,
                     val_batches=self.ft_val_batches,
-                    gpu=self.gpu,
+                    device=device,
                 )
         else:
             encoder = self.encoder
         encodings = encoder.encode(
             dm=dm,
             batch_size_tr=self.enc_batch_size,
+            device=device,
         )
         if self.cache_encoder:
             self.encoder = encoder

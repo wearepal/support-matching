@@ -1,9 +1,7 @@
-from typing import Dict, Tuple
+from __future__ import annotations
 
-from ethicml import DataTuple, Prediction, metrics
 import numpy as np
 import numpy.typing as npt
-import pandas as pd
 from scipy.optimize import linear_sum_assignment
 from sklearn.metrics import (
     adjusted_mutual_info_score,
@@ -18,7 +16,7 @@ def count_cooccurrances(
     test_group_ids: npt.NDArray[np.int32], *, clusters: npt.NDArray[np.int32]
 ) -> npt.NDArray[np.int32]:
     """Count how often every possible pair of group ID and cluster ID co-occur."""
-    counts: Dict[Tuple[int, int], int] = {}
+    counts: dict[tuple[int, int], int] = {}
     max_group = 0
     max_cluster = 0
     for group in np.unique(test_group_ids):
@@ -37,7 +35,7 @@ def count_cooccurrances(
 
 
 def compute_accuracy(
-    test_group_ids: npt.NDArray[np.int32], clusters: npt.NDArray[np.int32]
+    test_group_ids: npt.NDArray[np.int32], *, clusters: npt.NDArray[np.int32]
 ) -> float:
     # in order to solve the assignment problem, we find the assignment that maximizes counts
     counts = count_cooccurrances(test_group_ids, clusters=clusters)
@@ -50,9 +48,4 @@ def evaluate(y_true: npt.NDArray[np.int32], *, y_pred: npt.NDArray[np.int32]) ->
     print(f"ARI: {adjusted_rand_score(y_true, y_pred)}")
     print(f"AMI: {adjusted_mutual_info_score(y_true, y_pred)}")
     print(f"NMI: {normalized_mutual_info_score(y_true, y_pred)}")
-    y = pd.DataFrame(y_true)
-    renyi = metrics.RenyiCorrelation(metrics.DependencyTarget.y).score(
-        Prediction(pd.Series(y_pred)), DataTuple(y, y, y)
-    )
-    print(f"Renyi: {renyi}")
-    print(f"Accuracy: {compute_accuracy(y_true, y_pred)}")
+    print(f"Accuracy: {compute_accuracy(y_true, clusters=y_pred)}")

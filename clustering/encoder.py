@@ -61,7 +61,12 @@ class ClipVisualEncoder(nn.Module):
 
     @torch.no_grad()
     def encode(
-        self, dm: DataModule, *, batch_size_tr: int, batch_size_te: int | None = None
+        self,
+        dm: DataModule,
+        *,
+        device: str | torch.device,
+        batch_size_tr: int,
+        batch_size_te: int | None = None,
     ) -> Encodings:
         return generate_encodings(
             dm=dm,
@@ -69,6 +74,7 @@ class ClipVisualEncoder(nn.Module):
             transforms=self.transforms,
             batch_size_tr=batch_size_tr,
             batch_size_te=batch_size_te,
+            device=device,
         )
 
     def finetune(
@@ -79,7 +85,7 @@ class ClipVisualEncoder(nn.Module):
         steps: int,
         val_freq: int | float = 0.1,
         lr: float = 1.0e-5,
-        gpu: int = 0,
+        device: str | torch.device | int = 0,
         val_batches: int | float = 1.0,
     ) -> None:
         dm = gcopy(dm)
@@ -87,9 +93,10 @@ class ClipVisualEncoder(nn.Module):
         finetuner = FineTuner(
             batch_size=batch_size,
             steps=steps,
+            lr=lr,
             val_freq=val_freq,
             val_batches=val_batches,
             loss_fn=CrossEntropyLoss(reduction="mean"),
-            gpu=gpu,
+            device=device,
         )
         finetuner.run(dm=dm, backbone=self, out_dim=self.out_dim)

@@ -1,17 +1,17 @@
 from __future__ import annotations
 from abc import abstractmethod
+from collections import defaultdict
 from collections.abc import Iterator
 import logging
 from pathlib import Path
 import time
-from typing import ClassVar
+from typing import ClassVar, DefaultDict
 from typing_extensions import Literal, Self
 
 from conduit.data.structures import NamedSample, TernarySample
 from conduit.models.utils import prefix_keys
 from hydra.utils import instantiate, to_absolute_path
 from omegaconf import DictConfig
-from pandas.core.window.common import defaultdict
 import torch
 from torch import Tensor
 from torch.cuda.amp.grad_scaler import GradScaler
@@ -131,7 +131,7 @@ class AdvSemiSupervisedAlg(Algorithm):
 
         batch_tr = self._sample_tr(iterator_tr=iterator_tr)
         x_dep = self._sample_dep(iterator_dep=iterator_dep)
-        logging_dict: dict[str, float] = defaultdict(float)
+        logging_dict: DefaultDict[str, float] = defaultdict(float)
         for _ in range(self.alg_cfg.ga_steps):
             loss, logging_dict_s = self._encoder_loss(x_dep=x_dep, batch_tr=batch_tr, warmup=warmup)
             self.backward(loss / ga_weight)
