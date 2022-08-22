@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from hydra.utils import instantiate
+from loguru import logger
 from ranzen.decorators import implements
 from ranzen.hydra import Relay
 from ranzen.torch import random_seed
@@ -31,7 +32,7 @@ class ASMRelay(Relay, Config):
             ds_config=self.ds,
             split_config=self.split,
         )
-        self.log(str(dm))
+        logger.info(str(dm))
         # ==== set global variables ====
         random_seed(self.misc.seed, use_cuda=True)
         group = f"{dm.train.__class__.__name__}.{self.__class__.__name__}"
@@ -52,7 +53,6 @@ class ASMRelay(Relay, Config):
             reinit=True,
             mode=self.logging.mode.name,
         )
-
         # === Initialise the debiaser ===
         debiaser = SupportMatching(
             alg_cfg=self.alg,
@@ -66,6 +66,7 @@ class ASMRelay(Relay, Config):
                 gpu=self.misc.gpu  # Set both phases to use the same device for convenience
             )
             # === Fit and evaluate the clusterer ===
+            self.log("Initialising clustering")
             dm.deployment_ids = clusterer.run(dm=dm)
         # === Train and evaluate the debiaser ===
         debiaser.run(dm=dm)

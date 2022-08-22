@@ -2,6 +2,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable
 
+from loguru import logger
 import numpy as np
 import torch
 from torch import Tensor
@@ -13,8 +14,6 @@ from tqdm import trange
 from advrep.models import Classifier
 
 __all__ = ["GDRO"]
-
-LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 class LossComputer(nn.Module):
@@ -282,7 +281,7 @@ class GDRO(Classifier):
                     pin_memory=train_data.pin_memory,
                     num_workers=train_data.num_workers,
                 )
-        LOGGER.info("Training classifier...")
+        logger.info("Training classifier...")
         pbar = trange(epochs)
         for epoch in pbar:
             self.model.train()

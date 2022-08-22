@@ -1,8 +1,8 @@
 from __future__ import annotations
 from abc import abstractmethod
-import logging
 from typing_extensions import Self
 
+from loguru import logger
 import torch
 import torch.nn as nn
 
@@ -10,8 +10,6 @@ from shared.configs.arguments import LoggingConf, MiscConf
 from shared.data import DataModule
 
 __all__ = ["Algorithm"]
-
-LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 class Algorithm(nn.Module):
@@ -26,7 +24,7 @@ class Algorithm(nn.Module):
         self.use_gpu = torch.cuda.is_available() and self.misc_cfg.gpu >= 0
         self.device = f"cuda:{self.misc_cfg.gpu}" if self.use_gpu else "cpu"
         self.use_amp = self.misc_cfg.use_amp and self.use_gpu
-        LOGGER.info(f"{torch.cuda.device_count()} GPUs available. Using device '{self.device}'")
+        logger.info(f"{torch.cuda.device_count()} GPUs available. Using device '{self.device}'")
 
     @abstractmethod
     def fit(self, dm: DataModule) -> Self:

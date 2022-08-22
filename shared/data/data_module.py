@@ -1,5 +1,4 @@
 from collections import defaultdict
-import logging
 from pathlib import Path
 import platform
 from typing import (
@@ -32,6 +31,7 @@ from conduit.data.structures import LoadedData, MeanStd, TernarySample
 from conduit.logging import init_logger
 from conduit.transforms import denormalize
 from hydra.utils import instantiate, to_absolute_path
+from loguru import logger
 from omegaconf.dictconfig import DictConfig
 from ranzen.torch.data import (
     BaseSampler,
@@ -88,7 +88,6 @@ class TrainDepSplit(Generic[D]):
 
 @attr.define(kw_only=True)
 class DataModule(Generic[D]):
-    LOGGER: ClassVar[logging.Logger] = init_logger("DataModule")
 
     DATA_DIRS: ClassVar[Dict[str, str]] = {
         "turing": "/srv/galene0/shared/data",
@@ -422,7 +421,10 @@ class DataModule(Generic[D]):
             seed=split_config.seed,
         )
 
-        cls.LOGGER.info("Subsampling training set...")
+        logger.info(
+            "Subsampling training set with proportions:\n\t"
+            f"{str(split_config.train_subsampling_props)}"
+        )
         train_data = stratified_split(
             train_data,
             default_train_prop=1.0,
@@ -431,7 +433,7 @@ class DataModule(Generic[D]):
         ).train
 
         if split_config.dep_subsampling_props:
-            cls.LOGGER.info("Subsampling deployment set...")
+            logger.info("Subsampling deployment set...")
             dep_data = stratified_split(
                 dep_data,
                 default_train_prop=1.0,

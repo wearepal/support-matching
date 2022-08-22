@@ -43,6 +43,9 @@ tqdm = { version = ">=4.31.1" }
 typer = "*"
 umap-learn = "^0.5.1"
 wandb = "*"
+loguru = "^0.6.0"
+ftfy = "^6.1.1"
+regex = "^2022.8.17"
 
 [tool.poetry.dev-dependencies]
 black = "*"

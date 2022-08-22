@@ -1,11 +1,13 @@
 from dataclasses import dataclass, field
 from itertools import islice
-from typing import List, Optional, Tuple, Union
+from pathlib import Path
+from typing import ClassVar, List, Optional, Tuple, Union
 
 from conduit import metrics as cdtm
 from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import TernarySample
-from conduit.types import Loss
+from conduit.models.utils import prefix_keys
+from loguru import logger
 from ranzen import gcopy
 from ranzen.torch import CrossEntropyLoss, DcModule
 import torch
@@ -21,6 +23,8 @@ __all__ = ["FineTuner"]
 
 @dataclass(eq=False)
 class FineTuner(DcModule):
+    _PBAR_COL: ClassVar[str] = "#ffe252"
+
     batch_size: int = 16
     steps: int = 2000
     val_freq: Union[int, float] = 0.1
@@ -28,7 +32,8 @@ class FineTuner(DcModule):
     lr: float = 1e-5
     device: Union[int, str, torch.device] = 0
     save_path: Optional[str] = None
-    loss_fn: Loss = field(default_factory=CrossEntropyLoss)
+    loss_fn: CrossEntropyLoss = field(default_factory=CrossEntropyLoss)
+    _LOG_PREFIX: ClassVar[str] = "fine-tuning"
 
     def __post_init__(self) -> None:
         if isinstance(self.val_freq, float) and (not (0 <= self.val_freq <= 1)):
@@ -37,16 +42,18 @@ class FineTuner(DcModule):
             raise AttributeError("If 'val_batches' is a float, it must be in the range [0, 1].")
 
     def run(self, dm: DataModule, *, backbone: nn.Module, out_dim: int) -> None:
-        dm = gcopy(dm)
+        dm = gcopy(dm, deep=False)
         dm.batch_size_tr = self.batch_size
         device = resolve_device(self.device)
 
+        logger.info(f"Initialising predictor for fine-tuning.")
         model = nn.Sequential(
             backbone, nn.Linear(in_features=out_dim, out_features=dm.num_sources_dep)
         )
         model.to(device)
         optimizer = optim.AdamW(model.parameters(), lr=self.lr)
 
+        logger.info(f"Beginning fine-tuning routine.")
         self.train_loop(
             model,
             train_loader=dm.train_dataloader(balance=True),
@@ -56,8 +63,10 @@ class FineTuner(DcModule):
             device=device,
             card_s=dm.card_s,
         )
+        logger.info("Fine-tuning complete!")
         if self.save_path is not None:
             torch.save(backbone.state_dict(), f=self.save_path)
+            logger.info(f"Fine-tuned model saved to '{Path(self.save_path).resolve()}'")
         model.cpu()
 
     def train_loop(
@@ -72,9 +81,17 @@ class FineTuner(DcModule):
         card_s: int,
     ) -> None:
         model.train()
-        pbar = tqdm(islice(train_loader, steps), total=steps)
+        pbar = tqdm(
+            islice(train_loader, steps),
+            total=steps,
+            colour=self._PBAR_COL,
+        )
         last_acc = 0.0
-        val_freq = self.val_freq if isinstance(self.val_freq, int) else round(self.val_freq * steps)
+        val_freq = max(
+            (self.val_freq if isinstance(self.val_freq, int) else round(self.val_freq * steps)),
+            1,
+        )
+        logger.info(f"Set to validate every {val_freq} steps.")
         for step, sample in enumerate(pbar, start=1):
             x = sample.x.to(device, non_blocking=True)
             s = sample.s.to(device, non_blocking=True)
@@ -88,7 +105,9 @@ class FineTuner(DcModule):
                 "s1_share": sample.s.float().mean().item(),
                 "y1_share": sample.y.float().mean().item(),
             }
+            to_log = prefix_keys(to_log, prefix=self._LOG_PREFIX)
             wandb.log(to_log, step=step)
+
             if step % val_freq == 0:
                 last_acc = self.validate(model, val_loader=val_loader, device=device, step=step)
             pbar.set_postfix(loss=loss, last_acc=last_acc)
@@ -102,7 +121,7 @@ class FineTuner(DcModule):
         optimizer: optim.Optimizer,
     ) -> Tuple[Tensor, float]:
         output = model(inputs)
-        loss = self.loss_fn(output, targets)
+        loss = self.loss_fn(input=output, target=targets)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -149,5 +168,5 @@ class FineTuner(DcModule):
         preds, s, y = self.predict_loop(model, val_loader=val_loader, device=device)
         group_ids = labels_to_group_id(s=s, y=y, s_count=2)
         accuracy = cdtm.accuracy(y_pred=preds, y_true=group_ids).item()
-        wandb.log({"accuracy": accuracy}, step=step)
+        wandb.log({f"{self._LOG_PREFIX}/Accuracy": accuracy}, step=step)
         return accuracy

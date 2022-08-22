@@ -406,7 +406,7 @@ class ResNetAE(AutoEncoder):
 
     def __init__(
         self,
-        input_shape: Tuple[int],
+        input_shape: Optional[Tuple[int]],
         *,
         latent_dim: int,
         zs_dim: int,

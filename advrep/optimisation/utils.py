@@ -1,10 +1,8 @@
 from __future__ import annotations
-import logging
 from pathlib import Path
 from typing import Sequence, TypeVar
 
 from conduit.data.datasets.vision.base import CdtVisionDataset
-from omegaconf import DictConfig
 import torch
 from torch import Tensor, nn
 import torchvision
@@ -12,7 +10,6 @@ import torchvision.transforms.functional as TF
 import wandb
 
 from shared.data.data_module import DataModule
-from shared.utils import as_pretty_dict, flatten_dict
 
 __all__ = [
     "log_attention",
@@ -20,8 +17,6 @@ __all__ = [
     "restore_model",
     "save_model",
 ]
-
-LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 def log_images(
@@ -64,9 +59,8 @@ def log_images(
 
 
 def log_attention(
-    cfg: Config,
-    *,
     dm: DataModule,
+    *,
     images: Tensor,
     attention_weights: Tensor,
     name: str,

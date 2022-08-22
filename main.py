@@ -1,8 +1,8 @@
+from __future__ import annotations
 from typing import Any, List, Type, Union
 
 from conduit.data.datasets.vision import Camelyon17, CelebA, ColoredMNIST
 from ranzen.hydra import Option
-import torch
 
 from advrep.models.autoencoder import ResNetAE, SimpleConvAE
 from clustering.pipeline import KmeansOnClipEncodings
@@ -16,10 +16,8 @@ from shared.configs.arguments import (
 from shared.data.nih import NIHChestXRayDataset
 from shared.relay import ASMRelay
 
-torch.multiprocessing.set_sharing_strategy("file_system")
 
-
-if __name__ == "__main__":
+def main() -> None:
     ds_ops: List[Union[Type[Any], Option]] = [
         Option(ColoredMNIST, name="cmnist"),
         Option(CelebA, name="celeba"),
@@ -44,3 +42,7 @@ if __name__ == "__main__":
         logging=[Option(LoggingConf, "base")],
         misc=[Option(MiscConf, "base")],
     )
+
+
+if __name__ == "__main__":
+    main()

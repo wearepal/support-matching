@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional, cast
 
 import clip
+from loguru import logger
 from ranzen.misc import gcopy
 from ranzen.torch import CrossEntropyLoss
 import torch
@@ -20,8 +21,6 @@ __all__ = [
     "ClipVersion",
     "ClipVisualEncoder",
 ]
-
-LOGGER = logging.getLogger(__file__)
 
 
 class ClipVersion(Enum):
@@ -39,10 +38,12 @@ class ClipVisualEncoder(nn.Module):
     def __init__(
         self, version: ClipVersion = ClipVersion.RN50, *, download_root: Optional[str] = None
     ) -> None:
-        LOGGER.info("Loading CLIP model (downloading if needed)...")
+        super().__init__()
+        logger.info("Loading CLIP model (downloading if needed)...")
         model, self.transforms = clip.load(
             name=version.value, device="cpu", download_root=download_root  # type: ignore
         )
+        logger.info("Done.")
         self.encoder = model.visual
         self.out_dim = cast(int, self.encoder.output_dim)
 
@@ -53,9 +54,9 @@ class ClipVisualEncoder(nn.Module):
     def load_from_path(self, fpath: Path | str) -> None:
         fpath = Path(fpath)
         if fpath.exists():
-            LOGGER.info(f"Loading model weights from '{fpath.resolve()}'")
+            logger.info(f"Loading model weights from '{fpath.resolve()}'")
             self.load_state_dict(torch.load(fpath))
-            LOGGER.info("Done.")
+            logger.info("Done.")
         else:
             raise RuntimeError(f"Checkpoint {fpath.resolve()} does not exist.")
 
@@ -88,7 +89,7 @@ class ClipVisualEncoder(nn.Module):
         device: str | torch.device | int = 0,
         val_batches: int | float = 1.0,
     ) -> None:
-        dm = gcopy(dm)
+        dm = gcopy(dm, deep=False)
         dm.set_transforms_all(self.transforms)
         finetuner = FineTuner(
             batch_size=batch_size,
@@ -99,4 +100,5 @@ class ClipVisualEncoder(nn.Module):
             loss_fn=CrossEntropyLoss(reduction="mean"),
             device=device,
         )
+        logger.info(f"Fine-tuning visual encoder for {steps} steps with batch size {batch_size}.")
         finetuner.run(dm=dm, backbone=self, out_dim=self.out_dim)

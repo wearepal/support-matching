@@ -1,6 +1,5 @@
 from __future__ import annotations
 from dataclasses import asdict, dataclass
-import logging
 from pathlib import Path
 from typing import TypedDict
 from typing_extensions import Self
@@ -8,6 +7,7 @@ from typing_extensions import Self
 from conduit.data.datasets import ImageTform
 from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import TernarySample
+from loguru import logger
 import numpy as np
 import numpy.typing as npt
 from ranzen import gcopy
@@ -18,8 +18,6 @@ from tqdm import tqdm
 
 from shared.data.data_module import DataModule
 from shared.data.utils import labels_to_group_id
-
-LOGGER = logging.getLogger(__file__)
 
 
 @dataclass
@@ -39,9 +37,9 @@ class Encodings:
 
     def save(self, fpath: Path | str) -> None:
         fpath = Path(fpath)
-        LOGGER.info(f"Saving encodings to '{fpath.resolve()}'")
+        logger.info(f"Saving encodings to '{fpath.resolve()}'")
         np.savez_compressed(file=Path(fpath), **asdict(self))
-        LOGGER.info("Done.")
+        logger.info("Done.")
 
     @property
     def to_cluster(self) -> npt.NDArray:
@@ -49,7 +47,7 @@ class Encodings:
 
     @classmethod
     def from_npz(cls: type[Self], fpath: Path | str) -> Self:
-        LOGGER.info("Loading encodings from file...")
+        logger.info("Loading encodings from file...")
         with Path(fpath).open("rb") as f:
             loaded: NpzContent = np.load(f)
             enc = cls(
@@ -116,14 +114,14 @@ def encode_with_group_ids(
 ) -> tuple[Tensor, Tensor]:
     encoded: list[Tensor] = []
     group_ids: list[Tensor] = []
-    LOGGER.info("Encoding data...")
+    logger.info("Encoding dataset.")
     with torch.no_grad():
         for sample in tqdm(dl, total=len(dl)):
             enc = model(sample.x.to(device, non_blocking=True)).detach()
             # normalize so we're doing cosine similarity
             encoded.append(enc.cpu())
             group_ids.append(labels_to_group_id(s=sample.s, y=sample.y, s_count=2))
-    LOGGER.info("Done.")
+    logger.info("Done.")
     return torch.cat(encoded, dim=0), torch.cat(group_ids, dim=0)
 
 
@@ -138,6 +136,6 @@ class NpzContent(TypedDict):
 
 
 def save_encoding(all_encodings: NpzContent, *, file: Path | str) -> None:
-    LOGGER.info("Saving encodings to 'encoded_celeba.npz'...")
+    logger.info("Saving encodings to 'encoded_celeba.npz'...")
     np.savez_compressed(file=Path(file), **all_encodings)
-    LOGGER.info("Done.")
+    logger.info("Done.")

@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-import logging
 import shlex
 from typing import Any, Dict, List, Optional
 
@@ -19,14 +18,10 @@ from .enums import (
 __all__ = [
     "ASMConf",
     "BaseConfig",
-    "SplitConf",
-    "ClusterConf",
     "Config",
     "MiscConf",
+    "SplitConf",
 ]
-
-
-LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 @dataclass
@@ -83,13 +78,6 @@ class MiscConf:
     seed: int = 42
     use_amp: bool = False  # Whether to use mixed-precision training
     gpu: int = 0  # which GPU to use (if available)
-
-
-@dataclass
-class ClusterConf:
-    """Flags for clustering."""
-
-    ...
 
 
 @dataclass
@@ -181,7 +169,7 @@ class Config(BaseConfig):
 
     enc: DictConfig = MISSING
     alg: ASMConf = MISSING
-    clust: ClusterConf = MISSING
+    clust: DictConfig = MISSING
 
 
 def reconstruct_cmd() -> str:

@@ -1,6 +1,5 @@
 from __future__ import annotations
 from dataclasses import dataclass
-import logging
 from typing import Any, Generic, Optional, Sequence, TYPE_CHECKING, TypeVar, overload
 from typing_extensions import Literal
 
@@ -12,6 +11,7 @@ from conduit.data.datasets.vision.cmnist import ColoredMNIST
 from conduit.data.structures import TernarySample
 import ethicml as em
 from ethicml.utility.data_structures import LabelTuple
+from loguru import logger
 from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
 import numpy as np
@@ -48,8 +48,6 @@ __all__ = [
     "log_sample_images",
     "visualize_clusters",
 ]
-
-LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 DY = TypeVar("DY", bound=Optional[Dataset])
@@ -97,7 +95,7 @@ def log_metrics(
     encoder.eval()
     invariant_to = "both" if eval_s_from_zs is not None else "s"
 
-    LOGGER.info("Encoding training set...")
+    logger.info("Encoding training set...")
     train_eval = encode_dataset(
         dm=dm,
         dl=dm.train_dataloader(eval=True, batch_size=dm.batch_size_te),
@@ -133,7 +131,7 @@ def log_metrics(
                 wandb.log({"zs_histogram": wandb.Image(fig)}, step=step)
 
     dm_cp = gcopy(dm, deep=False, train=train_eval.inv_s, test=test_eval.inv_s)
-    LOGGER.info("\nComputing metrics...")
+    logger.info("\nComputing metrics...")
     evaluate(
         dm=dm_cp,
         step=step,
@@ -185,12 +183,12 @@ def _log_enc_statistics(encoded: Dataset, *, step: int, s_count: int):
     x, y, s = encoded.x, encoded.y, encoded.s
     class_ids = labels_to_group_id(s=s, y=y, s_count=s_count)
 
-    LOGGER.info("Starting UMAP...")
+    logger.info("Starting UMAP...")
     mapper = umap.UMAP(n_neighbors=25, n_components=2)  # type: ignore
     umap_z = mapper.fit_transform(x.numpy())
     umap_plot = visualize_clusters(umap_z, labels=class_ids, s_count=s_count)
     to_log = {"umap": wandb.Image(umap_plot)}
-    LOGGER.info("Done.")
+    logger.info("Done.")
 
     for y_value in y.unique():
         for s_value in s.unique():
@@ -421,7 +419,7 @@ def encode_dataset(
     device: str | torch.device,
     invariant_to: InvariantAttr = "s",
 ) -> InvariantDatasets:
-    LOGGER.info("Encoding dataset...")
+    logger.info("Encoding dataset...")
     all_inv_s = []
     all_inv_y = []
     all_s = []
@@ -474,7 +472,7 @@ def encode_dataset(
         inv_s = torch.cat(all_inv_s, dim=0)
         inv_s = CdtDataset(x=inv_s, s=all_s, y=all_y)
 
-    LOGGER.info("Done.")
+    logger.info("Done.")
     return InvariantDatasets(inv_y=inv_y, inv_s=inv_s)
 
 

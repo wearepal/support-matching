@@ -2,7 +2,6 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections import defaultdict
 from collections.abc import Iterator
-import logging
 from pathlib import Path
 import time
 from typing import ClassVar, DefaultDict
@@ -11,6 +10,7 @@ from typing_extensions import Literal, Self
 from conduit.data.structures import NamedSample, TernarySample
 from conduit.models.utils import prefix_keys
 from hydra.utils import instantiate, to_absolute_path
+from loguru import logger
 from omegaconf import DictConfig
 import torch
 from torch import Tensor
@@ -28,8 +28,6 @@ from shared.data import DataModule
 from shared.models.configs import FcNet
 
 from .base import Algorithm
-
-LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 __all__ = ["AdvSemiSupervisedAlg"]
 
@@ -75,7 +73,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         ae: AutoEncoder = instantiate(
             self.enc_cfg, input_shape=input_shape, feature_group_slices=dm.feature_group_slices
         )
-        LOGGER.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
+        logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
         return ae
 
     @abstractmethod
@@ -237,12 +235,12 @@ class AdvSemiSupervisedAlg(Algorithm):
 
         save_dir = Path(to_absolute_path(self.log_cfg.save_dir)) / str(time.time())
         save_dir.mkdir(parents=True, exist_ok=True)
-        LOGGER.info(f"Save directory: {save_dir.resolve()}")
+        logger.info(f"Save directory: {save_dir.resolve()}")
 
         start_itr = 1  # start at 1 so that the val_freq works correctly
         # Resume from checkpoint
         if self.misc_cfg.resume is not None:
-            LOGGER.info("Restoring encoder's weights from checkpoint")
+            logger.info("Restoring encoder's weights from checkpoint")
             self.encoder, start_itr = restore_model(Path(self.misc_cfg.resume), model=self.encoder)
 
             if self.misc_cfg.evaluate:
@@ -295,7 +293,7 @@ class AdvSemiSupervisedAlg(Algorithm):
                     )
                     save_model(save_dir=save_dir, model=self.encoder, itr=itr)
 
-        LOGGER.info("Training has finished.")
+        logger.info("Training has finished.")
 
         log_metrics(
             eval_hidden_dims=self.alg_cfg.eval_hidden_dims,

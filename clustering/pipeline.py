@@ -1,4 +1,4 @@
-from dataclasses import field
+from dataclasses import dataclass, field
 from typing import Optional, Union
 
 from ranzen.torch.module import DcModule
@@ -13,6 +13,7 @@ from .kmeans import KMeans
 __all__ = ["KmeansOnClipEncodings"]
 
 
+@dataclass
 class KmeansOnClipEncodings(DcModule):
     clip_version: ClipVersion = ClipVersion.RN50
     download_root: Optional[str] = None

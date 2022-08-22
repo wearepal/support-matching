@@ -2,7 +2,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass, replace
 from enum import Enum, auto
-from typing import Any, Sequence, Tuple, cast
+from typing import Any, Optional, Sequence, Tuple, cast
 from typing_extensions import Literal, Self
 
 import torch
@@ -103,7 +103,7 @@ class ZsTransform(Enum):
 class AutoEncoder(Model):
     def __init__(
         self,
-        input_shape: Sequence[int],
+        input_shape: Optional[Tuple[int]],
         *,
         latent_dim: int,
         zs_dim: int,
@@ -114,6 +114,7 @@ class AutoEncoder(Model):
         optimizer_kwargs: dict[str, Any] | None = None,
         recon_loss_fn: ReconstructionLoss = ReconstructionLoss.l2,
     ) -> None:
+        assert input_shape is not None
 
         self.latent_dim = latent_dim
         self.encoding_size = EncodingSize(zs=zs_dim, zy=latent_dim - zs_dim)

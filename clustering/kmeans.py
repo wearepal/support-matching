@@ -1,8 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-import logging
 from typing import Iterable, Optional, Union
 
+from loguru import logger
 import numpy as np
 import numpy.typing as npt
 from ranzen.torch import batchwise_pdist
@@ -22,8 +22,6 @@ __all__ = [
     "fft_init",
 ]
 
-LOGGER = logging.getLogger(__file__)
-
 
 def fft_init(
     x: Tensor,
@@ -38,7 +36,7 @@ def fft_init(
     xc = torch.cat([centroids, x], dim=0)
     sampled_idxs = list(range(num_predefined))
     # Compute the euclidean distance between all pairs
-    LOGGER.info("Computing pairwise differences...")
+    logger.info("Computing pairwise differences...")
     if device is None:
         device = torch.device("cpu")
     elif isinstance(device, str):
@@ -102,16 +100,16 @@ class KMeans:
         n_clusters = len(dep_clusters)
 
         if self.supervised_cluster_init:
-            LOGGER.info("Using pre-computed centroids")
+            logger.info("Using pre-computed centroids")
             centroids: Tensor = precompute_centroids(
                 encodings.train,
                 train_group_ids=encodings.train_labels,
                 all_group_ids=train_clusters,
             )
             if len(centroids) < n_clusters:
-                LOGGER.info(f"Need additional clusters: {n_clusters - len(centroids)}")
+                logger.info(f"Need additional clusters: {n_clusters - len(centroids)}")
                 if self.fft_cluster_init:
-                    LOGGER.info(
+                    logger.info(
                         "Using furthest-first traversal to generate additional initial clusters..."
                     )
                     centroids_np = fft_init(
@@ -121,14 +119,14 @@ class KMeans:
                         device=device,
                     ).numpy()
                 else:
-                    LOGGER.info("Using kmeans++ to generate additional initial clusters...")
+                    logger.info("Using kmeans++ to generate additional initial clusters...")
                     additional_centroids, _ = kmeans_plusplus(
                         encodings.dep.numpy(),
                         n_clusters=n_clusters - len(centroids),
                         random_state=0,
                     )
                     centroids_np = np.concatenate([centroids.numpy(), additional_centroids], axis=0)
-                LOGGER.info("Done.")
+                logger.info("Done.")
             else:
                 centroids_np = centroids.numpy()
             kmeans = _KMeans(n_clusters=n_clusters, init=centroids_np, n_init=1)
@@ -136,7 +134,7 @@ class KMeans:
             preds = kmeans.predict(encodings.test)
             evaluate(y_true=encodings.test_labels, y_pred=preds)
         else:
-            LOGGER.info("Using kmeans++")
+            logger.info("Using kmeans++")
             kmeans = _KMeans(n_clusters=n_clusters, init="k-means++", n_init=self.n_init)
             kmeans.fit(encodings.to_cluster)
             preds = kmeans.predict(encodings.test)
