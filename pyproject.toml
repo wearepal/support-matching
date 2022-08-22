@@ -1,10 +1,10 @@
 [tool.poetry]
 name = "support-matching"
-version = "0.2.0"
+version = "1.0.0"
 description = "Addressing Missing Sources with Adversarial Support-Matching"
 authors = ["PAL <info@wearepal.com>"]
 packages = [
-  # { include = "clustering" },
+  { include = "clustering" },
   { include = "advrep" },
   { include = "shared" },
   { include = "hydra_plugins" }
@@ -13,37 +13,36 @@ include=["clustering/py.typed", "advrep/py.typed", "shared/py.typed"]
 classifiers=[
   "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
   "Operating System :: OS Independent",
   "Typing :: Typed",
 ]
 readme="README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.9.11,<3.11"
 GitPython = { version = ">=2.1.11" }
-hydra-core = { version = "^1.1.0" }
-hydra-submitit-launcher = { version = "^1.1.5" }
+aioredis = "^1.3.1"
+clip = { git = "https://github.com/openai/CLIP.git", branch = "main" }
+ethicml = { version="*", allow-prereleases=true }
+hydra-submitit-launcher = { version = "^1.1.6" }
 lapjv = "*"
+llvmlite = ">=0.35.0.,<0.39"
 matplotlib = ">= 3.0.2, < 3.3.1"
+neoconfigen = ">=2.3.3"
 numpy = { version = ">=1.22" }
 pandas = { version = "^1.1" }
 pillow = "*"
-scikit-image = ">= 0.14"
+python = ">=3.9.11,<3.11"
+ranzen = {version = ">=2.0.2", extras = ["hydra"]}
+scikit-image = ">=0.14"
 scikit_learn = { version = ">=0.20.1" }
 scipy = { version = ">=1.2.1" }
 seaborn = { version = ">=0.9.0" }
-teext = "*"
+torch-conduit = { version = ">=0.1.6" }
 tqdm = { version = ">=4.31.1" }
 typer = "*"
-wandb = "*"
-aioredis = "^1.3.1"
 umap-learn = "^0.5.1"
-llvmlite = ">=0.35.0.,<0.39"
-ranzen = {version = "^1.2.6", extras = ["hydra"]}
-torch = "^1.11.0"
-torch-conduit = "^0.1.1"
-ethicml = "1.0.0a2"
-clip = { git = "https://github.com/openai/CLIP.git", branch = "main" }
+wandb = "*"
 
 [tool.poetry.dev-dependencies]
 black = "*"
