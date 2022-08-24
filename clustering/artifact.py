@@ -98,7 +98,7 @@ def load_labels_from_artifact(
 @dataclass
 class ArtifactLoader:
     version: Optional[int] = None  # latest by default
-    root: Optional[Path] = None  # artifact/clustering by default
+    root: Optional[Path] = None  # artifacts/clustering by default
 
     def run(self, dm: DataModule) -> Tensor:
         return load_labels_from_artifact(
