@@ -16,10 +16,11 @@ from typing_extensions import Literal
 from conduit.data import CdtDataLoader
 from conduit.data.datasets.base import CdtDataset
 from conduit.data.datasets.vision.base import CdtVisionDataset
+from conduit.data.datasets.vision.celeba import CelebA
 from conduit.data.datasets.vision.cmnist import ColoredMNIST
 from conduit.data.structures import TernarySample
 import ethicml as em
-from ethicml.data.vision_data.celeba import CelebA
+from ethicml.utility.data_structures import LabelTuple
 from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
 import numpy as np
@@ -100,7 +101,7 @@ def log_metrics(
     LOGGER.info("Encoding training set...")
     train_eval = encode_dataset(
         dm=dm,
-        dl=dm.train_dataloader(eval=True, num_workers=0),
+        dl=dm.train_dataloader(eval=True, batch_size=dm.batch_size_te),
         encoder=encoder,
         recons=cfg.alg.eval_on_recon,
         device=device,
@@ -112,7 +113,7 @@ def log_metrics(
     else:
         test_eval = encode_dataset(
             dm=dm,
-            dl=dm.test_dataloader(num_workers=0),
+            dl=dm.test_dataloader(),
             encoder=encoder,
             recons=False,
             device=device,
@@ -161,7 +162,7 @@ def log_metrics(
         dm_cp = gcopy(dm, deep=False, train=train_data, test=test_eval.inv_y)
         evaluate(
             cfg=cfg,
-            dm=dm,
+            dm=dm_cp,
             step=step,
             name="s_from_zs",
             device=device,
@@ -297,7 +298,7 @@ def fit_classifier(
     clf.fit(
         train_data=train_dl,
         test_data=test_dl,
-        epochs=cfg.alg.eval_epochs,
+        steps=cfg.alg.eval_steps,
         device=torch.device(device),
         pred_s=pred_s,
     )
@@ -321,16 +322,16 @@ def evaluate(
     clf = fit_classifier(cfg, dm=dm, train_on_recon=eval_on_recon, pred_s=pred_s, device=device)
 
     # TODO: the soft predictions should only be computed if they're needed
-    preds, labels, sens, soft_preds = clf.predict_dataset(
+    preds, labels, sens, _ = clf.predict_dataset(
         dm.test_dataloader(), device=torch.device(device), with_soft=True
     )
     # TODO: investigate why the histogram plotting fails when s_dim != 1
-    if (cfg.logging.mode is not WandbMode.disabled) and (dm.card_s == 2):
-        plot_histogram_by_source(soft_preds, s=sens, y=labels, step=step, name=name)
+    # if (cfg.logging.mode is not WandbMode.disabled) and (dm.card_s == 2):
+    #     plot_histogram_by_source(soft_preds, s=sens, y=labels, step=step, name=name)
     preds = em.Prediction(hard=pd.Series(preds))
-    sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=["subgroup"])
-    labels_pd = pd.DataFrame(labels.cpu().numpy(), columns=["labels"])
-    actual = em.DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels_pd)
+    sens_pd = pd.Series(sens.numpy().astype(np.float32), name="subgroup")
+    labels_pd = pd.Series(labels.cpu().numpy(), name="labels")
+    actual = LabelTuple.from_df(s=sens_pd, y=sens_pd if pred_s else labels_pd)
     compute_metrics(
         predictions=preds,
         actual=actual,
@@ -404,7 +405,7 @@ def encode_dataset(
 
     device = torch.device(device)
 
-    with torch.set_grad_enabled(False):
+    with torch.no_grad():
         for batch in tqdm(dl):
 
             x = batch.x.to(device, non_blocking=True)

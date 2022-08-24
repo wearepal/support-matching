@@ -7,6 +7,7 @@ from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import TernarySample
 from conduit.types import Loss
 from ranzen.torch.loss import CrossEntropyLoss
+from ranzen.torch.utils import inf_generator
 import torch
 from torch import Tensor, nn
 from tqdm import trange
@@ -120,37 +121,45 @@ class Classifier(Model):
         self,
         train_data: CdtDataLoader[TernarySample],
         *,
-        epochs: int,
+        steps: int,
         device: torch.device,
         pred_s: bool = False,
-        test_data: CdtDataLoader[TernarySample],
+        test_interval: int | float = 0.1,
+        test_data: CdtDataLoader[TernarySample] | None = None,
     ) -> None:
         LOGGER.info("Training classifier...")
-        pbar = trange(epochs)
-        for epoch in pbar:
-            self.model.train()
+        # Test after every 20% of the total number of training iterations by default.
+        if isinstance(test_interval, float):
+            test_interval = max(1, round(0.20 * steps))
+        self.model.train()
 
-            for batch in train_data:
-                batch = batch.to(device)
-                target = batch.s if pred_s else batch.y
+        pbar = trange(steps)
+        train_iter = inf_generator(train_data)
+        for step in range(steps):
+            batch = next(train_iter)
+            batch = batch.to(device, non_blocking=True)
+            target = batch.s if pred_s else batch.y
+            target = target.to(device, non_blocking=True)
 
-                self.optimizer.zero_grad()
-                loss, acc = self.training_step(input=batch.x, target=target)
-                loss.backward()
-                self.step()
+            self.optimizer.zero_grad()
+            loss, acc = self.training_step(input=batch.x, target=target)
+            loss.backward()
+            self.step()
 
-            if test_data is not None:
+            if (test_data is not None) and (step > 0) and (step % test_interval == 0):
                 self.model.eval()
                 with torch.no_grad():
                     logits_ls, targets_ls = [], []
-                    for batch in train_data:
+                    for batch in test_data:
                         batch = batch.to(device)
                         target = batch.s if pred_s else batch.y
+                        target = target.to(device, non_blocking=True)
                         logits_ls.append(self.forward(batch.x))
                         targets_ls.append(target)
                 acc = accuracy(logits=torch.cat(logits_ls), targets=torch.cat(targets_ls))
-                pbar.set_postfix(epoch=epoch + 1, avg_test_acc=acc)
+                pbar.set_postfix(step=step + 1, avg_test_acc=acc)
             else:
-                pbar.set_postfix(epoch=epoch + 1)
+                pbar.set_postfix(step=step + 1)
+            pbar.update()
 
         pbar.close()

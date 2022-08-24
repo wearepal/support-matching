@@ -2,23 +2,20 @@ from __future__ import annotations
 from collections.abc import Mapping
 import logging
 from pathlib import Path
-from typing import List, TypeVar
 
+from conduit import metrics as cdtm
 from conduit.models.utils import prefix_keys
 import ethicml as em
-import numpy as np
-import numpy.typing as npt
+import ethicml.metrics as emm
+from ethicml.utility.data_structures import LabelTuple
 import pandas as pd
 import torch
-from torch import Tensor
 import wandb
 
 __all__ = [
-    "accuracy_per_subgroup",
     "compute_metrics",
     "make_tuple_from_data",
     "print_metrics",
-    "robust_accuracy",
     "write_results_to_csv",
 ]
 
@@ -38,28 +35,15 @@ def make_tuple_from_data(
         train_y = train.y
         test_y = test.y
 
-    return em.DataTuple(x=train_x, s=train.s, y=train_y), em.DataTuple(x=test_x, s=test.s, y=test_y)
-
-
-T = TypeVar("T", Tensor, npt.NDArray[np.integer])
-
-
-def accuracy_per_subgroup(y_pred: T, *, y_true: T, s: T) -> List[float]:
-    unique_fn = torch.unique if isinstance(y_pred, Tensor) else np.unique
-    s_unique, s_counts = unique_fn(s, return_counts=True)
-    s_m = s.flatten()[:, None] == s_unique[None]
-    hits = y_pred.flatten() == y_true.flatten()
-    return ((hits[:, None] * s_m).sum(0) / s_counts).tolist()
-
-
-def robust_accuracy(y_pred: T, *, y_true: T, s: T) -> float:
-    return min(accuracy_per_subgroup(y_pred=y_pred, y_true=y_true, s=s))
+    return em.DataTuple.from_df(x=train_x, s=train.s, y=train_y), em.DataTuple.from_df(
+        x=test_x, s=test.s, y=test_y
+    )
 
 
 def compute_metrics(
     predictions: em.Prediction,
     *,
-    actual: em.DataTuple,
+    actual: LabelTuple,
     model_name: str,
     step: int,
     s_dim: int,
@@ -88,15 +72,22 @@ def compute_metrics(
     metrics = em.run_metrics(
         predictions=predictions,
         actual=actual,
-        metrics=[em.Accuracy(), em.TPR(), em.TNR(), em.RenyiCorrelation()],  # type: ignore
-        per_sens_metrics=[em.Accuracy(), em.ProbPos(), em.TPR(), em.TNR()],  # type: ignore
+        metrics=[emm.Accuracy(), emm.TPR(), emm.TNR(), emm.RenyiCorrelation()],  # type: ignore
+        per_sens_metrics=[emm.Accuracy(), emm.ProbPos(), emm.TPR(), emm.TNR()],  # type: ignore
         diffs_and_ratios=s_dim < 4,  # this just gets too much with higher s dim
     )
-    metrics["Robust_Accuracy"] = robust_accuracy(
-        y_pred=predictions.hard.to_numpy(),
-        y_true=actual.y.to_numpy(),
-        s=actual.s.to_numpy(),
-    )
+    # Convert to tensor for compatibility with conduit-derived metrics.
+    y_pred_t = torch.as_tensor(torch.as_tensor(predictions.hard, dtype=torch.long))
+    y_true_t = torch.as_tensor(torch.as_tensor(actual.y, dtype=torch.long))
+    s_t = torch.as_tensor(torch.as_tensor(actual.s, dtype=torch.long))
+    cdt_metrics = {
+        "Robust_Accuracy": cdtm.robust_accuracy,
+        "Balanced_Accuracy": cdtm.subclass_balanced_accuracy,
+        "Robust_TPR": cdtm.robust_tpr,
+        "Robust_TNR": cdtm.robust_tnr,
+    }
+    for name, fn in cdt_metrics.items():
+        metrics[name] = fn(y_pred=y_pred_t, y_true=y_true_t, s=s_t).item()
     # replace the slash; it's causing problems
     metrics = {k.replace("/", "÷"): v for k, v in metrics.items()}
     metrics = {f"{k} ({model_name})": v for k, v in metrics.items()}
