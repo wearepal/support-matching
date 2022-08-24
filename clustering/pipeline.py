@@ -1,20 +1,35 @@
+from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Optional, Union
+from pathlib import Path
+from typing import Optional, Protocol, Union, cast
 
+from ranzen import implements
 from ranzen.torch.module import DcModule
 import torch
 from torch import Tensor
+import wandb
+from wandb.wandb_run import Run
 
 from shared.data import DataModule, resolve_device
 
+from .artifact import load_labels_from_artifact, save_labels_as_artifact
 from .encoder import ClipVersion, ClipVisualEncoder
 from .kmeans import KMeans
 
-__all__ = ["KmeansOnClipEncodings"]
+__all__ = [
+    "ArtifactLoader",
+    "ClusteringPipeline",
+    "KmeansOnClipEncodings",
+]
+
+
+class ClusteringPipeline(Protocol):
+    def run(self, dm: DataModule) -> Tensor:
+        ...
 
 
 @dataclass
-class KmeansOnClipEncodings(DcModule):
+class KmeansOnClipEncodings(DcModule, ClusteringPipeline):
     clip_version: ClipVersion = ClipVersion.RN50
     download_root: Optional[str] = None
     ft_steps: int = 1000
@@ -30,11 +45,13 @@ class KmeansOnClipEncodings(DcModule):
     fft_cluster_init: bool = False
     supervised_cluster_init: bool = False
     n_init: int = 10
+    save_preds: bool = True
 
     cache_encoder: bool = False
     encoder: Optional[ClipVisualEncoder] = field(init=False, default=None)
     _fitted_kmeans: Optional[KMeans] = field(init=False, default=None)
 
+    @implements(ClusteringPipeline)
     def run(self, dm: DataModule, *, use_cached_encoder: bool = False) -> Tensor:
         device = resolve_device(self.gpu)
         kmeans = KMeans(
@@ -72,4 +89,20 @@ class KmeansOnClipEncodings(DcModule):
             torch.cuda.empty_cache()
 
         kmeans.fit(dm=dm, encodings=encodings)
-        return torch.as_tensor(kmeans.predict(encodings.dep.numpy()), dtype=torch.long)
+        preds = torch.as_tensor(kmeans.predict(encodings.dep.numpy()), dtype=torch.long)
+        if self.save_preds:
+            run = cast(Optional[Run], wandb.run)
+            save_labels_as_artifact(run=run, labels=preds, datamodule=dm)
+        return preds
+
+
+@dataclass
+class ArtifactLoader(ClusteringPipeline):
+    version: Optional[int] = None  # latest by default
+    root: Optional[Path] = None  # artifacts/clustering by default
+
+    @implements(ClusteringPipeline)
+    def run(self, dm: DataModule) -> Tensor:
+        return load_labels_from_artifact(
+            run=wandb.run, datamodule=dm, version=self.version, root=self.root
+        )
