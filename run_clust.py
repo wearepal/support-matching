@@ -1,9 +1,9 @@
 """Simply call the main function."""
-from clustering.optimisation import main
 import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import DictConfig
 
+from clustering.optimisation import main
 from shared.configs import Config, register_configs
 
 cs = ConfigStore.instance()

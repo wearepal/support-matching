@@ -1,22 +1,16 @@
 from dataclasses import dataclass, field
-import logging
 import shlex
 from typing import Any, Dict, List, Optional
 
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, MISSING, OmegaConf
-import torch
 
 from .enums import (
     AggregatorType,
-    ClusteringLabel,
-    ClusteringMethod,
     DiscriminatorLoss,
     DiscriminatorMethod,
-    EncoderType,
     EvalTrainData,
     MMDKernel,
-    PlMethod,
     VaeStd,
     WandbMode,
 )
@@ -24,14 +18,10 @@ from .enums import (
 __all__ = [
     "ASMConf",
     "BaseConfig",
-    "SplitConf",
-    "ClusterConf",
     "Config",
     "MiscConf",
+    "SplitConf",
 ]
-
-
-LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 @dataclass
@@ -89,80 +79,6 @@ class MiscConf:
     seed: int = 42
     use_amp: bool = False  # Whether to use mixed-precision training
     gpu: int = 0  # which GPU to use (if available)
-
-
-@dataclass
-class ClusterConf:
-    """Flags for clustering."""
-
-    # Optimization settings
-    early_stopping: int = 30
-    epochs: int = 250
-    batch_size: int = 256
-    test_batch_size: Optional[int] = 256
-    num_workers: int = 4
-
-    # Evaluation settings
-    eval_steps: int = 1000
-    eval_lr: float = 1e-3
-    encode_batch_size: int = 1000
-
-    # Training settings
-    val_freq: int = 5
-    log_freq: int = 50
-    feat_attr: bool = False
-    cluster: ClusteringLabel = ClusteringLabel.both
-    num_clusters: Optional[int] = None  # this only has an effect if `cluster` is set to `manual`
-    with_supervision: bool = True
-
-    # Encoder settings
-    encoder: EncoderType = EncoderType.ae
-    vgg_weight: float = 0
-    vae_std_tform: VaeStd = VaeStd.exp
-    kl_weight: float = 1
-    elbo_weight: float = 1
-    stochastic: bool = False
-    enc_path: str = ""
-    enc_epochs: int = 100
-    enc_lr: float = 1e-3
-    enc_wd: float = 0
-    enc_wandb: bool = False
-    finetune_encoder: bool = False
-    finetune_lr: float = 1e-6
-    finetune_wd: float = 0
-    freeze_layers: int = 0
-
-    # PseudoLabeler
-    pseudo_labeler: PlMethod = PlMethod.ranking
-    sup_ce_weight: float = 1.0
-    sup_bce_weight: float = 1.0
-    k_num: int = 5
-    lower_threshold: float = 0.5
-    upper_threshold: float = 0.5
-
-    # Classifier
-    cl_hidden_dims: List[int] = field(default_factory=lambda: [256])
-    lr: float = 1e-3
-    weight_decay: float = 0
-    factorized_s_y: bool = False  # P(s,y) will be factorized to P(s)P(y) with separate outputs
-
-    # Method
-    method: ClusteringMethod = ClusteringMethod.pl_enc_no_norm
-
-    #  Labeler
-    labeler_lr: float = 1e-3
-    labeler_wd: float = 0
-    labeler_hidden_dims: List[int] = field(default_factory=lambda: [100, 100])
-    labeler_epochs: int = 100
-    labeler_wandb: bool = False
-
-    def __post_init__(self) -> None:
-        if self.cluster is ClusteringLabel.manual and self.num_clusters is None:
-            raise ValueError("if 'cluster' is set to 'manual', provide number of clusters")
-        if self.cluster is not ClusteringLabel.manual and self.num_clusters is not None:
-            raise ValueError("if 'cluster' isn't set to 'manual', don't provide number of clusters")
-        if self.cluster is not ClusteringLabel.both and self.factorized_s_y:
-            raise ValueError("factorizing s and y requires both y and s")
 
 
 @dataclass
@@ -252,9 +168,9 @@ class BaseConfig:
 class Config(BaseConfig):
     """Config used for clustering and disentangling."""
 
-    # clust: ClusterConf = MISSING
     enc: DictConfig = MISSING
     alg: ASMConf = MISSING
+    clust: DictConfig = MISSING
 
 
 def reconstruct_cmd() -> str:

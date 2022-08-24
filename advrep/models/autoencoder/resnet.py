@@ -1,6 +1,6 @@
 from __future__ import annotations
 from enum import Enum
-from typing import Any, ClassVar, Dict, List, Optional, Sequence
+from typing import Any, ClassVar, Dict, List, Optional, Sequence, Tuple
 from typing_extensions import TypeAlias
 
 import torch
@@ -25,28 +25,34 @@ class Interpolate(nn.Module):
         return F.interpolate(x, size=self.size, scale_factor=self.scale_factor)
 
 
-def conv3x3(in_planes: int, out_planes: int, stride: int = 1) -> nn.Conv2d:
+def conv3x3(in_planes: int, *, out_planes: int, stride: int = 1) -> nn.Conv2d:
     """3x3 convolution with padding."""
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
 
 
-def conv1x1(in_planes: int, out_planes: int, stride: int = 1) -> nn.Conv2d:
+def conv1x1(in_planes: int, *, out_planes: int, stride: int = 1) -> nn.Conv2d:
     """1x1 convolution."""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
 
-def resize_conv3x3(in_planes: int, out_planes: int, scale: float = 1) -> nn.Sequential | nn.Conv2d:
+def resize_conv3x3(
+    in_planes: int, *, out_planes: int, scale: float = 1
+) -> nn.Sequential | nn.Conv2d:
     """upsample + 3x3 convolution with padding to avoid checkerboard artifact."""
     if scale == 1:
-        return conv3x3(in_planes, out_planes)
-    return nn.Sequential(Interpolate(scale_factor=scale), conv3x3(in_planes, out_planes))
+        return conv3x3(in_planes, out_planes=out_planes)
+    return nn.Sequential(Interpolate(scale_factor=scale), conv3x3(in_planes, out_planes=out_planes))
 
 
-def resize_conv1x1(in_planes: int, out_planes: int, scale: float = 1) -> nn.Sequential | nn.Conv2d:
+def resize_conv1x1(
+    in_planes: int, *, out_planes: int, scale: float = 1
+) -> nn.Sequential | nn.Conv2d:
     """upsample + 1x1 convolution with padding to avoid checkerboard artifact."""
     if scale == 1:
-        return conv1x1(in_planes, out_planes)
-    return nn.Sequential(Interpolate(scale_factor=scale), conv1x1(in_planes, out_planes))
+        return conv1x1(in_planes=in_planes, out_planes=out_planes)
+    return nn.Sequential(
+        Interpolate(scale_factor=scale), conv1x1(in_planes=in_planes, out_planes=out_planes)
+    )
 
 
 class EncoderBlock(nn.Module):
@@ -61,7 +67,7 @@ class EncoderBlock(nn.Module):
         self.conv1 = conv3x3(inplanes, out_planes=planes, stride=stride)
         self.bn1 = nn.BatchNorm2d(planes)
         self.relu = nn.ReLU(inplace=True)
-        self.conv2 = conv3x3(planes, planes)
+        self.conv2 = conv3x3(planes, out_planes=planes)
         self.bn2 = nn.BatchNorm2d(planes)
         self.downsample = downsample
 
@@ -95,11 +101,11 @@ class EncoderBottleneck(nn.Module):
     ) -> None:
         super().__init__()
         width = planes  # this needs to change if we want wide resnets
-        self.conv1 = conv1x1(inplanes, width)
+        self.conv1 = conv1x1(in_planes=inplanes, out_planes=width)
         self.bn1 = nn.BatchNorm2d(width)
-        self.conv2 = conv3x3(width, width, stride)
+        self.conv2 = conv3x3(in_planes=width, out_planes=width, stride=stride)
         self.bn2 = nn.BatchNorm2d(width)
-        self.conv3 = conv1x1(width, planes * self.expansion)
+        self.conv3 = conv1x1(in_planes=width, out_planes=planes * self.expansion)
         self.bn3 = nn.BatchNorm2d(planes * self.expansion)
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
@@ -136,10 +142,10 @@ class DecoderBlock(nn.Module):
         self, inplanes: int, planes: int, scale: float = 1, upsample: nn.Module | None = None
     ) -> None:
         super().__init__()
-        self.conv1 = resize_conv3x3(inplanes, inplanes)
+        self.conv1 = resize_conv3x3(in_planes=inplanes, out_planes=inplanes)
         self.bn1 = nn.BatchNorm2d(inplanes)
         self.relu = nn.ReLU(inplace=True)
-        self.conv2 = resize_conv3x3(inplanes, planes, scale)
+        self.conv2 = resize_conv3x3(inplanes, out_planes=planes, scale=scale)
         self.bn2 = nn.BatchNorm2d(planes)
         self.upsample = upsample
 
@@ -172,11 +178,11 @@ class DecoderBottleneck(nn.Module):
     ) -> None:
         super().__init__()
         width = planes  # this needs to change if we want wide resnets
-        self.conv1 = resize_conv1x1(inplanes, width)
+        self.conv1 = resize_conv1x1(in_planes=inplanes, out_planes=width)
         self.bn1 = nn.BatchNorm2d(width)
-        self.conv2 = resize_conv3x3(width, width, scale)
+        self.conv2 = resize_conv3x3(in_planes=width, out_planes=width, scale=scale)
         self.bn2 = nn.BatchNorm2d(width)
-        self.conv3 = conv1x1(width, planes * self.expansion)
+        self.conv3 = conv1x1(in_planes=width, out_planes=planes * self.expansion)
         self.bn3 = nn.BatchNorm2d(planes * self.expansion)
         self.relu = nn.ReLU(inplace=True)
         self.upsample = upsample
@@ -249,7 +255,9 @@ class ResNetEncoder(nn.Module):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
-                conv1x1(self.inplanes, planes * block.expansion, stride),
+                conv1x1(
+                    in_planes=self.inplanes, out_planes=planes * block.expansion, stride=stride
+                ),
                 nn.BatchNorm2d(planes * block.expansion),
             )
 
@@ -334,7 +342,9 @@ class ResNetDecoder(nn.Module):
         upsample = None
         if scale != 1 or self.inplanes != planes * block.expansion:
             upsample = nn.Sequential(
-                resize_conv1x1(self.inplanes, planes * block.expansion, scale),
+                resize_conv1x1(
+                    in_planes=self.inplanes, out_planes=planes * block.expansion, scale=scale
+                ),
                 nn.BatchNorm2d(planes * block.expansion),
             )
 
@@ -396,7 +406,7 @@ class ResNetAE(AutoEncoder):
 
     def __init__(
         self,
-        input_shape: Sequence[int],
+        input_shape: Optional[Tuple[int]],
         *,
         latent_dim: int,
         zs_dim: int,

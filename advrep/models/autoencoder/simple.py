@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import torch.nn as nn
 
@@ -12,7 +12,7 @@ __all__ = ["SimpleConvAE"]
 class SimpleConvAE(AutoEncoder):
     def __init__(
         self,
-        input_shape: Sequence[int],
+        input_shape: Optional[Tuple[int]],
         *,
         latent_dim: int,
         zs_dim: int,

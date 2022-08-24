@@ -1,11 +1,11 @@
 from __future__ import annotations
-import logging
 from typing import Any, Tuple, Union, overload
 from typing_extensions import Literal
 
 from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import TernarySample
 from conduit.types import Loss
+from loguru import logger
 from ranzen.torch.loss import CrossEntropyLoss
 from ranzen.torch.utils import inf_generator
 import torch
@@ -15,8 +15,6 @@ from tqdm import trange
 from advrep.models.base import Model
 
 __all__ = ["Classifier"]
-
-LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
 
 
 @torch.no_grad()
@@ -127,10 +125,10 @@ class Classifier(Model):
         test_interval: int | float = 0.1,
         test_data: CdtDataLoader[TernarySample] | None = None,
     ) -> None:
-        LOGGER.info("Training classifier...")
+        logger.info("Training classifier...")
         # Test after every 20% of the total number of training iterations by default.
         if isinstance(test_interval, float):
-            test_interval = max(1, round(0.20 * steps))
+            test_interval = max(1, round(test_interval * steps))
         self.model.train()
 
         pbar = trange(steps)
