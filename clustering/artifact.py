@@ -17,9 +17,9 @@ from wandb.wandb_run import Run
 from shared.data import DataModule
 
 __all__ = [
-    "save_labels_as_artifact",
-    "load_labels_from_artifact",
     "ArtifactLoader",
+    "load_labels_from_artifact",
+    "save_labels_as_artifact",
 ]
 FILENAME: Final[str] = "labels.pt"
 
