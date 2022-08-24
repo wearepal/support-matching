@@ -5,6 +5,7 @@ from conduit.data.datasets.vision import Camelyon17, CelebA, ColoredMNIST
 from ranzen.hydra import Option
 
 from advrep.models.autoencoder import ResNetAE, SimpleConvAE
+from clustering.artifact import ArtifactLoader
 from clustering.pipeline import KmeansOnClipEncodings
 from shared.configs.arguments import (
     ASMConf,
@@ -28,6 +29,10 @@ def main() -> None:
         Option(SimpleConvAE, name="simple"),
         Option(ResNetAE, name="resnet"),
     ]
+    clust_ops: List[Union[Type[Any], Option]] = [
+        Option(KmeansOnClipEncodings, name="kmeans"),
+        Option(ArtifactLoader, name="artifact"),
+    ]
 
     ASMRelay.with_hydra(
         root="conf",
@@ -36,7 +41,7 @@ def main() -> None:
         dm=[Option(DataModuleConf, "base")],
         ds=ds_ops,
         split=[Option(SplitConf, "base")],
-        clust=[Option(KmeansOnClipEncodings, "base")],
+        clust=clust_ops,
         enc=ae_ops,
         alg=[Option(ASMConf, "base")],
         logging=[Option(LoggingConf, "base")],

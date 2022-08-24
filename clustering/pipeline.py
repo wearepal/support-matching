@@ -4,9 +4,11 @@ from typing import Optional, Union
 from ranzen.torch.module import DcModule
 import torch
 from torch import Tensor
+import wandb
 
 from shared.data import DataModule, resolve_device
 
+from .artifact import save_labels_as_artifact
 from .encoder import ClipVersion, ClipVisualEncoder
 from .kmeans import KMeans
 
@@ -30,6 +32,7 @@ class KmeansOnClipEncodings(DcModule):
     fft_cluster_init: bool = False
     supervised_cluster_init: bool = False
     n_init: int = 10
+    save_preds: bool = True
 
     cache_encoder: bool = False
     encoder: Optional[ClipVisualEncoder] = field(init=False, default=None)
@@ -72,4 +75,7 @@ class KmeansOnClipEncodings(DcModule):
             torch.cuda.empty_cache()
 
         kmeans.fit(dm=dm, encodings=encodings)
-        return torch.as_tensor(kmeans.predict(encodings.dep.numpy()), dtype=torch.long)
+        preds = torch.as_tensor(kmeans.predict(encodings.dep.numpy()), dtype=torch.long)
+        if self.save_preds:
+            save_labels_as_artifact(run=wandb.run, labels=preds, datamodule=dm)
+        return preds
