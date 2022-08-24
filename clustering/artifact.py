@@ -1,9 +1,8 @@
 from __future__ import annotations
-from dataclasses import dataclass
 from pathlib import Path
 import platform
 from tempfile import TemporaryDirectory
-from typing import Final, Optional
+from typing import Final, Optional, cast
 
 from loguru import logger
 import numpy as np
@@ -17,7 +16,6 @@ from wandb.wandb_run import Run
 from shared.data import DataModule
 
 __all__ = [
-    "ArtifactLoader",
     "load_labels_from_artifact",
     "save_labels_as_artifact",
 ]
@@ -34,11 +32,18 @@ def _artifact_info_from_dm(datamodule: DataModule) -> tuple[str, dict[str, str |
 
 
 def save_labels_as_artifact(
-    run: Run | RunDisabled,
+    run: Run | RunDisabled | None,
     *,
     labels: Tensor | npt.NDArray,
     datamodule: DataModule,
-) -> str:
+) -> Optional[str]:
+    if run is None:
+        run = cast(Optional[Run], wandb.run)
+        if run is None:
+            logger.info(
+                f"No active wandb run with which to save an artifact: skippinng saving of labels."
+            )
+            return None
     if isinstance(labels, np.ndarray):
         labels = torch.as_tensor(labels, dtype=torch.long)
     with TemporaryDirectory() as tmpdir:
@@ -93,14 +98,3 @@ def load_labels_from_artifact(
     labels = torch.load(filepath)
     logger.info(f"Cluster labels successfully loaded from artifact '{full_name}'.")
     return labels
-
-
-@dataclass
-class ArtifactLoader:
-    version: Optional[int] = None  # latest by default
-    root: Optional[Path] = None  # artifacts/clustering by default
-
-    def run(self, dm: DataModule) -> Tensor:
-        return load_labels_from_artifact(
-            run=wandb.run, datamodule=dm, version=self.version, root=self.root
-        )

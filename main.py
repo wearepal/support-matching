@@ -5,8 +5,7 @@ from conduit.data.datasets.vision import Camelyon17, CelebA, ColoredMNIST
 from ranzen.hydra import Option
 
 from advrep.models.autoencoder import ResNetAE, SimpleConvAE
-from clustering.artifact import ArtifactLoader
-from clustering.pipeline import KmeansOnClipEncodings
+from clustering.pipeline import ArtifactLoader, KmeansOnClipEncodings
 from shared.configs.arguments import (
     ASMConf,
     DataModuleConf,

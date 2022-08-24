@@ -13,8 +13,7 @@ import torch
 import wandb
 
 from advrep.algs.supmatch import SupportMatching
-from clustering.artifact import ArtifactLoader
-from clustering.pipeline import KmeansOnClipEncodings
+from clustering.pipeline import ClusteringPipeline
 from shared.configs import Config
 from shared.data import DataModule
 from shared.utils.utils import as_pretty_dict, flatten_dict
@@ -66,10 +65,10 @@ class ASMRelay(Relay, Config):
         if not dm.gt_deployment:
             # === Fit and evaluate the clusterer ===
             self.log("Initialising clustering")
-            clusterer: KmeansOnClipEncodings | ArtifactLoader = instantiate(self.clust)()
-            if isinstance(clusterer, KmeansOnClipEncodings):
+            clusterer: ClusteringPipeline = instantiate(self.clust)()
+            if hasattr(clusterer, "gpu"):
                 # Set both phases to use the same device for convenience
-                clusterer.gpu = self.misc.gpu
+                clusterer.gpu = self.misc.gpu  # type: ignore
             dm.deployment_ids = clusterer.run(dm=dm)
         # === Train and evaluate the debiaser ===
         debiaser.run(dm=dm)
