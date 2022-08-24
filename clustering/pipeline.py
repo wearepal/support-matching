@@ -51,8 +51,7 @@ class KmeansOnClipEncodings(DcModule, ClusteringPipeline):
     encoder: Optional[ClipVisualEncoder] = field(init=False, default=None)
     _fitted_kmeans: Optional[KMeans] = field(init=False, default=None)
 
-    implements(ClusteringPipeline)
-
+    @implements(ClusteringPipeline)
     def run(self, dm: DataModule, *, use_cached_encoder: bool = False) -> Tensor:
         device = resolve_device(self.gpu)
         kmeans = KMeans(
@@ -102,8 +101,7 @@ class ArtifactLoader(ClusteringPipeline):
     version: Optional[int] = None  # latest by default
     root: Optional[Path] = None  # artifacts/clustering by default
 
-    implements(ClusteringPipeline)
-
+    @implements(ClusteringPipeline)
     def run(self, dm: DataModule) -> Tensor:
         return load_labels_from_artifact(
             run=wandb.run, datamodule=dm, version=self.version, root=self.root
