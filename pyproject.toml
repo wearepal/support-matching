@@ -46,6 +46,7 @@ wandb = "*"
 loguru = "^0.6.0"
 ftfy = "^6.1.1"
 regex = "^2022.8.17"
+timm = "^0.6.7"
 
 [tool.poetry.dev-dependencies]
 black = "*"

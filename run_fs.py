@@ -148,7 +148,7 @@
 #         dm.train += dm.context  # type: ignore
 #         # train_data = ConcatDataset([train_data, datasets.context])
 #     # Tehcnicaly this and the method invoked in the subsequent conditional are self-supervised
-#     # method, however it's far easier to integrate them into this script than to create a new
+#     # methods, however it's far easier to integrate them into this script than to create a new
 #     # series of models, with the code being as it is at the moment.
 #     elif args.context_mode is ContextMode.cluster_labels and cfg.misc.cluster_label_file:
 #         LOGGER.info("Using cluster labels as pseudo-labels for context set.")

@@ -1,0 +1,128 @@
+from __future__ import annotations
+from collections.abc import MutableMapping, Sequence
+from dataclasses import asdict
+from enum import Enum
+from typing import Any, Sequence
+
+from conduit.data.datasets.vision.base import CdtVisionDataset
+from omegaconf import OmegaConf
+import torch
+from torch import Tensor
+import torchvision
+import torchvision.transforms.functional as TF
+import wandb
+
+from src.data.data_module import DataModule
+
+
+def log_images(
+    images: Tensor,
+    *,
+    dm: DataModule,
+    name: str,
+    step: int,
+    nsamples: int | Sequence[int] = 64,
+    ncols: int = 8,
+    monochrome: bool = False,
+    prefix: str | None = None,
+    caption: str | None = None,
+):
+    """Make a grid of the given images, save them in a file and log them with W&B"""
+    prefix = "train/" if prefix is None else f"{prefix}/"
+
+    if isinstance(dm.train, CdtVisionDataset):
+        images = dm.denormalize(images)
+
+    if monochrome:
+        images = images.mean(dim=1, keepdim=True)
+
+    if isinstance(nsamples, int):
+        blocks = [images[:nsamples]]
+    else:
+        blocks = []
+        start_index = 0
+        for num in nsamples:
+            blocks.append(images[start_index : start_index + num])
+            start_index += num
+
+    # torchvision.utils.save_image(images, f'./experiments/finn/{prefix}{name}.png', nrow=nrows)
+    shw = [
+        torchvision.utils.make_grid(block, nrow=ncols, pad_value=1.0).clamp(0, 1).cpu()
+        for block in blocks
+    ]
+    shw = [wandb.Image(TF.to_pil_image(i), caption=caption) for i in shw]
+    wandb.log({prefix + name: shw}, step=step)
+
+
+def log_attention(
+    dm: DataModule,
+    *,
+    images: Tensor,
+    attention_weights: Tensor,
+    name: str,
+    step: int,
+    nbags: int,
+    border_width: int = 3,
+    ncols: int = 8,
+    prefix: str | None = None,
+):
+    """Make a grid of the given images, save them in a file and log them with W&B"""
+    prefix = "train_" if prefix is None else f"{prefix}_"
+
+    if isinstance(dm.train, CdtVisionDataset):
+        images = dm.denormalize(images)
+
+    images = images.view(*attention_weights.shape, *images.shape[1:])
+    images = images[:nbags].cpu()
+    attention_weights = attention_weights[:nbags]
+    padding = attention_weights.view(nbags, -1, 1, 1, 1)
+
+    w_padding = padding.expand(-1, -1, 3, border_width, images.size(-1)).cpu()
+    images = torch.cat([w_padding, images, w_padding], dim=-2)
+    h_padding = padding.expand(-1, -1, 3, images.size(-2), border_width).cpu()
+    images = torch.cat([h_padding, images, h_padding], dim=-1)
+
+    shw = [
+        torchvision.utils.make_grid(block, nrow=ncols, pad_value=1.0).clamp(0, 1)
+        for block in images.unbind(dim=0)
+    ]
+    shw = [wandb.Image(TF.to_pil_image(image), caption=f"bag_{i}") for i, image in enumerate(shw)]
+    wandb.log({prefix + name: shw}, step=step)
+
+
+def flatten_dict(d: MutableMapping, parent_key: str = "", sep: str = ".") -> dict:
+    """Flatten a nested dictionary by separating the keys with `sep`."""
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + str(k) if parent_key else k
+        if isinstance(v, MutableMapping):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
+
+def _clean_up_dict(obj: Any) -> Any:
+    """Convert enums to strings and filter out _target_."""
+    if isinstance(obj, MutableMapping):
+        return {key: _clean_up_dict(value) for key, value in obj.items() if key != "_target_"}
+    elif isinstance(obj, Enum):
+        return str(f"{obj.name}")
+    elif OmegaConf.is_config(obj):  # hydra stores lists as omegaconf.ListConfig, so we convert here
+        return OmegaConf.to_container(obj, resolve=True, enum_to_str=True)
+    return obj
+
+
+def as_pretty_dict(data_class: object) -> dict:
+    """Convert dataclass to a pretty dictionary."""
+    return _clean_up_dict(asdict(data_class))
+
+
+def get_class_id(*, s: Tensor, y: Tensor, s_count: int, to_cluster: ClusteringLabel) -> Tensor:
+    if to_cluster == ClusteringLabel.s:
+        class_id = s
+    elif to_cluster == ClusteringLabel.y:
+        class_id = y
+    else:
+        class_id = labels_to_group_id(s=s, y=y, s_count=s_count)
+    return class_id.view(-1)
