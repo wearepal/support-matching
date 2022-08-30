@@ -6,13 +6,12 @@ from loguru import logger
 import numpy as np
 import numpy.typing as npt
 from ranzen.torch import batchwise_pdist
-from sklearn.cluster import KMeans as _KMeans
+from sklearn.cluster import KMeans as SklKMeans
 from sklearn.cluster import kmeans_plusplus
 import torch
 from torch import Tensor
 
-from shared.data import DataModule
-from shared.data.utils import resolve_device
+from src.data import DataModule, resolve_device
 
 from .encode import Encodings
 from .metrics import evaluate
@@ -88,7 +87,7 @@ class KMeans:
     supervised_cluster_init: bool = False
     spherical: bool = True
     device: Union[int, str, torch.device] = 0
-    _fitted_model: Optional[_KMeans] = field(init=False, default=None)
+    _fitted_model: Optional[SklKMeans] = field(init=False, default=None)
 
     def fit(self, dm: DataModule, *, encodings: Encodings) -> None:
         device = resolve_device(self.device)
@@ -129,13 +128,13 @@ class KMeans:
                 logger.info("Done.")
             else:
                 centroids_np = centroids.numpy()
-            kmeans = _KMeans(n_clusters=n_clusters, init=centroids_np, n_init=1)
+            kmeans = SklKMeans(n_clusters=n_clusters, init=centroids_np, n_init=1)
             kmeans.fit(encodings.to_cluster)
             preds = kmeans.predict(encodings.test)
             evaluate(y_true=encodings.test_labels, y_pred=preds)
         else:
             logger.info("Using kmeans++")
-            kmeans = _KMeans(n_clusters=n_clusters, init="k-means++", n_init=self.n_init)
+            kmeans = SklKMeans(n_clusters=n_clusters, init="k-means++", n_init=self.n_init)
             kmeans.fit(encodings.to_cluster)
             preds = kmeans.predict(encodings.test)
             evaluate(y_true=encodings.test_labels, y_pred=preds)

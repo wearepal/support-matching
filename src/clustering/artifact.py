@@ -13,7 +13,7 @@ import wandb
 from wandb.sdk.lib.disabled import RunDisabled
 from wandb.wandb_run import Run
 
-from shared.data import DataModule
+from src.data import DataModule
 
 __all__ = [
     "load_labels_from_artifact",

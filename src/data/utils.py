@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TypeVar
+from typing import Iterator, TypeVar
 from typing_extensions import Literal
 
 import torch
@@ -9,6 +9,7 @@ __all__ = [
     "labels_to_group_id",
     "group_id_to_label",
     "resolve_device",
+    "to_device",
 ]
 
 I = TypeVar("I", Tensor, int)
@@ -34,3 +35,12 @@ def resolve_device(device: str | torch.device | int) -> torch.device:
     elif isinstance(device, str):
         device = torch.device(device)
     return device
+
+
+def to_device(
+    *args: Tensor,
+    device: str | torch.device | int,
+) -> Iterator[Tensor]:
+    device = resolve_device(device)
+    for arg in args:
+        yield arg.to(device, non_blocking=True)

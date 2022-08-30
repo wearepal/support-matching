@@ -16,7 +16,7 @@ import torch.nn as nn
 from tqdm import tqdm
 import wandb
 
-from shared.data import DataModule, labels_to_group_id, resolve_device
+from src.data import DataModule, labels_to_group_id, resolve_device
 
 __all__ = ["FineTuner"]
 

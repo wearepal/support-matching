@@ -16,8 +16,12 @@ from torch import Tensor, nn
 from torch.nn import functional as F
 from tqdm import tqdm
 
-from shared.data.data_module import DataModule
-from shared.data.utils import labels_to_group_id
+from src.data import DataModule, labels_to_group_id
+
+__all__ = [
+    "Encodings",
+    "generate_encodings",
+]
 
 
 @dataclass
@@ -133,9 +137,3 @@ class NpzContent(TypedDict):
     dep: npt.NDArray
     test: npt.NDArray
     test_ids: npt.NDArray[np.int32]
-
-
-def save_encoding(all_encodings: NpzContent, *, file: Path | str) -> None:
-    logger.info("Saving encodings to 'encoded_celeba.npz'...")
-    np.savez_compressed(file=Path(file), **all_encodings)
-    logger.info("Done.")

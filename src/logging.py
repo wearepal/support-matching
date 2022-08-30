@@ -1,10 +1,12 @@
 from __future__ import annotations
 from collections.abc import MutableMapping, Sequence
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Any, Sequence
+import shlex
+from typing import Any, List, Optional, Sequence
 
 from conduit.data.datasets.vision.base import CdtVisionDataset
+from hydra.core.hydra_config import HydraConfig
 from omegaconf import OmegaConf
 import torch
 from torch import Tensor
@@ -13,6 +15,33 @@ import torchvision.transforms.functional as TF
 import wandb
 
 from src.data.data_module import DataModule
+
+__all__ = [
+    "WandbConf",
+    "as_pretty_dict",
+    "flatten_dict",
+    "log_attention",
+    "log_images",
+    "reconstruct_cmd",
+]
+
+
+@dataclass
+class WandbConf:
+    _target_: str = "wandb.init"
+    name: Optional[str] = None
+    mode: str = "online"
+    id: Optional[str] = None
+    anonymous: Optional[bool] = None
+    project: Optional[str] = "support-matching"
+    group: Optional[str] = None
+    entity: Optional[str] = "predictive-analytics-lab"
+    tags: Optional[List[str]] = None
+    reinit: bool = True
+    job_type: Optional[str] = None
+    resume: Optional[str] = None
+    dir: Optional[str] = "local_logging"
+    notes: Optional[str] = None
 
 
 def log_images(
@@ -118,11 +147,14 @@ def as_pretty_dict(data_class: object) -> dict:
     return _clean_up_dict(asdict(data_class))
 
 
-def get_class_id(*, s: Tensor, y: Tensor, s_count: int, to_cluster: ClusteringLabel) -> Tensor:
-    if to_cluster == ClusteringLabel.s:
-        class_id = s
-    elif to_cluster == ClusteringLabel.y:
-        class_id = y
-    else:
-        class_id = labels_to_group_id(s=s, y=y, s_count=s_count)
-    return class_id.view(-1)
+def reconstruct_cmd() -> str:
+    """Reconstruct the python command that was used to start this program."""
+    internal_config = HydraConfig.get()
+    program = internal_config.job.name + ".py"
+    args = internal_config.overrides.task
+    return _join([program] + OmegaConf.to_container(args))  # type: ignore[operator]
+
+
+def _join(split_command: List[str]) -> str:
+    """Concatenate the tokens of the list split_command and return a string."""
+    return " ".join(shlex.quote(arg) for arg in split_command)

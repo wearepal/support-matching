@@ -25,8 +25,10 @@ alg:
     pred_y_loss_w: 0
     pred_s_loss_w: 0
     warmup_steps: 0
+
+eval:
     eval_lr: 1.e-4
     eval_steps: 5000
 
-logging:
-    exp_group: nih_sb10_sm
+wandb:
+    group: nih_sb10_sm

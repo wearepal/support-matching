@@ -2,6 +2,7 @@ from enum import Enum
 from functools import partial
 
 import torch
+from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter

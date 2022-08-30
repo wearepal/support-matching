@@ -95,7 +95,12 @@ class Classifier(Model):
             return preds, actual, sens
 
     def training_step(
-        self, input: Tensor, *, target: Tensor, instance_weights: Tensor | None = None
+        self,
+        input: Tensor,
+        *,
+        target: Tensor,
+        group_idx: Tensor,
+        instance_weights: Tensor | None = None,
     ) -> tuple[Tensor, float]:
         logits = self.forward(input)
         loss = self.criterion(input=logits, target=target)
@@ -116,7 +121,7 @@ class Classifier(Model):
         test_interval: int | float = 0.1,
         test_data: CdtDataLoader[TernarySample] | None = None,
     ) -> None:
-        logger.info("Training classifier...")
+        logger.info("Training classifier")
         # Test after every 20% of the total number of training iterations by default.
         if isinstance(test_interval, float):
             test_interval = max(1, round(test_interval * steps))
@@ -131,7 +136,7 @@ class Classifier(Model):
             target = target.to(device, non_blocking=True)
 
             self.optimizer.zero_grad()
-            loss, acc = self.training_step(input=batch.x, target=target)
+            loss, acc = self.training_step(input=batch.x, target=target, group_idx=batch.s)
             loss.backward()
             self.step()
 

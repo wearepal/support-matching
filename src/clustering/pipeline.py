@@ -20,11 +20,12 @@ __all__ = [
     "ArtifactLoader",
     "ClusteringPipeline",
     "KmeansOnClipEncodings",
+    "NoCluster",
 ]
 
 
 class ClusteringPipeline(Protocol):
-    def run(self, dm: DataModule) -> Tensor:
+    def run(self, dm: DataModule) -> Tensor | None:
         ...
 
 
@@ -106,3 +107,10 @@ class ArtifactLoader(ClusteringPipeline):
         return load_labels_from_artifact(
             run=wandb.run, datamodule=dm, version=self.version, root=self.root
         )
+
+
+@dataclass
+class NoCluster(ClusteringPipeline):
+    @implements(ClusteringPipeline)
+    def run(self, dm: DataModule) -> None:
+        return None

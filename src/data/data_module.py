@@ -3,38 +3,22 @@ from functools import reduce
 from math import gcd
 from pathlib import Path
 import platform
-from typing import (
-    Any,
-    ClassVar,
-    DefaultDict,
-    Dict,
-    Generic,
-    Iterable,
-    Iterator,
-    List,
-    Optional,
-    Type,
-    TypeVar,
-    cast,
-)
-from typing_extensions import Self, TypeAlias
+from typing import DefaultDict, Dict, Generic, Iterable, Iterator, List, Optional, Type
+from typing_extensions import Self
 
 import albumentations as A
 import attr
 from conduit.data.constants import IMAGENET_STATS
-from conduit.data.datasets import CdtDataset, CdtVisionDataset
+from conduit.data.datasets import CdtVisionDataset
 from conduit.data.datasets.utils import (
     CdtDataLoader,
     ImageTform,
     PillowTform,
     get_group_ids,
-    stratified_split,
 )
-from conduit.data.structures import LoadedData, MeanStd, TernarySample
+from conduit.data.structures import MeanStd, TernarySample
 from conduit.transforms import denormalize
-from hydra.utils import instantiate, to_absolute_path
-from loguru import logger
-from omegaconf.dictconfig import DictConfig
+from hydra.utils import to_absolute_path
 from ranzen.torch.data import (
     BaseSampler,
     BatchSamplerBase,
@@ -46,45 +30,13 @@ import torch
 from torch import Tensor
 import torchvision.transforms.transforms as T
 
-from src.configs.classes import DataModuleConf, SplitConf
+from src.configs.classes import DataModuleConf
 
+from .common import D
+from .splitter import DataSplitter
 from .utils import group_id_to_label
 
-__all__ = [
-    "D",
-    "DataModule",
-    "Dataset",
-    "TrainDepSplit",
-]
-
-
-Dataset: TypeAlias = CdtDataset[TernarySample[LoadedData], Any, Tensor, Tensor]
-D = TypeVar("D", bound=Dataset)
-
-
-@attr.define(kw_only=True)
-class TrainDepSplit(Generic[D]):
-    train: D
-    deployment: D
-    test: D
-
-    def __iter__(self) -> Iterator[D]:
-        yield from (self.train, self.deployment, self.test)
-
-    def num_samples(self) -> int:
-        return len(self.train) + len(self.deployment) + len(self.test)
-
-    @property
-    def num_samples_tr(self) -> int:
-        return len(self.train)
-
-    @property
-    def num_samples_dep(self) -> int:
-        return len(self.deployment)
-
-    @property
-    def num_samples_te(self) -> int:
-        return len(self.test)
+__all__ = ["DataModule"]
 
 
 def lcm(denominators: Iterable[int]) -> int:
@@ -94,13 +46,6 @@ def lcm(denominators: Iterable[int]) -> int:
 
 @attr.define(kw_only=True)
 class DataModule(Generic[D]):
-
-    DATA_DIRS: ClassVar[Dict[str, str]] = {
-        "turing": "/srv/galene0/shared/data",
-        "fear": "/srv/galene0/shared/data",
-        "hydra": "/srv/galene0/shared/data",
-        "goedel": "/srv/galene0/shared/data",
-    }
 
     train: D
     deployment: D
@@ -420,86 +365,20 @@ class DataModule(Generic[D]):
         self.transforms_dep = value
 
     @classmethod
-    def generate_splits(cls: Type[Self], dataset: D, split_config: SplitConf) -> TrainDepSplit[D]:
-
-        dep_data, test_data, train_data = dataset.random_split(
-            props=[split_config.dep_prop, split_config.test_prop],
-            seed=split_config.seed,
-        )
-
-        logger.info(
-            "Subsampling training set with proportions:\n\t"
-            f"{str(split_config.train_subsampling_props)}"
-        )
-        train_data = stratified_split(
-            train_data,
-            default_train_prop=1.0,
-            train_props=split_config.train_subsampling_props,
-            seed=split_config.seed,
-        ).train
-
-        if split_config.dep_subsampling_props:
-            logger.info("Subsampling deployment set...")
-            dep_data = stratified_split(
-                dep_data,
-                default_train_prop=1.0,
-                train_props=split_config.dep_subsampling_props,
-                seed=split_config.seed,
-            ).train
-
-        # Enable transductive learning (i.e. using the test data for semi-supervised learning)
-        if split_config.transductive:
-            dep_data = dep_data.cat(test_data, inplace=False)
-
-        # Assign transforms if datasets are vision ones
-        if isinstance(train_data, CdtVisionDataset):
-            train_data.transform = (
-                cls._default_train_transforms()
-                if split_config.train_transforms is None
-                else split_config.train_transforms
-            )
-        if isinstance(dep_data, CdtVisionDataset):
-            dep_data.transform = split_config.dep_transforms
-            train_data = cast(CdtVisionDataset, train_data)
-            dep_data.transform = (
-                train_data.transform
-                if split_config.dep_transforms is None
-                else split_config.dep_transforms
-            )
-        if isinstance(test_data, CdtVisionDataset):
-            test_data.transform = split_config.test_transforms
-            test_data.transform = (
-                cls._default_test_transforms()
-                if split_config.test_transforms is None
-                else split_config.test_transforms
-            )
-
-        return TrainDepSplit(train=train_data, deployment=dep_data, test=test_data)
-
-    @classmethod
-    def from_configs(
+    def from_ds(
         cls: Type[Self],
         *,
-        dm_config: DataModuleConf,
-        ds_config: DictConfig,
-        split_config: SplitConf,
+        config: DataModuleConf,
+        ds: D,
+        splitter: DataSplitter,
         deployment_ids: Optional[Tensor] = None,
     ) -> Self:
-        split_config = instantiate(split_config)
-
-        if ds_config.root is None:
-            root = cls.find_data_dir()
-        else:
-            root = str(Path(to_absolute_path(ds_config.root)).resolve())
-        all_data: D = instantiate(ds_config, root=root)
-        if split_config.data_prop is not None:
-            all_data = stratified_split(all_data, default_train_prop=split_config.data_prop).train
-        splits = cls.generate_splits(dataset=all_data, split_config=split_config)
+        splits = splitter(ds)
         return cls(
             train=splits.train,
             deployment=splits.deployment,
             test=splits.test,
-            **dm_config,  # type: ignore
+            **config,  # type: ignore
             deployment_ids=deployment_ids,
         )
 

@@ -8,4 +8,4 @@ __all__ = [
 
 class ExternalConfPlugin(SearchPathPlugin):
     def manipulate_search_path(self, search_path: ConfigSearchPath) -> None:
-        search_path.prepend(provider="asm", path="file://external_confs")
+        search_path.prepend(provider="supmatch", path="file://external_confs")

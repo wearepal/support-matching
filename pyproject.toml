@@ -4,9 +4,7 @@ version = "1.0.0"
 description = "Addressing Missing Sources with Adversarial Support-Matching"
 authors = ["PAL <info@wearepal.com>"]
 packages = [
-  { include = "clustering" },
-  { include = "advrep" },
-  { include = "shared" },
+  { include = "src" },
   { include = "hydra_plugins" }
 ]
 include=["clustering/py.typed", "advrep/py.typed", "shared/py.typed"]

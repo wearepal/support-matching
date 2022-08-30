@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, replace
 from enum import Enum, auto
-from typing import Any, Tuple, cast
+from typing import Any, Dict, Tuple, cast
 from typing_extensions import Literal, Self
 
 from ranzen import implements
@@ -107,10 +107,10 @@ class AutoEncoder(Model):
         latent_dim: int,
         zs_dim: int,
         zs_transform: ZsTransform = ZsTransform.none,
-        feature_group_slices: dict[str, list[slice]] | None = None,
+        feature_group_slices: Dict[str, list[slice]] | None = None,
         lr: float = 5.0e-4,
         optimizer_cls: str = "torch.optim.AdamW",
-        optimizer_kwargs: dict[str, Any] | None = None,
+        optimizer_kwargs: Dict[str, Any] | None = None,
         recon_loss_fn: ReconstructionLoss = ReconstructionLoss.l2,
     ) -> None:
         self.latent_dim = latent_dim

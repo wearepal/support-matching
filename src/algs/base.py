@@ -1,29 +1,34 @@
 from __future__ import annotations
+from torch.cuda.amp.grad_scaler import GradScaler
 from abc import abstractmethod
+from dataclasses import dataclass, field
+from typing import Optional
 from typing_extensions import Self
 
 from loguru import logger
+from ranzen.torch.module import DcModule
 import torch
-import torch.nn as nn
 
-from shared.configs.arguments import LoggingConf, MiscConf
-from shared.data import DataModule
+from src.data import DataModule, resolve_device
 
 __all__ = ["Algorithm"]
 
 
-class Algorithm(nn.Module):
+@dataclass
+class Algorithm(DcModule):
     """Base class for algorithms."""
 
-    def __init__(self, misc_cfg: MiscConf, *, log_cfg: LoggingConf) -> None:
+    use_amp: bool = False  # Whether to use mixed-precision training
+    gpu: int = 0  # which GPU to use (if available)
+    use_gpu: bool = field(init=False)
+    device: torch.device = field(init=False)
+    grad_scaler: Optional[GradScaler] = field(init=False)
 
-        super().__init__()
-        self.misc_cfg = misc_cfg
-        self.log_cfg = log_cfg
-
-        self.use_gpu = torch.cuda.is_available() and self.misc_cfg.gpu >= 0
-        self.device = f"cuda:{self.misc_cfg.gpu}" if self.use_gpu else "cpu"
-        self.use_amp = self.misc_cfg.use_amp and self.use_gpu
+    def __post_init__(self) -> None:
+        self.use_gpu = torch.cuda.is_available() and self.gpu >= 0
+        self.device = resolve_device(self.gpu)
+        self.use_amp = self.use_amp and self.use_gpu
+        self.grad_scaler = GradScaler() if self.use_amp else None
         logger.info(f"{torch.cuda.device_count()} GPUs available. Using device '{self.device}'")
 
     @abstractmethod

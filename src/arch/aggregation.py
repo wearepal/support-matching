@@ -1,13 +1,16 @@
 """Modules that aggregate over a batch."""
 from __future__ import annotations
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Callable, Optional
 
+from ranzen import implements
+from ranzen.torch import DcModule
 import torch
 from torch import Tensor, nn
 from torch.nn.parameter import Parameter
 
 from src.arch.common import Activation
-from src.arch.predictors import PredictorFactory
+from src.arch.predictors.fcn import Fcn, NormType
 
 __all__ = [
     "BatchAggregator",
@@ -16,12 +19,10 @@ __all__ = [
 ]
 
 
-class BatchAggregator(nn.Module):
+@dataclass(eq=False)
+class BatchAggregator(DcModule):
+    dim: int
     batch_size: int
-
-    def __init__(self, batch_size: int, *, output_dim: int = 1, **kwargs: Any) -> None:
-        super().__init__()
-        self.batch_size = batch_size
 
     def batch_to_bags(self, batch: Tensor) -> Tensor:
         """
@@ -32,28 +33,26 @@ class BatchAggregator(nn.Module):
         return batch.view(-1, *batch.shape[1:], self.batch_size).movedim(-1, 0)
 
 
+@dataclass(eq=False)
 class KvqAggregator(BatchAggregator):
-    def __init__(
-        self,
-        embed_dim: int,
-        *,
-        batch_size: int,
-        activation: Activation = Activation.GELU,
-        dropout: float = 0.0,
-        final_proj: PredictorFactory | None = None,
-        output_dim: int = 1,
-    ) -> None:
-        super().__init__(batch_size=batch_size, output_dim=output_dim)
-        self.latent_dim = embed_dim
-        self.attn = nn.MultiheadAttention(
-            embed_dim=embed_dim, num_heads=1, dropout=dropout, bias=True
-        )
-        if final_proj is not None:
-            self.final_proj = final_proj(embed_dim, target_dim=output_dim)
-        else:
-            self.final_proj = nn.Linear(in_features=embed_dim, out_features=output_dim)
-        self.act = activation.value()
 
+    activation: Activation = Activation.GELU
+    dropout: float = 0.0
+
+    attn: nn.MultiheadAttention = field(init=False)
+    act_fn: Callable[[Tensor], Tensor] = field(init=False)
+    num_heads: int = 1
+
+    def __post_init__(self) -> None:
+        self.attn = nn.MultiheadAttention(
+            embed_dim=self.dim,
+            num_heads=self.num_heads,
+            dropout=self.dropout,
+            bias=True,
+        )
+        self.act_fn = self.activation.value()
+
+    @implements(BatchAggregator)
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
         # `attn` expects the *second* dimension to be the batch dimension
         # that's why we have to transpose here
@@ -62,52 +61,33 @@ class KvqAggregator(BatchAggregator):
         query = inputs_batched.mean(dim=0, keepdim=True)
         key = inputs_batched
         value = key
-        output = self.act(self.attn(query=query, key=key, value=value, need_weights=False)[0])
-        return self.final_proj(output.view(-1, self.latent_dim))
+        output = self.act_fn(self.attn(query=query, key=key, value=value, need_weights=False)[0])
+        return output.view(-1, self.dim)
 
 
+@dataclass(eq=False)
 class GatedAggregator(BatchAggregator):
-    def __init__(
-        self,
-        embed_dim: int,
-        *,
-        batch_size: int,
-        final_proj: PredictorFactory | None = None,
-        output_dim: int = 1,
-    ) -> None:
-        super().__init__(batch_size=batch_size, output_dim=output_dim)
-        self.V = Parameter(torch.empty(embed_dim, embed_dim), requires_grad=True)
-        self.U = Parameter(torch.empty(embed_dim, embed_dim), requires_grad=True)
-        self.w = Parameter(torch.empty(1, embed_dim), requires_grad=True)
-        nn.init.xavier_normal_(self.V)
-        nn.init.xavier_normal_(self.U)
-        nn.init.xavier_normal_(self.w)
-        if final_proj is not None:
-            self.final_proj = final_proj(embed_dim, target_dim=output_dim)
-        else:
-            self.final_proj = nn.Linear(in_features=embed_dim, out_features=output_dim)
-        self.attention_weights: Tensor
 
+    v: Parameter = field(init=False)
+    u: Parameter = field(init=False)
+    w: Parameter = field(init=False)
+
+    attention_weights: Optional[Tensor] = field(init=False, default=None)
+
+    def __post_init__(self):
+        self.v = Parameter(torch.empty(self.dim, self.dim), requires_grad=True)
+        self.u = Parameter(torch.empty(self.dim, self.dim), requires_grad=True)
+        self.w = Parameter(torch.empty(1, self.dim), requires_grad=True)
+        nn.init.xavier_normal_(self.v)
+        nn.init.xavier_normal_(self.u)
+        nn.init.xavier_normal_(self.w)
+
+    @implements(BatchAggregator)
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
         inputs = inputs.flatten(start_dim=1)
-        logits = torch.tanh(inputs @ self.V.t()) * torch.sigmoid(inputs @ self.U.t()) @ self.w.t()
+        logits = torch.tanh(inputs @ self.v.t()) * torch.sigmoid(inputs @ self.u.t()) @ self.w.t()
         logits_batched = self.batch_to_bags(logits)
         weights = logits_batched.softmax(dim=1)
         self.attention_weights = weights.squeeze(-1).detach().cpu()
         inputs_batched = self.batch_to_bags(inputs)
-        weighted = torch.sum(weights * inputs_batched, dim=1, keepdim=False)
-        return self.final_proj(weighted)
-
-
-# class ModelAggregatorWrapper(ModelFactory[nn.Sequential]):
-#     def __init__(self, model_fn: ModelFactory, *, aggregator: Aggregator, input_dim: int) -> None:
-#         self.model_fn = model_fn
-#         self.aggregator = aggregator
-#         self.input_dim = input_dim
-
-#     def __call__(self, input_dim: int, *, target_dim: int) -> nn.Sequential:
-#         assert target_dim == self.aggregator.output_dim
-
-#         return nn.Sequential(
-#             self.model_fn(input_dim, target_dim=self.input_dim), nn.GELU(), self.aggregator
-#         )
+        return torch.sum(weights * inputs_batched, dim=1, keepdim=False)
