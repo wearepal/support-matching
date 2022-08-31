@@ -12,8 +12,7 @@ from ranzen.torch import random_seed
 import torch
 import wandb
 
-from src.configs.classes import DataModuleConf
-from src.data import DataModule
+from src.data import DataModule, DataModuleConf
 from src.data.common import process_data_dir
 
 __all__ = ["BaseRelay"]

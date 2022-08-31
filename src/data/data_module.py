@@ -1,4 +1,5 @@
 from collections import defaultdict
+from dataclasses import dataclass
 from functools import reduce
 from math import gcd
 from typing import DefaultDict, Dict, Generic, Iterable, Iterator, List, Optional, Type
@@ -27,18 +28,31 @@ import torch
 from torch import Tensor
 import torchvision.transforms.transforms as T
 
-from src.configs.classes import DataModuleConf
-
 from .common import D
 from .splitter import DataSplitter
 from .utils import group_id_to_label
 
-__all__ = ["DataModule"]
+__all__ = ["DataModule", "DataModuleConf"]
 
 
 def lcm(denominators: Iterable[int]) -> int:
     """Least common multiplier."""
     return reduce(lambda a, b: a * b // gcd(a, b), denominators)
+
+
+@dataclass
+class DataModuleConf:
+    batch_size_tr: int = 1
+    batch_size_te: Optional[int] = None
+    num_samples_per_group_per_bag: int = 1
+    num_workers: int = 0
+    persist_workers: bool = False
+    pin_memory: bool = True
+    gt_deployment: bool = True
+    # Amount of noise to apply to the labels used for balanced sampling
+    # -- only applicable when ``gt_deployment=True``
+    label_noise: float = 0.0
+    seed: int = 47
 
 
 @attr.define(kw_only=True)

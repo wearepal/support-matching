@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from enum import Enum, auto
 from typing import Any, Generic, Optional, Sequence, TypeVar, overload
 from typing_extensions import Literal
 
@@ -23,7 +24,6 @@ import wandb
 
 from src.arch.common import Activation
 from src.arch.predictors import Fcn
-from src.configs.enums import EvalTrainData
 from src.data import (
     DataModule,
     Dataset,
@@ -31,7 +31,7 @@ from src.data import (
     labels_to_group_id,
     resolve_device,
 )
-from src.evaluation.metrics import compute_metrics, EvalPair
+from src.evaluation.metrics import EvalPair, compute_metrics
 from src.logging import log_images
 from src.models import Classifier, SplitEncoding, SplitLatentAe
 
@@ -46,6 +46,13 @@ __all__ = [
 
 DY = TypeVar("DY", bound=Optional[Dataset])
 DS = TypeVar("DS", bound=Optional[Dataset])
+
+
+class EvalTrainData(Enum):
+    """Dataset to use for training during evaluation."""
+
+    train = auto()
+    deployment = auto()
 
 
 @dataclass(frozen=True)
