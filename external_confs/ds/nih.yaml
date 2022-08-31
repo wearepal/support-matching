@@ -2,7 +2,7 @@
 defaults:
   - /schema/ds: nih
   - _self_
-root: "data"
+root: /srv/galene0/shared/data/nih_chest_xray/
 transform: null
 sens_attr: gender
 target_attr: infiltration

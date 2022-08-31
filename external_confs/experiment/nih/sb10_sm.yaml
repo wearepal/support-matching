@@ -14,8 +14,6 @@ defaults:
     - override /disc_arch: kvq
     - override /wandb: base
 
-ds:
-    root: "data"
 dm:
     batch_size_tr: 12
     batch_size_te: 64

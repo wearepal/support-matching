@@ -109,7 +109,6 @@ class SplitLatentAe(Model):
     recon_loss_fn: Callable[[Tensor, Tensor], Tensor] = field(init=False)
 
     def __post_init__(self) -> None:
-        assert self.latent_dim is not None
         zs_dim_t = self.zs_dim
         if isinstance(zs_dim_t, float):
             zs_dim_t = round(self.zs_dim * self.model.latent_dim)

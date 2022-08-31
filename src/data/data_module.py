@@ -385,7 +385,7 @@ class DataModule(Generic[D]):
             f"- Size of deployment-set: {self.num_dep_samples}\n"
             f"- Size of test-set: {self.num_test_samples}"
         )
-        return f"\nDataModule for dataset of type {ds_name}\n{size_info}"
+        return f"\nDataModule for dataset of type '{ds_name}'\n{size_info}"
 
     def denormalize(self, x: Tensor, *, inplace: bool = False) -> Tensor:
         if isinstance(self.train, CdtVisionDataset):

@@ -1,5 +1,6 @@
 from __future__ import annotations
 from collections.abc import Iterator
+from loguru import logger
 from dataclasses import dataclass
 from typing_extensions import Self
 
@@ -22,6 +23,24 @@ __all__ = ["SupportMatching"]
 @dataclass
 class SupportMatching(AdvSemiSupervisedAlg):
     prior_loss_w: float = 0
+    s_as_zs: bool = False
+
+    @implements(AdvSemiSupervisedAlg)
+    def _get_data_iterators(
+        self, dm: DataModule
+    ) -> tuple[Iterator[TernarySample[Tensor]], Iterator[NamedSample[Tensor]]]:
+        if (self.disc_loss_w > 0) or (self.num_disc_updates > 0): 
+            if (dm.deployment_ids is None) and (not dm.gt_deployment):
+                logger.warning(
+                        "Support matching is enabled but without any balancing of the deployment set "
+                        "- this can be achieved either by setting 'gt_deployment' to 'True' or by "
+                        "supplying 'deployment_ids'"
+                        )
+        dl_tr = dm.train_dataloader(balance=True)
+        # The batch size needs to be consistent for the aggregation layer in the setwise neural 
+        # discriminator
+        dl_dep = dm.deployment_dataloader(batch_size=dm.batch_size_tr)
+        return iter(dl_tr), iter(dl_dep)
 
     @implements(AdvSemiSupervisedAlg)
     def _discriminator_loss(
@@ -37,7 +56,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
             x_tr = self._sample_tr(iterator_tr).x
             x_dep = self._sample_dep(iterator_dep)
 
-            with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):  # type: ignore
+            with torch.cuda.amp.autocast(enabled=self.use_amp):  # type: ignore
                 with torch.no_grad():
                     encoding_tr = comp.ae.encode(x_tr)
                     encoding_dep = comp.ae.encode(x_dep)
@@ -60,7 +79,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         comp.train_ae()
         logging_dict = {}
 
-        with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):  # type: ignore
+        with torch.cuda.amp.autocast(enabled=self.use_amp):  # type: ignore
             # ============================= recon loss for training set ===========================
             encoding_t, enc_loss_tr, logging_dict_tr = comp.ae.training_step(
                 batch_tr.x,
@@ -81,7 +100,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
             if not warmup:
                 disc_input_tr = encoding_t.zy
                 if isinstance(comp.disc, NeuralDiscriminator):
-                    disc_input_dep = encoding_c.zy if self.two_disc_loss else None
+                    disc_input_dep = encoding_c.zy if self.twoway_disc_loss else None
                     disc_loss = comp.disc.encoder_loss(fake=disc_input_tr, real=disc_input_dep)
                 else:
                     disc_input_dep = encoding_c.zy

@@ -44,9 +44,9 @@ class SupMatchRelay(Relay):
     ds: DictConfig = MISSING
     eval: DictConfig = MISSING
     ae: DictConfig = MISSING
-    seed: int = 0
     split: DictConfig = MISSING
     wandb: DictConfig = MISSING
+    seed: int = 0
 
     @implements(Relay)
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> None:
@@ -87,9 +87,9 @@ class SupMatchRelay(Relay):
             model=ae_pair,
             feature_group_slices=dm.feature_group_slices,
         )
-        logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
+        logger.info(f"Encoding dim: {ae_pair.latent_dim}, {ae.encoding_size}")
 
-        disc_net = instantiate(self.disc_arch)(
+        disc_net, _ = instantiate(self.disc_arch)(
             input_dim=ae.encoding_size.zy,
             target_dim=1,
             batch_size=dm.batch_size_tr,

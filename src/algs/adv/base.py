@@ -28,7 +28,7 @@ from .evaluator import Evaluator
 __all__ = ["AdvSemiSupervisedAlg", "Components"]
 
 
-@dataclass
+@dataclass(eq=False)
 class Components(DcModule):
     ae: SplitLatentAe
     disc: Discriminator
@@ -129,7 +129,7 @@ class AdvSemiSupervisedAlg(Algorithm):
     ) -> Dict[str, float]:
         warmup = itr < self.warmup_steps
         ga_weight = 1 / self.num_disc_updates
-        if (not warmup) and (isinstance(self.disc, NeuralDiscriminator)):
+        if (not warmup) and (isinstance(comp.disc, NeuralDiscriminator)):
             # Train the discriminator on its own for a number of iterations
             for _ in range(self.num_disc_updates):
                 for _ in range(self.ga_steps):
@@ -150,7 +150,7 @@ class AdvSemiSupervisedAlg(Algorithm):
             # Average the logging dict over the gradient-accumulation steps
             for k, v in logging_dict_s.items():
                 logging_dict[k] = logging_dict[k] + (v / self.ga_steps)
-        self._update_encoder(comp.ae)
+        self._update_encoder(comp)
 
         logging_dict = prefix_keys(logging_dict, prefix="train", sep="/")  # type: ignore
         wandb.log(logging_dict, step=itr)
@@ -200,22 +200,18 @@ class AdvSemiSupervisedAlg(Algorithm):
         if (value := self.max_grad_norm) is not None:
             nn.utils.clip_grad.clip_grad_norm_(parameters, max_norm=value, norm_type=2.0)
 
-    def _update_encoder(self, ae: SplitLatentAe) -> None:
+    def _update_encoder(self, comp: Components) -> None:
         # Clip the norm of the gradients if max_grad_norm is not None
-        self._clip_gradients(ae.parameters())
+        self._clip_gradients(comp.parameters())
         # Update the encoder's parameters
-        ae.step(grad_scaler=self.grad_scaler)
-        if self.predictor_y is not None:
-            self.predictor_y.step(grad_scaler=self.grad_scaler)
-        if self.predictor_s is not None:
-            self.predictor_s.step(grad_scaler=self.grad_scaler)
-
-        ae.zero_grad()
-        if self.predictor_y is not None:
-            self.predictor_y.zero_grad()
-        if self.predictor_s is not None:
-            self.predictor_s.zero_grad()
-
+        comp.ae.step(grad_scaler=self.grad_scaler)
+        comp.ae.zero_grad()
+        if comp.pred_y is not None:
+            comp.pred_y.step(grad_scaler=self.grad_scaler)
+            comp.pred_y.zero_grad()
+        if comp.pred_s is not None:
+            comp.pred_s.step(grad_scaler=self.grad_scaler)
+            comp.pred_s.zero_grad()
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
             self.grad_scaler.update()
 
