@@ -14,6 +14,7 @@ from src.mmd import MMDKernel, mmd2
 from .base import Model
 
 __all__ = [
+    "Discriminator",
     "GanLoss",
     "MmdDiscriminator",
     "NeuralDiscriminator",
