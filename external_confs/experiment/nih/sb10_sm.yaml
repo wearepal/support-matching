@@ -3,7 +3,7 @@
 # usage: +experiment=nih/sb10_sm
 
 defaults:
-    - override /ds: nih
+    - override /ds: nih_gender_cardio
     - override /dm: nih/base
     - override /alg: base
     - override /clust: none
@@ -13,6 +13,7 @@ defaults:
     - override /disc: base
     - override /disc_arch: kvq
     - override /wandb: base
+    - _self_
 
 dm:
     batch_size_tr: 12

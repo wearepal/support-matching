@@ -1,4 +1,3 @@
-from __future__ import annotations
 from dataclasses import dataclass
 import os
 from typing import Any, Dict, Optional, Union
@@ -12,8 +11,8 @@ from ranzen.torch import random_seed
 import torch
 import wandb
 
-from src.data import DataModule, DataModuleConf
 from src.data.common import process_data_dir
+from src.data.data_module import DataModule, DataModuleConf
 
 __all__ = ["BaseRelay"]
 

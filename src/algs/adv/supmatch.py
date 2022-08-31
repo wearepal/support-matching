@@ -1,6 +1,6 @@
-from __future__ import annotations
 from collections.abc import Iterator
 from dataclasses import dataclass
+from typing import Dict, Optional, Tuple
 from typing_extensions import Self
 
 from conduit.data.structures import NamedSample, TernarySample
@@ -20,7 +20,7 @@ from .evaluator import Evaluator
 __all__ = ["SupportMatching"]
 
 
-@dataclass
+@dataclass(eq=False)
 class SupportMatching(AdvSemiSupervisedAlg):
     prior_loss_w: float = 0
     s_as_zs: bool = False
@@ -28,7 +28,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
     @implements(AdvSemiSupervisedAlg)
     def _get_data_iterators(
         self, dm: DataModule
-    ) -> tuple[Iterator[TernarySample[Tensor]], Iterator[NamedSample[Tensor]]]:
+    ) -> Tuple[Iterator[TernarySample[Tensor]], Iterator[NamedSample[Tensor]]]:
         if (self.disc_loss_w > 0) or (self.num_disc_updates > 0):
             if (dm.deployment_ids is None) and (not dm.gt_deployment):
                 logger.warning(
@@ -49,7 +49,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         *,
         iterator_tr: Iterator[TernarySample[Tensor]],
         iterator_dep: Iterator[NamedSample[Tensor]],
-    ) -> tuple[Tensor, dict[str, float]]:
+    ) -> Tuple[Tensor, Dict[str, float]]:
         """Train the discriminator while keeping the encoder fixed."""
         if isinstance(comp.disc, NeuralDiscriminator):
             comp.train_disc()
@@ -73,7 +73,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
     @implements(AdvSemiSupervisedAlg)
     def _encoder_loss(
         self, comp: Components, *, x_dep: Tensor, batch_tr: TernarySample[Tensor], warmup: bool
-    ) -> tuple[Tensor, dict[str, float]]:
+    ) -> Tuple[Tensor, Dict[str, float]]:
         """Compute the losses for the encoder and update its parameters."""
         # Compute losses for the encoder.
         comp.train_ae()
@@ -115,9 +115,11 @@ class SupportMatching(AdvSemiSupervisedAlg):
             if comp.pred_y is not None:
                 # predictor is on encodings; predict y from the part that is invariant to s
                 pred_y_loss, pred_y_acc = comp.pred_y.training_step(
-                    encoding_t.zy,
-                    target=batch_tr.y,
-                    group_idx=batch_tr.s,
+                    TernarySample(
+                        x=encoding_t.zy,
+                        y=batch_tr.y,
+                        s=batch_tr.s,
+                    )
                 )
                 pred_y_loss *= self.pred_y_loss_w
                 logging_dict["Loss Predictor y"] = pred_y_loss.detach().cpu().item()
@@ -125,9 +127,11 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 total_loss += pred_y_loss
             if comp.pred_s is not None:
                 pred_s_loss, pred_s_acc = comp.pred_s.training_step(
-                    encoding_t.zs,
-                    target=batch_tr.s,
-                    group_idx=batch_tr.s,
+                    TernarySample(
+                        x=encoding_t.zs,
+                        y=batch_tr.s,
+                        s=batch_tr.s,
+                    )
                 )
                 pred_s_loss *= self.pred_s_loss_w
                 logging_dict["Loss Predictor s"] = pred_s_loss.detach().cpu().item()
@@ -150,7 +154,13 @@ class SupportMatching(AdvSemiSupervisedAlg):
     @torch.no_grad()
     @implements(AdvSemiSupervisedAlg)
     def log_recons(
-        self, x: Tensor, *, dm: DataModule, ae: SplitLatentAe, itr: int, prefix: str | None = None
+        self,
+        x: Tensor,
+        *,
+        dm: DataModule,
+        ae: SplitLatentAe,
+        itr: int,
+        prefix: Optional[str] = None,
     ) -> None:
         """Log the reconstructed and original images."""
         num_blocks = min(4, len(x))

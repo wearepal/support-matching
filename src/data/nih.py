@@ -65,9 +65,11 @@ class NIHChestXRayDataset(CdtVisionDataset):
         transform: Optional[ImageTform] = None,
     ) -> None:
         self.root = Path(root)
+        self.sens_attr = sens_attr
+        self.target_attr = target_attr
         self.metadata = cast(pd.DataFrame, pd.read_csv(self.root / "Data_Entry_2017.csv"))
         # In the case of Patient Gender, factorize yields the mapping: M -> 0, F -> 1
-        s = torch.as_tensor(self.metadata[sens_attr.value].factorize()[0], dtype=torch.long)
+        s = torch.as_tensor(self.metadata[self.sens_attr.value].factorize()[0], dtype=torch.long)
         findings_str = self.metadata["Finding Labels"].str.split("|")
         self.encoder = MultiLabelBinarizer().fit(findings_str)
         findings_ml = pd.DataFrame(
@@ -75,8 +77,8 @@ class NIHChestXRayDataset(CdtVisionDataset):
         )
         findings_ml.drop("No Finding", axis=1, inplace=True)
         self.metadata = pd.concat((self.metadata, findings_ml), axis=1)
-        if target_attr is not None:
-            findings_ml = findings_ml[target_attr.value]
+        if self.target_attr is not None:
+            findings_ml = findings_ml[self.target_attr.value]
         y = torch.as_tensor(findings_ml.to_numpy(), dtype=torch.long)
         image_index_flat = self.root.glob("*/*/*")
         self.metadata["Image Index"] = sorted(list(image_index_flat))

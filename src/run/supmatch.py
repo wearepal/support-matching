@@ -43,17 +43,17 @@ def main() -> None:
         ae=[Option(SplitLatentAe, name="base")],
         ae_arch=ae_arch_ops,
         alg=[Option(SupportMatching, name="base")],
-        clear_cache=True,
         clust=clust_ops,
         disc=[Option(NeuralDiscriminator, name="base")],
         disc_arch=disc_arch_ops,
         dm=[Option(DataModuleConf, name="base")],
         ds=ds_ops,
         eval=[Option(Evaluator, name="base")],
-        instantiate_recursively=False,
-        root="conf",
         split=[Option(DataSplitter, name="base")],
         wandb=[Option(WandbConf, name="base")],
+        instantiate_recursively=False,
+        clear_cache=True,
+        root="conf",
     )
 
 

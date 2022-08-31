@@ -6,7 +6,7 @@ from typing_extensions import Self
 from conduit.data.structures import TernarySample
 from conduit.metrics import accuracy
 import numpy as np
-from omegaconf import DictConfig
+from omegaconf import DictConfig, MISSING
 from ranzen import gcopy, implements
 from ranzen.torch.loss import ReductionType
 import torch
@@ -230,7 +230,7 @@ class LossComputer(nn.Module):
 
 @dataclass(eq=False)
 class GdroClassifier(Classifier):
-    criterion: LossComputer
+    criterion: LossComputer = MISSING
 
     @implements(Classifier)
     def training_step(self, batch: TernarySample, *, pred_s: bool = False) -> tuple[Tensor, float]:
