@@ -1,7 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Tuple, Union, overload, Optional
-from torch.cuda.amp.grad_scaler import GradScaler
+from typing import Optional, Tuple, Union, overload
 from typing_extensions import Literal
 
 from conduit.data.datasets.utils import CdtDataLoader
@@ -13,6 +12,7 @@ from ranzen.torch.loss import CrossEntropyLoss
 from ranzen.torch.utils import inf_generator
 import torch
 from torch import Tensor
+from torch.cuda.amp.grad_scaler import GradScaler
 from tqdm import trange
 
 from .base import Model
@@ -84,12 +84,7 @@ class Classifier(Model):
         else:
             return preds, actual, sens
 
-    def training_step(
-        self,
-        batch: TernarySample,
-        *,
-        pred_s: bool = False
-    ) -> tuple[Tensor, float]:
+    def training_step(self, batch: TernarySample, *, pred_s: bool = False) -> tuple[Tensor, float]:
         target = batch.s if pred_s else batch.y
         logits = self.forward(batch.x)
         loss = self.criterion(input=logits, target=target)

@@ -1,4 +1,9 @@
 from __future__ import annotations
+
+import torch
+from torch import Tensor
+import torch.nn as nn
+
 # from typing_extensions import Self
 
 # from dataclasses import dataclass
@@ -9,9 +14,6 @@ from __future__ import annotations
 # from conduit.data.structures import TernarySample
 # from .base import Algorithm
 
-import torch
-from torch import Tensor
-import torch.nn as nn
 
 __all__ = ["LabelEma"]
 
@@ -21,7 +23,7 @@ class LabelEma(nn.Module):
     parameter: Tensor
     updated: Tensor
 
-    def __init__(self, labels: Tensor, *, alpha: float =0.9) -> None:
+    def __init__(self, labels: Tensor, *, alpha: float = 0.9) -> None:
         self.alpha = alpha
         self.register_buffer("labels", labels.flatten())
         self.register_buffer("parameter", torch.zeros(labels.size(0)))
@@ -36,6 +38,7 @@ class LabelEma(nn.Module):
     def max_loss(self, label: int) -> Tensor:
         label_index = self.labels == label
         return self.parameter[label_index].max()
+
 
 # class IndexDataset(Dataset):
 #     def __init__(self, dataset: Dataset):

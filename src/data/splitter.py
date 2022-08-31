@@ -1,17 +1,12 @@
 from __future__ import annotations
-from conduit.data.constants import IMAGENET_STATS
 from dataclasses import dataclass
-from conduit.data.datasets.utils import (
-    ImageTform,
-    PillowTform,
-    stratified_split,
-)
-import torchvision.transforms as T
 from typing import Any, Dict, Optional, cast
-from conduit.data.datasets.utils import stratified_split
-from conduit.data.datasets import CdtVisionDataset
 
+from conduit.data.constants import IMAGENET_STATS
+from conduit.data.datasets import CdtVisionDataset
+from conduit.data.datasets.utils import ImageTform, PillowTform, stratified_split
 from loguru import logger
+import torchvision.transforms as T
 
 from .common import D, TrainDepSplit
 

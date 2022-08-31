@@ -1,10 +1,8 @@
 from __future__ import annotations
-import numpy as np
-from torch import Tensor
-from typing_extensions import Self
-from dataclasses import dataclass
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
+from typing_extensions import Self
 
 from conduit import metrics as cdtm
 from conduit.models.utils import prefix_keys
@@ -12,8 +10,10 @@ import ethicml as em
 import ethicml.metrics as emm
 from ethicml.utility.data_structures import LabelTuple
 from loguru import logger
+import numpy as np
 import pandas as pd
 import torch
+from torch import Tensor
 import wandb
 
 __all__ = [
@@ -22,18 +22,22 @@ __all__ = [
     "write_results_to_csv",
 ]
 
+
 @dataclass
 class EvalPair:
     pred: em.Prediction
     actual: LabelTuple
 
     @classmethod
-    def from_tensors(cls, y_pred: Tensor, *, y_true: Tensor, s: Tensor, pred_s: bool = False) -> Self:
+    def from_tensors(
+        cls, y_pred: Tensor, *, y_true: Tensor, s: Tensor, pred_s: bool = False
+    ) -> Self:
         pred = em.Prediction(hard=pd.Series(y_pred))
         sens_pd = pd.Series(s.detach().cpu().numpy().astype(np.float32), name="subgroup")
         labels_pd = pd.Series(y_true.detach().cpu().numpy(), name="labels")
         actual = LabelTuple.from_df(s=sens_pd, y=sens_pd if pred_s else labels_pd)
         return cls(pred=pred, actual=actual)
+
 
 @torch.no_grad()
 def compute_metrics(

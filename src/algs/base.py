@@ -1,15 +1,15 @@
 from __future__ import annotations
-import torch.nn as nn
 from abc import abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Optional, Iterator
+from typing import Any, Iterator, Optional
 from typing_extensions import Self
-from torch.nn.parameter import Parameter
 
 from loguru import logger
 from ranzen.torch.module import DcModule
 import torch
 from torch.cuda.amp.grad_scaler import GradScaler
+import torch.nn as nn
+from torch.nn.parameter import Parameter
 
 from src.data import DataModule, resolve_device
 

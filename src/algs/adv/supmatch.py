@@ -1,10 +1,10 @@
 from __future__ import annotations
 from collections.abc import Iterator
-from loguru import logger
 from dataclasses import dataclass
 from typing_extensions import Self
 
 from conduit.data.structures import NamedSample, TernarySample
+from loguru import logger
 from ranzen import implements
 import torch
 from torch import Tensor

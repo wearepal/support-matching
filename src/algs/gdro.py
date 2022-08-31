@@ -1,23 +1,23 @@
 from __future__ import annotations
-from src.evaluation.metrics import compute_metrics, EvalPair
-from conduit.data.structures import TernarySample
-from typing_extensions import Self
-from ranzen import gcopy
-from src.data import DataModule, group_id_to_label
 from dataclasses import dataclass, field
-from .base import Algorithm
 from typing import Callable, Optional, Tuple
+from typing_extensions import Self
 
+from conduit.data.structures import TernarySample
 from conduit.metrics import accuracy
 import numpy as np
-from ranzen import implements
+from omegaconf import DictConfig
+from ranzen import gcopy, implements
 from ranzen.torch.loss import ReductionType
 import torch
 from torch import Tensor
 import torch.nn as nn
 
-from omegaconf import DictConfig
+from src.data import DataModule, group_id_to_label
+from src.evaluation.metrics import EvalPair, compute_metrics
 from src.models import Classifier, Optimizer
+
+from .base import Algorithm
 
 __all__ = [
     "Gdro",
@@ -228,19 +228,12 @@ class LossComputer(nn.Module):
         self.avg_acc = group_frac @ self.avg_group_acc
 
 
-
 @dataclass(eq=False)
 class GdroClassifier(Classifier):
     criterion: LossComputer
 
-
     @implements(Classifier)
-    def training_step(
-        self,
-        batch: TernarySample,
-        *,
-        pred_s: bool = False
-    ) -> tuple[Tensor, float]:
+    def training_step(self, batch: TernarySample, *, pred_s: bool = False) -> tuple[Tensor, float]:
         target = batch.s if pred_s else batch.y
         logits = self.forward(batch.x)
         loss = self.criterion(input=logits, target=target, group_idx=batch.y)
@@ -248,6 +241,7 @@ class GdroClassifier(Classifier):
         acc = accuracy(y_pred=logits, y_true=target).cpu().item()
 
         return loss, acc
+
 
 @dataclass(eq=False)
 class Gdro(Algorithm):
@@ -266,10 +260,8 @@ class Gdro(Algorithm):
     optimizer_kwargs: Optional[DictConfig] = None
     optimizer: torch.optim.Optimizer = field(init=False)
 
-
     @implements(Algorithm)
-    def run(
-        self, dm: DataModule, *, model: nn.Module) -> Self:
+    def run(self, dm: DataModule, *, model: nn.Module) -> Self:
         dm = gcopy(dm, deep=False)
         s_count = dm.card_s
         if dm.deployment_ids is not None:
