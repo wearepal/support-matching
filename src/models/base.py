@@ -30,7 +30,6 @@ class Model(DcModule):
     optimizer: torch.optim.Optimizer = field(init=False)
 
     def __post_init__(self) -> None:
-
         optimizer_config = DictConfig({"weight_decay": self.weight_decay, "lr": self.lr})
         if self.optimizer_kwargs is not None:
             optimizer_config.update(self.optimizer_kwargs)

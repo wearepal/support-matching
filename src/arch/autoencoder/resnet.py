@@ -7,7 +7,7 @@ import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
 
-from .base import AeFactory, AeFactoryOut
+from .base import AeFactory, AePair
 
 __all__ = ["ResNetAE"]
 
@@ -432,9 +432,7 @@ class ResNetAE(AeFactory):
     maxpool1: bool = False
 
     @implements(AeFactory)
-    def __call__(
-        self, input_shape: tuple[int, int, int]
-    ) -> AeFactoryOut[ResNetEncoder, ResNetDecoder]:
+    def __call__(self, input_shape: tuple[int, int, int]) -> AePair[ResNetEncoder, ResNetDecoder]:
         if self.version is ResNetVersion.RN18:
             enc_fn = resnet18_encoder
             dec_fn = resnet18_decoder
@@ -452,4 +450,8 @@ class ResNetAE(AeFactory):
             first_conv=self.first_conv,
             maxpool1=self.maxpool1,
         )
-        return encoder, decoder, self.latent_dim
+        return AePair(
+            encoder=encoder,
+            decoder=decoder,
+            latent_dim=self.latent_dim,
+        )

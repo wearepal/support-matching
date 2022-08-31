@@ -4,13 +4,13 @@ from enum import Enum, auto
 from typing import Callable, Dict, List, Optional, Tuple, Union, cast
 from typing_extensions import Literal, Self
 
-from omegaconf import MISSING
 from ranzen import implements
 import torch
 from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
 
+from src.arch.autoencoder import AePair
 from src.discrete import discretize, round_ste, sample_concrete
 from src.loss import MixedLoss
 from src.models.base import Model
@@ -101,25 +101,21 @@ class ZsTransform(Enum):
 
 @dataclass(eq=False)
 class SplitLatentAe(Model):
-    encoder: nn.Module = MISSING
-    decoder: nn.Module = MISSING
     # Make latent dim a dummy optional type for compatibility
     # with hydra
-    latent_dim: Optional[int] = MISSING
+    model: AePair
     zs_dim: Union[int, float] = 1
     zs_transform: ZsTransform = ZsTransform.none
     feature_group_slices: Optional[Dict[str, List[slice]]] = None
     recon_loss: ReconstructionLoss = ReconstructionLoss.l2
-    model: nn.Module = field(init=False)
     recon_loss_fn: Callable[[Tensor, Tensor], Tensor] = field(init=False)
 
     def __post_init__(self) -> None:
         assert self.latent_dim is not None
         zs_dim_t = self.zs_dim
         if isinstance(zs_dim_t, float):
-            zs_dim_t = round(self.zs_dim * self.latent_dim)
-        self.encoding_size = EncodingSize(zs=zs_dim_t, zy=self.latent_dim - zs_dim_t)
-        self.model = nn.Sequential(self.encoder, self.decoder)
+            zs_dim_t = round(self.zs_dim * self.model.latent_dim)
+        self.encoding_size = EncodingSize(zs=zs_dim_t, zy=self.model.latent_dim - zs_dim_t)
 
         if self.recon_loss is ReconstructionLoss.mixed:
             if self.feature_group_slices is None:
@@ -132,7 +128,7 @@ class SplitLatentAe(Model):
         super().__post_init__()
 
     def encode(self, inputs: Tensor, *, transform_zs: bool = True) -> SplitEncoding:
-        enc = self._split_encoding(self.encoder(inputs))
+        enc = self._split_encoding(self.model.encoder(inputs))
         if transform_zs and self.zs_transform is ZsTransform.round_ste:
             rounded_zs = round_ste(torch.sigmoid(enc.zs))
         else:
@@ -154,7 +150,7 @@ class SplitLatentAe(Model):
                 s = s.view(-1, 1)
             split_encoding = replace(split_encoding, zs=s.float())
 
-        decoding = self.decoder(split_encoding.join())
+        decoding = self.model.decoder(split_encoding.join())
         if mode in ("hard", "relaxed") and self.feature_group_slices:
             discrete_outputs_ls: list[Tensor] = []
             stop_index = 0

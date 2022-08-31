@@ -1,20 +1,20 @@
 from __future__ import annotations
-from torch.cuda.amp.grad_scaler import GradScaler
 from abc import abstractmethod
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
 from typing_extensions import Self
 
 from loguru import logger
 from ranzen.torch.module import DcModule
 import torch
+from torch.cuda.amp.grad_scaler import GradScaler
 
 from src.data import DataModule, resolve_device
 
 __all__ = ["Algorithm"]
 
 
-@dataclass
+@dataclass(eq=False)
 class Algorithm(DcModule):
     """Base class for algorithms."""
 
@@ -32,13 +32,13 @@ class Algorithm(DcModule):
         logger.info(f"{torch.cuda.device_count()} GPUs available. Using device '{self.device}'")
 
     @abstractmethod
-    def fit(self, dm: DataModule) -> Self:
+    def fit(self, dm: DataModule, **kwargs: Any) -> Self:
         ...
 
-    def run(self, dm: DataModule) -> Self:
+    def run(self, dm: DataModule, **kwargs: Any) -> Self:
         """Loads the data and fits and evaluates the model."""
         # Fit the model to the data
-        self.fit(dm=dm)
+        self.fit(dm=dm, **kwargs)
         # finish logging for the current run
         run.finish()  # type: ignore
         return self

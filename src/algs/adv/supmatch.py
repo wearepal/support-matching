@@ -10,9 +10,11 @@ from torch import Tensor
 
 from src.data.data_module import DataModule
 from src.logging import log_images
-from src.models.discriminator import NeuralDiscriminator
+from src.models.autoencoder import SplitLatentAe
+from src.models.discriminator import Discriminator, NeuralDiscriminator
 
-from .base import AdvSemiSupervisedAlg
+from .base import AdvSemiSupervisedAlg, Components
+from .evaluator import Evaluator
 
 __all__ = ["SupportMatching"]
 
@@ -24,23 +26,24 @@ class SupportMatching(AdvSemiSupervisedAlg):
     @implements(AdvSemiSupervisedAlg)
     def _discriminator_loss(
         self,
-        iterator_tr: Iterator[TernarySample[Tensor]],
+        comp: Components,
         *,
+        iterator_tr: Iterator[TernarySample[Tensor]],
         iterator_dep: Iterator[NamedSample[Tensor]],
     ) -> tuple[Tensor, dict[str, float]]:
         """Train the discriminator while keeping the encoder fixed."""
-        if isinstance(self.disc, NeuralDiscriminator):
-            self._train("discriminator")
+        if isinstance(comp.disc, NeuralDiscriminator):
+            comp.train_disc()
             x_tr = self._sample_tr(iterator_tr).x
             x_dep = self._sample_dep(iterator_dep)
 
             with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):  # type: ignore
                 with torch.no_grad():
-                    encoding_tr = self.ae.encode(x_tr)
-                    encoding_dep = self.ae.encode(x_dep)
+                    encoding_tr = comp.ae.encode(x_tr)
+                    encoding_dep = comp.ae.encode(x_dep)
 
                 logging_dict = {}
-                disc_loss = self.disc.discriminator_loss(
+                disc_loss = comp.disc.discriminator_loss(
                     fake=encoding_tr.zy,
                     real=encoding_dep.zy,
                 )
@@ -50,23 +53,23 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
     @implements(AdvSemiSupervisedAlg)
     def _encoder_loss(
-        self, x_dep: Tensor, *, batch_tr: TernarySample[Tensor], warmup: bool
+        self, comp: Components, *, x_dep: Tensor, batch_tr: TernarySample[Tensor], warmup: bool
     ) -> tuple[Tensor, dict[str, float]]:
         """Compute the losses for the encoder and update its parameters."""
         # Compute losses for the encoder.
-        self._train("encoder")
+        comp.train_ae()
         logging_dict = {}
 
         with torch.cuda.amp.autocast(enabled=self.misc_cfg.use_amp):  # type: ignore
             # ============================= recon loss for training set ===========================
-            encoding_t, enc_loss_tr, logging_dict_tr = self.ae.training_step(
+            encoding_t, enc_loss_tr, logging_dict_tr = comp.ae.training_step(
                 batch_tr.x,
                 prior_loss_w=self.prior_loss_w,
                 s=batch_tr.s if self.s_as_zs else None,  # using s for the reconstruction
             )
 
             # ============================ recon loss for deployment set ===========================
-            encoding_c, enc_loss_dep, logging_dict_dep = self.ae.training_step(
+            encoding_c, enc_loss_dep, logging_dict_dep = comp.ae.training_step(
                 x_dep, prior_loss_w=self.prior_loss_w
             )
             logging_dict.update({k: v + logging_dict_dep[k] for k, v in logging_dict_tr.items()})
@@ -77,22 +80,22 @@ class SupportMatching(AdvSemiSupervisedAlg):
             # ================================= adversarial losses ================================
             if not warmup:
                 disc_input_tr = encoding_t.zy
-                disc_input_dep = None
-                if self.twoway_disc_loss:
-                    disc_input_dep = encoding_c.zy
-
-                if isinstance(self.disc, NeuralDiscriminator):
-                    disc_loss = self.disc.encoder_loss(fake=disc_input_tr, real=disc_input_dep)
-
+                if isinstance(comp.disc, NeuralDiscriminator):
+                    disc_input_dep = encoding_c.zy if self.two_disc_loss else None
+                    disc_loss = comp.disc.encoder_loss(fake=disc_input_tr, real=disc_input_dep)
                 else:
-                    disc_loss = self.disc(fake=disc_input_tr, real=disc_input_dep)
+                    disc_input_dep = encoding_c.zy
+                    if not self.twoway_disc_loss:
+                        disc_input_dep = disc_input_dep.detach()
+                    disc_loss = comp.disc.encoder_loss(fake=disc_input_tr, real=disc_input_dep)
+
                 disc_loss *= self.disc_loss_w
                 total_loss += disc_loss
                 logging_dict["Loss Discriminator"] = disc_loss.detach().cpu().item()
 
-            if self.predictor_y is not None:
+            if comp.pred_y is not None:
                 # predictor is on encodings; predict y from the part that is invariant to s
-                pred_y_loss, pred_y_acc = self.predictor_y.training_step(
+                pred_y_loss, pred_y_acc = comp.pred_y.training_step(
                     encoding_t.zy,
                     target=batch_tr.y,
                     group_idx=batch_tr.s,
@@ -101,8 +104,8 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 logging_dict["Loss Predictor y"] = pred_y_loss.detach().cpu().item()
                 logging_dict["Accuracy Predictor y"] = pred_y_acc
                 total_loss += pred_y_loss
-            if self.predictor_s is not None:
-                pred_s_loss, pred_s_acc = self.predictor_s.training_step(
+            if comp.pred_s is not None:
+                pred_s_loss, pred_s_acc = comp.pred_s.training_step(
                     encoding_t.zs,
                     target=batch_tr.s,
                     group_idx=batch_tr.s,
@@ -117,23 +120,27 @@ class SupportMatching(AdvSemiSupervisedAlg):
         return total_loss, logging_dict
 
     @implements(AdvSemiSupervisedAlg)
-    def fit(self, dm: DataModule) -> Self:
+    def fit(
+        self, dm: DataModule, *, ae: SplitLatentAe, disc: Discriminator, evaluator: Evaluator
+    ) -> Self:
         if self.s_as_zs and self.zs_dim != dm.card_s:
             raise ValueError(f"zs_dim has to be equal to s_dim ({dm.card_s}) if `s_as_zs` is True.")
 
-        return super().fit(dm=dm)
+        return super().fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
 
     @torch.no_grad()
     @implements(AdvSemiSupervisedAlg)
-    def log_recons(self, x: Tensor, *, dm: DataModule, itr: int, prefix: str | None = None) -> None:
+    def log_recons(
+        self, x: Tensor, *, dm: DataModule, ae: SplitLatentAe, itr: int, prefix: str | None = None
+    ) -> None:
         """Log the reconstructed and original images."""
         num_blocks = min(4, len(x))
         rows_per_block = min(8, len(x) // num_blocks)
         num_samples = num_blocks * rows_per_block
 
         sample = x[:num_samples]
-        encoding = self.ae.encode(sample)
-        recon = self.ae.all_recons(encoding, mode="hard")
+        encoding = ae.encode(sample)
+        recon = ae.all_recons(encoding, mode="hard")
         recons = [recon.all, recon.zero_s, recon.just_s]
 
         caption = "original | all | zero_s | just_s"

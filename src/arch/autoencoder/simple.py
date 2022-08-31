@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from ranzen import implements
 import torch.nn as nn
 
-from .base import AeFactory, AeFactoryOut
+from .base import AeFactory, AePair
 
 __all__ = ["SimpleConvAE"]
 
@@ -51,9 +51,7 @@ class SimpleConvAE(AeFactory):
     init_chans: int = 32
 
     @implements(AeFactory)
-    def __call__(
-        self, input_shape: tuple[int, int, int]
-    ) -> AeFactoryOut[nn.Sequential, nn.Sequential]:
+    def __call__(self, input_shape: tuple[int, int, int]) -> AePair[nn.Sequential, nn.Sequential]:
         encoder_ls: list[nn.Module] = []
         decoder_ls: list[nn.Module] = []
         c_in, height, width = input_shape
@@ -103,4 +101,8 @@ class SimpleConvAE(AeFactory):
         encoder = nn.Sequential(*encoder_ls)
         decoder = nn.Sequential(*decoder_ls)
 
-        return encoder, decoder, self.latent_dim
+        return AePair(
+            encoder=encoder,
+            decoder=decoder,
+            latent_dim=self.latent_dim,
+        )

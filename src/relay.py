@@ -14,10 +14,14 @@ import torch
 import wandb
 
 from src.algs import SupportMatching
+from src.algs.adv import Evaluator
+from src.arch.autoencoder import AePair
 from src.clustering.pipeline import ClusteringPipeline
 from src.configs.classes import DataModuleConf
 from src.data import DataModule
 from src.data.common import process_data_dir
+from src.models import SplitLatentAe
+from src.models.discriminator import NeuralDiscriminator
 
 __all__ = ["SupMatchRelay"]
 
@@ -66,27 +70,8 @@ class SupMatchRelay(Relay):
             )
             self.wandb["group"] = default_group
         run = instantiate(self.wandb, _partial_=True)(config=raw_config, reinit=True)
-        # === Initialise the components ===
-        encoder, decoder, latent_dim = instantiate(self.ae_arch)(input_shape=dm.dim_x)
-        ae = instantiate(self.ae, _partial_=True)(
-            encoder=encoder,
-            decoder=decoder,
-            feature_group_slices=dm.feature_group_slices,
-        )
-        logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
-
-        disc_net = instantiate(self.disc_arch)(
-            input_dim=latent_dim,
-            target_dim=1,
-            batch_size=dm.batch_size_tr,
-        )
-        disc = instantiate(self.disc, model=disc_net)
         # === Initialise the debiaser ===
-        alg: SupportMatching = instantiate(self.alg, _partial_=True)(
-            ae=ae,
-            disc=disc,
-            evaluator=instantiate(self.eval),
-        )
+        alg: SupportMatching = instantiate(self.alg)
         # === Cluster if not using the ground-truth labels for balancing ===
         if not dm.gt_deployment:
             # === Fit and evaluate the clusterer ===
@@ -96,6 +81,21 @@ class SupMatchRelay(Relay):
                 # Set both phases to use the same device for convenience
                 clusterer.gpu = alg.gpu  # type: ignore
             dm.deployment_ids = clusterer.run(dm=dm)
+        # === Initialise the components ===
+        ae_pair: AePair = instantiate(self.ae_arch)(input_shape=dm.dim_x)
+        ae: SplitLatentAe = instantiate(self.ae, _partial_=True)(
+            model=ae_pair,
+            feature_group_slices=dm.feature_group_slices,
+        )
+        logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
+
+        disc_net = instantiate(self.disc_arch)(
+            input_dim=ae.encoding_size.zy,
+            target_dim=1,
+            batch_size=dm.batch_size_tr,
+        )
+        evaluator: Evaluator = instantiate(self.eval)
+        disc: NeuralDiscriminator = instantiate(self.disc, model=disc_net)
         # === Train and evaluate the debiaser ===
-        alg.run(dm=dm)
+        alg.run(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
         run.finish()  # type: ignore
