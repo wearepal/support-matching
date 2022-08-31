@@ -1,12 +1,12 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Any, List, Protocol
+from typing import List, Protocol
 
 from ranzen import implements
 from ranzen.torch import DcModule
 import torch
-from torch import Tensor, nn
+from torch import Tensor
 import torch.nn.functional as F
 
 from src.mmd import MMDKernel, mmd2
@@ -59,24 +59,11 @@ class GanLoss(Enum):
     LOGISTIC_S = auto()
 
 
+@dataclass(eq=False)
 class NeuralDiscriminator(Discriminator, Model):
-    def __init__(
-        self,
-        model: nn.Module,
-        *,
-        lr: float = 5.0e-4,
-        optimizer_cls: str = "torch.optim.AdamW",
-        criterion: GanLoss = GanLoss.LOGISTIC_NS,
-        optimizer_kwargs: dict[str, Any] | None = None,
-    ) -> None:
-        super().__init__(
-            model=model,
-            lr=lr,
-            optimizer_cls=optimizer_cls,
-            optimizer_kwargs=optimizer_kwargs,
-        )
-        self.criterion = criterion
+    criterion: GanLoss = GanLoss.LOGISTIC_NS
 
+    @implements(Discriminator)
     def discriminator_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
         real_scores = self.model(real)
         fake_scores = self.model(fake)
@@ -88,8 +75,7 @@ class NeuralDiscriminator(Discriminator, Model):
             loss_real = F.softplus(-real_scores)
             loss_fake = F.softplus(fake_scores)
             return loss_real.mean() + loss_fake.mean()
-        else:  # WGAN Loss is just the difference between the mean scores for the real and fake data
-            return real_scores.mean() - fake_scores.mean()
+        return real_scores.mean() - fake_scores.mean()
 
     @implements(Discriminator)
     def encoder_loss(self, fake: Tensor, *, real: Tensor | None) -> Tensor:
@@ -105,8 +91,8 @@ class NeuralDiscriminator(Discriminator, Model):
         elif self.criterion is GanLoss.LOGISTIC_NS:
             loss += F.softplus(-fake_scores).mean()
             if real_scores is not None:
-                loss -= F.softplus(-real_scores).mean()  # log(sigmoid(real_scores_out))
-        else:  # WGAN Loss is just the difference between the scores for the fake and real data
+                loss -= F.softplus(-real_scores).mean()
+        else:
             loss += fake_scores.mean()
             if real_scores is not None:
                 loss -= real_scores.mean()

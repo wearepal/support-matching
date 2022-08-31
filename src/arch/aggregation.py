@@ -10,7 +10,6 @@ from torch import Tensor, nn
 from torch.nn.parameter import Parameter
 
 from src.arch.common import Activation
-from src.arch.predictors.fcn import Fcn, NormType
 
 __all__ = [
     "BatchAggregator",

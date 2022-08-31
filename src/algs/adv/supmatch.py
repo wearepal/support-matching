@@ -78,7 +78,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
             if not warmup:
                 disc_input_tr = encoding_t.zy
                 disc_input_dep = None
-                if self.bidirectional_disc_loss:
+                if self.twoway_disc_loss:
                     disc_input_dep = encoding_c.zy
 
                 if isinstance(self.disc, NeuralDiscriminator):

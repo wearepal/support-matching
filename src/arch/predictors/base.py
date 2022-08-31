@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Tuple, TypeVar
+from typing import Any, Tuple, TypeVar
 from typing_extensions import TypeAlias
 
 import torch.nn as nn
@@ -15,5 +15,5 @@ PredictorFactoryOut: TypeAlias = Tuple[M, int]
 
 @dataclass
 class PredictorFactory:
-    def __call__(self, input_dim: int, *, target_dim: int) -> PredictorFactoryOut:
+    def __call__(self, input_dim: int, *, target_dim: int, **kwargs: Any) -> PredictorFactoryOut:
         ...

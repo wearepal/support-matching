@@ -1,41 +1,50 @@
-from typing import Any, Dict, Optional
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Optional
 
-from hydra.utils import instantiate
 from omegaconf.dictconfig import DictConfig
 from ranzen.decorators import implements
+from ranzen.torch import DcModule
+import torch
 from torch import Tensor
 from torch.cuda.amp.grad_scaler import GradScaler
 import torch.nn as nn
 
+from .utils import exclude_from_weight_decay
+
 __all__ = ["Model"]
 
 
-class Model(nn.Module):
-    def __init__(
-        self,
-        model: nn.Module,
-        *,
-        lr: float = 5.0e-4,
-        optimizer_cls: str = "torch.optim.AdamW",
-        optimizer_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        super().__init__()
-        self.model = model
-        self.lr = lr
-        self.optimizer_kwargs = optimizer_kwargs
-        self.optimizer_cls = optimizer_cls
+class Optimizer(Enum):
+    ADAM = torch.optim.AdamW
+    RADAM = torch.optim.RAdam
 
-        optimizer_config = DictConfig({"_target_": self.optimizer_cls})
+
+@dataclass(eq=False)
+class Model(DcModule):
+    model: nn.Module
+    optimizer_cls: Optimizer = Optimizer.ADAM
+    lr: float = 5.0e-4
+    weight_decay: float = 0
+    optimizer_kwargs: Optional[DictConfig] = None
+    optimizer: torch.optim.Optimizer = field(init=False)
+
+    def __post_init__(self) -> None:
+
+        optimizer_config = DictConfig({"weight_decay": self.weight_decay, "lr": self.lr})
         if self.optimizer_kwargs is not None:
             optimizer_config.update(self.optimizer_kwargs)
-        self.optimizer = instantiate(optimizer_config, params=self.parameters(), lr=self.lr)
 
-    def step(self, grad_scaler: Optional[GradScaler] = None) -> None:
-        if grad_scaler is not None:
-            grad_scaler.step(self.optimizer)
-        else:
-            self.optimizer.step()
+        params = exclude_from_weight_decay(
+            self.named_parameters(), weight_decay=optimizer_config["weight_decay"]
+        )
+        self.optimizer = self.optimizer_cls.value(**optimizer_config, params=params)
 
-    @implements(nn.Module)
+    def step(self, grad_scaler: Optional[GradScaler] = None) -> Optional[float]:
+        if grad_scaler is None:
+            return self.optimizer.step()
+        return grad_scaler.step(self.optimizer)
+
+    @implements(DcModule)
     def forward(self, inputs: Tensor) -> Any:  # type: ignore
         return self.model(inputs)

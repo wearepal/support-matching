@@ -75,8 +75,12 @@ class SupMatchRelay(Relay):
         )
         logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
 
-        disc_net = instantiate(self.disc_arch)(input_dim=latent_dim, target_dim=1)
-        disc = instantiate(self.disc, _partial_=True)(model=disc_net)
+        disc_net = instantiate(self.disc_arch)(
+            input_dim=latent_dim,
+            target_dim=1,
+            batch_size=dm.batch_size_tr,
+        )
+        disc = instantiate(self.disc, model=disc_net)
         # === Initialise the debiaser ===
         alg: SupportMatching = instantiate(self.alg, _partial_=True)(
             ae=ae,

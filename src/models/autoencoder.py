@@ -1,9 +1,10 @@
 from __future__ import annotations
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from enum import Enum, auto
-from typing import Any, Dict, Tuple, cast
+from typing import Callable, Dict, List, Optional, Tuple, Union, cast
 from typing_extensions import Literal, Self
 
+from omegaconf import MISSING
 from ranzen import implements
 import torch
 from torch import Tensor
@@ -15,7 +16,7 @@ from src.loss import MixedLoss
 from src.models.base import Model
 
 __all__ = [
-    "AutoEncoder",
+    "SplitLatentAe",
     "EncodingSize",
     "Model",
     "Reconstructions",
@@ -98,41 +99,37 @@ class ZsTransform(Enum):
     round_ste = auto()
 
 
-class AutoEncoder(Model):
-    def __init__(
-        self,
-        encoder: nn.Module,
-        *,
-        decoder: nn.Module,
-        latent_dim: int,
-        zs_dim: int,
-        zs_transform: ZsTransform = ZsTransform.none,
-        feature_group_slices: Dict[str, list[slice]] | None = None,
-        lr: float = 5.0e-4,
-        optimizer_cls: str = "torch.optim.AdamW",
-        optimizer_kwargs: Dict[str, Any] | None = None,
-        recon_loss_fn: ReconstructionLoss = ReconstructionLoss.l2,
-    ) -> None:
-        self.latent_dim = latent_dim
-        self.encoding_size = EncodingSize(zs=zs_dim, zy=latent_dim - zs_dim)
-        self.feature_group_slices = feature_group_slices
-        self.zs_transform = zs_transform
+@dataclass(eq=False)
+class SplitLatentAe(Model):
+    encoder: nn.Module = MISSING
+    decoder: nn.Module = MISSING
+    # Make latent dim a dummy optional type for compatibility
+    # with hydra
+    latent_dim: Optional[int] = MISSING
+    zs_dim: Union[int, float] = 1
+    zs_transform: ZsTransform = ZsTransform.none
+    feature_group_slices: Optional[Dict[str, List[slice]]] = None
+    recon_loss: ReconstructionLoss = ReconstructionLoss.l2
+    model: nn.Module = field(init=False)
+    recon_loss_fn: Callable[[Tensor, Tensor], Tensor] = field(init=False)
 
-        model = nn.Sequential(encoder, decoder)
-        super().__init__(
-            model=model, lr=lr, optimizer_cls=optimizer_cls, optimizer_kwargs=optimizer_kwargs
-        )
-        self.encoder = encoder
-        self.decoder = decoder
+    def __post_init__(self) -> None:
+        assert self.latent_dim is not None
+        zs_dim_t = self.zs_dim
+        if isinstance(zs_dim_t, float):
+            zs_dim_t = round(self.zs_dim * self.latent_dim)
+        self.encoding_size = EncodingSize(zs=zs_dim_t, zy=self.latent_dim - zs_dim_t)
+        self.model = nn.Sequential(self.encoder, self.decoder)
 
-        if recon_loss_fn is ReconstructionLoss.mixed:
-            if feature_group_slices is None:
+        if self.recon_loss is ReconstructionLoss.mixed:
+            if self.feature_group_slices is None:
                 raise ValueError("'MixedLoss' requires 'feature_group_slices' to be specified.")
-            self.recon_loss_fn = recon_loss_fn.value(
-                reduction="sum", feature_group_slices=feature_group_slices
+            self.recon_loss_fn = self.recon_loss.value(
+                reduction="sum", feature_group_slices=self.feature_group_slices
             )
         else:
-            self.recon_loss_fn = recon_loss_fn.value(reduction="sum")
+            self.recon_loss_fn = self.recon_loss.value(reduction="sum")
+        super().__post_init__()
 
     def encode(self, inputs: Tensor, *, transform_zs: bool = True) -> SplitEncoding:
         enc = self._split_encoding(self.encoder(inputs))

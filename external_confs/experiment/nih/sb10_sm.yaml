@@ -5,30 +5,68 @@
 defaults:
     - override /ds: nih
     - override /dm: nih/base
+    - override /alg: base
+    - override /clust: none
     - override /split: nih/sb
-    - override /enc: nih/rn
+    - override /ae: base
+    - override /ae_arch: resnet
+    - override /disc: base
+    - override /disc_arch: kvq
+    - override /wandb: base
 
 dm:
-    batch_size_tr: 8
+    batch_size_tr: 12
     batch_size_te: 64
     label_noise: 0
     num_samples_per_group_per_bag: 1
-enc:
-    recon_loss_fn: l1
+    gt_deployment: true
 
 alg:
-    iters: 10000
-    balanced_eval: true
-    num_adv_updates: 1
+    steps: 10000
+    num_disc_updates: 5
+    twoway_disc_loss: true
     prior_loss_w: 0
-    log_freq: 250
+    log_freq: 1000
     pred_y_loss_w: 0
     pred_s_loss_w: 0
     warmup_steps: 0
+    max_grad_norm: 5
+
+ae:
+    recon_loss: l1
+    lr: 1.e-4
+    zs_transform: none
+    feature_group_slices: null
+    optimizer_cls: ADAM
+    weight_decay: 0
+    zs_dim: 1
+
+ae_arch:
+    version: RN18
+    latent_dim: 128
+    first_conv: false
+    maxpool1: false
+
+disc:
+    lr: 4.e-4
+    criterion: LOGISTIC_NS
+    optimizer_cls: ADAM
+
+disc_arch:
+    hidden_dim_pre: null
+    hidden_dim_post: null
+    num_hidden_post: 0
+    num_hidden_pre: 0
+    agg_input_dim: null
+    input_norm: true
+    final_bias: true
 
 eval:
-    eval_lr: 1.e-4
-    eval_steps: 5000
+    batch_size: 256
+    balanced_sampling: true
+    lr: 1.e-4
+    steps: 5000
+    num_hidden: 0
 
 wandb:
     group: nih_sb10_sm

@@ -2,7 +2,7 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from functools import partial
-from typing import Optional
+from typing import Any, Optional
 
 from ranzen import implements
 import torch.nn as nn
@@ -47,7 +47,9 @@ class Fcn(PredictorFactory):
         return block
 
     @implements(PredictorFactory)
-    def __call__(self, input_dim: int, *, target_dim: int) -> PredictorFactoryOut[nn.Sequential]:
+    def __call__(
+        self, input_dim: int, *, target_dim: int, **kwargs: Any
+    ) -> PredictorFactoryOut[nn.Sequential]:
         predictor = nn.Sequential(nn.Flatten())
         if self.input_norm and (self.norm is not None):
             predictor.append(self.norm.value(input_dim))
@@ -74,11 +76,10 @@ class Fcn(PredictorFactory):
 
 @dataclass
 class SetFcn(PredictorFactory):
-    batch_size: int
     hidden_dim_pre: Optional[int]
     hidden_dim_post: Optional[int]
-    num_hidden_pre: int
-    num_hidden_post: int
+    num_hidden_pre: int = 2
+    num_hidden_post: int = 2
     agg_input_dim: Optional[int] = None
     activation: Activation = Activation.GELU
     norm: NormType = NormType.LN
@@ -117,13 +118,25 @@ class SetFcn(PredictorFactory):
         )(input_dim, target_dim=target_dim)
 
     @abstractmethod
-    def _aggregator(self, input_dim: int) -> PredictorFactoryOut[BatchAggregator]:
+    def _aggregator(
+        self, input_dim: int, *, batch_size: int
+    ) -> PredictorFactoryOut[BatchAggregator]:
         ...
 
     @implements(PredictorFactory)
-    def __call__(self, input_dim: int, *, target_dim: int) -> PredictorFactoryOut[nn.Sequential]:
+    def __call__(
+        self,
+        input_dim: int,
+        *,
+        target_dim: int,
+        batch_size: int,
+        **kwargs: Any,
+    ) -> PredictorFactoryOut[nn.Sequential]:
         fcn_pre, input_dim = self._pre_agg_fcn(input_dim=input_dim)
-        aggregator, input_dim = self._aggregator(input_dim=input_dim)
+        aggregator, input_dim = self._aggregator(
+            input_dim=input_dim,
+            batch_size=batch_size,
+        )
         fcn_post, target_dim = self._pre_agg_fcn(input_dim=input_dim)
         model = nn.Sequential(fcn_pre, aggregator, fcn_post)
         return model, target_dim
@@ -132,10 +145,12 @@ class SetFcn(PredictorFactory):
 @dataclass
 class GatedSetFcn(SetFcn):
     @implements(SetFcn)
-    def _aggregator(self, input_dim: int) -> PredictorFactoryOut[BatchAggregator]:
+    def _aggregator(
+        self, input_dim: int, *, batch_size: int
+    ) -> PredictorFactoryOut[BatchAggregator]:
         return (
             GatedAggregator(
-                batch_size=self.batch_size,
+                batch_size=batch_size,
                 dim=input_dim,
             ),
             input_dim,
@@ -147,10 +162,12 @@ class KvqSetFcn(SetFcn):
     num_attn_heads: int = 1
 
     @implements(SetFcn)
-    def _aggregator(self, input_dim: int) -> PredictorFactoryOut[BatchAggregator]:
+    def _aggregator(
+        self, input_dim: int, *, batch_size: int
+    ) -> PredictorFactoryOut[BatchAggregator]:
         return (
             KvqAggregator(
-                batch_size=self.batch_size,
+                batch_size=batch_size,
                 dim=input_dim,
                 num_heads=self.num_attn_heads,
             ),

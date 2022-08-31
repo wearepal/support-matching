@@ -1,8 +1,6 @@
 from collections import defaultdict
 from functools import reduce
 from math import gcd
-from pathlib import Path
-import platform
 from typing import DefaultDict, Dict, Generic, Iterable, Iterator, List, Optional, Type
 from typing_extensions import Self
 
@@ -18,7 +16,6 @@ from conduit.data.datasets.utils import (
 )
 from conduit.data.structures import MeanStd, TernarySample
 from conduit.transforms import denormalize
-from hydra.utils import to_absolute_path
 from ranzen.torch.data import (
     BaseSampler,
     BatchSamplerBase,
@@ -51,6 +48,7 @@ class DataModule(Generic[D]):
     deployment: D
     deployment_ids: Optional[Tensor] = None
     test: D
+    split_seed: Optional[int]
 
     # DataLoader settings
     batch_size_tr: int
@@ -81,12 +79,6 @@ class DataModule(Generic[D]):
     @batch_size_te.setter
     def batch_size_te(self, value: Optional[int]) -> None:
         self._batch_size_te = value
-
-    @classmethod
-    def find_data_dir(cls: Type[Self]) -> str:
-        """Find data directory for the current machine based on predefined mappings."""
-        name_of_machine = platform.node()  # name of machine as reported by operating system
-        return cls.DATA_DIRS.get(name_of_machine, to_absolute_path("data"))
 
     @property
     def num_train_samples(self) -> int:
@@ -378,6 +370,7 @@ class DataModule(Generic[D]):
             train=splits.train,
             deployment=splits.deployment,
             test=splits.test,
+            split_seed=splitter.seed,
             **config,  # type: ignore
             deployment_ids=deployment_ids,
         )

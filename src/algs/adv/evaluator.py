@@ -34,7 +34,7 @@ from src.data import (
 )
 from src.evaluation.metrics import compute_metrics
 from src.logging import log_images
-from src.models import AutoEncoder, Classifier, SplitEncoding
+from src.models import Classifier, SplitEncoding, SplitLatentAe
 
 __all__ = [
     "Evaluator",
@@ -69,10 +69,8 @@ def log_sample_images(
 
 
 def _get_classifer_input(
-    dm: DataModule,
-    *,
     encodings: SplitEncoding,
-    encoder: AutoEncoder,
+    *,
     invariant_to: Literal["s", "y"],
 ) -> Tensor:
     zs_m, zy_m = encodings.mask()
@@ -90,7 +88,7 @@ def encode_dataset(
     *,
     dm: DataModule,
     dl: CdtDataLoader[TernarySample],
-    encoder: AutoEncoder,
+    encoder: SplitLatentAe,
     device: str | torch.device,
     invariant_to: Literal["y"] = ...,
 ) -> InvariantDatasets[Dataset, None]:
@@ -102,7 +100,7 @@ def encode_dataset(
     *,
     dm: DataModule,
     dl: CdtDataLoader[TernarySample],
-    encoder: AutoEncoder,
+    encoder: SplitLatentAe,
     device: str | torch.device,
     invariant_to: Literal["s"] = ...,
 ) -> InvariantDatasets[None, Dataset]:
@@ -114,7 +112,7 @@ def encode_dataset(
     *,
     dm: DataModule,
     dl: CdtDataLoader[TernarySample],
-    encoder: AutoEncoder,
+    encoder: SplitLatentAe,
     device: str | torch.device,
     invariant_to: Literal["both"],
 ) -> InvariantDatasets[Dataset, Dataset]:
@@ -125,7 +123,7 @@ def encode_dataset(
     *,
     dm: DataModule,
     dl: CdtDataLoader[TernarySample],
-    encoder: AutoEncoder,
+    encoder: SplitLatentAe,
     device: str | torch.device,
     invariant_to: InvariantAttr = "s",
 ) -> InvariantDatasets:
@@ -150,9 +148,7 @@ def encode_dataset(
             if invariant_to in ("s", "both"):
                 all_inv_s.append(
                     _get_classifer_input(
-                        dm=dm,
                         encodings=encodings,
-                        encoder=encoder,
                         invariant_to="s",
                     )
                 )
@@ -160,9 +156,7 @@ def encode_dataset(
             if invariant_to in ("y", "both"):
                 all_inv_y.append(
                     _get_classifer_input(
-                        dm=dm,
                         encodings=encodings,
-                        encoder=encoder,
                         invariant_to="y",
                     )
                 )
@@ -261,7 +255,7 @@ def visualize_clusters(
 @dataclass
 class Evaluator:
     steps: int = 10_000
-    batch_size_tr: int = 128
+    batch_size: int = 128
     lr: float = 1.0e-4
     hidden_dim: Optional[int] = None
     num_hidden: int = 0
@@ -287,9 +281,7 @@ class Evaluator:
 
         clf = Classifier(clf_base, optimizer_kwargs=optimizer_kwargs)
 
-        train_dl = dm.train_dataloader(
-            batch_size=self.batch_size_tr, balance=self.balanced_sampling
-        )
+        train_dl = dm.train_dataloader(batch_size=self.batch_size, balance=self.balanced_sampling)
         test_dl = dm.test_dataloader()
 
         clf.to(torch.device(device))
@@ -340,7 +332,7 @@ class Evaluator:
         self,
         dm: DataModule,
         *,
-        encoder: AutoEncoder,
+        encoder: SplitLatentAe,
         device: str | torch.device | int,
         step: int | None = None,
     ) -> None:
@@ -399,7 +391,7 @@ class Evaluator:
         self,
         dm: DataModule,
         *,
-        encoder: AutoEncoder,
+        encoder: SplitLatentAe,
         device: str | torch.device | int,
         step: int | None = None,
     ) -> None:

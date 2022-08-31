@@ -2,7 +2,6 @@
 defaults:
   - /schema/split: base
   - _self_
-log_dataset: 'subgroup_bias_10'
 seed: 42
 transductive: false
 dep_prop: 0.4

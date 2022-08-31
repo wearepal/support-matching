@@ -1,5 +1,6 @@
 from __future__ import annotations
-from typing import Any, Tuple, Union, overload
+from dataclasses import dataclass, field
+from typing import Tuple, Union, overload
 from typing_extensions import Literal
 
 from conduit.data.datasets.utils import CdtDataLoader
@@ -10,7 +11,7 @@ from loguru import logger
 from ranzen.torch.loss import CrossEntropyLoss
 from ranzen.torch.utils import inf_generator
 import torch
-from torch import Tensor, nn
+from torch import Tensor
 from tqdm import trange
 
 from .base import Model
@@ -18,24 +19,11 @@ from .base import Model
 __all__ = ["Classifier"]
 
 
+@dataclass(eq=False)
 class Classifier(Model):
-    """Wrapper for classifier models."""
+    """Wrapper for classifier models equipped witht training/inference routines."""
 
-    def __init__(
-        self,
-        model: nn.Module,
-        *,
-        lr: float = 5.0e-4,
-        optimizer_cls: str = "torch.optim.AdamW",
-        optimizer_kwargs: dict[str, Any] | None = None,
-        criterion: Loss | None = None,
-    ) -> None:
-        super().__init__(
-            model, optimizer_cls=optimizer_cls, lr=lr, optimizer_kwargs=optimizer_kwargs
-        )
-        if criterion is None:
-            criterion = CrossEntropyLoss()
-        self.criterion = criterion
+    criterion: Loss = field(default_factory=CrossEntropyLoss)
 
     def predict(self, inputs: Tensor) -> Tensor:
         logits = self.forward(inputs)

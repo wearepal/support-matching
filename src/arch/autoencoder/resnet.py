@@ -426,7 +426,7 @@ class ResNetVersion(Enum):
 
 @dataclass
 class ResNetAE(AeFactory):
-    latent_dim: int
+    latent_dim: int = 128
     version: ResNetVersion = ResNetVersion.RN18
     first_conv: bool = False
     maxpool1: bool = False

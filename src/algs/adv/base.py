@@ -1,8 +1,7 @@
-from __future__ import annotations
 from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import ClassVar, DefaultDict, Iterator, Optional, Union
+from typing import ClassVar, DefaultDict, Dict, Iterator, Optional, Tuple, Union
 from typing_extensions import Literal, Self
 
 from conduit.data.structures import NamedSample, TernarySample
@@ -19,7 +18,8 @@ import wandb
 from src.algs.base import Algorithm
 from src.arch.predictors.fcn import Fcn
 from src.data import DataModule
-from src.models import AutoEncoder, Classifier
+from src.models.autoencoder import SplitLatentAe
+from src.models.classifier import Classifier
 from src.models.discriminator import MmdDiscriminator, NeuralDiscriminator
 
 from .evaluator import Evaluator
@@ -33,7 +33,7 @@ class AdvSemiSupervisedAlg(Algorithm):
 
     _PBAR_COL: ClassVar[str] = "#ffe252"
 
-    ae: AutoEncoder = MISSING
+    ae: SplitLatentAe = MISSING
     disc: Union[NeuralDiscriminator, MmdDiscriminator] = MISSING
     evaluator: Optional[Evaluator] = MISSING
 
@@ -47,9 +47,9 @@ class AdvSemiSupervisedAlg(Algorithm):
     lr: float = 4.0e-4
     enc_loss_w: float = 1
     disc_loss_w: float = 1
-    num_adv_updates: int = 3
+    num_disc_updates: int = 3
     # Whether to use the deployment set when computing the encoder's adversarial loss
-    bidirectional_disc_loss: bool = True
+    twoway_disc_loss: bool = True
 
     pred_y_hidden_dim: Optional[int] = None
     pred_y_num_hidden: int = 0
@@ -58,7 +58,7 @@ class AdvSemiSupervisedAlg(Algorithm):
     s_pred_with_bias: bool = False
 
     predictor_y: Optional[Classifier] = field(init=False)
-    predictor_s: Optional[Classifier] | None = field(init=False)
+    predictor_s: Optional[Classifier] = field(init=False)
 
     # Misc
     validate: bool = True
@@ -75,8 +75,8 @@ class AdvSemiSupervisedAlg(Algorithm):
         return next(iterator_tr).to(self.device, non_blocking=True)
 
     def _build_predictors(
-        self, ae: AutoEncoder, y_dim: int, *, s_dim: int
-    ) -> tuple[Classifier | None, Classifier | None]:
+        self, ae: SplitLatentAe, *, y_dim: int, s_dim: int
+    ) -> Tuple[Optional[Classifier], Optional[Classifier]]:
         predictor_y = None
         if self.pred_y_loss_w > 0:
             model, _ = Fcn(hidden_dim=self.pred_y_hidden_dim,)(
@@ -100,12 +100,12 @@ class AdvSemiSupervisedAlg(Algorithm):
         iterator_dep: Iterator[NamedSample[Tensor]],
         itr: int,
         dm: DataModule,
-    ) -> dict[str, float]:
+    ) -> Dict[str, float]:
         warmup = itr < self.warmup_steps
-        ga_weight = 1 / self.num_adv_updates
+        ga_weight = 1 / self.num_disc_updates
         if (not warmup) and (isinstance(self.disc, NeuralDiscriminator)):
             # Train the discriminator on its own for a number of iterations
-            for _ in range(self.num_adv_updates):
+            for _ in range(self.num_disc_updates):
                 for _ in range(self.ga_steps):
                     loss, _ = self._discriminator_loss(
                         iterator_tr=iterator_tr, iterator_dep=iterator_dep
@@ -136,13 +136,15 @@ class AdvSemiSupervisedAlg(Algorithm):
 
     @abstractmethod
     @torch.no_grad()
-    def log_recons(self, x: Tensor, *, dm: DataModule, itr: int, prefix: str | None = None) -> None:
+    def log_recons(
+        self, x: Tensor, *, dm: DataModule, itr: int, prefix: Optional[str] = None
+    ) -> None:
         ...
 
     @abstractmethod
     def _encoder_loss(
         self, x_dep: Tensor, *, batch_tr: TernarySample, warmup: bool
-    ) -> tuple[Tensor, dict[str, float]]:
+    ) -> Tuple[Tensor, Dict[str, float]]:
         ...
 
     @abstractmethod
@@ -151,7 +153,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         iterator_tr: Iterator[TernarySample[Tensor]],
         *,
         iterator_dep: Iterator[NamedSample[Tensor]],
-    ) -> tuple[Tensor, dict[str, float]]:
+    ) -> Tuple[Tensor, Dict[str, float]]:
         ...
 
     def backward(self, loss: Tensor) -> None:
@@ -208,12 +210,12 @@ class AdvSemiSupervisedAlg(Algorithm):
 
     def _get_data_iterators(
         self, dm: DataModule
-    ) -> tuple[Iterator[TernarySample[Tensor]], Iterator[NamedSample[Tensor]]]:
+    ) -> Tuple[Iterator[TernarySample[Tensor]], Iterator[NamedSample[Tensor]]]:
         dl_tr = dm.train_dataloader()
         dl_dep = dm.deployment_dataloader()
         return iter(dl_tr), iter(dl_dep)
 
-    def evaluate(self, dm: DataModule, step: int) -> None:
+    def _evaluate(self, dm: DataModule, step: int) -> None:
         if self.evaluator is not None:
             self.evaluator(dm=dm, encoder=self.ae, step=step, device=self.device)
 
@@ -244,8 +246,8 @@ class AdvSemiSupervisedAlg(Algorithm):
                 pbar.update()
 
                 if self.validate and (step % self.val_freq == 0):
-                    self.evaluate(dm=dm, step=step)
+                    self._evaluate(dm=dm, step=step)
 
-        self.evaluate(dm=dm, step=step)
+        self._evaluate(dm=dm, step=step)
         logger.info("Training has finished.")
         return self

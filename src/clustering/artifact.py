@@ -22,13 +22,16 @@ __all__ = [
 FILENAME: Final[str] = "labels.pt"
 
 
-def _artifact_info_from_dm(datamodule: DataModule) -> tuple[str, dict[str, str | int]]:
+def _artifact_info_from_dm(datamodule: DataModule) -> tuple[str, dict[str, str | int | None]]:
     ds_str = str(datamodule.train.__class__.__name__).lower()
     # Embed the name of machine (as reported by operating system) in the name
     # as the seed is machine-dependent.
     name_of_machine = platform.node()
-    metadata = {"ds": ds_str, "seed": datamodule.seed}
-    return f"{ds_str}_{datamodule.seed}_{name_of_machine}", metadata
+    metadata = {"ds": ds_str, "seed": datamodule.split_seed}
+    name = f"{ds_str}__{name_of_machine}"
+    if datamodule.split_seed is not None:
+        name += f"_{datamodule.split_seed}"
+    return name, metadata
 
 
 def save_labels_as_artifact(
