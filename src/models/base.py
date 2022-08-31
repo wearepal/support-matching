@@ -12,7 +12,7 @@ import torch.nn as nn
 
 from .utils import exclude_from_weight_decay
 
-__all__ = ["Model"]
+__all__ = ["Model", "Optimizer"]
 
 
 class Optimizer(Enum):

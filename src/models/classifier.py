@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Tuple, Union, overload
+from typing import Tuple, Union, overload, Optional
+from torch.cuda.amp.grad_scaler import GradScaler
 from typing_extensions import Literal
 
 from conduit.data.datasets.utils import CdtDataLoader
@@ -61,8 +62,9 @@ class Classifier(Model):
         device: torch.device,
         with_soft: bool = False,
     ) -> Union[Tuple[Tensor, Tensor, Tensor], Tuple[Tensor, Tensor, Tensor, Tensor]]:
+        self.to(device)
         preds, actual, sens, soft_preds = [], [], [], []
-        with torch.set_grad_enabled(False):
+        with torch.no_grad():
             for batch in data:
                 batch.to(device)
                 batch_preds = self.predict(batch.x)
@@ -84,16 +86,13 @@ class Classifier(Model):
 
     def training_step(
         self,
-        input: Tensor,
+        batch: TernarySample,
         *,
-        target: Tensor,
-        group_idx: Tensor,
-        instance_weights: Tensor | None = None,
+        pred_s: bool = False
     ) -> tuple[Tensor, float]:
-        logits = self.forward(input)
+        target = batch.s if pred_s else batch.y
+        logits = self.forward(batch.x)
         loss = self.criterion(input=logits, target=target)
-        if instance_weights is not None:
-            loss = loss.view(-1) * instance_weights.view(-1)
         loss = loss.mean()
         acc = accuracy(y_pred=logits, y_true=target).cpu().item()
 
@@ -108,25 +107,30 @@ class Classifier(Model):
         pred_s: bool = False,
         test_interval: int | float = 0.1,
         test_data: CdtDataLoader[TernarySample] | None = None,
+        grad_scaler: Optional[GradScaler] = None,
     ) -> None:
+        use_amp = grad_scaler is not None
         logger.info("Training classifier")
         # Test after every 20% of the total number of training iterations by default.
         if isinstance(test_interval, float):
             test_interval = max(1, round(test_interval * steps))
-        self.model.train()
+        self.to(device)
+        self.train()
 
         pbar = trange(steps)
         train_iter = inf_generator(train_data)
         for step in range(steps):
             batch = next(train_iter)
             batch = batch.to(device, non_blocking=True)
-            target = batch.s if pred_s else batch.y
-            target = target.to(device, non_blocking=True)
 
+            with torch.cuda.amp.autocast(enabled=use_amp):  # type: ignore
+                loss, acc = self.training_step(batch=batch)
+
+            if use_amp:  # Apply scaling for mixed-precision training
+                loss = grad_scaler.scale(loss)  # type: ignore
+            loss.backward()  # type: ignore
+            self.step(grad_scaler=grad_scaler)
             self.optimizer.zero_grad()
-            loss, acc = self.training_step(input=batch.x, target=target, group_idx=batch.s)
-            loss.backward()
-            self.step()
 
             if (test_data is not None) and (step > 0) and (step % test_interval == 0):
                 self.model.eval()
@@ -136,7 +140,8 @@ class Classifier(Model):
                         batch = batch.to(device)
                         target = batch.s if pred_s else batch.y
                         target = target.to(device, non_blocking=True)
-                        logits_ls.append(self.forward(batch.x))
+                        with torch.cuda.amp.autocast(enabled=use_amp):  # type: ignore
+                            logits_ls.append(self.forward(batch.x))
                         targets_ls.append(target)
                 acc = (
                     accuracy(y_pred=torch.cat(logits_ls), y_true=torch.cat(targets_ls)).cpu().item()

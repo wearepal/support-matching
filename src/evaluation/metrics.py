@@ -1,4 +1,8 @@
 from __future__ import annotations
+import numpy as np
+from torch import Tensor
+from typing_extensions import Self
+from dataclasses import dataclass
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -18,11 +22,23 @@ __all__ = [
     "write_results_to_csv",
 ]
 
+@dataclass
+class EvalPair:
+    pred: em.Prediction
+    actual: LabelTuple
 
+    @classmethod
+    def from_tensors(cls, y_pred: Tensor, *, y_true: Tensor, s: Tensor, pred_s: bool = False) -> Self:
+        pred = em.Prediction(hard=pd.Series(y_pred))
+        sens_pd = pd.Series(s.detach().cpu().numpy().astype(np.float32), name="subgroup")
+        labels_pd = pd.Series(y_true.detach().cpu().numpy(), name="labels")
+        actual = LabelTuple.from_df(s=sens_pd, y=sens_pd if pred_s else labels_pd)
+        return cls(pred=pred, actual=actual)
+
+@torch.no_grad()
 def compute_metrics(
-    predictions: em.Prediction,
+    pair: EvalPair,
     *,
-    actual: LabelTuple,
     model_name: str,
     s_dim: int,
     step: int | None = None,
@@ -34,8 +50,7 @@ def compute_metrics(
 ) -> dict[str, float]:
     """Compute accuracy and fairness metrics and log them.
 
-    :param predictions: predictions in a format that is compatible with EthicML
-    :param actual: labels for the predictions
+    :param pair: predictions and labels in a format that is compatible with EthicML
     :param model_name: name of the model used
     :param step: step of training (needed for logging to W&B)
     :param s_dim: dimension of s
@@ -47,6 +62,8 @@ def compute_metrics(
     :returns: dictionary with the computed metrics
     """
 
+    predictions = pair.pred
+    actual = pair.actual
     predictions._info = {}  # type: ignore
     metrics = em.run_metrics(
         predictions=predictions,

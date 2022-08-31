@@ -1,27 +1,41 @@
-# from __future__ import annotations
+from __future__ import annotations
+# from typing_extensions import Self
+
+# from dataclasses import dataclass
 # import copy
-# import logging
 # from typing import Any
+# from loguru import logger
+# from conduit.data.datasets.utils import CdtDataLoader
+# from conduit.data.structures import TernarySample
+# from .base import Algorithm
 
-# import torch
-# from torch import Tensor
-# import torch.nn as nn
-# from torch.utils.data import DataLoader
-# from torch.utils.data.dataset import Dataset
-# from tqdm.std import trange
+import torch
+from torch import Tensor
+import torch.nn as nn
 
-# from advrep.models import Classifier
-# from advrep.models.base import ModelBase
-# from advrep.optimisation import (
-#     ExtractableDataset,
-#     GeneralizedCELoss,
-#     extract_labels_from_dataset,
-# )
+__all__ = ["LabelEma"]
 
-# __all__ = ["LfF"]
 
-# LOGGER = logging.getLogger(__name__.split(".")[-1].upper())
+class LabelEma(nn.Module):
+    labels: Tensor
+    parameter: Tensor
+    updated: Tensor
 
+    def __init__(self, labels: Tensor, *, alpha: float =0.9) -> None:
+        self.alpha = alpha
+        self.register_buffer("labels", labels.flatten())
+        self.register_buffer("parameter", torch.zeros(labels.size(0)))
+        self.register_buffer("updated", torch.zeros(labels.size(0)))
+
+    def update(self, data: Tensor, *, index: Tensor | int) -> None:
+        self.parameter[index] = (
+            self.alpha * self.parameter[index] + (1 - self.alpha * self.updated[index]) * data
+        )
+        self.updated[index] = 1
+
+    def max_loss(self, label: int) -> Tensor:
+        label_index = self.labels == label
+        return self.parameter[label_index].max()
 
 # class IndexDataset(Dataset):
 #     def __init__(self, dataset: Dataset):
@@ -33,26 +47,8 @@
 #     def __getitem__(self, index: int):
 #         return (index, *self.dataset[index])
 
-
-# class EMA:
-#     def __init__(self, labels: Tensor, device: torch.device, alpha=0.9):
-#         self.labels = labels.view(-1).to(device)
-#         self.alpha = alpha
-#         self.parameter = torch.zeros(labels.size(0), device=device)
-#         self.updated = torch.zeros(labels.size(0), device=device)
-
-#     def update(self, data, index):
-#         self.parameter[index] = (
-#             self.alpha * self.parameter[index] + (1 - self.alpha * self.updated[index]) * data
-#         )
-#         self.updated[index] = 1
-
-#     def max_loss(self, label: int) -> Tensor:
-#         label_index = self.labels == label
-#         return self.parameter[label_index].max()
-
-
-# class LfF(Classifier):
+# @dataclass
+# class LfF(Algorithm):
 #     def __init__(
 #         self,
 #         model: nn.Module,
@@ -71,14 +67,14 @@
 
 #     def fit(
 #         self,
-#         train_data: ExtractableDataset,
+#         train_data: CdtDataLoader[TernarySample],
 #         epochs: int,
 #         device: torch.device,
-#         test_data: Dataset | None = None,
+#         test_data: CdtDataLoader[TernarySample],
 #         batch_size: int = 256,
 #         test_batch_size: int = 1000,
 #         **train_loader_kwargs: dict[str, Any],
-#     ):
+#     ) -> Self:
 #         _, y = extract_labels_from_dataset(train_data)  # type: ignore
 #         train_data = IndexDataset(train_data)  # type: ignore
 
@@ -104,7 +100,7 @@
 #         sample_loss_ema_b = EMA(y.long(), alpha=0.7, device=device)
 #         sample_loss_ema_d = EMA(y.long(), alpha=0.7, device=device)
 
-#         LOGGER.info("Training classifier...")
+#         logger.info("Training classifier")
 #         pbar = trange(epochs)
 #         for epoch in pbar:
 #             self.model.train()
@@ -162,3 +158,4 @@
 #                 pbar.set_postfix(epoch=epoch + 1)
 
 #         pbar.close()
+#         return self

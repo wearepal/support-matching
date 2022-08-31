@@ -1,8 +1,10 @@
 from __future__ import annotations
+import torch.nn as nn
 from abc import abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, Optional, Iterator
 from typing_extensions import Self
+from torch.nn.parameter import Parameter
 
 from loguru import logger
 from ranzen.torch.module import DcModule
@@ -20,6 +22,7 @@ class Algorithm(DcModule):
 
     use_amp: bool = False  # Whether to use mixed-precision training
     gpu: int = 0  # which GPU to use (if available)
+    max_grad_norm: Optional[float] = None
     use_gpu: bool = field(init=False)
     device: torch.device = field(init=False)
     grad_scaler: Optional[GradScaler] = field(init=False)
@@ -31,14 +34,10 @@ class Algorithm(DcModule):
         self.grad_scaler = GradScaler() if self.use_amp else None
         logger.info(f"{torch.cuda.device_count()} GPUs available. Using device '{self.device}'")
 
-    @abstractmethod
-    def fit(self, dm: DataModule, **kwargs: Any) -> Self:
-        ...
+    def _clip_gradients(self, parameters: Iterator[Parameter]) -> None:
+        if (value := self.max_grad_norm) is not None:
+            nn.utils.clip_grad.clip_grad_norm_(parameters, max_norm=value, norm_type=2.0)
 
+    @abstractmethod
     def run(self, dm: DataModule, **kwargs: Any) -> Self:
-        """Loads the data and fits and evaluates the model."""
-        # Fit the model to the data
-        self.fit(dm=dm, **kwargs)
-        # finish logging for the current run
-        run.finish()  # type: ignore
-        return self
+        ...

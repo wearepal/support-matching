@@ -8,7 +8,6 @@ from conduit.data.datasets.base import CdtDataset
 from conduit.data.datasets.vision.base import CdtVisionDataset
 from conduit.data.structures import TernarySample
 import ethicml as em
-from ethicml.utility.data_structures import LabelTuple
 from loguru import logger
 from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
@@ -32,7 +31,7 @@ from src.data import (
     labels_to_group_id,
     resolve_device,
 )
-from src.evaluation.metrics import compute_metrics
+from src.evaluation.metrics import compute_metrics, EvalPair
 from src.logging import log_images
 from src.models import Classifier, SplitEncoding, SplitLatentAe
 
@@ -313,13 +312,9 @@ class Evaluator:
         # TODO: investigate why the histogram plotting fails when s_dim != 1
         # if (cfg.logging.mode is not WandbMode.disabled) and (dm.card_s == 2):
         #     plot_histogram_by_source(soft_preds, s=sens, y=labels, step=step, name=name)
-        preds = em.Prediction(hard=pd.Series(preds))
-        sens_pd = pd.Series(sens.numpy().astype(np.float32), name="subgroup")
-        labels_pd = pd.Series(labels.cpu().numpy(), name="labels")
-        actual = LabelTuple.from_df(s=sens_pd, y=sens_pd if pred_s else labels_pd)
+        pair = EvalPair.from_tensors(y_pred=preds, y_true=labels, s=sens, pred_s=pred_s)
         compute_metrics(
-            predictions=preds,
-            actual=actual,
+            pair=pair,
             exp_name=name,
             model_name="pytorch_classifier",
             step=step,

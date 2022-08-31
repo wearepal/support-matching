@@ -1,5 +1,12 @@
 from __future__ import annotations
-from typing import Any, Callable, Final
+from src.evaluation.metrics import compute_metrics, EvalPair
+from conduit.data.structures import TernarySample
+from typing_extensions import Self
+from ranzen import gcopy
+from src.data import DataModule, group_id_to_label
+from dataclasses import dataclass, field
+from .base import Algorithm
+from typing import Callable, Optional, Tuple
 
 from conduit.metrics import accuracy
 import numpy as np
@@ -9,10 +16,12 @@ import torch
 from torch import Tensor
 import torch.nn as nn
 
-from src.models import Classifier
+from omegaconf import DictConfig
+from src.models import Classifier, Optimizer
 
 __all__ = [
-    "GDRO",
+    "Gdro",
+    "GdroClassifier",
     "LossComputer",
 ]
 
@@ -27,14 +36,13 @@ class LossComputer(nn.Module):
     update_batch_counts: Tensor
     avg_group_loss: Tensor
     avg_group_acc: Tensor
-    reduction: Final[ReductionType] = ReductionType.mean
 
     def __init__(
         self,
         criterion: Callable[[Tensor, Tensor], Tensor],
         is_robust: bool,
         group_counts: Tensor,
-        alpha: np.ndarray | None = None,
+        alpha: float | None = None,
         gamma: float = 0.1,
         adj: Tensor | None = None,
         min_var_weight: float = 0,
@@ -43,6 +51,7 @@ class LossComputer(nn.Module):
         btl: bool = False,
     ) -> None:
         super().__init__()
+        self.reduction: ReductionType = ReductionType.mean
         self.criterion = criterion
         self.is_robust = is_robust
         self.gamma = gamma
@@ -219,44 +228,102 @@ class LossComputer(nn.Module):
         self.avg_acc = group_frac @ self.avg_group_acc
 
 
-class GDRO(Classifier):
-    def __init__(
-        self,
-        model: nn.Module,
-        optimizer_kwargs: dict[str, Any] | None,
-        group_counts: Tensor,
-        alpha: np.ndarray | None = None,
-        normalize_loss: bool = False,
-        gamma: float = 0.1,
-        step_size: float = 0.01,
-        btl: bool = False,
-    ) -> None:
-        criterion = LossComputer(
-            criterion=nn.CrossEntropyLoss(reduction="none"),
-            is_robust=True,
-            group_counts=group_counts,
-            alpha=alpha,
-            normalize_loss=normalize_loss,
-            gamma=gamma,
-            step_size=step_size,
-            btl=btl,
-        )
-        super().__init__(
-            model,
-            optimizer_kwargs=optimizer_kwargs,
-            criterion=criterion,
-        )
+
+@dataclass(eq=False)
+class GdroClassifier(Classifier):
+    criterion: LossComputer
+
 
     @implements(Classifier)
     def training_step(
         self,
-        input: Tensor,
+        batch: TernarySample,
         *,
-        target: Tensor,
-        group_idx: Tensor,
-        instance_weights: Tensor | None = None,
+        pred_s: bool = False
     ) -> tuple[Tensor, float]:
-        yhat = self.model(input).squeeze(1)
-        loss = self.criterion(input=yhat, target=target, group_idx=group_idx)
-        acc = accuracy(y_pred=yhat, y_true=target).item()
+        target = batch.s if pred_s else batch.y
+        logits = self.forward(batch.x)
+        loss = self.criterion(input=logits, target=target, group_idx=batch.y)
+        loss = loss.mean()
+        acc = accuracy(y_pred=logits, y_true=target).cpu().item()
+
         return loss, acc
+
+@dataclass(eq=False)
+class Gdro(Algorithm):
+    alpha: Optional[float] = 1.0
+    normalize_loss: bool = False
+    gamma: float = 0.1
+    step_size: float = 0.01
+    btl: bool = False
+    criterion: LossComputer = field(init=False)
+    adjustments: Optional[Tuple[float]] = None
+    steps: int = 10_000
+
+    optimizer_cls: Optimizer = Optimizer.ADAM
+    lr: float = 5.0e-4
+    weight_decay: float = 0
+    optimizer_kwargs: Optional[DictConfig] = None
+    optimizer: torch.optim.Optimizer = field(init=False)
+
+
+    @implements(Algorithm)
+    def run(
+        self, dm: DataModule, *, model: nn.Module) -> Self:
+        dm = gcopy(dm, deep=False)
+        s_count = dm.card_s
+        if dm.deployment_ids is not None:
+            y_dep = group_id_to_label(dm.deployment_ids, s_count=s_count, label="y").flatten()
+            s_dep = group_id_to_label(dm.deployment_ids, s_count=s_count, label="s").flatten()
+            dm.deployment.y = y_dep
+            dm.deployment.s = s_dep
+        elif dm.gt_deployment:
+            dm.train += dm.deployment
+        s_all, _ = dm.train.s
+        group_counts = (torch.arange(s_count).unsqueeze(1) == s_all.squeeze()).sum(1).float()
+        # process generalization adjustment stuff
+        adjustments = self.adjustments
+        if adjustments is not None:
+            assert len(adjustments) in (1, s_count)
+            if len(adjustments) == 1:
+                adjustments = np.array(adjustments * s_count)
+            else:
+                adjustments = np.array(adjustments)
+        self.criterion = LossComputer(
+            criterion=nn.CrossEntropyLoss(reduction="none"),
+            is_robust=True,
+            group_counts=group_counts,
+            alpha=self.alpha,
+            normalize_loss=self.normalize_loss,
+            gamma=self.gamma,
+            step_size=self.step_size,
+            btl=self.btl,
+        )
+
+        train_data = dm.train_dataloader()
+        classifier = GdroClassifier(
+            model=model,
+            lr=self.lr,
+            weight_decay=self.weight_decay,
+            optimizer_cls=self.optimizer_cls,
+            optimizer_kwargs=self.optimizer_kwargs,
+        )
+        classifier.fit(
+            train_data=train_data,
+            steps=self.steps,
+            device=self.device,
+            grad_scaler=self.grad_scaler,
+        )
+
+        # Generate predictions with the trained model
+        preds, labels, sens = classifier.predict_dataset(dm.test_dataloader(), device=self.device)
+
+        pair = EvalPair.from_tensors(y_pred=preds, y_true=labels, s=sens, pred_s=False)
+        compute_metrics(
+            pair=pair,
+            model_name=self.__class__.__name__.lower(),
+            step=0,
+            s_dim=s_count,
+            use_wandb=True,
+        )
+        return self

@@ -12,7 +12,6 @@ from ranzen.torch import DcModule
 import torch
 from torch import Tensor
 import torch.nn as nn
-from torch.nn.parameter import Parameter
 from tqdm import tqdm
 import wandb
 
@@ -67,7 +66,6 @@ class AdvSemiSupervisedAlg(Algorithm):
     ga_steps: int = 1
     weight_decay: float = 0
     warmup_steps: int = 0
-    max_grad_norm: Optional[float] = None
 
     lr: float = 4.0e-4
     enc_loss_w: float = 1
@@ -196,10 +194,6 @@ class AdvSemiSupervisedAlg(Algorithm):
             loss = self.grad_scaler.scale(loss)  # type: ignore
         loss.backward()
 
-    def _clip_gradients(self, parameters: Iterator[Parameter]) -> None:
-        if (value := self.max_grad_norm) is not None:
-            nn.utils.clip_grad.clip_grad_norm_(parameters, max_norm=value, norm_type=2.0)
-
     def _update_encoder(self, comp: Components) -> None:
         # Clip the norm of the gradients if max_grad_norm is not None
         self._clip_gradients(comp.parameters())
@@ -236,7 +230,6 @@ class AdvSemiSupervisedAlg(Algorithm):
         if evaluator is not None:
             evaluator(dm=dm, encoder=ae, step=step, device=self.device)
 
-    @implements(Algorithm)
     def fit(
         self, dm: DataModule, *, ae: SplitLatentAe, disc: Discriminator, evaluator: Evaluator
     ) -> Self:
@@ -276,4 +269,5 @@ class AdvSemiSupervisedAlg(Algorithm):
     def run(
         self, dm: DataModule, *, ae: SplitLatentAe, disc: Discriminator, evaluator: Evaluator
     ) -> Self:
-        return super().run(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
+        self.fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
+        return self

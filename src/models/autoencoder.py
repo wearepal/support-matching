@@ -107,12 +107,14 @@ class SplitLatentAe(Model):
     feature_group_slices: Optional[Dict[str, List[slice]]] = None
     recon_loss: ReconstructionLoss = ReconstructionLoss.l2
     recon_loss_fn: Callable[[Tensor, Tensor], Tensor] = field(init=False)
+    latent_dim: int = field(init=False)
 
     def __post_init__(self) -> None:
         zs_dim_t = self.zs_dim
+        self.latent_dim = self.model.latent_dim
         if isinstance(zs_dim_t, float):
-            zs_dim_t = round(self.zs_dim * self.model.latent_dim)
-        self.encoding_size = EncodingSize(zs=zs_dim_t, zy=self.model.latent_dim - zs_dim_t)
+            zs_dim_t = round(self.zs_dim * self.latent_dim)
+        self.encoding_size = EncodingSize(zs=zs_dim_t, zy=self.latent_dim - zs_dim_t)
 
         if self.recon_loss is ReconstructionLoss.mixed:
             if self.feature_group_slices is None:

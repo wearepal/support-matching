@@ -273,7 +273,7 @@ class DataModule(Generic[D]):
         num_workers: Optional[int] = None,
         batch_size: Optional[int] = None,
     ) -> CdtDataLoader[TernarySample]:
-        batch_size = self.batch_size_te if batch_size is None else batch_size
+        batch_size = self.batch_size_tr if batch_size is None else batch_size
         if eval:
             return self._make_dataloader(ds=self.deployment, batch_size=batch_size, shuffle=False)
 

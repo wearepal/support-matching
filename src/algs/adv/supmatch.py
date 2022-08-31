@@ -29,15 +29,15 @@ class SupportMatching(AdvSemiSupervisedAlg):
     def _get_data_iterators(
         self, dm: DataModule
     ) -> tuple[Iterator[TernarySample[Tensor]], Iterator[NamedSample[Tensor]]]:
-        if (self.disc_loss_w > 0) or (self.num_disc_updates > 0): 
+        if (self.disc_loss_w > 0) or (self.num_disc_updates > 0):
             if (dm.deployment_ids is None) and (not dm.gt_deployment):
                 logger.warning(
-                        "Support matching is enabled but without any balancing of the deployment set "
-                        "- this can be achieved either by setting 'gt_deployment' to 'True' or by "
-                        "supplying 'deployment_ids'"
-                        )
+                    "Support matching is enabled but without any balancing of the deployment set "
+                    "- this can be achieved either by setting 'gt_deployment' to 'True' or by "
+                    "supplying 'deployment_ids'"
+                )
         dl_tr = dm.train_dataloader(balance=True)
-        # The batch size needs to be consistent for the aggregation layer in the setwise neural 
+        # The batch size needs to be consistent for the aggregation layer in the setwise neural
         # discriminator
         dl_dep = dm.deployment_dataloader(batch_size=dm.batch_size_tr)
         return iter(dl_tr), iter(dl_dep)
