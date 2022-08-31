@@ -101,8 +101,6 @@ class ZsTransform(Enum):
 
 @dataclass(eq=False)
 class SplitLatentAe(Model):
-    # Make latent dim a dummy optional type for compatibility
-    # with hydra
     model: AePair
     zs_dim: Union[int, float] = 1
     zs_transform: ZsTransform = ZsTransform.none
