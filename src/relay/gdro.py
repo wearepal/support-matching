@@ -5,7 +5,6 @@ from typing import Any, Dict, Optional
 from hydra.utils import instantiate
 from omegaconf import DictConfig, MISSING
 from ranzen.decorators import implements
-from ranzen.hydra import Relay
 import torch.nn as nn
 
 from src.algs.gdro import Gdro

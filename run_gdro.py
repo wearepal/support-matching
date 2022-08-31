@@ -4,17 +4,15 @@ from typing import Any, List, Type, Union
 from conduit.data.datasets.vision import Camelyon17, CelebA, ColoredMNIST
 from ranzen.hydra import Option
 
-from src.algs import SupportMatching
-from src.algs.adv import Evaluator
-from src.arch.autoencoder import ResNetAE, SimpleConvAE
-from src.arch.predictors.fcn import Fcn, GatedSetFcn, KvqSetFcn
+from src.algs import Gdro
+from src.arch.backbones import ResNet, SimpleCNN
+from src.arch.predictors import Fcn
+from src.arch.predictors.fcn import Fcn
 from src.clustering.pipeline import ArtifactLoader, KmeansOnClipEncodings, NoCluster
 from src.data import DataModuleConf, DataSplitter
 from src.data.nih import NIHChestXRayDataset
 from src.logging import WandbConf
-from src.models.autoencoder import SplitLatentAe
-from src.models.discriminator import NeuralDiscriminator
-from src.relay import SupMatchRelay
+from src.relay import GdroRelay
 
 
 def main() -> None:
@@ -24,14 +22,12 @@ def main() -> None:
         Option(Camelyon17, name="camelyon17"),
         Option(NIHChestXRayDataset, name="nih"),
     ]
-    ae_arch_ops: List[Union[Type[Any], Option]] = [
-        Option(SimpleConvAE, name="simple"),
-        Option(ResNetAE, name="resnet"),
+    backbone_ops: List[Union[Type[Any], Option]] = [
+        Option(SimpleCNN, name="simple"),
+        Option(ResNet, name="resnet"),
     ]
-    disc_arch_ops: List[Union[Type[Any], Option]] = [
-        Option(Fcn, name="sw"),
-        Option(GatedSetFcn, name="gated"),
-        Option(KvqSetFcn, name="kvq"),
+    pred_ops: List[Union[Type[Any], Option]] = [
+        Option(Fcn, name="fcn"),
     ]
     clust_ops: List[Union[Type[Any], Option]] = [
         Option(ArtifactLoader, name="artifact"),
@@ -39,18 +35,15 @@ def main() -> None:
         Option(NoCluster, name="none"),
     ]
 
-    SupMatchRelay.with_hydra(
-        ae=[Option(SplitLatentAe, name="base")],
-        ae_arch=ae_arch_ops,
-        alg=[Option(SupportMatching, name="base")],
+    GdroRelay.with_hydra(
+        alg=[Option(Gdro, name="base")],
+        backbone=backbone_ops,
         clear_cache=True,
         clust=clust_ops,
-        disc=[Option(NeuralDiscriminator, name="base")],
-        disc_arch=disc_arch_ops,
         dm=[Option(DataModuleConf, name="base")],
         ds=ds_ops,
-        eval=[Option(Evaluator, name="base")],
         instantiate_recursively=False,
+        predictor=pred_ops,
         root="conf",
         split=[Option(DataSplitter, name="base")],
         wandb=[Option(WandbConf, name="base")],
