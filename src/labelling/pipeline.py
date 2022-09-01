@@ -18,19 +18,23 @@ from .kmeans import KMeans
 
 __all__ = [
     "ArtifactLoader",
-    "ClusteringPipeline",
+    "GroundTruthLabeller",
     "KmeansOnClipEncodings",
-    "NoCluster",
+    "Labeller",
+    "NullLabeller",
 ]
 
 
-class ClusteringPipeline(Protocol):
+class Labeller(Protocol):
     def run(self, dm: DataModule) -> Tensor | None:
         ...
 
+    def __call__(self, dm: DataModule) -> Tensor | None:
+        return self.run(dm=dm)
+
 
 @dataclass
-class KmeansOnClipEncodings(DcModule, ClusteringPipeline):
+class KmeansOnClipEncodings(DcModule, Labeller):
     clip_version: ClipVersion = ClipVersion.RN50
     download_root: Optional[str] = None
     ft_steps: int = 1000
@@ -52,7 +56,7 @@ class KmeansOnClipEncodings(DcModule, ClusteringPipeline):
     encoder: Optional[ClipVisualEncoder] = field(init=False, default=None)
     _fitted_kmeans: Optional[KMeans] = field(init=False, default=None)
 
-    @implements(ClusteringPipeline)
+    @implements(Labeller)
     def run(self, dm: DataModule, *, use_cached_encoder: bool = False) -> Tensor:
         device = resolve_device(self.gpu)
         kmeans = KMeans(
@@ -98,11 +102,11 @@ class KmeansOnClipEncodings(DcModule, ClusteringPipeline):
 
 
 @dataclass
-class ArtifactLoader(ClusteringPipeline):
+class ArtifactLoader(Labeller):
     version: Optional[int] = None  # latest by default
     root: Optional[Path] = None  # artifacts/clustering by default
 
-    @implements(ClusteringPipeline)
+    @implements(Labeller)
     def run(self, dm: DataModule) -> Tensor:
         return load_labels_from_artifact(
             run=wandb.run, datamodule=dm, version=self.version, root=self.root
@@ -110,7 +114,49 @@ class ArtifactLoader(ClusteringPipeline):
 
 
 @dataclass
-class NoCluster(ClusteringPipeline):
-    @implements(ClusteringPipeline)
+class NullLabeller(Labeller):
+    @implements(Labeller)
     def run(self, dm: DataModule) -> None:
         return None
+
+
+@torch.no_grad()
+def inject_label_noise(
+    labels: Tensor,
+    *,
+    noise_level: float,
+    generator: torch.Generator,
+    inplace: bool = True,
+) -> Tensor:
+    if not 0 <= noise_level <= 1:
+        raise ValueError("'noise_level' must be in the range [0, 1].")
+    if not inplace:
+        labels = labels.clone()
+    unique, unique_inv = labels.unique(return_inverse=True)
+    num_to_flip = round(noise_level * len(labels))
+    to_flip = torch.randperm(len(labels), generator=generator)[:num_to_flip]
+    unique_inv[to_flip] += torch.randint(low=1, high=len(unique), size=(num_to_flip,))
+    unique_inv[to_flip] %= len(unique)
+    return unique[unique_inv]
+
+
+@dataclass
+class GroundTruthLabeller(Labeller):
+    label_noise: float = 0
+    seed: int = 47
+    generator: torch.Generator = field(init=False)
+
+    def __post_init__(self) -> None:
+        if not (0 <= self.label_noise <= 1):
+            raise ValueError(f"'label_noise' must be in the range [0, 1].")
+        self.generator = torch.Generator().manual_seed(self.seed)
+
+    @implements(Labeller)
+    def run(self, dm: DataModule) -> Tensor:
+        group_ids = dm.group_ids_dep
+        # Inject label-noise into the group identifiers.
+        if self.label_noise > 0:
+            group_ids = inject_label_noise(
+                group_ids, noise_level=self.label_noise, generator=self.generator
+            )
+        return group_ids

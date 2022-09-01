@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Any, Generic, Optional, Sequence, TypeVar, overload
 from typing_extensions import Literal
@@ -8,12 +8,12 @@ from conduit.data import CdtDataLoader
 from conduit.data.datasets.base import CdtDataset
 from conduit.data.datasets.vision.base import CdtVisionDataset
 from conduit.data.structures import TernarySample
-import ethicml as em
+from conduit.types import LRScheduler
 from loguru import logger
 from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
 import numpy as np
-import pandas as pd
+from omegaconf import DictConfig
 from ranzen.misc import gcopy
 import seaborn as sns
 import torch
@@ -33,7 +33,7 @@ from src.data import (
 )
 from src.evaluation.metrics import EvalPair, compute_metrics
 from src.logging import log_images
-from src.models import Classifier, SplitEncoding, SplitLatentAe
+from src.models import Classifier, Optimizer, SplitEncoding, SplitLatentAe
 
 __all__ = [
     "Evaluator",
@@ -262,13 +262,21 @@ def visualize_clusters(
 class Evaluator:
     steps: int = 10_000
     batch_size: int = 128
-    lr: float = 1.0e-4
     hidden_dim: Optional[int] = None
     num_hidden: int = 0
     eval_s_from_zs: Optional[EvalTrainData] = None
     balanced_sampling: bool = True
     umap_viz: bool = False
     save_summary: bool = True
+
+    optimizer_cls: Optimizer = Optimizer.ADAM
+    lr: float = 1.0e-4
+    weight_decay: float = 0
+    optimizer_kwargs: Optional[DictConfig] = None
+    optimizer: torch.optim.Optimizer = field(init=False)
+    scheduler_cls: Optional[str] = None
+    scheduler_kwargs: Optional[DictConfig] = None
+    scheduler: Optional[LRScheduler] = field(init=False)
 
     def _fit_classifier(
         self,
@@ -278,14 +286,21 @@ class Evaluator:
         device: torch.device,
     ) -> Classifier:
         input_dim = dm.dim_x[0]
-        optimizer_kwargs = {"lr": self.lr}
-        clf_fn = Fcn(
+        model_fn = Fcn(
             hidden_dim=self.hidden_dim, num_hidden=self.num_hidden, activation=Activation.GELU
         )
         input_dim = np.product(dm.dim_x)
-        clf_base, _ = clf_fn(input_dim, target_dim=dm.card_y)
+        model, _ = model_fn(input_dim, target_dim=dm.card_y)
 
-        clf = Classifier(clf_base, optimizer_kwargs=optimizer_kwargs)
+        clf = Classifier(
+            model,
+            lr=self.lr,
+            weight_decay=self.weight_decay,
+            optimizer_cls=self.optimizer_cls,
+            optimizer_kwargs=self.optimizer_kwargs,
+            scheduler_cls=self.scheduler_cls,
+            scheduler_kwargs=self.scheduler_kwargs,
+        )
 
         train_dl = dm.train_dataloader(batch_size=self.batch_size, balance=self.balanced_sampling)
         test_dl = dm.test_dataloader()

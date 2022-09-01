@@ -14,6 +14,9 @@ import torch
 from torch import Tensor
 from torch.cuda.amp.grad_scaler import GradScaler
 from tqdm import trange
+import wandb
+
+from src.evaluation.metrics import EvalPair, compute_metrics
 
 from .base import Model
 
@@ -103,6 +106,7 @@ class Classifier(Model):
         test_interval: int | float = 0.1,
         test_data: CdtDataLoader[TernarySample] | None = None,
         grad_scaler: Optional[GradScaler] = None,
+        use_wandb: bool = False,
     ) -> None:
         use_amp = grad_scaler is not None
         logger.info("Training classifier")
@@ -119,7 +123,9 @@ class Classifier(Model):
             batch = batch.to(device, non_blocking=True)
 
             with torch.cuda.amp.autocast(enabled=use_amp):  # type: ignore
-                loss, acc = self.training_step(batch=batch)
+                loss, _ = self.training_step(batch=batch)
+                if use_wandb:
+                    wandb.log({"train/loss": loss})
 
             if use_amp:  # Apply scaling for mixed-precision training
                 loss = grad_scaler.scale(loss)  # type: ignore
@@ -130,20 +136,32 @@ class Classifier(Model):
             if (test_data is not None) and (step > 0) and (step % test_interval == 0):
                 self.model.eval()
                 with torch.no_grad():
-                    logits_ls, targets_ls = [], []
+                    logits_ls, targets_ls, groups_ls = [], [], []
                     for batch in test_data:
                         batch = batch.to(device)
                         target = batch.s if pred_s else batch.y
-                        target = target.to(device, non_blocking=True)
                         with torch.cuda.amp.autocast(enabled=use_amp):  # type: ignore
                             logits_ls.append(self.forward(batch.x))
                         targets_ls.append(target)
-                acc = (
-                    accuracy(y_pred=torch.cat(logits_ls), y_true=torch.cat(targets_ls)).cpu().item()
+                        groups_ls.append(batch.s)
+                logits = torch.cat(logits_ls)
+                targets = torch.cat(targets_ls)
+                groups = torch.cat(groups_ls)
+
+                pair = EvalPair.from_tensors(y_pred=logits, y_true=targets, s=groups, pred_s=pred_s)
+                s_dim = len(groups.unique())
+                metrics = compute_metrics(
+                    pair=pair,
+                    model_name=self.__class__.__name__.lower(),
+                    step=0,
+                    s_dim=s_dim,
+                    use_wandb=use_wandb,
+                    prefix="val",
                 )
-                pbar.set_postfix(step=step + 1, avg_test_acc=acc)
+                pbar.set_postfix(step=step + 1, **metrics)
             else:
                 pbar.set_postfix(step=step + 1)
             pbar.update()
 
         pbar.close()
+        logger.info("Finished training")

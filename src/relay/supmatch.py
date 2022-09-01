@@ -9,7 +9,7 @@ from ranzen.decorators import implements
 from src.algs import SupportMatching
 from src.algs.adv import Evaluator
 from src.arch.autoencoder import AePair
-from src.clustering.pipeline import ClusteringPipeline
+from src.labelling.pipeline import Labeller
 from src.models import SplitLatentAe
 from src.models.discriminator import NeuralDiscriminator
 
@@ -38,7 +38,7 @@ class SupMatchRelay(BaseRelay):
         # === Cluster if not using the ground-truth labels for balancing ===
         if not dm.gt_deployment:
             # === Fit and evaluate the clusterer ===
-            clusterer: ClusteringPipeline = instantiate(self.clust)()
+            clusterer: Labeller = instantiate(self.clust)()
             if hasattr(clusterer, "gpu"):
                 # Set both phases to use the same device for convenience
                 clusterer.gpu = alg.gpu  # type: ignore

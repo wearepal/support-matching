@@ -6,7 +6,7 @@ defaults:
     - override /ds: nih_gender_cardio
     - override /dm: nih/base
     - override /alg: base
-    - override /clust: none
+    - override /labeller: gt
     - override /split: nih/sb
     - override /ae: base
     - override /ae_arch: resnet
@@ -20,7 +20,6 @@ dm:
     batch_size_te: 64
     label_noise: 0
     num_samples_per_group_per_bag: 1
-    gt_deployment: true
 
 alg:
     steps: 10000

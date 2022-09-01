@@ -1,10 +1,11 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Callable, Optional, Tuple
+from typing import Optional, Tuple
 from typing_extensions import Self
 
 from conduit.data.structures import TernarySample
 from conduit.metrics import accuracy
+from conduit.types import Loss
 import numpy as np
 from omegaconf import DictConfig, MISSING
 from ranzen import gcopy, implements
@@ -13,7 +14,7 @@ import torch
 from torch import Tensor
 import torch.nn as nn
 
-from src.data import DataModule, group_id_to_label
+from src.data import DataModule
 from src.evaluation.metrics import EvalPair, compute_metrics
 from src.models import Classifier, Optimizer
 
@@ -39,7 +40,8 @@ class LossComputer(nn.Module):
 
     def __init__(
         self,
-        criterion: Callable[[Tensor, Tensor], Tensor],
+        criterion: Loss,
+        *,
         is_robust: bool,
         group_counts: Tensor,
         alpha: float | None = None,
@@ -91,9 +93,9 @@ class LossComputer(nn.Module):
         self.avg_acc = 0.0
         self.batch_count = 0.0
 
-    def forward(self, input: Tensor, *, target: Tensor, group_idx: Tensor) -> Tensor:  # type: ignore
+    def forward(self, input: Tensor, *, target: Tensor, group_idx: Tensor, criterion: Loss) -> Tensor:  # type: ignore
         # compute per-sample and per-group losses
-        per_sample_losses = self.criterion(input, target)
+        per_sample_losses = criterion(input, target)
         group_loss, group_count = self.compute_group_avg(per_sample_losses, group_idx=group_idx)
         group_acc, group_count = self.compute_group_avg(
             (torch.argmax(input, dim=1) == target).float(), group_idx
@@ -230,13 +232,18 @@ class LossComputer(nn.Module):
 
 @dataclass(eq=False)
 class GdroClassifier(Classifier):
-    criterion: LossComputer = MISSING
+    loss_computer: LossComputer = MISSING
 
     @implements(Classifier)
     def training_step(self, batch: TernarySample, *, pred_s: bool = False) -> tuple[Tensor, float]:
         target = batch.s if pred_s else batch.y
         logits = self.forward(batch.x)
-        loss = self.criterion(input=logits, target=target, group_idx=batch.y)
+        loss = self.loss_computer.forward(
+            input=logits,
+            target=target,
+            group_idx=batch.s,
+            criterion=self.criterion,
+        )
         loss = loss.mean()
         acc = accuracy(y_pred=logits, y_true=target).cpu().item()
 
@@ -250,7 +257,6 @@ class Gdro(Algorithm):
     gamma: float = 0.1
     step_size: float = 0.01
     btl: bool = False
-    criterion: LossComputer = field(init=False)
     adjustments: Optional[Tuple[float]] = None
     steps: int = 10_000
 
@@ -265,14 +271,11 @@ class Gdro(Algorithm):
         dm = gcopy(dm, deep=False)
         s_count = dm.card_s
         if dm.deployment_ids is not None:
-            y_dep = group_id_to_label(dm.deployment_ids, s_count=s_count, label="y").flatten()
-            s_dep = group_id_to_label(dm.deployment_ids, s_count=s_count, label="s").flatten()
-            dm.deployment.y = y_dep
-            dm.deployment.s = s_dep
+            dm = dm.set_deployment_labels()
         elif dm.gt_deployment:
-            dm.train += dm.deployment
+            dm = dm.merge_train_and_deployment()
         s_all, _ = dm.train.s
-        group_counts = (torch.arange(s_count).unsqueeze(1) == s_all.squeeze()).sum(1).float()
+        _, group_counts = s_all.unique(return_counts=True)
         # process generalization adjustment stuff
         adjustments = self.adjustments
         if adjustments is not None:
@@ -281,7 +284,7 @@ class Gdro(Algorithm):
                 adjustments = np.array(adjustments * s_count)
             else:
                 adjustments = np.array(adjustments)
-        self.criterion = LossComputer(
+        loss_computer = LossComputer(
             criterion=nn.CrossEntropyLoss(reduction="none"),
             is_robust=True,
             group_counts=group_counts,
@@ -299,12 +302,14 @@ class Gdro(Algorithm):
             weight_decay=self.weight_decay,
             optimizer_cls=self.optimizer_cls,
             optimizer_kwargs=self.optimizer_kwargs,
+            loss_computer=loss_computer,
         )
         classifier.fit(
             train_data=train_data,
             steps=self.steps,
             device=self.device,
             grad_scaler=self.grad_scaler,
+            use_wandb=True,
         )
 
         # Generate predictions with the trained model
@@ -317,5 +322,6 @@ class Gdro(Algorithm):
             step=0,
             s_dim=s_count,
             use_wandb=True,
+            prefix="test",
         )
         return self

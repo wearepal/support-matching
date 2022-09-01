@@ -17,6 +17,8 @@ from conduit.data.datasets.utils import (
 )
 from conduit.data.structures import MeanStd, TernarySample
 from conduit.transforms import denormalize
+from loguru import logger
+from ranzen import gcopy
 from ranzen.torch.data import (
     BaseSampler,
     BatchSamplerBase,
@@ -27,6 +29,8 @@ from ranzen.torch.data import (
 import torch
 from torch import Tensor
 import torchvision.transforms.transforms as T
+
+from src.labelling import Labeller
 
 from .common import D
 from .splitter import DataSplitter
@@ -75,13 +79,7 @@ class DataModule(Generic[D]):
     seed: int = 47
 
     gt_deployment: bool = False
-    label_noise: float = attr.field(default=0)
     generator: torch.Generator = attr.field(init=False)
-
-    @label_noise.validator  # type: ignore
-    def validate_label_noise(self, attribute: str, value: float) -> None:
-        if not 0 <= value <= 1:
-            raise ValueError(f"'{attribute}' must be in the range [0, 1].")
 
     def __attrs_post_init__(self) -> None:
         self.generator = torch.Generator().manual_seed(self.seed)
@@ -121,6 +119,35 @@ class DataModule(Generic[D]):
     @property
     def card_y(self) -> int:
         return self.train.card_y
+
+    def set_deployment_labels(self, ids: Optional[Tensor] = None) -> Self:
+        ids = self.deployment_ids if ids is None else ids
+        if ids is not None:
+            if len(ids) != len(self.deployment):
+                raise ValueError(
+                    "'ids' must be the same length as the deployment set whose labels are to be "
+                    "set."
+                )
+            s_count = self.dim_s
+            y_dep = group_id_to_label(group_id=ids, s_count=s_count, label="y").flatten()
+            s_dep = group_id_to_label(group_id=ids, s_count=s_count, label="s").flatten()
+            copy = gcopy(self, deep=False)
+            copy.deployment.y = y_dep
+            copy.deployment.s = s_dep
+            return copy
+        logger.warning("No deployment ids to be converted into labels and set.")
+        return self
+
+    def merge_train_and_deployment(self) -> Self:
+        if self.deployment_ids is None:
+            logger.warning(
+                "'train' and 'deployment' sets cannot be merged as the latter is"
+                " unlabelled ('deployment_ids=None')"
+            )
+            return self
+        copy = self.set_deployment_labels()
+        copy.train += copy.deployment
+        return copy
 
     @property
     def card_s(self) -> int:
@@ -261,25 +288,6 @@ class DataModule(Generic[D]):
             num_workers=num_workers,
         )
 
-    @staticmethod
-    def _inject_label_noise(
-        labels: Tensor,
-        *,
-        noise_level: float,
-        generator: torch.Generator,
-        inplace: bool = True,
-    ) -> Tensor:
-        if not 0 <= noise_level <= 1:
-            raise ValueError("Noise-level must be in the range [0, 1].")
-        if not inplace:
-            labels = labels.clone()
-        unique, unique_inv = labels.unique(return_inverse=True)
-        num_to_flip = round(noise_level * len(labels))
-        to_flip = torch.randperm(len(labels), generator=generator)[:num_to_flip]
-        unique_inv[to_flip] += torch.randint(low=1, high=len(unique), size=(num_to_flip,))
-        unique_inv[to_flip] %= len(unique)
-        return unique[unique_inv]
-
     def deployment_dataloader(
         self,
         *,
@@ -291,18 +299,7 @@ class DataModule(Generic[D]):
         if eval:
             return self._make_dataloader(ds=self.deployment, batch_size=batch_size, shuffle=False)
 
-        # Use the ground-truth y/s labels for stratified sampling
-        if self.gt_deployment:
-            group_ids = get_group_ids(self.deployment)
-            # Inject label-noise into the group identifiers.
-            if self.label_noise > 0:
-                group_ids = self._inject_label_noise(
-                    group_ids, noise_level=self.label_noise, generator=self.generator
-                )
-        else:
-            group_ids = self.deployment_ids
-
-        if group_ids is None:
+        if self.deployment_ids is None:
             batch_sampler = SequentialBatchSampler(
                 data_source=self.deployment,
                 batch_size=batch_size,
@@ -313,7 +310,7 @@ class DataModule(Generic[D]):
             )
         else:
             batch_sampler = self._make_stratified_sampler(
-                group_ids=group_ids,
+                group_ids=self.deployment_ids,
                 batch_size=batch_size,
             )
         return self._make_dataloader(
@@ -377,17 +374,19 @@ class DataModule(Generic[D]):
         config: DataModuleConf,
         ds: D,
         splitter: DataSplitter,
-        deployment_ids: Optional[Tensor] = None,
+        labeller: Labeller,
     ) -> Self:
         splits = splitter(ds)
-        return cls(
+        dm = cls(
             train=splits.train,
             deployment=splits.deployment,
             test=splits.test,
             split_seed=splitter.seed,
             **config,  # type: ignore
-            deployment_ids=deployment_ids,
         )
+        deployment_ids = labeller.run(dm=dm)
+        dm.deployment_ids = deployment_ids
+        return dm
 
     def __iter__(self) -> Iterator[D]:
         yield from (self.train, self.deployment, self.test)

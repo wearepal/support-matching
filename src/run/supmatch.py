@@ -8,9 +8,14 @@ from src.algs import SupportMatching
 from src.algs.adv import Evaluator
 from src.arch.autoencoder import ResNetAE, SimpleConvAE
 from src.arch.predictors.fcn import Fcn, GatedSetFcn, KvqSetFcn
-from src.clustering.pipeline import ArtifactLoader, KmeansOnClipEncodings, NoCluster
 from src.data import DataModuleConf, DataSplitter
 from src.data.nih import NIHChestXRayDataset
+from src.labelling.pipeline import (
+    ArtifactLoader,
+    GroundTruthLabeller,
+    KmeansOnClipEncodings,
+    NullLabeller,
+)
 from src.logging import WandbConf
 from src.models.autoencoder import SplitLatentAe
 from src.models.discriminator import NeuralDiscriminator
@@ -35,8 +40,9 @@ def main() -> None:
     ]
     clust_ops: List[Union[Type[Any], Option]] = [
         Option(ArtifactLoader, name="artifact"),
+        Option(GroundTruthLabeller, name="gt"),
         Option(KmeansOnClipEncodings, name="kmeans"),
-        Option(NoCluster, name="none"),
+        Option(NullLabeller, name="none"),
     ]
 
     SupMatchRelay.with_hydra(
