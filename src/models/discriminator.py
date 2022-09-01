@@ -14,14 +14,14 @@ from src.mmd import MMDKernel, mmd2
 from .base import Model
 
 __all__ = [
-    "Discriminator",
+    "BinaryDiscriminator",
     "GanLoss",
     "MmdDiscriminator",
     "NeuralDiscriminator",
 ]
 
 
-class Discriminator(Protocol):
+class BinaryDiscriminator(Protocol):
     def discriminator_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
         ...
 
@@ -30,17 +30,17 @@ class Discriminator(Protocol):
 
 
 @dataclass(eq=False)
-class MmdDiscriminator(Discriminator, DcModule):
+class MmdDiscriminator(BinaryDiscriminator, DcModule):
     mmd_kernel: MMDKernel = MMDKernel.rq
     mmd_scales: List[float] = field(default_factory=list)
     mmd_wts: List[float] = field(default_factory=list)
     mmd_add_dot: float = 0.0
 
-    @implements(Discriminator)
+    @implements(BinaryDiscriminator)
     def discriminator_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
         return torch.zeros((), device=fake.device)
 
-    @implements(Discriminator)
+    @implements(BinaryDiscriminator)
     def encoder_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
         return mmd2(
             x=fake,
@@ -61,10 +61,10 @@ class GanLoss(Enum):
 
 
 @dataclass(eq=False)
-class NeuralDiscriminator(Discriminator, Model):
+class NeuralDiscriminator(BinaryDiscriminator, Model):
     criterion: GanLoss = GanLoss.LOGISTIC_NS
 
-    @implements(Discriminator)
+    @implements(BinaryDiscriminator)
     def discriminator_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
         real_scores = self.model(real)
         fake_scores = self.model(fake)
@@ -78,7 +78,7 @@ class NeuralDiscriminator(Discriminator, Model):
             return loss_real.mean() + loss_fake.mean()
         return real_scores.mean() - fake_scores.mean()
 
-    @implements(Discriminator)
+    @implements(BinaryDiscriminator)
     def encoder_loss(self, fake: Tensor, *, real: Tensor | None) -> Tensor:
         fake_scores = self.model(fake)
         real_scores: Tensor | None = None

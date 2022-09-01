@@ -3,45 +3,31 @@ from typing import Dict, Tuple
 from typing_extensions import Self
 
 from conduit.data.structures import TernarySample
-from loguru import logger
 from ranzen import implements
+from ranzen.torch import cross_entropy_loss
 import torch
 from torch import Tensor
 
 from src.data.data_module import DataModule
+from src.models import Classifier
 from src.models.autoencoder import SplitLatentAe
-from src.models.discriminator import BinaryDiscriminator, NeuralDiscriminator
 
 from .base import AdvSemiSupervisedAlg, Components, IterDep, IterTr
 from .evaluator import Evaluator
 
-__all__ = ["SupportMatching"]
+__all__ = ["Laftr"]
 
 
 @dataclass(eq=False)
-class SupportMatching(AdvSemiSupervisedAlg):
-    prior_loss_w: float = 0
+class Laftr(AdvSemiSupervisedAlg):
+    prior_loss_w: float = 0.0
     s_as_zs: bool = False
-
-    @implements(AdvSemiSupervisedAlg)
-    def _get_data_iterators(self, dm: DataModule) -> Tuple[IterTr, IterDep]:
-        if (self.disc_loss_w > 0) or (self.num_disc_updates > 0):
-            if (dm.deployment_ids is None) and (not dm.gt_deployment):
-                logger.warning(
-                    "Support matching is enabled but without any balancing of the deployment set "
-                    "- this can be achieved either by setting 'gt_deployment' to 'True' or by "
-                    "supplying 'deployment_ids'"
-                )
-        dl_tr = dm.train_dataloader(balance=True)
-        # The batch size needs to be consistent for the aggregation layer in the setwise neural
-        # discriminator
-        dl_dep = dm.deployment_dataloader(batch_size=dm.batch_size_tr)
-        return iter(dl_tr), iter(dl_dep)
+    label_smoothing: float = 0.0
 
     @implements(AdvSemiSupervisedAlg)
     def _encoder_loss(
         self,
-        comp: Components[BinaryDiscriminator],
+        comp: Components[Classifier],
         *,
         x_dep: Tensor,
         batch_tr: TernarySample[Tensor],
@@ -61,7 +47,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
             )
 
             # ============================ recon loss for deployment set ===========================
-            encoding_c, enc_loss_dep, logging_dict_dep = comp.ae.training_step(
+            _, enc_loss_dep, logging_dict_dep = comp.ae.training_step(
                 x_dep, prior_loss_w=self.prior_loss_w
             )
             logging_dict.update({k: v + logging_dict_dep[k] for k, v in logging_dict_tr.items()})
@@ -71,16 +57,11 @@ class SupportMatching(AdvSemiSupervisedAlg):
             total_loss = enc_loss_tr
             # ================================= adversarial losses ================================
             if not warmup:
-                disc_input_tr = encoding_t.zy
-                if isinstance(comp.disc, NeuralDiscriminator):
-                    disc_input_dep = encoding_c.zy if self.twoway_disc_loss else None
-                    disc_loss = comp.disc.encoder_loss(fake=disc_input_tr, real=disc_input_dep)
-                else:
-                    disc_input_dep = encoding_c.zy
-                    if not self.twoway_disc_loss:
-                        disc_input_dep = disc_input_dep.detach()
-                    disc_loss = comp.disc.encoder_loss(fake=disc_input_tr, real=disc_input_dep)
-
+                disc_loss = -cross_entropy_loss(
+                    comp.disc(encoding_t.zy),
+                    target=batch_tr.s,
+                    label_smoothing=self.label_smoothing,
+                )
                 disc_loss *= self.disc_loss_w
                 total_loss += disc_loss
                 logging_dict["Loss Discriminator"] = disc_loss.detach().cpu().item()
@@ -117,60 +98,54 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
     def _discriminator_loss(
         self,
-        comp: Components[BinaryDiscriminator],
+        comp: Components[Classifier],
         *,
         iterator_tr: IterTr,
         iterator_dep: IterDep,
     ) -> Tuple[Tensor, Dict[str, float]]:
         """Train the discriminator while keeping the encoder fixed."""
-        if isinstance(comp.disc, NeuralDiscriminator):
-            comp.train_disc()
-            x_tr = self._sample_tr(iterator_tr).x
-            x_dep = self._sample_dep(iterator_dep)
+        comp.train_disc()
+        batch_tr = self._sample_tr(iterator_tr)
+        with torch.cuda.amp.autocast(enabled=self.use_amp):  # type: ignore
+            with torch.no_grad():
+                encoding_tr = comp.ae.encode(batch_tr.x)
 
-            with torch.cuda.amp.autocast(enabled=self.use_amp):  # type: ignore
-                with torch.no_grad():
-                    encoding_tr = comp.ae.encode(x_tr)
-                    encoding_dep = comp.ae.encode(x_dep)
+            disc_loss = cross_entropy_loss(
+                comp.disc(comp.disc(encoding_tr)),
+                target=batch_tr.s,
+                label_smoothing=self.label_smoothing,
+            )
 
-                disc_loss = comp.disc.discriminator_loss(
-                    fake=encoding_tr.zy,
-                    real=encoding_dep.zy,
-                )
+        return disc_loss, {}
 
-            return disc_loss, {}
-        return torch.zeros((), device=self.device), {}
-
-    def _update_discriminator(self, disc: BinaryDiscriminator) -> None:
-        if isinstance(disc, NeuralDiscriminator):
-            self._clip_gradients(disc.parameters())
-            disc.step(grad_scaler=self.grad_scaler)
-            disc.zero_grad()
-            if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
-                self.grad_scaler.update()
+    def _update_discriminator(self, disc: Classifier) -> None:
+        self._clip_gradients(disc.parameters())
+        disc.step(grad_scaler=self.grad_scaler)
+        disc.zero_grad()
+        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
+            self.grad_scaler.update()
 
     @implements(AdvSemiSupervisedAlg)
     def discriminator_step(
         self,
-        comp: Components[BinaryDiscriminator],
+        comp: Components[Classifier],
         *,
         iterator_tr: IterTr,
         iterator_dep: IterDep,
         ga_weight: float,
     ) -> None:
-        if isinstance(comp.disc, NeuralDiscriminator):
-            # Train the discriminator on its own for a number of iterations
-            for _ in range(self.num_disc_updates):
-                for _ in range(self.ga_steps):
-                    loss, _ = self._discriminator_loss(
-                        comp=comp, iterator_tr=iterator_tr, iterator_dep=iterator_dep
-                    )
-                    self.backward(loss / ga_weight)
-                self._update_discriminator(comp.disc)
+        # Train the discriminator on its own for a number of iterations
+        for _ in range(self.num_disc_updates):
+            for _ in range(self.ga_steps):
+                loss, _ = self._discriminator_loss(
+                    comp=comp, iterator_tr=iterator_tr, iterator_dep=iterator_dep
+                )
+                self.backward(loss / ga_weight)
+            self._update_discriminator(comp.disc)
 
     @implements(AdvSemiSupervisedAlg)
     def fit(
-        self, dm: DataModule, *, ae: SplitLatentAe, disc: BinaryDiscriminator, evaluator: Evaluator
+        self, dm: DataModule, *, ae: SplitLatentAe, disc: Classifier, evaluator: Evaluator
     ) -> Self:
         if self.s_as_zs and self.zs_dim != dm.card_s:
             raise ValueError(f"zs_dim has to be equal to s_dim ({dm.card_s}) if `s_as_zs` is True.")

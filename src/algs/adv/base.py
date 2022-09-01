@@ -1,8 +1,18 @@
 from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import ClassVar, DefaultDict, Dict, Iterator, Optional, Tuple
-from typing_extensions import Self
+from typing import (
+    Any,
+    ClassVar,
+    DefaultDict,
+    Dict,
+    Generic,
+    Iterator,
+    Optional,
+    Tuple,
+    TypeVar,
+)
+from typing_extensions import Self, TypeAlias
 
 from conduit.data.structures import NamedSample, TernarySample
 from conduit.models.utils import prefix_keys
@@ -18,19 +28,25 @@ import wandb
 from src.algs.base import Algorithm
 from src.arch.predictors.fcn import Fcn
 from src.data import DataModule
+from src.logging import log_images
 from src.models.autoencoder import SplitLatentAe
 from src.models.classifier import Classifier
-from src.models.discriminator import Discriminator, NeuralDiscriminator
 
 from .evaluator import Evaluator
 
 __all__ = ["AdvSemiSupervisedAlg", "Components"]
 
 
+D = TypeVar("D")
+
+IterTr: TypeAlias = Iterator[TernarySample[Tensor]]
+IterDep: TypeAlias = Iterator[NamedSample[Tensor]]
+
+
 @dataclass(eq=False)
-class Components(DcModule):
+class Components(DcModule, Generic[D]):
     ae: SplitLatentAe
-    disc: Discriminator
+    disc: D
     pred_y: Optional[Classifier]
     pred_s: Optional[Classifier]
 
@@ -116,29 +132,21 @@ class AdvSemiSupervisedAlg(Algorithm):
 
         return pred_y, pred_s
 
-    def training_step(
+    @abstractmethod
+    def discriminator_step(
+        self, comp: Components, *, iterator_tr: IterTr, iterator_dep: IterDep, ga_weight: float
+    ) -> None:
+        ...
+
+    def encoder_step(
         self,
         comp: Components,
         *,
-        dm: DataModule,
-        iterator_tr: Iterator[TernarySample[Tensor]],
-        iterator_dep: Iterator[NamedSample[Tensor]],
-        itr: int,
-    ) -> Dict[str, float]:
-        warmup = itr < self.warmup_steps
-        ga_weight = 1 / self.num_disc_updates
-        if (not warmup) and (isinstance(comp.disc, NeuralDiscriminator)):
-            # Train the discriminator on its own for a number of iterations
-            for _ in range(self.num_disc_updates):
-                for _ in range(self.ga_steps):
-                    loss, _ = self._discriminator_loss(
-                        comp=comp, iterator_tr=iterator_tr, iterator_dep=iterator_dep
-                    )
-                    self.backward(loss / ga_weight)
-                self._update_discriminator(comp.disc)
-
-        batch_tr = self._sample_tr(iterator_tr=iterator_tr)
-        x_dep = self._sample_dep(iterator_dep=iterator_dep)
+        batch_tr: TernarySample,
+        x_dep: Tensor,
+        ga_weight: float,
+        warmup: bool,
+    ) -> DefaultDict[str, float]:
         logging_dict: DefaultDict[str, float] = defaultdict(float)
         for _ in range(self.ga_steps):
             loss, logging_dict_s = self._encoder_loss(
@@ -149,7 +157,36 @@ class AdvSemiSupervisedAlg(Algorithm):
             for k, v in logging_dict_s.items():
                 logging_dict[k] = logging_dict[k] + (v / self.ga_steps)
         self._update_encoder(comp)
+        return logging_dict
 
+    def training_step(
+        self,
+        comp: Components,
+        *,
+        dm: DataModule,
+        iterator_tr: IterTr,
+        iterator_dep: IterDep,
+        itr: int,
+    ) -> Dict[str, float]:
+        warmup = itr < self.warmup_steps
+        ga_weight = 1 / self.num_disc_updates
+        if not warmup:
+            self.discriminator_step(
+                comp=comp,
+                iterator_tr=iterator_tr,
+                iterator_dep=iterator_dep,
+                ga_weight=ga_weight,
+            )
+
+        batch_tr = self._sample_tr(iterator_tr=iterator_tr)
+        x_dep = self._sample_dep(iterator_dep=iterator_dep)
+        logging_dict = self.encoder_step(
+            comp=comp,
+            batch_tr=batch_tr,
+            x_dep=x_dep,
+            ga_weight=ga_weight,
+            warmup=warmup,
+        )
         logging_dict = prefix_keys(logging_dict, prefix="train", sep="/")  # type: ignore
         wandb.log(logging_dict, step=itr)
 
@@ -160,7 +197,6 @@ class AdvSemiSupervisedAlg(Algorithm):
                 self.log_recons(x=x_dep, dm=dm, ae=comp.ae, itr=itr, prefix="deployment")
         return logging_dict
 
-    @abstractmethod
     @torch.no_grad()
     def log_recons(
         self,
@@ -171,28 +207,49 @@ class AdvSemiSupervisedAlg(Algorithm):
         itr: int,
         prefix: Optional[str] = None,
     ) -> None:
-        ...
+        """Log the reconstructed and original images."""
+        num_blocks = min(4, len(x))
+        rows_per_block = min(8, len(x) // num_blocks)
+        num_samples = num_blocks * rows_per_block
+
+        sample = x[:num_samples]
+        encoding = ae.encode(sample)
+        recon = ae.all_recons(encoding, mode="hard")
+        recons = [recon.all, recon.zero_s, recon.just_s]
+
+        caption = "original | all | zero_s | just_s"
+        if self.s_as_zs:
+            recons.append(recon.rand_s)
+            caption += " | rand_s"
+
+        to_log = [sample]
+        for recon_ in recons:
+            to_log.append(recon_)
+
+        ncols = len(to_log)
+        interleaved = torch.stack(to_log, dim=1).view(ncols * num_samples, *sample.shape[1:])
+
+        log_images(
+            images=interleaved,
+            dm=dm,
+            name="reconstructions",
+            step=itr,
+            nsamples=[ncols * rows_per_block] * num_blocks,
+            ncols=ncols,
+            prefix=prefix,
+            caption=caption,
+        )
+
+    def backward(self, loss: Tensor) -> None:
+        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
+            loss = self.grad_scaler.scale(loss)  # type: ignore
+        loss.backward()
 
     @abstractmethod
     def _encoder_loss(
         self, comp: Components, *, x_dep: Tensor, batch_tr: TernarySample, warmup: bool
     ) -> Tuple[Tensor, Dict[str, float]]:
         ...
-
-    @abstractmethod
-    def _discriminator_loss(
-        self,
-        comp: Components,
-        *,
-        iterator_tr: Iterator[TernarySample[Tensor]],
-        iterator_dep: Iterator[NamedSample[Tensor]],
-    ) -> Tuple[Tensor, Dict[str, float]]:
-        ...
-
-    def backward(self, loss: Tensor) -> None:
-        if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
-            loss = self.grad_scaler.scale(loss)  # type: ignore
-        loss.backward()
 
     def _update_encoder(self, comp: Components) -> None:
         # Clip the norm of the gradients if max_grad_norm is not None
@@ -209,17 +266,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
             self.grad_scaler.update()
 
-    def _update_discriminator(self, disc: Discriminator) -> None:
-        if isinstance(disc, NeuralDiscriminator):
-            self._clip_gradients(disc.parameters())
-            disc.step(grad_scaler=self.grad_scaler)
-            disc.zero_grad()
-            if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
-                self.grad_scaler.update()
-
-    def _get_data_iterators(
-        self, dm: DataModule
-    ) -> Tuple[Iterator[TernarySample[Tensor]], Iterator[NamedSample[Tensor]]]:
+    def _get_data_iterators(self, dm: DataModule) -> Tuple[IterTr, IterDep]:
         dl_tr = dm.train_dataloader()
         dl_dep = dm.deployment_dataloader()
         return iter(dl_tr), iter(dl_dep)
@@ -230,9 +277,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         if evaluator is not None:
             evaluator(dm=dm, encoder=ae, step=step, device=self.device)
 
-    def fit(
-        self, dm: DataModule, *, ae: SplitLatentAe, disc: Discriminator, evaluator: Evaluator
-    ) -> Self:
+    def fit(self, dm: DataModule, *, ae: SplitLatentAe, disc: Any, evaluator: Evaluator) -> Self:
         # Construct the data iterators
         iterator_tr, iterator_dep = self._get_data_iterators(dm=dm)
         # ==== construct networks ====
@@ -266,8 +311,6 @@ class AdvSemiSupervisedAlg(Algorithm):
         return self
 
     @implements(Algorithm)
-    def run(
-        self, dm: DataModule, *, ae: SplitLatentAe, disc: Discriminator, evaluator: Evaluator
-    ) -> Self:
+    def run(self, dm: DataModule, *, ae: SplitLatentAe, disc: Any, evaluator: Evaluator) -> Self:
         self.fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
         return self
