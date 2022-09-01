@@ -1,4 +1,4 @@
 from .base import *
 from .evaluator import *
-from .laftr import *
+from .mimin import *
 from .supmatch import *

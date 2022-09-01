@@ -1,19 +1,23 @@
 from dataclasses import dataclass
 import os
-from typing import Any, Dict, Optional, Union
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 from typing_extensions import TypeAlias
 
 from hydra.utils import instantiate
 from loguru import logger
 from omegaconf import DictConfig, MISSING
-from ranzen.hydra import Relay
+from ranzen.decorators import implements
+from ranzen.hydra import Option, Relay
 from ranzen.torch import random_seed
 import torch
 import wandb
 
+from src.data import DataModuleConf, DataSplitter
 from src.data.common import process_data_dir
 from src.data.data_module import DataModule, DataModuleConf
 from src.labelling import Labeller
+from src.logging import WandbConf
 
 __all__ = ["BaseRelay"]
 
@@ -34,6 +38,30 @@ class BaseRelay(Relay):
     split: DictConfig = MISSING
     wandb: DictConfig = MISSING
     seed: int = 0
+
+    @classmethod
+    @implements(Relay)
+    def with_hydra(
+        cls,
+        root: Union[Path, str],
+        *,
+        clear_cache: bool = False,
+        instantiate_recursively: bool = False,
+        **kwargs: List[Option],
+    ) -> None:
+        configs = dict(
+            dm=[Option(DataModuleConf, name="base")],
+            wandb=[Option(WandbConf, name="base")],
+            split=[Option(DataSplitter, name="base")],
+        )
+        configs.update(kwargs)
+
+        super().with_hydra(
+            root=root,
+            instantiate_recursively=instantiate_recursively,
+            clear_cache=clear_cache,
+            **configs,
+        )
 
     def init_dm(self) -> DataModule:
         logger.info(f"Current working directory: '{os.getcwd()}'")

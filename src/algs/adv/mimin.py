@@ -9,17 +9,17 @@ import torch
 from torch import Tensor
 
 from src.data.data_module import DataModule
-from src.models import Classifier
+from src.models import Model
 from src.models.autoencoder import SplitLatentAe
 
 from .base import AdvSemiSupervisedAlg, Components, IterDep, IterTr
 from .evaluator import Evaluator
 
-__all__ = ["Laftr"]
+__all__ = ["MiMin"]
 
 
 @dataclass(eq=False)
-class Laftr(AdvSemiSupervisedAlg):
+class MiMin(AdvSemiSupervisedAlg):
     prior_loss_w: float = 0.0
     s_as_zs: bool = False
     label_smoothing: float = 0.0
@@ -27,7 +27,7 @@ class Laftr(AdvSemiSupervisedAlg):
     @implements(AdvSemiSupervisedAlg)
     def _encoder_loss(
         self,
-        comp: Components[Classifier],
+        comp: Components[Model],
         *,
         x_dep: Tensor,
         batch_tr: TernarySample[Tensor],
@@ -98,10 +98,9 @@ class Laftr(AdvSemiSupervisedAlg):
 
     def _discriminator_loss(
         self,
-        comp: Components[Classifier],
+        comp: Components[Model],
         *,
         iterator_tr: IterTr,
-        iterator_dep: IterDep,
     ) -> Tuple[Tensor, Dict[str, float]]:
         """Train the discriminator while keeping the encoder fixed."""
         comp.train_disc()
@@ -118,7 +117,7 @@ class Laftr(AdvSemiSupervisedAlg):
 
         return disc_loss, {}
 
-    def _update_discriminator(self, disc: Classifier) -> None:
+    def _update_discriminator(self, disc: Model) -> None:
         self._clip_gradients(disc.parameters())
         disc.step(grad_scaler=self.grad_scaler)
         disc.zero_grad()
@@ -128,7 +127,7 @@ class Laftr(AdvSemiSupervisedAlg):
     @implements(AdvSemiSupervisedAlg)
     def discriminator_step(
         self,
-        comp: Components[Classifier],
+        comp: Components[Model],
         *,
         iterator_tr: IterTr,
         iterator_dep: IterDep,
@@ -137,16 +136,12 @@ class Laftr(AdvSemiSupervisedAlg):
         # Train the discriminator on its own for a number of iterations
         for _ in range(self.num_disc_updates):
             for _ in range(self.ga_steps):
-                loss, _ = self._discriminator_loss(
-                    comp=comp, iterator_tr=iterator_tr, iterator_dep=iterator_dep
-                )
+                loss, _ = self._discriminator_loss(comp=comp, iterator_tr=iterator_tr)
                 self.backward(loss / ga_weight)
             self._update_discriminator(comp.disc)
 
     @implements(AdvSemiSupervisedAlg)
-    def fit(
-        self, dm: DataModule, *, ae: SplitLatentAe, disc: Classifier, evaluator: Evaluator
-    ) -> Self:
+    def fit(self, dm: DataModule, *, ae: SplitLatentAe, disc: Model, evaluator: Evaluator) -> Self:
         if self.s_as_zs and self.zs_dim != dm.card_s:
             raise ValueError(f"zs_dim has to be equal to s_dim ({dm.card_s}) if `s_as_zs` is True.")
 

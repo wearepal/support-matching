@@ -8,24 +8,23 @@ from omegaconf import DictConfig, MISSING
 from ranzen.decorators import implements
 from ranzen.hydra import Option
 
-from src.algs import SupportMatching
+from src.algs import MiMin
 from src.algs.adv import Evaluator
 from src.arch.autoencoder import AePair
-from src.models import SplitLatentAe
-from src.models.discriminator import NeuralDiscriminator
+from src.models import Model, SplitLatentAe
 
 from .base import BaseRelay
 
-__all__ = ["SupMatchRelay"]
+__all__ = ["MiMinRelay"]
 
 
 @dataclass(eq=False)
-class SupMatchRelay(BaseRelay):
-    ae: DictConfig = MISSING
+class MiMinRelay(BaseRelay):
     ae_arch: DictConfig = MISSING
     disc_arch: DictConfig = MISSING
     disc: DictConfig = MISSING
     eval: DictConfig = MISSING
+    ae: DictConfig = MISSING
 
     @classmethod
     @implements(BaseRelay)
@@ -35,19 +34,18 @@ class SupMatchRelay(BaseRelay):
         *,
         ds: List[Option],
         ae_arch: List[Option],
-        disc: List[Option],
         disc_arch: List[Option],
         labeller: List[Option],
         clear_cache: bool = False,
         instantiate_recursively: bool = False,
     ) -> None:
         configs = dict(
-            alg=[Option(SupportMatching, name="base")],
+            alg=[Option(MiMin, name="base")],
             ae=[Option(SplitLatentAe, name="base")],
             eval=[Option(Evaluator, name="base")],
-            ae_arch=ae_arch,
+            disc=[Option(Model, name="base")],
             ds=ds,
-            disc=disc,
+            ae_arch=ae_arch,
             disc_arch=disc_arch,
             labeller=labeller,
         )
@@ -62,19 +60,21 @@ class SupMatchRelay(BaseRelay):
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> None:
         dm = self.init_dm()
         run = self.init_wandb(raw_config, self.labeller, self.ae_arch, self.disc_arch)
-        alg: SupportMatching = instantiate(self.alg)
+        alg: MiMin = instantiate(self.alg)
         ae_pair: AePair = instantiate(self.ae_arch)(input_shape=dm.dim_x)
-        ae: SplitLatentAe = instantiate(self.ae, _partial_=True)(
+        ae: SplitLatentAe = instantiate(
+            self.ae,
             model=ae_pair,
             feature_group_slices=dm.feature_group_slices,
         )
         logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
+        card_s = dm.card_s
+        target_dim = card_s if card_s > 2 else 1
         disc_net, _ = instantiate(self.disc_arch)(
             input_dim=ae.encoding_size.zy,
-            target_dim=1,
-            batch_size=dm.batch_size_tr,
+            target_dim=target_dim,
         )
         evaluator: Evaluator = instantiate(self.eval)
-        disc: NeuralDiscriminator = instantiate(self.disc, model=disc_net)
+        disc: Model = instantiate(self.disc, model=disc_net)
         alg.run(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
         run.finish()  # type: ignore

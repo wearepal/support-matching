@@ -3,9 +3,7 @@ from __future__ import annotations
 from conduit.data.datasets.vision import Camelyon17, CelebA, ColoredMNIST
 from ranzen.hydra import Option
 
-from src.algs import Erm, Gdro
-from src.arch.backbones import ResNet, SimpleCNN
-from src.arch.predictors import Fcn
+from src.arch.autoencoder import ResNetAE, SimpleConvAE
 from src.arch.predictors.fcn import Fcn
 from src.data.nih import NIHChestXRayDataset
 from src.labelling.pipeline import (
@@ -14,7 +12,8 @@ from src.labelling.pipeline import (
     KmeansOnClipEncodings,
     NullLabeller,
 )
-from src.relay import FsRelay
+from src.models import Model
+from src.relay.mimin import MiMinRelay
 
 
 def main() -> None:
@@ -24,12 +23,12 @@ def main() -> None:
         Option(Camelyon17, name="camelyon17"),
         Option(NIHChestXRayDataset, name="nih"),
     ]
-    backbone_ops= [
-        Option(SimpleCNN, name="simple"),
-        Option(ResNet, name="resnet"),
+    ae_arch_ops= [
+        Option(SimpleConvAE, name="simple"),
+        Option(ResNetAE, name="resnet"),
     ]
-    pred_ops= [
-        Option(Fcn, name="fcn"),
+    disc_arch_ops= [
+        Option(Fcn, name="sw"),
     ]
     labeller_ops= [
         Option(ArtifactLoader, name="artifact"),
@@ -37,20 +36,15 @@ def main() -> None:
         Option(KmeansOnClipEncodings, name="kmeans"),
         Option(NullLabeller, name="none"),
     ]
-    alg_ops= [
-        Option(Erm, name="erm"),
-        Option(Gdro, name="gdro"),
-    ]
 
-    FsRelay.with_hydra(
-        alg=alg_ops,
-        backbone=backbone_ops,
+    MiMinRelay.with_hydra(
+        ae_arch=ae_arch_ops,
+        disc_arch=disc_arch_ops,
         ds=ds_ops,
         labeller=labeller_ops,
-        predictor=pred_ops,
-        root="conf",
         instantiate_recursively=False,
         clear_cache=True,
+        root="conf",
     )
 
 
