@@ -1,4 +1,3 @@
-from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Iterator, Optional
@@ -18,11 +17,12 @@ __all__ = ["Algorithm"]
 
 @dataclass(eq=False)
 class Algorithm(DcModule):
-    """Base class for algorithms."""
+    """Base class for adversarial algorithms."""
 
     use_amp: bool = False  # Whether to use mixed-precision training
     gpu: int = 0  # which GPU to use (if available)
     max_grad_norm: Optional[float] = None
+
     use_gpu: bool = field(init=False)
     device: torch.device = field(init=False)
     grad_scaler: Optional[GradScaler] = field(init=False)

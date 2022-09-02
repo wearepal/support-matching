@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from conduit.data.datasets.vision import Camelyon17, CelebA, ColoredMNIST
 from ranzen.hydra import Option
 
