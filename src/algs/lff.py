@@ -1,11 +1,11 @@
-from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Any, Generic, Iterator, Type, TypeVar
+from typing import Any, Generic, Iterator, Optional, Type, TypeVar, Union
 from typing_extensions import Self
 
 from conduit.data.datasets.base import CdtDataset
 from conduit.data.structures import XI, LoadedData, SizedDataset, TernarySample, X
 from conduit.types import Indexable, IndexType
+from omegaconf import DictConfig
 from ranzen import implements
 from ranzen.misc import gcopy
 from ranzen.torch import CrossEntropyLoss
@@ -16,7 +16,7 @@ import torch.nn as nn
 from src.data import DataModule
 from src.evaluation.metrics import EvalPair, compute_metrics
 from src.loss import GeneralizedCELoss
-from src.models import Classifier
+from src.models import Classifier, Optimizer
 
 from .base import Algorithm
 
@@ -34,13 +34,14 @@ class LabelEma(nn.Module, Indexable):
     updated: Tensor
 
     def __init__(self, labels: Tensor, *, alpha: float = 0.9) -> None:
+        super().__init__()
         self.alpha = alpha
         self.register_buffer("labels", labels.flatten())
         self.register_buffer("parameter", torch.zeros(len(labels)))
         self.register_buffer("updated", torch.zeros(len(labels)))
 
     @torch.no_grad()
-    def update(self, data: Tensor, *, index: Tensor | int) -> None:
+    def update(self, data: Tensor, *, index: Union[Tensor, int]) -> None:
         self.parameter[index] = (
             self.alpha * self.parameter[index] + (1 - self.alpha * self.updated[index]) * data
         )
@@ -109,22 +110,24 @@ class IndexedDataset(SizedDataset):
         return len(self.dataset)
 
 
+@dataclass
+class _LabelEmaMixin:
+    sample_loss_ema_b: LabelEma
+    sample_loss_ema_d: LabelEma
+
+
 @dataclass(eq=False)
-class LfF(Algorithm, Classifier):
+class LfFClassifier(Classifier, _LabelEmaMixin):
     q: float = 0.7
-    alpha: float = 0.7
     biased_model: nn.Module = field(init=False)
     biased_criterion: GeneralizedCELoss = field(init=False)
-    sample_loss_ema_b: LabelEma = field(init=False)
-    sample_loss_ema_d: LabelEma = field(init=False)
     criterion: CrossEntropyLoss = field(init=False)
 
     def __post_init__(self) -> None:
         self.biased_model = gcopy(self.model, deep=True)
         self.biased_criterion = GeneralizedCELoss(q=self.q, reduction="mean")
         self.criterion = CrossEntropyLoss(reduction="mean")
-        Classifier.__post_init__(self)
-        Algorithm.__post_init__(self)
+        super().__post_init__()
 
     def training_step(self, batch: IndexedSample[Tensor], *, pred_s: bool = False) -> Tensor:  # type: ignore
         logit_b = self.biased_model(batch.x)
@@ -155,21 +158,55 @@ class LfF(Algorithm, Classifier):
         loss_d_update = self.criterion.forward(logit_d, target=batch.y, instance_weight=loss_weight)
         return loss_b_update + loss_d_update
 
+
+@dataclass(eq=False)
+class LfF(Algorithm):
+    steps: int = 10_000
+    alpha: float = 0.7
+    q: float = 0.7
+
+    lr: float = 5.0e-4
+    optimizer_cls: Optimizer = Optimizer.ADAM
+    weight_decay: float = 0
+    optimizer_kwargs: Optional[DictConfig] = None
+    val_interval: float = 0.1
+
     @implements(Algorithm)
     def run(self, dm: DataModule, *, model: nn.Module) -> Self:
         if dm.deployment_ids is not None:
             dm = dm.merge_train_and_deployment()
+        sample_loss_ema_b = LabelEma(dm.train.y, alpha=self.alpha).to(self.device)
+        sample_loss_ema_d = LabelEma(dm.train.y, alpha=self.alpha).to(self.device)
         dm.train = IndexedDataset(dm.train)
-        self.sample_loss_ema_b = LabelEma(dm.train.y, alpha=self.alpha).to(self.device)
-        self.sample_loss_ema_d = LabelEma(dm.train.y, alpha=self.alpha).to(self.device)
+        classifier = LfFClassifier(
+            model=model,
+            lr=self.lr,
+            weight_decay=self.weight_decay,
+            optimizer_cls=self.optimizer_cls,
+            optimizer_kwargs=self.optimizer_kwargs,
+            sample_loss_ema_b=sample_loss_ema_b,
+            sample_loss_ema_d=sample_loss_ema_d,
+            q=self.q,
+        )
+        classifier.sample_loss_ema_b = sample_loss_ema_b
+        classifier.sample_loss_ema_d = sample_loss_ema_d
+        classifier.fit(
+            train_data=dm.train_dataloader(),
+            test_data=dm.test_dataloader(),
+            steps=self.steps,
+            device=self.device,
+            val_interval=self.val_interval,
+            grad_scaler=self.grad_scaler,
+            use_wandb=True,
+            pred_s=False,
+        )
         # Generate predictions with the trained model
-        preds, labels, sens = self.predict_dataset(dm.test_dataloader(), device=self.device)
+        preds, labels, sens = classifier.predict_dataset(dm.test_dataloader(), device=self.device)
+        breakpoint()
         pair = EvalPair.from_tensors(y_pred=preds, y_true=labels, s=sens, pred_s=False)
         compute_metrics(
             pair=pair,
             model_name=self.__class__.__name__.lower(),
-            step=0,
-            s_dim=dm.card_s,
             use_wandb=True,
             prefix="test",
         )

@@ -1,13 +1,12 @@
-from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, Tuple
 from typing_extensions import Self
 
 from conduit.data.structures import TernarySample
 from conduit.types import Loss
 import numpy as np
-from omegaconf import DictConfig, MISSING
-from ranzen import gcopy, implements
+from omegaconf import DictConfig
+from ranzen import implements
 from ranzen.torch import CrossEntropyLoss
 from ranzen.torch.loss import ReductionType
 import torch
@@ -40,13 +39,12 @@ class LossComputer(nn.Module):
 
     def __init__(
         self,
-        criterion: Loss,
         *,
         is_robust: bool,
         group_counts: Tensor,
-        alpha: float | None = None,
+        alpha: Optional[float] = None,
         gamma: float = 0.1,
-        adj: Tensor | None = None,
+        adj: Optional[Tensor] = None,
         min_var_weight: float = 0,
         step_size: float = 0.01,
         normalize_loss: bool = False,
@@ -54,7 +52,6 @@ class LossComputer(nn.Module):
     ) -> None:
         super().__init__()
         self.reduction: ReductionType = ReductionType.mean
-        self.criterion = criterion
         self.is_robust = is_robust
         self.gamma = gamma
         self.alpha = alpha
@@ -77,7 +74,6 @@ class LossComputer(nn.Module):
             assert alpha, "alpha must be specified"
 
         # quantities maintained throughout training
-
         self.register_buffer("adv_probs", torch.ones(self.n_groups) / self.n_groups)
         self.register_buffer("exp_avg_loss", torch.zeros(self.n_groups))
         self.register_buffer("exp_avg_initialized", torch.zeros(self.n_groups).byte())
@@ -94,8 +90,12 @@ class LossComputer(nn.Module):
         self.batch_count = 0.0
 
     def forward(self, input: Tensor, *, target: Tensor, group_idx: Tensor, criterion: Loss) -> Tensor:  # type: ignore
+        if isinstance(red := criterion.reduction, ReductionType):
+            assert red is ReductionType.none
+        else:
+            assert red == "none"
         # compute per-sample and per-group losses
-        per_sample_losses = criterion(input, target)
+        per_sample_losses = criterion(input=input, target=target)
         group_loss, group_count = self.compute_group_avg(per_sample_losses, group_idx=group_idx)
         group_acc, group_count = self.compute_group_avg(
             (torch.argmax(input, dim=1) == target).float(), group_idx
@@ -124,7 +124,7 @@ class LossComputer(nn.Module):
 
         return actual_loss
 
-    def compute_robust_loss(self, group_loss: Tensor) -> tuple[Tensor, Tensor]:
+    def compute_robust_loss(self, group_loss: Tensor) -> Tuple[Tensor, Tensor]:
         adjusted_loss = group_loss
         if torch.all(self.adj > 0):
             adjusted_loss += self.adj / torch.sqrt(self.group_counts)
@@ -136,13 +136,13 @@ class LossComputer(nn.Module):
         robust_loss = group_loss @ self.adv_probs
         return robust_loss, self.adv_probs
 
-    def compute_robust_loss_btl(self, group_loss: Tensor) -> tuple[Tensor, Tensor]:
+    def compute_robust_loss_btl(self, group_loss: Tensor) -> Tuple[Tensor, Tensor]:
         adjusted_loss = self.exp_avg_loss + self.adj / torch.sqrt(self.group_counts)
         return self.compute_robust_loss_greedy(group_loss, adjusted_loss)
 
     def compute_robust_loss_greedy(
         self, group_loss: Tensor, ref_loss: Tensor
-    ) -> tuple[Tensor, Tensor]:
+    ) -> Tuple[Tensor, Tensor]:
         sorted_idx = ref_loss.sort(descending=True)[1]
         sorted_loss = group_loss[sorted_idx]
         sorted_frac = self.group_frac[sorted_idx]
@@ -160,7 +160,7 @@ class LossComputer(nn.Module):
         unsorted_weights = weights[unsort_idx]
         return robust_loss, unsorted_weights
 
-    def compute_group_avg(self, losses: Tensor, group_idx: Tensor) -> tuple[Tensor, Tensor]:
+    def compute_group_avg(self, losses: Tensor, group_idx: Tensor) -> Tuple[Tensor, Tensor]:
         # compute observed counts and mean loss for each group
         group_map = (
             group_idx == torch.arange(self.n_groups, device=group_idx.device).unsqueeze(1).long()
@@ -196,7 +196,7 @@ class LossComputer(nn.Module):
         group_loss: Tensor,
         group_acc: Tensor,
         group_count: Tensor,
-        weights: Tensor | None = None,
+        weights: Optional[Tensor] = None,
     ):
         # avg group loss
         denom = self.processed_data_counts + group_count
@@ -230,9 +230,20 @@ class LossComputer(nn.Module):
         self.avg_acc = group_frac @ self.avg_group_acc
 
 
+@dataclass
+class _LcMixin:
+    loss_computer: LossComputer
+
+
 @dataclass(eq=False)
-class GdroClassifier(Classifier):
-    loss_computer: LossComputer = MISSING
+class GdroClassifier(Classifier, _LcMixin):
+    def __post_init__(self) -> None:
+        # LossComputer requires that the criterion return per-sample (unreduced) losses.
+        if isinstance(red := self.criterion.reduction, ReductionType):
+            assert red is ReductionType.none
+        else:
+            assert red == "none"
+        super().__post_init__()
 
     @implements(Classifier)
     def training_step(self, batch: TernarySample[Tensor], *, pred_s: bool = False) -> Tensor:
@@ -254,25 +265,22 @@ class Gdro(Algorithm):
     step_size: float = 0.01
     btl: bool = False
     adjustments: Optional[Tuple[float]] = None
-    steps: int = 10_000
 
+    steps: int = 10_000
     optimizer_cls: Optimizer = Optimizer.ADAM
     lr: float = 5.0e-4
     weight_decay: float = 0
     optimizer_kwargs: Optional[DictConfig] = None
-    optimizer: torch.optim.Optimizer = field(init=False)
+    val_interval: float = 0.1
 
     @implements(Algorithm)
     def run(self, dm: DataModule, *, model: nn.Module) -> Self:
-        dm = gcopy(dm, deep=False)
-        s_count = dm.card_s
         if dm.deployment_ids is not None:
-            dm = dm.set_deployment_labels()
-        elif dm.gt_deployment:
             dm = dm.merge_train_and_deployment()
-        s_all, _ = dm.train.s
+        s_count = dm.card_s
+        s_all = dm.train.s
         _, group_counts = s_all.unique(return_counts=True)
-        # process generalization adjustment stuff
+
         adjustments = self.adjustments
         if adjustments is not None:
             assert len(adjustments) in (1, s_count)
@@ -281,7 +289,6 @@ class Gdro(Algorithm):
             else:
                 adjustments = np.array(adjustments)
         loss_computer = LossComputer(
-            criterion=CrossEntropyLoss(reduction="none"),
             is_robust=True,
             group_counts=group_counts,
             alpha=self.alpha,
@@ -291,32 +298,29 @@ class Gdro(Algorithm):
             btl=self.btl,
         )
 
-        train_data = dm.train_dataloader()
         classifier = GdroClassifier(
             model=model,
             lr=self.lr,
             weight_decay=self.weight_decay,
             optimizer_cls=self.optimizer_cls,
             optimizer_kwargs=self.optimizer_kwargs,
+            criterion=CrossEntropyLoss(reduction="none"),
             loss_computer=loss_computer,
         )
         classifier.fit(
-            train_data=train_data,
+            train_data=dm.train_dataloader(),
+            test_data=dm.test_dataloader(),
             steps=self.steps,
+            val_interval=self.val_interval,
             device=self.device,
             grad_scaler=self.grad_scaler,
             use_wandb=True,
         )
-
-        # Generate predictions with the trained model
         preds, labels, sens = classifier.predict_dataset(dm.test_dataloader(), device=self.device)
-
         pair = EvalPair.from_tensors(y_pred=preds, y_true=labels, s=sens, pred_s=False)
         compute_metrics(
             pair=pair,
             model_name=self.__class__.__name__.lower(),
-            step=0,
-            s_dim=s_count,
             use_wandb=True,
             prefix="test",
         )

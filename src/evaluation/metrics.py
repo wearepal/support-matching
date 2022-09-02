@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.utils import to_numpy
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,9 +33,11 @@ class EvalPair:
     def from_tensors(
         cls, y_pred: Tensor, *, y_true: Tensor, s: Tensor, pred_s: bool = False
     ) -> Self:
-        pred = em.Prediction(hard=pd.Series(y_pred))
-        sens_pd = pd.Series(s.detach().cpu().numpy().astype(np.float32), name="subgroup")
-        labels_pd = pd.Series(y_true.detach().cpu().numpy(), name="labels")
+        if (len(y_pred) != len(y_true) != len(s)):
+            raise ValueError("'y_pred', 'y_true', and 's' must match in size at dimension 0.")
+        pred = em.Prediction(hard=pd.Series(to_numpy(y_pred.flatten())))
+        sens_pd = pd.Series(to_numpy(tensor=s.flatten()).astype(np.float32), name="subgroup")
+        labels_pd = pd.Series(to_numpy(y_true.flatten()), name="labels")
         actual = LabelTuple.from_df(s=sens_pd, y=sens_pd if pred_s else labels_pd)
         return cls(pred=pred, actual=actual)
 
@@ -44,7 +47,6 @@ def compute_metrics(
     pair: EvalPair,
     *,
     model_name: str,
-    s_dim: int,
     step: int | None = None,
     exp_name: str | None = None,
     save_summary: bool = False,
@@ -65,7 +67,7 @@ def compute_metrics(
 
     :returns: dictionary with the computed metrics
     """
-
+    logger.info("Computing classification metrics")
     predictions = pair.pred
     actual = pair.actual
     predictions._info = {}  # type: ignore
@@ -74,7 +76,6 @@ def compute_metrics(
         actual=actual,
         metrics=[emm.Accuracy(), emm.TPR(), emm.TNR(), emm.RenyiCorrelation()],  # type: ignore
         per_sens_metrics=[emm.Accuracy(), emm.ProbPos(), emm.TPR(), emm.TNR()],  # type: ignore
-        diffs_and_ratios=s_dim < 4,  # this just gets too much with higher s dim
     )
     # Convert to tensor for compatibility with conduit-derived metrics.
     y_pred_t = torch.as_tensor(torch.as_tensor(predictions.hard, dtype=torch.long))

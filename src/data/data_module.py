@@ -2,7 +2,17 @@ from collections import defaultdict
 from dataclasses import dataclass
 from functools import reduce
 from math import gcd
-from typing import DefaultDict, Dict, Generic, Iterable, Iterator, List, Optional, Type
+from typing import (
+    DefaultDict,
+    Dict,
+    Generic,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Type,
+    TYPE_CHECKING,
+)
 from typing_extensions import Self
 
 import albumentations as A
@@ -30,11 +40,12 @@ import torch
 from torch import Tensor
 import torchvision.transforms.transforms as T
 
-from src.labelling import Labeller
-
 from .common import D
 from .splitter import DataSplitter
 from .utils import group_id_to_label
+
+if TYPE_CHECKING:
+    from src.labelling import Labeller
 
 __all__ = ["DataModule", "DataModuleConf"]
 
@@ -52,10 +63,6 @@ class DataModuleConf:
     num_workers: int = 0
     persist_workers: bool = False
     pin_memory: bool = True
-    gt_deployment: bool = True
-    # Amount of noise to apply to the labels used for balanced sampling
-    # -- only applicable when ``gt_deployment=True``
-    label_noise: float = 0.0
     seed: int = 47
 
 
@@ -78,7 +85,6 @@ class DataModule(Generic[D]):
     pin_memory: bool = True
     seed: int = 47
 
-    gt_deployment: bool = False
     generator: torch.Generator = attr.field(init=False)
 
     def __attrs_post_init__(self) -> None:
@@ -374,7 +380,7 @@ class DataModule(Generic[D]):
         config: DataModuleConf,
         ds: D,
         splitter: DataSplitter,
-        labeller: Labeller,
+        labeller: "Labeller",
     ) -> Self:
         splits = splitter(ds)
         dm = cls(

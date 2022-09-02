@@ -32,7 +32,7 @@ class Model(DcModule):
     optimizer: torch.optim.Optimizer = field(init=False)
     scheduler_cls: Optional[str] = None
     scheduler_kwargs: Optional[DictConfig] = None
-    scheduler: Optional[LRScheduler] = field(init=False)
+    scheduler: Optional[LRScheduler] = field(init=False, default=None)
 
     def __post_init__(self) -> None:
         optimizer_config = DictConfig({"weight_decay": self.weight_decay, "lr": self.lr})
@@ -43,10 +43,11 @@ class Model(DcModule):
             self.named_parameters(), weight_decay=optimizer_config["weight_decay"]
         )
         self.optimizer = self.optimizer_cls.value(**optimizer_config, params=params)
-        scheduler_config = DictConfig({"_target_": self.scheduler_cls})
-        if self.scheduler_kwargs is not None:
-            scheduler_config.update(self.scheduler_kwargs)
-        self.scheduler = instantiate(scheduler_config, optimizer=self.optimizer)
+        if self.scheduler_cls is not None:
+            scheduler_config = DictConfig({"_target_": self.scheduler_cls})
+            if self.scheduler_kwargs is not None:
+                scheduler_config.update(self.scheduler_kwargs)
+            self.scheduler = instantiate(scheduler_config, optimizer=self.optimizer)
 
     def step(self, grad_scaler: Optional[GradScaler] = None) -> None:
         if grad_scaler is None:

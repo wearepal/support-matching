@@ -1,6 +1,7 @@
 from __future__ import annotations
+from conduit.metrics import hard_prediction
 from dataclasses import dataclass, field
-from typing import Optional, Tuple, Union, overload
+from typing import Optional, Tuple, Union, overload, ClassVar, Iterator
 from typing_extensions import Literal
 
 from conduit.data.datasets.utils import CdtDataLoader
@@ -12,7 +13,7 @@ from ranzen.torch.utils import inf_generator
 import torch
 from torch import Tensor
 from torch.cuda.amp.grad_scaler import GradScaler
-from tqdm import trange
+from tqdm import trange, tqdm
 import wandb
 
 from src.evaluation.metrics import EvalPair, compute_metrics
@@ -22,20 +23,30 @@ from .base import Model
 __all__ = ["Classifier"]
 
 
+@torch.no_grad()
+def hard_prediction(logits: Tensor) -> Tensor:
+    return (logits > 0).long() if logits.ndim == 1 else logits.argmax(dim=1)
+
+@torch.no_grad()
+def soft_prediction(logits: Tensor) -> Tensor:
+    return logits.sigmoid() if logits.ndim == 1 else logits.softmax(dim=1)
+
+@torch.no_grad()
+def cat(*ls: list[Tensor], dim: int=0) -> Iterator[Tensor]:
+    for ls_ in ls:
+        yield torch.cat(ls_, dim=dim)
+
+@torch.no_grad()
+def cat_cpu_flatten(*ls: list[Tensor], dim: int=0) -> Iterator[Tensor]:
+    for ls_ in ls:
+        yield torch.cat(ls_, dim=dim).cpu().flatten()
+
 @dataclass(eq=False)
 class Classifier(Model):
     """Wrapper for classifier models equipped witht training/inference routines."""
 
+    _PBAR_COL: ClassVar[str] = "#ffe252"
     criterion: Loss = field(default_factory=CrossEntropyLoss)
-
-    def predict(self, inputs: Tensor) -> Tensor:
-        logits = self.forward(inputs)
-        return (logits > 0).long() if logits.ndim == 1 else logits.argmax(dim=1)
-
-    def predict_soft(self, inputs: Tensor) -> Tensor:
-        """Make soft predictions."""
-        logits = self.forward(inputs)
-        return logits.sigmoid() if logits.ndim == 1 else logits.softmax(dim=1)
 
     @overload
     def predict_dataset(
@@ -57,6 +68,7 @@ class Classifier(Model):
     ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         ...
 
+    @torch.no_grad()
     def predict_dataset(
         self,
         data: CdtDataLoader[TernarySample],
@@ -65,26 +77,25 @@ class Classifier(Model):
         with_soft: bool = False,
     ) -> Union[Tuple[Tensor, Tensor, Tensor], Tuple[Tensor, Tensor, Tensor, Tensor]]:
         self.to(device)
-        preds, actual, sens, soft_preds = [], [], [], []
+        hard_preds_ls, actual_ls, sens_ls, soft_preds_ls = [], [], [], []
         with torch.no_grad():
-            for batch in data:
+            for batch in tqdm(data, desc="Generating predictions", colour=self._PBAR_COL):
                 batch.to(device)
-                batch_preds = self.predict(batch.x)
-                preds.append(batch_preds)
-                actual.append(batch.y)
-                sens.append(batch.s)
+                logits = self.forward(batch.x)
+                hard_preds_ls.append(hard_prediction(logits))
+                actual_ls.append(batch.y)
+                sens_ls.append(batch.s)
                 if with_soft:
-                    soft_preds.append(self.predict_soft(batch.x))
+                    soft_preds_ls.append(soft_prediction(logits))
 
-        preds = torch.cat(preds, dim=0).cpu().detach().view(-1)
-        actual = torch.cat(actual, dim=0).cpu().detach().view(-1)
-        sens = torch.cat(sens, dim=0).cpu().detach().view(-1)
-        soft_preds = torch.cat(soft_preds, dim=0).cpu().detach().view(-1)
+        hard_preds, actual, sens = cat_cpu_flatten(hard_preds_ls, actual_ls, sens_ls,
+                dim=0)
+        logger.info("Finished generating predictions")
 
         if with_soft:
-            return preds, actual, sens, soft_preds
-        else:
-            return preds, actual, sens
+            soft_preds, = cat_cpu_flatten(soft_preds_ls)
+            return hard_preds, actual, sens, soft_preds
+        return hard_preds, actual, sens
 
     def training_step(self, batch: TernarySample, *, pred_s: bool = False) -> Tensor:
         target = batch.s if pred_s else batch.y
@@ -98,20 +109,19 @@ class Classifier(Model):
         steps: int,
         device: torch.device,
         pred_s: bool = False,
-        test_interval: int | float = 0.1,
+        val_interval: int | float = 0.1,
         test_data: CdtDataLoader[TernarySample] | None = None,
         grad_scaler: Optional[GradScaler] = None,
         use_wandb: bool = False,
     ) -> None:
         use_amp = grad_scaler is not None
-        logger.info("Training classifier")
         # Test after every 20% of the total number of training iterations by default.
-        if isinstance(test_interval, float):
-            test_interval = max(1, round(test_interval * steps))
+        if isinstance(val_interval, float):
+            val_interval = max(1, round(val_interval * steps))
         self.to(device)
         self.train()
 
-        pbar = trange(steps)
+        pbar = trange(steps, desc="Training classifier", colour=self._PBAR_COL)
         train_iter = inf_generator(train_data)
         for step in range(steps):
             batch = next(train_iter)
@@ -128,28 +138,26 @@ class Classifier(Model):
             self.step(grad_scaler=grad_scaler)
             self.optimizer.zero_grad()
 
-            if (test_data is not None) and (step > 0) and (step % test_interval == 0):
+            if (test_data is not None) and (step > 0) and (step % val_interval == 0):
                 self.model.eval()
                 with torch.no_grad():
-                    logits_ls, targets_ls, groups_ls = [], [], []
-                    for batch in test_data:
+                    preds_ls, targets_ls, groups_ls = [], [], []
+                    for batch in tqdm(
+                        test_data, desc="Validating classifier", colour=self._PBAR_COL
+                    ):
                         batch = batch.to(device)
                         target = batch.s if pred_s else batch.y
                         with torch.cuda.amp.autocast(enabled=use_amp):  # type: ignore
-                            logits_ls.append(self.forward(batch.x))
+                            logits = self.forward(batch.x)
+                        preds_ls.append(hard_prediction(logits))
                         targets_ls.append(target)
                         groups_ls.append(batch.s)
-                logits = torch.cat(logits_ls)
-                targets = torch.cat(targets_ls)
-                groups = torch.cat(groups_ls)
-
-                pair = EvalPair.from_tensors(y_pred=logits, y_true=targets, s=groups, pred_s=pred_s)
-                s_dim = len(groups.unique())
+                preds, targets, groups = cat_cpu_flatten(preds_ls, targets_ls, groups_ls, dim=0)
+                pair = EvalPair.from_tensors(y_pred=preds, y_true=targets, s=groups, pred_s=pred_s)
                 metrics = compute_metrics(
                     pair=pair,
                     model_name=self.__class__.__name__.lower(),
                     step=0,
-                    s_dim=s_dim,
                     use_wandb=use_wandb,
                     prefix="val",
                 )

@@ -35,13 +35,15 @@ class ResNetVersion(Enum):
 
 @dataclass
 class ResNet(BackboneFactory):
-    in_channels: int = 3
-    pretrained: bool = True
+    pretrained: bool = False
     version: ResNetVersion = ResNetVersion.RN18
 
     @implements(BackboneFactory)
     def __call__(self, input_dim: int) -> BackboneFactoryOut[tvm.ResNet]:
-        model: tvm.ResNet = getattr(tvm, f"resnet{self.version.value}")(pretrained=self.pretrained)
+        fn_name = f"resnet{self.version.value}"
+        weights_enum_name = f"ResNet{self.version.value}_Weights"
+        enum: tvm._api.WeightsEnum = getattr(tvm, weights_enum_name)  # type: ignore
+        model: tvm.ResNet = getattr(tvm, fn_name)(weights=enum.DEFAULT)
         out_dim = model.fc.in_features
         model.fc = nn.Identity()  # type: ignore
         return model, out_dim
@@ -59,8 +61,7 @@ class ConvNeXtVersion(Enum):
 
 @dataclass
 class ConvNeXt(BackboneFactory):
-    in_channels: int = 3
-    pretrained: bool = True
+    pretrained: bool = False
     version: ConvNeXtVersion = ConvNeXtVersion.BASE
     checkpoint_path: str = ""
     p: float = 3
