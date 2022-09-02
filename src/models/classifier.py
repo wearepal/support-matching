@@ -25,11 +25,13 @@ __all__ = ["Classifier"]
 
 @torch.no_grad()
 def hard_prediction(logits: Tensor) -> Tensor:
+    logits = torch.atleast_1d(logits.squeeze())
     return (logits > 0).long() if logits.ndim == 1 else logits.argmax(dim=1)
 
 
 @torch.no_grad()
 def soft_prediction(logits: Tensor) -> Tensor:
+    logits = torch.atleast_1d(logits.squeeze())
     return logits.sigmoid() if logits.ndim == 1 else logits.softmax(dim=1)
 
 
