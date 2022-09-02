@@ -5,7 +5,6 @@ from typing_extensions import Literal
 
 from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import TernarySample
-from conduit.metrics import accuracy
 from conduit.types import Loss
 from loguru import logger
 from ranzen.torch.loss import CrossEntropyLoss
@@ -87,14 +86,10 @@ class Classifier(Model):
         else:
             return preds, actual, sens
 
-    def training_step(self, batch: TernarySample, *, pred_s: bool = False) -> tuple[Tensor, float]:
+    def training_step(self, batch: TernarySample, *, pred_s: bool = False) -> Tensor:
         target = batch.s if pred_s else batch.y
         logits = self.forward(batch.x)
-        loss = self.criterion(input=logits, target=target)
-        loss = loss.mean()
-        acc = accuracy(y_pred=logits, y_true=target).cpu().item()
-
-        return loss, acc
+        return self.criterion(input=logits, target=target)
 
     def fit(
         self,
@@ -123,7 +118,7 @@ class Classifier(Model):
             batch = batch.to(device, non_blocking=True)
 
             with torch.cuda.amp.autocast(enabled=use_amp):  # type: ignore
-                loss, _ = self.training_step(batch=batch)
+                loss = self.training_step(batch=batch)
                 if use_wandb:
                     wandb.log({"train/loss": loss})
 

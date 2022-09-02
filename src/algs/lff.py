@@ -1,24 +1,34 @@
 from __future__ import annotations
+from dataclasses import dataclass, field
+from typing import Any, Generic, Iterator, Type, TypeVar
+from typing_extensions import Self
 
+from conduit.data.datasets.base import CdtDataset
+from conduit.data.structures import XI, LoadedData, SizedDataset, TernarySample, X
+from conduit.types import Indexable, IndexType
+from ranzen import implements
+from ranzen.misc import gcopy
+from ranzen.torch import CrossEntropyLoss
 import torch
 from torch import Tensor
 import torch.nn as nn
 
-# from typing_extensions import Self
+from src.data import DataModule
+from src.evaluation.metrics import EvalPair, compute_metrics
+from src.loss import GeneralizedCELoss
+from src.models import Classifier
 
-# from dataclasses import dataclass
-# import copy
-# from typing import Any
-# from loguru import logger
-# from conduit.data.datasets.utils import CdtDataLoader
-# from conduit.data.structures import TernarySample
-# from .base import Algorithm
+from .base import Algorithm
+
+__all__ = [
+    "IndexedDataset",
+    "IndexedSample",
+    "LabelEma",
+    "LfF",
+]
 
 
-__all__ = ["LabelEma"]
-
-
-class LabelEma(nn.Module):
+class LabelEma(nn.Module, Indexable):
     labels: Tensor
     parameter: Tensor
     updated: Tensor
@@ -26,139 +36,141 @@ class LabelEma(nn.Module):
     def __init__(self, labels: Tensor, *, alpha: float = 0.9) -> None:
         self.alpha = alpha
         self.register_buffer("labels", labels.flatten())
-        self.register_buffer("parameter", torch.zeros(labels.size(0)))
-        self.register_buffer("updated", torch.zeros(labels.size(0)))
+        self.register_buffer("parameter", torch.zeros(len(labels)))
+        self.register_buffer("updated", torch.zeros(len(labels)))
 
+    @torch.no_grad()
     def update(self, data: Tensor, *, index: Tensor | int) -> None:
         self.parameter[index] = (
             self.alpha * self.parameter[index] + (1 - self.alpha * self.updated[index]) * data
         )
         self.updated[index] = 1
 
+    @torch.no_grad()
     def max_loss(self, label: int) -> Tensor:
         label_index = self.labels == label
         return self.parameter[label_index].max()
 
+    @implements(Indexable)
+    @torch.no_grad()
+    def __getitem__(self, index: IndexType) -> Tensor:
+        return self.parameter[index].clone()
 
-# class IndexDataset(Dataset):
-#     def __init__(self, dataset: Dataset):
-#         self.dataset = dataset
 
-#     def __len__(self) -> int:
-#         return len(self.dataset)  # type: ignore
+I = TypeVar("I", int, Tensor)
 
-#     def __getitem__(self, index: int):
-#         return (index, *self.dataset[index])
 
-# @dataclass
-# class LfF(Algorithm):
-#     def __init__(
-#         self,
-#         model: nn.Module,
-#         num_classes: int,
-#         optimizer_kwargs: dict[str, Any] | None = None,
-#         q: float = 0.7,
-#     ):
-#         super().__init__(
-#             model=model,
-#             num_classes=num_classes,
-#             criterion="ce",
-#             optimizer_kwargs=optimizer_kwargs,
-#         )
-#         self.biased_model = ModelBase(copy.deepcopy(self.model), optimizer_kwargs=optimizer_kwargs)
-#         self.biased_criterion = GeneralizedCELoss(q=q)
+@dataclass(eq=False)
+class _IndexedSampleMixin(Generic[I]):
+    idx: I
 
-#     def fit(
-#         self,
-#         train_data: CdtDataLoader[TernarySample],
-#         epochs: int,
-#         device: torch.device,
-#         test_data: CdtDataLoader[TernarySample],
-#         batch_size: int = 256,
-#         test_batch_size: int = 1000,
-#         **train_loader_kwargs: dict[str, Any],
-#     ) -> Self:
-#         _, y = extract_labels_from_dataset(train_data)  # type: ignore
-#         train_data = IndexDataset(train_data)  # type: ignore
 
-#         # Default settings for train-loader
-#         train_loader_kwargs.setdefault("pin_memory", True)  # type: ignore
-#         train_loader_kwargs.setdefault("shuffle", True)  # type: ignore
+@dataclass(eq=False)
+class IndexedSample(TernarySample[X], _IndexedSampleMixin[Tensor]):
+    def add_field(self, *args: Any, **kwargs: Any) -> Self:
+        return self
 
-#         train_loader = DataLoader(
-#             train_data,
-#             batch_size=batch_size,
-#             **train_loader_kwargs,
-#         )
-#         test_loader = None
-#         if test_data is not None:
-#             test_loader = DataLoader(
-#                 test_data,
-#                 batch_size=test_batch_size,
-#                 shuffle=False,
-#                 pin_memory=train_loader.pin_memory,
-#                 num_workers=train_loader.num_workers,
-#             )
+    @implements(TernarySample)
+    def __iter__(self) -> Iterator[LoadedData]:
+        yield from (self.x, self.y, self.s, self.idx)
 
-#         sample_loss_ema_b = EMA(y.long(), alpha=0.7, device=device)
-#         sample_loss_ema_d = EMA(y.long(), alpha=0.7, device=device)
+    @implements(TernarySample)
+    def __add__(self, other: Self) -> Self:
+        copy = super().__add__(other)
+        copy.idx = torch.cat([copy.idx, other.idx], dim=0)
+        return copy
 
-#         logger.info("Training classifier")
-#         pbar = trange(epochs)
-#         for epoch in pbar:
-#             self.model.train()
-#             for index, x, _, y in train_loader:
-#                 x = x.to(device, non_blocking=True)
-#                 y = y.to(device, non_blocking=True).view(-1)
+    @implements(TernarySample)
+    def __getitem__(self: "IndexedSample[XI]", index: IndexType) -> "IndexedSample[XI]":  # type: ignore
+        return gcopy(
+            self, deep=False, x=self.x[index], y=self.y[index], s=self.s[index], idx=self.idx[index]
+        )
 
-#                 logit_b = self.biased_model(x)
-#                 logit_d = self.model(x)
-#                 loss_b = self.apply_criterion(logit_b, y).detach()
-#                 loss_d = self.apply_criterion(logit_d, y).detach()
+    @classmethod
+    def from_ts(cls: Type[Self], sample: TernarySample, *, idx: Tensor) -> Self:
+        return cls(x=sample.x, y=sample.y, s=sample.s, idx=idx)
 
-#                 # EMA sample loss
-#                 sample_loss_ema_b.update(loss_b.view(-1), index)
-#                 sample_loss_ema_d.update(loss_d.view(-1), index)
 
-#                 # class-wise normalize
-#                 loss_b = sample_loss_ema_b.parameter[index].clone().detach()
-#                 loss_d = sample_loss_ema_d.parameter[index].clone().detach()
+class IndexedDataset(SizedDataset):
+    def __init__(
+        self,
+        dataset: CdtDataset[TernarySample[LoadedData], Any, Tensor, Tensor],
+    ) -> None:
+        self.dataset = dataset
 
-#                 for c in range(logit_d.size(1)):
-#                     class_index = y == c
-#                     max_loss_b = sample_loss_ema_b.max_loss(c)
-#                     max_loss_d = sample_loss_ema_d.max_loss(c)
-#                     loss_b[class_index] /= max_loss_b
-#                     loss_d[class_index] /= max_loss_d
+    @implements(SizedDataset)
+    def __getitem__(self, index: int) -> IndexedSample:
+        sample = self.dataset[index]
+        idx = torch.as_tensor(index, dtype=torch.long)
+        return IndexedSample.from_ts(sample=sample, idx=idx)
 
-#                 # re-weighting based on loss value / generalized CE for biased model
-#                 loss_weight = loss_b / (loss_b + loss_d + 1e-8)
-#                 loss_b_update = self.biased_criterion(logit_b, y.long())
-#                 loss_d_update = self.apply_criterion(logit_d, y) * loss_weight.to(device)
-#                 loss = loss_b_update.mean() + loss_d_update.mean()
+    @implements(SizedDataset)
+    def __len__(self) -> int:
+        return len(self.dataset)
 
-#                 self.zero_grad()
-#                 self.biased_model.zero_grad()
-#                 loss.backward()
-#                 self.step()
-#                 self.biased_model.step()
 
-#             if test_loader is not None:
-#                 self.model.eval()
-#                 sum_test_acc = 0.0
-#                 num_samples = 0
-#                 with torch.no_grad():
-#                     for x, _, y in test_loader:
-#                         x = x.to(device)
-#                         y = y.to(device).view(-1)
-#                         _, acc = self.routine(x, y)
-#                         sum_test_acc += acc * y.size(0)
-#                         num_samples += y.size(0)
-#                 avg_test_acc = sum_test_acc / num_samples
+@dataclass(eq=False)
+class LfF(Algorithm, Classifier):
+    q: float = 0.7
+    alpha: float = 0.7
+    biased_model: nn.Module = field(init=False)
+    biased_criterion: GeneralizedCELoss = field(init=False)
+    sample_loss_ema_b: LabelEma = field(init=False)
+    sample_loss_ema_d: LabelEma = field(init=False)
+    criterion: CrossEntropyLoss = field(init=False)
 
-#                 pbar.set_postfix(epoch=epoch + 1, avg_test_acc=avg_test_acc)
-#             else:
-#                 pbar.set_postfix(epoch=epoch + 1)
+    def __post_init__(self) -> None:
+        self.biased_model = gcopy(self.model, deep=True)
+        self.biased_criterion = GeneralizedCELoss(q=self.q, reduction="mean")
+        self.criterion = CrossEntropyLoss(reduction="mean")
+        Classifier.__post_init__(self)
+        Algorithm.__post_init__(self)
 
-#         pbar.close()
-#         return self
+    def training_step(self, batch: IndexedSample[Tensor], *, pred_s: bool = False) -> Tensor:  # type: ignore
+        logit_b = self.biased_model(batch.x)
+        logit_d = self.model(batch.x)
+        loss_b = self.criterion.forward(logit_b, target=batch.y)
+        with torch.no_grad():
+            loss_d = self.criterion.forward(logit_d, target=batch.y)
+
+        # EMA sample loss
+        self.sample_loss_ema_b.update(loss_b.flatten(), index=batch.idx)
+        self.sample_loss_ema_d.update(loss_d.flatten(), index=batch.idx)
+
+        # class-wise normalize
+        loss_b = self.sample_loss_ema_b[batch.idx]
+        loss_d = self.sample_loss_ema_d[batch.idx]
+
+        for c in range(logit_d.size(1)):
+            class_index = batch.y == c
+            max_loss_b = self.sample_loss_ema_b.max_loss(c)
+            max_loss_d = self.sample_loss_ema_d.max_loss(c)
+            loss_b[class_index] /= max_loss_b
+            loss_d[class_index] /= max_loss_d
+
+        # re-weighting based on loss value / generalized CE for biased model
+        eps = torch.finfo(loss_d.dtype).eps
+        loss_weight = loss_b / (loss_b + loss_d + eps)
+        loss_b_update = self.biased_criterion.forward(logit_b, target=batch.y)
+        loss_d_update = self.criterion.forward(logit_d, target=batch.y, instance_weight=loss_weight)
+        return loss_b_update + loss_d_update
+
+    @implements(Algorithm)
+    def run(self, dm: DataModule, *, model: nn.Module) -> Self:
+        if dm.deployment_ids is not None:
+            dm = dm.merge_train_and_deployment()
+        dm.train = IndexedDataset(dm.train)
+        self.sample_loss_ema_b = LabelEma(dm.train.y, alpha=self.alpha).to(self.device)
+        self.sample_loss_ema_d = LabelEma(dm.train.y, alpha=self.alpha).to(self.device)
+        # Generate predictions with the trained model
+        preds, labels, sens = self.predict_dataset(dm.test_dataloader(), device=self.device)
+        pair = EvalPair.from_tensors(y_pred=preds, y_true=labels, s=sens, pred_s=False)
+        compute_metrics(
+            pair=pair,
+            model_name=self.__class__.__name__.lower(),
+            step=0,
+            s_dim=dm.card_s,
+            use_wandb=True,
+            prefix="test",
+        )
+        return self

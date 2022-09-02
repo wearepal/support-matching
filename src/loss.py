@@ -1,8 +1,9 @@
-from typing import Dict, List
+from typing import Dict, List, Union
 from typing_extensions import Literal
 
-import numpy as np
+from ranzen import str_to_enum
 from ranzen.decorators import implements
+from ranzen.torch import ReductionType, cross_entropy_loss
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -47,16 +48,27 @@ class MixedLoss(nn.Module):
 
 
 class GeneralizedCELoss(nn.Module):
-    def __init__(self, q: float = 0.7) -> None:
+    def __init__(
+        self,
+        *,
+        q: float = 0.7,
+        reduction: Union[ReductionType, str] = ReductionType.mean,
+    ) -> None:
         super().__init__()
+        if isinstance(reduction, str):
+            reduction = str_to_enum(str_=reduction, enum=ReductionType)
+        self.reduction = reduction
         self.q = q
 
     @implements(nn.Module)
-    def forward(self, logits: Tensor, targets: Tensor) -> Tensor:  # type: ignore
-        p = F.softmax(logits, dim=1)
-        if np.isnan(p.mean().item()):
-            raise NameError("GCE_p")
-        p_correct = torch.gather(p, 1, torch.unsqueeze(targets, 1))
+    def forward(self, input: Tensor, *, target: Tensor) -> Tensor:  # type: ignore
+        p = input.softmax(dim=1)
+        p_correct = torch.gather(p, 1, torch.unsqueeze(target, 1))
         # modify gradient of cross entropy
         loss_weight = (p_correct.squeeze().detach() ** self.q) * self.q
-        return F.cross_entropy(logits, targets, reduction="none") * loss_weight
+        return cross_entropy_loss(
+            input,
+            target=target,
+            reduction=self.reduction,
+            instance_weight=loss_weight,
+        )

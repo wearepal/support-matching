@@ -15,10 +15,11 @@ from typing import (
 from typing_extensions import Self, TypeAlias
 
 from conduit.data.structures import NamedSample, TernarySample
+from conduit.metrics import accuracy
 from conduit.models.utils import prefix_keys
 from loguru import logger
 from ranzen import implements
-from ranzen.torch import DcModule
+from ranzen.torch import DcModule, cross_entropy_loss
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -31,6 +32,7 @@ from src.data import DataModule
 from src.logging import log_images
 from src.models.autoencoder import SplitLatentAe
 from src.models.classifier import Classifier
+from src.utils import to_item
 
 from .evaluator import Evaluator
 
@@ -86,6 +88,7 @@ class AdvSemiSupervisedAlg(Algorithm):
     lr: float = 4.0e-4
     enc_loss_w: float = 1
     disc_loss_w: float = 1
+    prior_loss_w: float = 0.0
     num_disc_updates: int = 3
     # Whether to use the deployment set when computing the encoder's adversarial loss
     twoway_disc_loss: bool = True
@@ -95,6 +98,7 @@ class AdvSemiSupervisedAlg(Algorithm):
     pred_y_loss_w: float = 1
     pred_s_loss_w: float = 0
     s_pred_with_bias: bool = False
+    s_as_zs: bool = False
 
     predictor_y: Optional[Classifier] = field(init=False)
     predictor_s: Optional[Classifier] = field(init=False)
@@ -244,6 +248,31 @@ class AdvSemiSupervisedAlg(Algorithm):
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
             loss = self.grad_scaler.scale(loss)  # type: ignore
         loss.backward()
+
+    def _predictor_loss(
+        self, comp: Components, *, zy: Tensor, zs: Tensor, y: Tensor, s: Tensor
+    ) -> Tuple[Tensor, Dict[str, float]]:
+        loss = torch.zeros((), device=self.device)
+        logging_dict = {}
+        if comp.pred_y is not None:
+            # predictor is on encodings; predict y from the part that is invariant to s
+            logits_pred_y = comp.pred_y(zy)
+            pred_y_loss = cross_entropy_loss(input=logits_pred_y, target=y)
+            pred_y_acc = accuracy(y_pred=logits_pred_y, y_true=y)
+
+            pred_y_loss *= self.pred_y_loss_w
+            logging_dict["Loss Predictor y"] = to_item(pred_y_loss)
+            logging_dict["Accuracy Predictor y"] = to_item(pred_y_acc)
+            loss += pred_y_loss
+        if comp.pred_s is not None:
+            logits_pred_s = comp.pred_s(zs)
+            pred_s_loss = cross_entropy_loss(input=logits_pred_s, target=s)
+            pred_s_acc = accuracy(y_pred=logits_pred_s, y_true=s)
+            pred_s_loss *= self.pred_s_loss_w
+            logging_dict["Loss Predictor s"] = to_item(pred_s_loss)
+            logging_dict["Accuracy Predictor s"] = to_item(pred_s_acc)
+            loss += pred_s_loss
+        return loss, logging_dict
 
     @abstractmethod
     def _encoder_loss(

@@ -17,20 +17,20 @@ from src.relay.mimin import MiMinRelay
 
 
 def main() -> None:
-    ds_ops= [
+    ds_ops = [
         Option(ColoredMNIST, name="cmnist"),
         Option(CelebA, name="celeba"),
         Option(Camelyon17, name="camelyon17"),
         Option(NIHChestXRayDataset, name="nih"),
     ]
-    ae_arch_ops= [
+    ae_arch_ops = [
         Option(SimpleConvAE, name="simple"),
         Option(ResNetAE, name="resnet"),
     ]
-    disc_arch_ops= [
+    disc_arch_ops = [
         Option(Fcn, name="sw"),
     ]
-    labeller_ops= [
+    labeller_ops = [
         Option(ArtifactLoader, name="artifact"),
         Option(GroundTruthLabeller, name="gt"),
         Option(KmeansOnClipEncodings, name="kmeans"),

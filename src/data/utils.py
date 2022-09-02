@@ -1,14 +1,17 @@
 from __future__ import annotations
-from typing import Iterator, TypeVar
+from typing import Any, Dict, Iterator, List, Tuple, TypeVar, Union
 from typing_extensions import Literal
 
+from conduit.data.datasets.utils import infer_sample_cls
+from conduit.data.structures import NamedSample
 import torch
 from torch import Tensor
 
 __all__ = [
-    "labels_to_group_id",
     "group_id_to_label",
+    "labels_to_group_id",
     "resolve_device",
+    "sample_converter",
     "to_device",
 ]
 
@@ -44,3 +47,11 @@ def to_device(
     device = resolve_device(device)
     for arg in args:
         yield arg.to(device, non_blocking=True)
+
+
+def sample_converter(sample: Union[Any, Tuple[Any, ...], List[Any], Dict[str, Any]]) -> NamedSample:
+    sample_cls = infer_sample_cls(sample)
+    if isinstance(sample, (tuple, list)):
+        sample_d = dict(zip(["y", "s"], sample[1:]))
+        return sample_cls(x=sample[0], **sample_d)
+    return sample_cls(sample)

@@ -4,11 +4,11 @@ from typing import Optional, Tuple
 from typing_extensions import Self
 
 from conduit.data.structures import TernarySample
-from conduit.metrics import accuracy
 from conduit.types import Loss
 import numpy as np
 from omegaconf import DictConfig, MISSING
 from ranzen import gcopy, implements
+from ranzen.torch import CrossEntropyLoss
 from ranzen.torch.loss import ReductionType
 import torch
 from torch import Tensor
@@ -235,19 +235,15 @@ class GdroClassifier(Classifier):
     loss_computer: LossComputer = MISSING
 
     @implements(Classifier)
-    def training_step(self, batch: TernarySample, *, pred_s: bool = False) -> tuple[Tensor, float]:
+    def training_step(self, batch: TernarySample[Tensor], *, pred_s: bool = False) -> Tensor:
         target = batch.s if pred_s else batch.y
         logits = self.forward(batch.x)
-        loss = self.loss_computer.forward(
+        return self.loss_computer.forward(
             input=logits,
             target=target,
             group_idx=batch.s,
             criterion=self.criterion,
         )
-        loss = loss.mean()
-        acc = accuracy(y_pred=logits, y_true=target).cpu().item()
-
-        return loss, acc
 
 
 @dataclass(eq=False)
@@ -285,7 +281,7 @@ class Gdro(Algorithm):
             else:
                 adjustments = np.array(adjustments)
         loss_computer = LossComputer(
-            criterion=nn.CrossEntropyLoss(reduction="none"),
+            criterion=CrossEntropyLoss(reduction="none"),
             is_robust=True,
             group_counts=group_counts,
             alpha=self.alpha,

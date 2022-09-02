@@ -11,6 +11,7 @@ from torch import Tensor
 from src.data.data_module import DataModule
 from src.models.autoencoder import SplitLatentAe
 from src.models.discriminator import BinaryDiscriminator, NeuralDiscriminator
+from src.utils import to_item
 
 from .base import AdvSemiSupervisedAlg, Components, IterDep, IterTr
 from .evaluator import Evaluator
@@ -20,9 +21,6 @@ __all__ = ["SupportMatching"]
 
 @dataclass(eq=False)
 class SupportMatching(AdvSemiSupervisedAlg):
-    prior_loss_w: float = 0
-    s_as_zs: bool = False
-
     @implements(AdvSemiSupervisedAlg)
     def _get_data_iterators(self, dm: DataModule) -> Tuple[IterTr, IterDep]:
         if (self.disc_loss_w > 0) or (self.num_disc_updates > 0):
@@ -67,7 +65,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
             logging_dict.update({k: v + logging_dict_dep[k] for k, v in logging_dict_tr.items()})
             enc_loss_tr = 0.5 * (enc_loss_tr + enc_loss_dep)  # take average of the two recon losses
             enc_loss_tr *= self.enc_loss_w
-            logging_dict["Loss Encoder"] = enc_loss_tr.detach().cpu().item()
+            logging_dict["Loss Encoder"] = to_item(enc_loss_tr)
             total_loss = enc_loss_tr
             # ================================= adversarial losses ================================
             if not warmup:
@@ -83,35 +81,19 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
                 disc_loss *= self.disc_loss_w
                 total_loss += disc_loss
-                logging_dict["Loss Discriminator"] = disc_loss.detach().cpu().item()
+                logging_dict["Loss Discriminator"] = to_item(disc_loss)
 
-            if comp.pred_y is not None:
-                # predictor is on encodings; predict y from the part that is invariant to s
-                pred_y_loss, pred_y_acc = comp.pred_y.training_step(
-                    TernarySample(
-                        x=encoding_t.zy,
-                        y=batch_tr.y,
-                        s=batch_tr.s,
-                    )
-                )
-                pred_y_loss *= self.pred_y_loss_w
-                logging_dict["Loss Predictor y"] = pred_y_loss.detach().cpu().item()
-                logging_dict["Accuracy Predictor y"] = pred_y_acc
-                total_loss += pred_y_loss
-            if comp.pred_s is not None:
-                pred_s_loss, pred_s_acc = comp.pred_s.training_step(
-                    TernarySample(
-                        x=encoding_t.zs,
-                        y=batch_tr.s,
-                        s=batch_tr.s,
-                    )
-                )
-                pred_s_loss *= self.pred_s_loss_w
-                logging_dict["Loss Predictor s"] = pred_s_loss.detach().cpu().item()
-                logging_dict["Accuracy Predictor s"] = pred_s_acc
-                total_loss += pred_s_loss
+            loss_pred, ld_pred = self._predictor_loss(
+                comp=comp,
+                zy=encoding_t.zy,
+                zs=encoding_t.zs,
+                y=batch_tr.y,
+                s=batch_tr.s,
+            )
+            logging_dict.update(ld_pred)
+            total_loss += loss_pred
 
-        logging_dict["Loss Total"] = total_loss.detach().cpu().item()
+        logging_dict["Loss Total"] = to_item(total_loss)
 
         return total_loss, logging_dict
 
