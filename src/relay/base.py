@@ -13,9 +13,8 @@ from ranzen.torch import random_seed
 import torch
 import wandb
 
-from src.data import DataModuleConf, DataSplitter
+from src.data import DataModule, DataModuleConf, DataSplitter
 from src.data.common import process_data_dir
-from src.data.data_module import DataModule, DataModuleConf
 from src.labelling import Labeller
 from src.logging import WandbConf
 
