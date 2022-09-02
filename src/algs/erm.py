@@ -1,9 +1,9 @@
 from __future__ import annotations
-from loguru import logger
 from dataclasses import dataclass
 from typing import Optional
 from typing_extensions import Self
 
+from loguru import logger
 from omegaconf import DictConfig
 from ranzen import implements
 import torch.nn as nn

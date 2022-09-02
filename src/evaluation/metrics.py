@@ -1,5 +1,4 @@
 from __future__ import annotations
-from src.utils import to_numpy
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +16,8 @@ import torch
 from torch import Tensor
 import wandb
 
+from src.utils import to_numpy
+
 __all__ = [
     "compute_metrics",
     "print_metrics",
@@ -33,7 +34,7 @@ class EvalPair:
     def from_tensors(
         cls, y_pred: Tensor, *, y_true: Tensor, s: Tensor, pred_s: bool = False
     ) -> Self:
-        if (len(y_pred) != len(y_true) != len(s)):
+        if len(y_pred) != len(y_true) != len(s):
             raise ValueError("'y_pred', 'y_true', and 's' must match in size at dimension 0.")
         pred = em.Prediction(hard=pd.Series(to_numpy(y_pred.flatten())))
         sens_pd = pd.Series(to_numpy(tensor=s.flatten()).astype(np.float32), name="subgroup")

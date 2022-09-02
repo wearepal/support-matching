@@ -1,11 +1,11 @@
 from __future__ import annotations
-from conduit.metrics import hard_prediction
 from dataclasses import dataclass, field
-from typing import Optional, Tuple, Union, overload, ClassVar, Iterator
+from typing import ClassVar, Iterator, Optional, Tuple, Union, overload
 from typing_extensions import Literal
 
 from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import TernarySample
+from conduit.metrics import hard_prediction
 from conduit.types import Loss
 from loguru import logger
 from ranzen.torch.loss import CrossEntropyLoss
@@ -13,7 +13,7 @@ from ranzen.torch.utils import inf_generator
 import torch
 from torch import Tensor
 from torch.cuda.amp.grad_scaler import GradScaler
-from tqdm import trange, tqdm
+from tqdm import tqdm, trange
 import wandb
 
 from src.evaluation.metrics import EvalPair, compute_metrics
@@ -27,19 +27,23 @@ __all__ = ["Classifier"]
 def hard_prediction(logits: Tensor) -> Tensor:
     return (logits > 0).long() if logits.ndim == 1 else logits.argmax(dim=1)
 
+
 @torch.no_grad()
 def soft_prediction(logits: Tensor) -> Tensor:
     return logits.sigmoid() if logits.ndim == 1 else logits.softmax(dim=1)
 
+
 @torch.no_grad()
-def cat(*ls: list[Tensor], dim: int=0) -> Iterator[Tensor]:
+def cat(*ls: list[Tensor], dim: int = 0) -> Iterator[Tensor]:
     for ls_ in ls:
         yield torch.cat(ls_, dim=dim)
 
+
 @torch.no_grad()
-def cat_cpu_flatten(*ls: list[Tensor], dim: int=0) -> Iterator[Tensor]:
+def cat_cpu_flatten(*ls: list[Tensor], dim: int = 0) -> Iterator[Tensor]:
     for ls_ in ls:
         yield torch.cat(ls_, dim=dim).cpu().flatten()
+
 
 @dataclass(eq=False)
 class Classifier(Model):
@@ -88,12 +92,11 @@ class Classifier(Model):
                 if with_soft:
                     soft_preds_ls.append(soft_prediction(logits))
 
-        hard_preds, actual, sens = cat_cpu_flatten(hard_preds_ls, actual_ls, sens_ls,
-                dim=0)
+        hard_preds, actual, sens = cat_cpu_flatten(hard_preds_ls, actual_ls, sens_ls, dim=0)
         logger.info("Finished generating predictions")
 
         if with_soft:
-            soft_preds, = cat_cpu_flatten(soft_preds_ls)
+            (soft_preds,) = cat_cpu_flatten(soft_preds_ls)
             return hard_preds, actual, sens, soft_preds
         return hard_preds, actual, sens
 

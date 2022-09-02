@@ -202,7 +202,6 @@ class LfF(Algorithm):
         )
         # Generate predictions with the trained model
         preds, labels, sens = classifier.predict_dataset(dm.test_dataloader(), device=self.device)
-        breakpoint()
         pair = EvalPair.from_tensors(y_pred=preds, y_true=labels, s=sens, pred_s=False)
         compute_metrics(
             pair=pair,
