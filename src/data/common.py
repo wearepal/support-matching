@@ -12,7 +12,7 @@ from torch import Tensor
 __all__ = [
     "D",
     "Dataset",
-    "TrainDepSplit",
+    "TrainDepTestSplit",
     "find_data_dir",
     "process_data_dir",
 ]
@@ -43,7 +43,7 @@ D = TypeVar("D", bound=Dataset)
 
 
 @dataclass
-class TrainDepSplit(Generic[D]):
+class TrainDepTestSplit(Generic[D]):
     train: D
     deployment: D
     test: D

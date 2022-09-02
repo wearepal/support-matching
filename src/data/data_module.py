@@ -41,7 +41,7 @@ from torch import Tensor
 import torchvision.transforms.transforms as T
 
 from .common import D
-from .splitter import DataSplitter
+from .splitter import RandomSplitter
 from .utils import group_id_to_label
 
 if TYPE_CHECKING:
@@ -379,7 +379,7 @@ class DataModule(Generic[D]):
         *,
         config: DataModuleConf,
         ds: D,
-        splitter: DataSplitter,
+        splitter: RandomSplitter,
         labeller: "Labeller",
     ) -> Self:
         splits = splitter(ds)
