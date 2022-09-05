@@ -1,0 +1,38 @@
+# @package _global_
+
+# usage: +experiment=nih/erm
+
+defaults:
+    - override /ds: nih_gender_cardio
+    - override /dm: nih/base
+    - override /alg: erm
+    - override /labeller: none
+    - override /split: nih/sb10
+    - override /wandb: base
+    - override /backbone: resnet
+    - override /predictor: fcn
+    - _self_
+
+backbone:
+    version: RN18
+
+predictor:
+    num_hidden: 2
+    hidden_dim: null
+
+dm:
+    batch_size_tr: 12
+    batch_size_te: 64
+    num_samples_per_group_per_bag: 1
+
+alg:
+    lr: 1.e-4
+    steps: 5000
+    weight_decay: 0
+    scheduler_cls: torch.optim.lr_scheduler.CosineAnnealingLR
+    scheduler_kwargs:
+    T_max: ${ eval.steps }
+    eta_min: 5e-7
+
+wandb:
+    group: nih_erm_sb10_cardio

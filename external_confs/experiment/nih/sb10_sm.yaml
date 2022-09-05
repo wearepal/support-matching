@@ -65,7 +65,12 @@ eval:
     balanced_sampling: true
     lr: 1.e-4
     steps: 5000
-    num_hidden: 0
+    num_hidden: 2
+    hidden_dim: null
+    scheduler_cls: torch.optim.lr_scheduler.CosineAnnealingLR
+    scheduler_kwargs:
+    T_max: ${ eval.steps }
+    eta_min: 5e-7
 
 wandb:
     group: nih_sb10_sm

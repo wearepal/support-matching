@@ -176,6 +176,8 @@ class LfF(FsAlg):
             weight_decay=self.weight_decay,
             optimizer_cls=self.optimizer_cls,
             optimizer_kwargs=self.optimizer_kwargs,
+            scheduler_cls=self.scheduler_cls,
+            scheduler_kwargs=self.scheduler_kwargs,
             sample_loss_ema_b=sample_loss_ema_b,
             sample_loss_ema_d=sample_loss_ema_d,
             q=self.q,

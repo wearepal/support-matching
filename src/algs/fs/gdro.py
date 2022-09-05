@@ -296,6 +296,8 @@ class Gdro(FsAlg):
             weight_decay=self.weight_decay,
             optimizer_cls=self.optimizer_cls,
             optimizer_kwargs=self.optimizer_kwargs,
+            scheduler_cls=self.scheduler_cls,
+            scheduler_kwargs=self.scheduler_kwargs,
             criterion=CrossEntropyLoss(reduction="none"),
             loss_computer=loss_computer,
         )
