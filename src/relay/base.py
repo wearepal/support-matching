@@ -13,7 +13,7 @@ from ranzen.torch import random_seed
 import torch
 import wandb
 
-from src.data import DataModule, DataModuleConf, RandomSplitter
+from src.data import DataModule, DataModuleConf, RandomSplitter, SplitFromArtifact
 from src.data.common import process_data_dir
 from src.labelling import Labeller
 from src.logging import WandbConf
@@ -51,7 +51,7 @@ class BaseRelay(Relay):
         configs = dict(
             dm=[Option(DataModuleConf, name="base")],
             wandb=[Option(WandbConf, name="base")],
-            split=[Option(RandomSplitter, name="base")],
+            split=[Option(RandomSplitter, name="random"), Option(SplitFromArtifact, "artifact")],
         )
         configs.update(kwargs)
 
