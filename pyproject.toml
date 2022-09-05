@@ -36,7 +36,8 @@ scikit-image = ">=0.14"
 scikit_learn = { version = ">=0.20.1" }
 scipy = { version = ">=1.2.1" }
 seaborn = { version = ">=0.9.0" }
-torch-conduit = { version = ">=0.1.6" }
+torch-conduit = { git = "https://github.com/wearepal/conduit.git", branch = "main" }
+
 tqdm = { version = ">=4.31.1" }
 typer = "*"
 umap-learn = "^0.5.1"

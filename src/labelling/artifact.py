@@ -28,7 +28,7 @@ def _artifact_info_from_dm(datamodule: DataModule) -> tuple[str, dict[str, str |
     # as the seed is machine-dependent.
     name_of_machine = platform.node()
     metadata = {"ds": ds_str, "seed": datamodule.split_seed}
-    name = f"{ds_str}__{name_of_machine}"
+    name = f"labels_{ds_str}_{name_of_machine}"
     if datamodule.split_seed is not None:
         name += f"_{datamodule.split_seed}"
     return name, metadata
@@ -44,7 +44,7 @@ def save_labels_as_artifact(
         run = cast(Optional[Run], wandb.run)
         if run is None:
             logger.info(
-                f"No active wandb run with which to save an artifact: skippinng saving of labels."
+                f"No active wandb run with which to save an artifact: skipping saving of labels."
             )
             return None
     if isinstance(labels, np.ndarray):
@@ -59,13 +59,13 @@ def save_labels_as_artifact(
         run.log_artifact(artifact)
         artifact.wait()
     versioned_name = f"{run.entity}/{run.project}/{artifact_name}:{artifact.version}"
-    logger.info(f"Cluster labels saved to {versioned_name}")
+    logger.info(f"Labels saved to {versioned_name}")
     return versioned_name
 
 
 def _process_root_dir(root: Path | str | None) -> Path:
     if root is None:
-        root = Path("artifacts", "clustering")
+        root = Path("artifacts", "labels")
     elif isinstance(root, str):
         root = Path(root)
     return root
@@ -99,5 +99,5 @@ def load_labels_from_artifact(
             )
         full_name = artifact_dir
     labels = torch.load(filepath)
-    logger.info(f"Cluster labels successfully loaded from artifact '{full_name}'.")
+    logger.info(f"Labels successfully loaded from artifact '{full_name}'.")
     return labels
