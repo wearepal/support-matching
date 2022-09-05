@@ -1,11 +1,10 @@
 from dataclasses import dataclass, field
-from typing import Any, Generic, Iterator, Optional, Type, TypeVar, Union
+from typing import Any, Generic, Iterator, Type, TypeVar, Union
 from typing_extensions import Self
 
 from conduit.data.datasets.base import CdtDataset
 from conduit.data.structures import XI, LoadedData, SizedDataset, TernarySample, X
 from conduit.types import Indexable, IndexType
-from omegaconf import DictConfig
 from ranzen import implements
 from ranzen.misc import gcopy
 from ranzen.torch import CrossEntropyLoss
@@ -16,9 +15,9 @@ import torch.nn as nn
 from src.data import DataModule
 from src.evaluation.metrics import EvalPair, compute_metrics
 from src.loss import GeneralizedCELoss
-from src.models import Classifier, Optimizer
+from src.models import Classifier
 
-from .base import Algorithm
+from .base import FsAlg
 
 __all__ = [
     "IndexedDataset",
@@ -160,18 +159,11 @@ class LfFClassifier(Classifier, _LabelEmaMixin):
 
 
 @dataclass(eq=False)
-class LfF(Algorithm):
-    steps: int = 10_000
+class LfF(FsAlg):
     alpha: float = 0.7
     q: float = 0.7
 
-    lr: float = 5.0e-4
-    optimizer_cls: Optimizer = Optimizer.ADAM
-    weight_decay: float = 0
-    optimizer_kwargs: Optional[DictConfig] = None
-    val_interval: float = 0.1
-
-    @implements(Algorithm)
+    @implements(FsAlg)
     def run(self, dm: DataModule, *, model: nn.Module) -> Self:
         if dm.deployment_ids is not None:
             dm = dm.merge_train_and_deployment()

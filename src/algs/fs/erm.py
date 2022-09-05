@@ -1,32 +1,23 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Optional
 from typing_extensions import Self
 
 from loguru import logger
-from omegaconf import DictConfig
 from ranzen import implements
 import torch.nn as nn
 
 from src.data import DataModule
 from src.evaluation.metrics import EvalPair, compute_metrics
-from src.models import Classifier, Optimizer
+from src.models import Classifier
 
-from .base import Algorithm
+from .base import FsAlg
 
 __all__ = ["Erm"]
 
 
 @dataclass(eq=False)
-class Erm(Algorithm):
-    steps: int = 10_000
-    optimizer_cls: Optimizer = Optimizer.ADAM
-    lr: float = 5.0e-4
-    weight_decay: float = 0
-    optimizer_kwargs: Optional[DictConfig] = None
-    val_interval: float = 0.1
-
-    @implements(Algorithm)
+class Erm(FsAlg):
+    @implements(FsAlg)
     def run(self, dm: DataModule, *, model: nn.Module) -> Self:
         if dm.deployment_ids is not None:
             dm = dm.merge_train_and_deployment()

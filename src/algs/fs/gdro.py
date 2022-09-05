@@ -5,7 +5,6 @@ from typing_extensions import Self
 from conduit.data.structures import TernarySample
 from conduit.types import Loss
 import numpy as np
-from omegaconf import DictConfig
 from ranzen import implements
 from ranzen.torch import CrossEntropyLoss
 from ranzen.torch.loss import ReductionType
@@ -15,9 +14,9 @@ import torch.nn as nn
 
 from src.data import DataModule
 from src.evaluation.metrics import EvalPair, compute_metrics
-from src.models import Classifier, Optimizer
+from src.models import Classifier
 
-from .base import Algorithm
+from .base import FsAlg
 
 __all__ = [
     "Gdro",
@@ -258,7 +257,7 @@ class GdroClassifier(Classifier, _LcMixin):
 
 
 @dataclass(eq=False)
-class Gdro(Algorithm):
+class Gdro(FsAlg):
     alpha: Optional[float] = 1.0
     normalize_loss: bool = False
     gamma: float = 0.1
@@ -266,14 +265,7 @@ class Gdro(Algorithm):
     btl: bool = False
     adjustments: Optional[Tuple[float]] = None
 
-    steps: int = 10_000
-    optimizer_cls: Optimizer = Optimizer.ADAM
-    lr: float = 5.0e-4
-    weight_decay: float = 0
-    optimizer_kwargs: Optional[DictConfig] = None
-    val_interval: float = 0.1
-
-    @implements(Algorithm)
+    @implements(FsAlg)
     def run(self, dm: DataModule, *, model: nn.Module) -> Self:
         if dm.deployment_ids is not None:
             dm = dm.merge_train_and_deployment()
