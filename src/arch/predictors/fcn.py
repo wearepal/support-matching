@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, Callable
+from typing import Any, Callable, Optional
 
 from ranzen import implements
 import torch.nn as nn

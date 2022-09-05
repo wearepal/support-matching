@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Callable
+from typing import Callable, Optional
 
 from ranzen.decorators import implements
 import timm  # type: ignore
@@ -262,6 +262,7 @@ class NormType(Enum):
 
     def __init__(self, init: Callable[[int], nn.Module]) -> None:
         self.init = init
+
 
 @dataclass
 class SimpleCNN(BackboneFactory[nn.Sequential]):
