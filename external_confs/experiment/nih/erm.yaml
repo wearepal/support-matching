@@ -31,8 +31,8 @@ alg:
     weight_decay: 0
     scheduler_cls: torch.optim.lr_scheduler.CosineAnnealingLR
     scheduler_kwargs:
-    T_max: ${ eval.steps }
-    eta_min: 5e-7
+        T_max: ${ alg.steps }
+        eta_min: 5e-7
 
 wandb:
     group: nih_erm_sb10_cardio

@@ -54,6 +54,7 @@ class Model(DcModule):
             self.optimizer.step()
         else:
             grad_scaler.step(self.optimizer)
+            grad_scaler.update()
         if self.scheduler is not None:
             self.scheduler.step()
 
