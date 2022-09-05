@@ -12,7 +12,6 @@ from src.labelling.pipeline import (
     KmeansOnClipEncodings,
     NullLabeller,
 )
-from src.models import Model
 from src.relay.mimin import MiMinRelay
 
 
@@ -27,9 +26,7 @@ def main() -> None:
         Option(SimpleConvAE, name="simple"),
         Option(ResNetAE, name="resnet"),
     ]
-    disc_arch_ops = [
-        Option(Fcn, name="sw"),
-    ]
+    disc_arch_ops = [Option(Fcn, name="fcn")]
     labeller_ops = [
         Option(ArtifactLoader, name="artifact"),
         Option(GroundTruthLabeller, name="gt"),

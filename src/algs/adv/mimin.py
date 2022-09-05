@@ -34,7 +34,6 @@ class MiMin(AdvSemiSupervisedAlg):
     ) -> Tuple[Tensor, Dict[str, float]]:
         """Compute the losses for the encoder and update its parameters."""
         # Compute losses for the encoder.
-        comp.train_ae()
         logging_dict = {}
 
         with torch.cuda.amp.autocast(enabled=self.use_amp):  # type: ignore
@@ -86,14 +85,14 @@ class MiMin(AdvSemiSupervisedAlg):
         iterator_tr: IterTr,
     ) -> Tuple[Tensor, Dict[str, float]]:
         """Train the discriminator while keeping the encoder fixed."""
-        comp.train_disc()
         batch_tr = self._sample_tr(iterator_tr)
         with torch.cuda.amp.autocast(enabled=self.use_amp):  # type: ignore
             with torch.no_grad():
                 encoding_tr = comp.ae.encode(batch_tr.x)
 
+            logits = comp.disc(encoding_tr.zy)
             disc_loss = cross_entropy_loss(
-                comp.disc(comp.disc(encoding_tr)),
+                input=logits,
                 target=batch_tr.s,
                 label_smoothing=self.label_smoothing,
             )
@@ -114,13 +113,12 @@ class MiMin(AdvSemiSupervisedAlg):
         *,
         iterator_tr: IterTr,
         iterator_dep: IterDep,
-        ga_weight: float,
     ) -> None:
         # Train the discriminator on its own for a number of iterations
         for _ in range(self.num_disc_updates):
             for _ in range(self.ga_steps):
                 loss, _ = self._discriminator_loss(comp=comp, iterator_tr=iterator_tr)
-                self.backward(loss / ga_weight)
+                self.backward(loss / self.ga_steps)
             self._update_discriminator(comp.disc)
 
     @implements(AdvSemiSupervisedAlg)

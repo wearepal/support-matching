@@ -74,7 +74,7 @@ class SupMatchRelay(BaseRelay):
             target_dim=1,
             batch_size=dm.batch_size_tr,
         )
+        disc: NeuralDiscriminator = instantiate(self.disc, _partial_=True)(model=disc_net)
         evaluator: Evaluator = instantiate(self.eval)
-        disc: NeuralDiscriminator = instantiate(self.disc, model=disc_net)
         alg.run(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
         run.finish()  # type: ignore

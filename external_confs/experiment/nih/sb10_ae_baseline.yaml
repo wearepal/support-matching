@@ -10,5 +10,5 @@ alg:
     num_disc_updates: 0
     disc_loss_w: 0
 
-logging:
-    exp_group: nih_sb10_ae_baseline
+wandb:
+    group: nih_sb10_ae_baseline

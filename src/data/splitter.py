@@ -67,9 +67,8 @@ class DataSplitter:
                 else self.train_transforms
             )
         if isinstance(splits.deployment, CdtVisionDataset):
-            splits.deployment.transform = self.dep_transforms
             splits.train = cast(CdtVisionDataset, splits.train)
-            splits.train.transform = (
+            splits.deployment.transform = (
                 splits.train.transform if self.dep_transforms is None else self.dep_transforms
             )
         if isinstance(splits.test, CdtVisionDataset):

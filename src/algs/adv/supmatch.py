@@ -45,8 +45,8 @@ class SupportMatching(AdvSemiSupervisedAlg):
         warmup: bool,
     ) -> Tuple[Tensor, Dict[str, float]]:
         """Compute the losses for the encoder and update its parameters."""
+        breakpoint()
         # Compute losses for the encoder.
-        comp.train_ae()
         logging_dict = {}
 
         with torch.cuda.amp.autocast(enabled=self.use_amp):  # type: ignore
@@ -105,7 +105,6 @@ class SupportMatching(AdvSemiSupervisedAlg):
     ) -> Tuple[Tensor, Dict[str, float]]:
         """Train the discriminator while keeping the encoder fixed."""
         if isinstance(comp.disc, NeuralDiscriminator):
-            comp.train_disc()
             x_tr = self._sample_tr(iterator_tr).x
             x_dep = self._sample_dep(iterator_dep)
 
@@ -137,7 +136,6 @@ class SupportMatching(AdvSemiSupervisedAlg):
         *,
         iterator_tr: IterTr,
         iterator_dep: IterDep,
-        ga_weight: float,
     ) -> None:
         if isinstance(comp.disc, NeuralDiscriminator):
             # Train the discriminator on its own for a number of iterations
@@ -146,7 +144,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
                     loss, _ = self._discriminator_loss(
                         comp=comp, iterator_tr=iterator_tr, iterator_dep=iterator_dep
                     )
-                    self.backward(loss / ga_weight)
+                    self.backward(loss / self.ga_steps)
                 self._update_discriminator(comp.disc)
 
     @implements(AdvSemiSupervisedAlg)

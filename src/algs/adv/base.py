@@ -138,7 +138,7 @@ class AdvSemiSupervisedAlg(Algorithm):
 
     @abstractmethod
     def discriminator_step(
-        self, comp: Components, *, iterator_tr: IterTr, iterator_dep: IterDep, ga_weight: float
+        self, comp: Components, *, iterator_tr: IterTr, iterator_dep: IterDep
     ) -> None:
         ...
 
@@ -148,7 +148,6 @@ class AdvSemiSupervisedAlg(Algorithm):
         *,
         batch_tr: TernarySample,
         x_dep: Tensor,
-        ga_weight: float,
         warmup: bool,
     ) -> DefaultDict[str, float]:
         logging_dict: DefaultDict[str, float] = defaultdict(float)
@@ -156,7 +155,7 @@ class AdvSemiSupervisedAlg(Algorithm):
             loss, logging_dict_s = self._encoder_loss(
                 comp=comp, x_dep=x_dep, batch_tr=batch_tr, warmup=warmup
             )
-            self.backward(loss=loss / ga_weight)
+            self.backward(loss=loss / self.ga_steps)
             # Average the logging dict over the gradient-accumulation steps
             for k, v in logging_dict_s.items():
                 logging_dict[k] = logging_dict[k] + (v / self.ga_steps)
@@ -173,22 +172,21 @@ class AdvSemiSupervisedAlg(Algorithm):
         itr: int,
     ) -> Dict[str, float]:
         warmup = itr < self.warmup_steps
-        ga_weight = 1 / self.num_disc_updates
-        if not warmup:
+        if (not warmup) and (self.disc_loss_w > 0):
+            comp.train_disc()
             self.discriminator_step(
                 comp=comp,
                 iterator_tr=iterator_tr,
                 iterator_dep=iterator_dep,
-                ga_weight=ga_weight,
             )
 
         batch_tr = self._sample_tr(iterator_tr=iterator_tr)
         x_dep = self._sample_dep(iterator_dep=iterator_dep)
+        comp.train_ae()
         logging_dict = self.encoder_step(
             comp=comp,
             batch_tr=batch_tr,
             x_dep=x_dep,
-            ga_weight=ga_weight,
             warmup=warmup,
         )
         logging_dict = prefix_keys(logging_dict, prefix="train", sep="/")  # type: ignore

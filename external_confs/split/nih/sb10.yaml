@@ -1,12 +1,12 @@
 ---
 defaults:
-  - /schema/split: base
+  - /schema/split: random
   - _self_
 seed: 42
 transductive: false
 dep_prop: 0.4
 test_prop: 0.2
-data_prop: null
+data_prop: 1.0
 dep_subsampling_props: null
 train_subsampling_props: {1: {0: 0}} # Drop all males belonging to the positive (diseased) class
 train_transforms:

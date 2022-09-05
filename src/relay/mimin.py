@@ -62,8 +62,7 @@ class MiMinRelay(BaseRelay):
         run = self.init_wandb(raw_config, self.labeller, self.ae_arch, self.disc_arch)
         alg: MiMin = instantiate(self.alg)
         ae_pair: AePair = instantiate(self.ae_arch)(input_shape=dm.dim_x)
-        ae: SplitLatentAe = instantiate(
-            self.ae,
+        ae: SplitLatentAe = instantiate(self.ae, _partial_=True)(
             model=ae_pair,
             feature_group_slices=dm.feature_group_slices,
         )
@@ -74,7 +73,7 @@ class MiMinRelay(BaseRelay):
             input_dim=ae.encoding_size.zy,
             target_dim=target_dim,
         )
+        disc: Model = instantiate(self.disc, _partial_=True)(model=disc_net)
         evaluator: Evaluator = instantiate(self.eval)
-        disc: Model = instantiate(self.disc, model=disc_net)
         alg.run(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
         run.finish()  # type: ignore
