@@ -49,7 +49,7 @@ class KvqAggregator(BatchAggregator):
             dropout=self.dropout,
             bias=True,
         )
-        self.act_fn = self.activation.value()
+        self.act_fn = self.activation.init()
 
     @implements(BatchAggregator)
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore

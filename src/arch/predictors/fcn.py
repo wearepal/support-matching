@@ -1,8 +1,7 @@
 from abc import abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from functools import partial
-from typing import Any, Optional
+from typing import Any, Optional, Callable
 
 from ranzen import implements
 import torch.nn as nn
@@ -22,8 +21,11 @@ __all__ = [
 
 
 class NormType(Enum):
-    BN = partial(nn.BatchNorm1d)
-    LN = partial(BiaslessLayerNorm)
+    BN = (nn.BatchNorm1d,)
+    LN = (BiaslessLayerNorm,)
+
+    def __init__(self, init: Callable[[int], nn.Module]) -> None:
+        self.init = init
 
 
 @dataclass
@@ -40,8 +42,8 @@ class Fcn(PredictorFactory):
         block = nn.Sequential()
         block.append(nn.Linear(in_features, out_features))
         if self.norm is not None:
-            block.append(self.norm.value(out_features))
-        block.append(self.activation.value())
+            block.append(self.norm.init(out_features))
+        block.append(self.activation.init())
         if self.dropout_prob > 0:
             block.append(nn.Dropout(p=self.dropout_prob))
         return block
@@ -52,7 +54,7 @@ class Fcn(PredictorFactory):
     ) -> PredictorFactoryOut[nn.Sequential]:
         predictor = nn.Sequential(nn.Flatten())
         if self.input_norm and (self.norm is not None):
-            predictor.append(self.norm.value(input_dim))
+            predictor.append(self.norm.init(input_dim))
         curr_dim = input_dim
         if self.num_hidden > 0:
             hidden_dim = input_dim if self.hidden_dim is None else self.hidden_dim

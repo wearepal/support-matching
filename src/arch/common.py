@@ -1,5 +1,5 @@
 from enum import Enum
-from functools import partial
+from typing import Callable
 
 import torch
 from torch import Tensor
@@ -11,10 +11,13 @@ __all__ = ["Activation", "BiaslessLayerNorm"]
 
 
 class Activation(Enum):
-    RELU = partial(nn.ReLU)
-    GELU = partial(nn.GELU)
-    SELU = partial(nn.SELU)
-    SWISH = SILU = partial(nn.SiLU)
+    RELU = (nn.ReLU,)
+    GELU = (nn.GELU,)
+    SELU = (nn.SELU,)
+    SWISH = SILU = (nn.SiLU,)
+
+    def __init__(self, init: Callable[..., nn.Module]) -> None:
+        self.init = init
 
 
 class BiaslessLayerNorm(nn.Module):

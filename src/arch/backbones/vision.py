@@ -1,8 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
-from functools import partial
-from typing import Optional
+from typing import Optional, Callable
 
 from ranzen.decorators import implements
 import timm  # type: ignore
@@ -258,9 +257,11 @@ class DownsamplingOp(Enum):
 
 
 class NormType(Enum):
-    BN = partial(nn.BatchNorm2d)
-    LN = partial(BiaslessLayerNorm)
+    BN = (nn.BatchNorm1d,)
+    LN = (BiaslessLayerNorm,)
 
+    def __init__(self, init: Callable[[int], nn.Module]) -> None:
+        self.init = init
 
 @dataclass
 class SimpleCNN(BackboneFactory[nn.Sequential]):
@@ -285,8 +286,8 @@ class SimpleCNN(BackboneFactory[nn.Sequential]):
             nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size, stride=stride, padding=padding)
         ]
         if self.norm is not None:
-            _block.append(self.norm.value(out_dim))
-        _block.append(self.activation.value())
+            _block.append(self.norm.init(out_dim))
+        _block.append(self.activation.init())
         return nn.Sequential(*_block)
 
     def __call__(self, input_dim: int) -> BackboneFactoryOut[nn.Sequential]:

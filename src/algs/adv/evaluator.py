@@ -269,6 +269,7 @@ class Evaluator:
     umap_viz: bool = False
     save_summary: bool = True
 
+    activation: Activation = Activation.GELU
     optimizer_cls: Optimizer = Optimizer.ADAM
     lr: float = 1.0e-4
     weight_decay: float = 0
@@ -287,7 +288,7 @@ class Evaluator:
     ) -> Classifier:
         input_dim = dm.dim_x[0]
         model_fn = Fcn(
-            hidden_dim=self.hidden_dim, num_hidden=self.num_hidden, activation=Activation.GELU
+            hidden_dim=self.hidden_dim, num_hidden=self.num_hidden, activation=self.activation
         )
         input_dim = np.product(dm.dim_x)
         model, _ = model_fn(input_dim, target_dim=dm.card_y)
@@ -340,7 +341,6 @@ class Evaluator:
             exp_name=name,
             model_name="pytorch_classifier",
             step=step,
-            s_dim=dm.card_s,
             save_summary=self.save_summary,
             prefix="test",
         )
