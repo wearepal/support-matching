@@ -1,4 +1,5 @@
 from __future__ import annotations
+from ethicml.run import run_metrics
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -72,7 +73,7 @@ def compute_metrics(
     predictions = pair.pred
     actual = pair.actual
     predictions._info = {}  # type: ignore
-    metrics = em.run_metrics(
+    metrics = run_metrics(
         predictions=predictions,
         actual=actual,
         metrics=[emm.Accuracy(), emm.TPR(), emm.TNR(), emm.RenyiCorrelation()],  # type: ignore

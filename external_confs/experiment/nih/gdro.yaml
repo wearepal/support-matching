@@ -17,7 +17,7 @@ backbone:
     version: RN18
 
 predictor:
-    num_hidden: 2
+    num_hidden: 1
     hidden_dim: null
 
 dm:
@@ -34,7 +34,7 @@ alg:
     adjustments: null
 
     lr: 1.e-4
-    steps: 5000
+    steps: 3000
     weight_decay: 0
     scheduler_cls: torch.optim.lr_scheduler.CosineAnnealingLR
     scheduler_kwargs:
@@ -42,4 +42,4 @@ alg:
         eta_min: 5e-7
 
 wandb:
-    group: nih_gdro_sb10_cardio
+    group: gdro_nih_${ds.sens_attr}_${ds.target_attr}_sb10

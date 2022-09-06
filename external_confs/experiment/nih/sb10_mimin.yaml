@@ -56,11 +56,14 @@ disc_arch:
     final_bias: true
 
 eval:
-    batch_size: 256
-    balanced_sampling: true
     lr: 1.e-4
-    steps: 5000
-    num_hidden: 0
+    batch_size: 12
+    balanced_sampling: true
+    steps: 3000
+    num_hidden: 1
+    scheduler_kwargs:
+        T_max: ${ alg.steps }
+        eta_min: 5e-7
 
 wandb:
     group: nih_sb10_sm
