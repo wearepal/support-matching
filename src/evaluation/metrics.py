@@ -1,5 +1,4 @@
 from __future__ import annotations
-from ethicml.run import run_metrics
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -9,6 +8,7 @@ from conduit import metrics as cdtm
 from conduit.models.utils import prefix_keys
 import ethicml as em
 import ethicml.metrics as emm
+from ethicml.run import run_metrics
 from ethicml.utility.data_structures import LabelTuple
 from loguru import logger
 import numpy as np
