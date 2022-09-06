@@ -32,7 +32,7 @@ class Algorithm(DcModule):
         self.device = resolve_device(self.gpu)
         self.use_amp = self.use_amp and self.use_gpu
         self.grad_scaler = GradScaler() if self.use_amp else None
-        logger.info(f"{torch.cuda.device_count()} GPUs available - using device '{self.device}'")
+        logger.info(f"{torch.cuda.device_count()} GPU(s) available - using device '{self.device}'")
 
     def _clip_gradients(self, parameters: Iterator[Parameter]) -> None:
         if (value := self.max_grad_norm) is not None:

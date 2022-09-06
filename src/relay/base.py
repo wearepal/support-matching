@@ -70,9 +70,6 @@ class BaseRelay(Relay):
         ds = instantiate(self.ds, root=process_data_dir(self.ds.root))
         # === Fit and evaluate the clusterer ===
         labeller: Labeller = instantiate(self.labeller)
-        if hasattr(labeller, "gpu"):
-            # Set both phases to use the same device for convenience
-            labeller.gpu = alg.gpu  # type: ignore
         dm = DataModule.from_ds(
             config=self.dm,
             ds=ds,

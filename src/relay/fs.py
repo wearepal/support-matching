@@ -58,8 +58,8 @@ class FsRelay(BaseRelay):
 
     @implements(BaseRelay)
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> None:
-        dm = self.init_dm()
         run = self.init_wandb(raw_config, self.labeller, self.backbone, self.predictor)
+        dm = self.init_dm()
         alg: FsAlg = instantiate(self.alg)
         backbone_fn: BackboneFactory = instantiate(self.backbone)
         predictor_fn: PredictorFactory = instantiate(self.predictor)

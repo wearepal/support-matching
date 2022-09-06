@@ -1,5 +1,17 @@
 from __future__ import annotations
-from typing import Any, Dict, Iterator, List, Tuple, TypeVar, Union
+from dataclasses import dataclass
+from typing import (
+    Any,
+    Dict,
+    Generic,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+    overload,
+)
 from typing_extensions import Literal
 
 from conduit.data.datasets.utils import infer_sample_cls
@@ -23,12 +35,43 @@ def labels_to_group_id(*, s: I, y: I, s_count: int) -> I:
     return y * s_count + s
 
 
-def group_id_to_label(group_id: I, *, s_count: int, label: Literal["s", "y"]) -> I:
+@dataclass(eq=False)
+class LabelTuple(Generic[I]):
+    s: I
+    y: I
+
+    def __iter__(self) -> Iterator[I]:
+        yield from (self.s, self.y)
+
+
+@overload
+def group_id_to_label(group_id: I, *, s_count: int, label: Literal["s"]) -> I:
+    ...
+
+
+@overload
+def group_id_to_label(group_id: I, *, s_count: int, label: Literal["y"]) -> I:
+    ...
+
+
+@overload
+def group_id_to_label(group_id: I, *, s_count: int, label: Literal[None] = ...) -> LabelTuple[I]:
+    ...
+
+
+def group_id_to_label(
+    group_id: I, *, s_count: int, label: Optional[Literal["s", "y"]] = None
+) -> Union[I, LabelTuple[I]]:
     assert s_count > 1
-    if label == "s":
+    if label is None:
+        y = group_id_to_label(group_id=group_id, s_count=s_count, label="y")
+        s = group_id_to_label(group_id=group_id, s_count=s_count, label="s")
+        return LabelTuple(s=s, y=y)
+    elif label == "s":
         return group_id % s_count
-    else:
-        return group_id // s_count
+    if isinstance(group_id, Tensor):
+        return group_id.div(s_count, rounding_mode="floor")
+    return group_id // s_count
 
 
 def resolve_device(device: str | torch.device | int) -> torch.device:

@@ -1,0 +1,11 @@
+# @package _global_
+
+# usage: +experiment=nih/george
+
+defaults:
+    - nih/gdro
+    - override /labeller: nih/kmeans
+    - _self_
+
+labeller:
+    gpu: ${alg.gpu}

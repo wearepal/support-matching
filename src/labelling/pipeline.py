@@ -41,7 +41,7 @@ class KmeansOnClipEncodings(DcModule, Labeller):
     ft_batch_size: int = 16
     ft_lr: float = 1.0e-5
     ft_val_freq: Union[int, float] = 0.1
-    ft_val_batches: Union[int, float] = 1
+    ft_val_batches: Union[int, float] = 1.0
     ft_lr: float = 1.0e-5
     enc_batch_size: int = 64
 
@@ -50,7 +50,7 @@ class KmeansOnClipEncodings(DcModule, Labeller):
     fft_cluster_init: bool = False
     supervised_cluster_init: bool = False
     n_init: int = 10
-    save_preds: bool = True
+    save_as_artifact: bool = True
 
     cache_encoder: bool = False
     encoder: Optional[ClipVisualEncoder] = field(init=False, default=None)
@@ -95,7 +95,7 @@ class KmeansOnClipEncodings(DcModule, Labeller):
 
         kmeans.fit(dm=dm, encodings=encodings)
         preds = torch.as_tensor(kmeans.predict(encodings.dep.numpy()), dtype=torch.long)
-        if self.save_preds:
+        if self.save_as_artifact:
             run = cast(Optional[Run], wandb.run)
             save_labels_as_artifact(run=run, labels=preds, datamodule=dm)
         return preds

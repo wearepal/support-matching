@@ -134,9 +134,10 @@ class DataModule(Generic[D]):
                     "'ids' must be the same length as the deployment set whose labels are to be "
                     "set."
                 )
-            s_count = self.dim_s
-            y_dep = group_id_to_label(group_id=ids, s_count=s_count, label="y").flatten()
-            s_dep = group_id_to_label(group_id=ids, s_count=s_count, label="s").flatten()
+            s_count = self.card_s
+            labels = group_id_to_label(group_id=ids, s_count=s_count)
+            y_dep = labels.y.flatten()
+            s_dep = labels.s.flatten()
             copy = gcopy(self, deep=False)
             copy.deployment.y = y_dep
             copy.deployment.s = s_dep

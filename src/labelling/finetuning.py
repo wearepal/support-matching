@@ -53,7 +53,7 @@ class FineTuner(DcModule):
         model.to(device)
         optimizer = optim.AdamW(model.parameters(), lr=self.lr)
 
-        logger.info(f"Beginning fine-tuning routine.")
+        logger.info(f"Starting fine-tuning routine.")
         self.train_loop(
             model,
             train_loader=dm.train_dataloader(balance=True),
@@ -86,7 +86,7 @@ class FineTuner(DcModule):
             total=steps,
             colour=self._PBAR_COL,
         )
-        last_acc = 0.0
+        last_acc = None
         val_freq = max(
             (self.val_freq if isinstance(self.val_freq, int) else round(self.val_freq * steps)),
             1,
@@ -108,7 +108,7 @@ class FineTuner(DcModule):
             to_log = prefix_keys(to_log, prefix=self._LOG_PREFIX)
             wandb.log(to_log, step=step)
 
-            if step % val_freq == 0:
+            if (step % val_freq) == 0:
                 last_acc = self.validate(model, val_loader=val_loader, device=device, step=step)
             pbar.set_postfix(loss=loss, last_acc=last_acc)
 
@@ -145,7 +145,12 @@ class FineTuner(DcModule):
                 if isinstance(self.val_batches, int)
                 else round(self.val_batches * len(val_loader))
             )
-            for sample in islice(val_loader, val_batches):
+            for sample in tqdm(
+                islice(val_loader, val_batches),
+                total=val_batches,
+                desc="Generating predictions",
+                colour=self._PBAR_COL,
+            ):
                 logits = model(sample.x.to(device, non_blocking=True))
                 all_preds.append(torch.argmax(logits, dim=-1).detach().cpu())
                 all_s.append(sample.s)

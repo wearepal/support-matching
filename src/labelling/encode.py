@@ -118,9 +118,8 @@ def encode_with_group_ids(
 ) -> tuple[Tensor, Tensor]:
     encoded: list[Tensor] = []
     group_ids: list[Tensor] = []
-    logger.info("Encoding dataset.")
     with torch.no_grad():
-        for sample in tqdm(dl, total=len(dl)):
+        for sample in tqdm(dl, total=len(dl), desc="Encoding dataset"):
             enc = model(sample.x.to(device, non_blocking=True)).detach()
             # normalize so we're doing cosine similarity
             encoded.append(enc.cpu())

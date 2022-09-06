@@ -58,8 +58,8 @@ class MiMinRelay(BaseRelay):
 
     @implements(BaseRelay)
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> None:
-        dm = self.init_dm()
         run = self.init_wandb(raw_config, self.labeller, self.ae_arch, self.disc_arch)
+        dm = self.init_dm()
         alg: MiMin = instantiate(self.alg)
         ae_pair: AePair = instantiate(self.ae_arch)(input_shape=dm.dim_x)
         ae: SplitLatentAe = instantiate(self.ae, _partial_=True)(

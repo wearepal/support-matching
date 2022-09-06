@@ -1,0 +1,8 @@
+# @package _global_
+
+# usage: +experiment=nih/erm_gt
+
+defaults:
+    - nih/erm
+    - override /labeller: gt
+    - _self_

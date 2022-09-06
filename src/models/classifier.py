@@ -1,5 +1,4 @@
 from __future__ import annotations
-from conduit.models.utils import prefix_keys
 from dataclasses import dataclass, field
 from typing import ClassVar, Iterator, Optional, Tuple, Union, overload
 from typing_extensions import Literal
@@ -7,6 +6,7 @@ from typing_extensions import Literal
 from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import TernarySample
 from conduit.metrics import hard_prediction
+from conduit.models.utils import prefix_keys
 from conduit.types import Loss
 from loguru import logger
 from ranzen.torch.loss import CrossEntropyLoss
