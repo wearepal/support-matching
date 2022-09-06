@@ -200,7 +200,8 @@ class LfF(FsAlg):
         compute_metrics(
             pair=pair,
             model_name=self.__class__.__name__.lower(),
-            use_wandb=True,
             prefix="test",
+            use_wandb=True,
+            verbose=True,
         )
         return self

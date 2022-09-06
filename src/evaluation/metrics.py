@@ -55,6 +55,7 @@ def compute_metrics(
     use_wandb: bool = False,
     additional_entries: Mapping[str, float] | None = None,
     prefix: str | None = None,
+    verbose: bool = True,
 ) -> dict[str, float]:
     """Compute accuracy and fairness metrics and log them.
 
@@ -110,8 +111,9 @@ def compute_metrics(
             for metric_name, value in external.items():
                 wandb.run.summary[metric_name] = value  # type: ignore
 
-    logger.info(f"Results for {exp_name or ''} ({model_name}):")
-    print_metrics(metrics)
+    if verbose:
+        logger.info(f"Results for {exp_name or ''} ({model_name}):")
+        print_metrics(metrics)
     return metrics
 
 

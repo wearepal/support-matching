@@ -1,4 +1,5 @@
 from __future__ import annotations
+from conduit.models.utils import prefix_keys
 from dataclasses import dataclass, field
 from typing import ClassVar, Iterator, Optional, Tuple, Union, overload
 from typing_extensions import Literal
@@ -162,9 +163,9 @@ class Classifier(Model):
                 metrics = compute_metrics(
                     pair=pair,
                     model_name=self.__class__.__name__.lower(),
-                    step=0,
                     use_wandb=use_wandb,
                     prefix="val",
+                    verbose=False,
                 )
                 pbar.set_postfix(step=step + 1, **metrics)
             else:
