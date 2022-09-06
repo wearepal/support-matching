@@ -9,3 +9,6 @@ defaults:
 
 labeller:
     gpu: ${alg.gpu}
+
+wandb:
+    group: george_nih_${ds.sens_attr}_${ds.target_attr}_sb10
