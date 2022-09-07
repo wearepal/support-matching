@@ -20,6 +20,8 @@ import torch
 from torch import Tensor
 
 __all__ = [
+    "EvalTuple",
+    "LabelPair",
     "group_id_to_label",
     "labels_to_group_id",
     "resolve_device",
@@ -36,7 +38,13 @@ def labels_to_group_id(*, s: I, y: I, s_count: int) -> I:
 
 
 @dataclass(eq=False)
-class LabelTuple(Generic[I]):
+class EvalTuple:
+    y_true: Tensor
+    y_pred: Tensor
+    s: Tensor
+
+@dataclass(eq=False)
+class LabelPair(Generic[I]):
     s: I
     y: I
 
@@ -55,18 +63,18 @@ def group_id_to_label(group_id: I, *, s_count: int, label: Literal["y"]) -> I:
 
 
 @overload
-def group_id_to_label(group_id: I, *, s_count: int, label: Literal[None] = ...) -> LabelTuple[I]:
+def group_id_to_label(group_id: I, *, s_count: int, label: Literal[None] = ...) -> LabelPair[I]:
     ...
 
 
 def group_id_to_label(
     group_id: I, *, s_count: int, label: Optional[Literal["s", "y"]] = None
-) -> Union[I, LabelTuple[I]]:
+) -> Union[I, LabelPair[I]]:
     assert s_count > 1
     if label is None:
         y = group_id_to_label(group_id=group_id, s_count=s_count, label="y")
         s = group_id_to_label(group_id=group_id, s_count=s_count, label="s")
-        return LabelTuple(s=s, y=y)
+        return LabelPair(s=s, y=y)
     elif label == "s":
         return group_id % s_count
     if isinstance(group_id, Tensor):

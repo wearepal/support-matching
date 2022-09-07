@@ -12,8 +12,7 @@ import torch
 from torch import Tensor
 import torch.nn as nn
 
-from src.data import DataModule
-from src.evaluation.metrics import EvalPair, compute_metrics
+from src.data import DataModule, EvalTuple
 from src.models import Classifier
 
 from .base import FsAlg
@@ -266,9 +265,7 @@ class Gdro(FsAlg):
     adjustments: Optional[Tuple[float]] = None
 
     @implements(FsAlg)
-    def run(self, dm: DataModule, *, model: nn.Module) -> Self:
-        if dm.deployment_ids is not None:
-            dm = dm.merge_train_and_deployment()
+    def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple:
         s_count = dm.card_s
         s_all = dm.train.s
         _, group_counts = s_all.unique(return_counts=True)
@@ -310,13 +307,5 @@ class Gdro(FsAlg):
             grad_scaler=self.grad_scaler,
             use_wandb=True,
         )
-        preds, labels, sens = classifier.predict_dataset(dm.test_dataloader(), device=self.device)
-        pair = EvalPair.from_tensors(y_pred=preds, y_true=labels, s=sens, pred_s=False)
-        compute_metrics(
-            pair=pair,
-            model_name=self.__class__.__name__.lower(),
-            prefix="test",
-            use_wandb=True,
-            verbose=True,
-        )
-        return self
+        preds, y_true, s_true = classifier.predict_dataset(dm.test_dataloader(), device=self.device)
+        return EvalTuple(y_true=y_true, y_pred=preds, s=s_true)

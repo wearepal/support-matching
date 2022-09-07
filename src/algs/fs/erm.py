@@ -1,15 +1,12 @@
-from __future__ import annotations
 from dataclasses import dataclass, field
-from typing_extensions import Self
 
 from conduit.types import Loss
-from loguru import logger
 from ranzen import implements
 from ranzen.torch import CrossEntropyLoss
 import torch.nn as nn
 
 from src.data import DataModule
-from src.evaluation.metrics import EvalPair, compute_metrics
+from src.data.utils import EvalTuple
 from src.models import Classifier
 
 from .base import FsAlg
@@ -19,12 +16,10 @@ __all__ = ["Erm"]
 
 @dataclass(eq=False)
 class Erm(FsAlg):
-    criterion: Loss = field(default_factory=CrossEntropyLoss)
+    criterion: Loss = field(init=False, default_factory=CrossEntropyLoss)
 
     @implements(FsAlg)
-    def run(self, dm: DataModule, *, model: nn.Module) -> Self:
-        if dm.deployment_ids is not None:
-            dm = dm.merge_train_and_deployment()
+    def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple:
         classifier = Classifier(
             model=model,
             lr=self.lr,
@@ -46,14 +41,5 @@ class Erm(FsAlg):
         )
 
         # Generate predictions with the trained model
-        preds, labels, sens = classifier.predict_dataset(dm.test_dataloader(), device=self.device)
-        logger.info("Evaluating on the test set")
-        pair = EvalPair.from_tensors(y_pred=preds, y_true=labels, s=sens, pred_s=False)
-        compute_metrics(
-            pair=pair,
-            model_name=self.__class__.__name__.lower(),
-            prefix="test",
-            use_wandb=True,
-            verbose=True,
-        )
-        return self
+        preds, y_true, s_true = classifier.predict_dataset(dm.test_dataloader(), device=self.device)
+        return EvalTuple(y_true=y_true, y_pred=preds, s=s_true)

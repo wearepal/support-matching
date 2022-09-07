@@ -1,7 +1,6 @@
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Iterator, Optional
-from typing_extensions import Self
 
 from loguru import logger
 from ranzen.torch.module import DcModule
@@ -39,5 +38,5 @@ class Algorithm(DcModule):
             nn.utils.clip_grad.clip_grad_norm_(parameters, max_norm=value, norm_type=2.0)
 
     @abstractmethod
-    def run(self, dm: DataModule, **kwargs: Any) -> Self:
+    def run(self, dm: DataModule, **kwargs: Any) -> Any:
         ...

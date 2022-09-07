@@ -17,7 +17,7 @@ from torch.cuda.amp.grad_scaler import GradScaler
 from tqdm import tqdm, trange
 import wandb
 
-from src.evaluation.metrics import EvalPair, compute_metrics
+from src.evaluation.metrics import EmEvalPair, compute_metrics
 
 from .base import Model
 
@@ -159,7 +159,7 @@ class Classifier(Model):
                         targets_ls.append(target)
                         groups_ls.append(batch.s)
                 preds, targets, groups = cat_cpu_flatten(preds_ls, targets_ls, groups_ls, dim=0)
-                pair = EvalPair.from_tensors(y_pred=preds, y_true=targets, s=groups, pred_s=pred_s)
+                pair = EmEvalPair.from_tensors(y_pred=preds, y_true=targets, s=groups, pred_s=pred_s)
                 metrics = compute_metrics(
                     pair=pair,
                     model_name=self.__class__.__name__.lower(),

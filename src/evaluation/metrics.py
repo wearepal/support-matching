@@ -2,7 +2,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing_extensions import Self
+from typing import Dict
+from typing_extensions import Self, TypeAlias
 
 from conduit import metrics as cdtm
 from conduit.models.utils import prefix_keys
@@ -20,6 +21,7 @@ import wandb
 from src.utils import to_numpy
 
 __all__ = [
+    "MetricDict",
     "compute_metrics",
     "print_metrics",
     "write_results_to_csv",
@@ -27,7 +29,7 @@ __all__ = [
 
 
 @dataclass
-class EvalPair:
+class EmEvalPair:
     pred: em.Prediction
     actual: LabelTuple
 
@@ -44,9 +46,11 @@ class EvalPair:
         return cls(pred=pred, actual=actual)
 
 
+MetricDict: TypeAlias = Dict[str, float]
+
 @torch.no_grad()
 def compute_metrics(
-    pair: EvalPair,
+    pair: EmEvalPair,
     *,
     model_name: str,
     step: int | None = None,

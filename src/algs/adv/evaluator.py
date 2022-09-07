@@ -31,7 +31,7 @@ from src.data import (
     labels_to_group_id,
     resolve_device,
 )
-from src.evaluation.metrics import EvalPair, compute_metrics
+from src.evaluation.metrics import EmEvalPair, compute_metrics
 from src.logging import log_images
 from src.models import Classifier, Optimizer, SplitEncoding, SplitLatentAe
 
@@ -335,7 +335,7 @@ class Evaluator:
         # TODO: investigate why the histogram plotting fails when s_dim != 1
         # if (cfg.logging.mode is not WandbMode.disabled) and (dm.card_s == 2):
         #     plot_histogram_by_source(soft_preds, s=sens, y=labels, step=step, name=name)
-        pair = EvalPair.from_tensors(y_pred=preds, y_true=labels, s=sens, pred_s=pred_s)
+        pair = EmEvalPair.from_tensors(y_pred=preds, y_true=labels, s=sens, pred_s=pred_s)
         compute_metrics(
             pair=pair,
             exp_name=name,
