@@ -63,7 +63,7 @@ class Jtt(FsAlg):
         del model_id
         # Stage two: upweighting identified points
         correct = preds.flatten() == labels.flatten()
-        error_set = (~correct).nonzero()
+        error_set = (~correct).nonzero().squeeze(-1)
         weights = correct.float()
         lambda_uw = len(dm.train) / len(error_set) if self.lambda_uw is None else self.lambda_uw
         weights.index_fill_(dim=0, index=error_set, value=lambda_uw)
