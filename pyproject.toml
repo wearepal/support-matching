@@ -30,12 +30,12 @@ numpy = { version = "1.22.3" }
 pandas = { version = "^1.1" }
 pillow = "*"
 python = ">=3.9.11,<3.11"
-ranzen = {version = ">=2.0.2", extras = ["hydra"]}
+ranzen = {version = "https://github.com/wearepal/ranzen.git", extras = ["hydra"], allow-prereleases=true }
 scikit-image = ">=0.14"
 scikit_learn = { version = ">=0.20.1" }
 scipy = { version = ">=1.2.1" }
 seaborn = { version = ">=0.9.0" }
-torch-conduit = { git = "https://github.com/wearepal/conduit.git", branch = "main" }
+torch-conduit = { git = "https://github.com/wearepal/conduit.git", branch = "main", allow-prereleases=true }
 
 tqdm = { version = ">=4.31.1" }
 typer = "*"

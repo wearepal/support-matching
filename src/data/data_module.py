@@ -272,6 +272,7 @@ class DataModule(Generic[D]):
         balance: bool = True,
         batch_size: Optional[int] = None,
         num_workers: Optional[int] = None,
+        batch_sampler: Optional[BatchSamplerBase] = None,
     ) -> CdtDataLoader[TernarySample]:
         if eval:
             return self._make_dataloader(
@@ -281,16 +282,23 @@ class DataModule(Generic[D]):
                 num_workers=num_workers,
             )
         batch_size = self.batch_size_tr if batch_size is None else batch_size
-        if balance:
-            batch_sampler = self._make_stratified_sampler(
-                group_ids=self.group_ids_tr, batch_size=batch_size
-            )
-            batch_size = None
-        else:
-            batch_sampler = None
+        if batch_sampler is not None:
+            if balance:
+                batch_sampler = self._make_stratified_sampler(
+                    group_ids=self.group_ids_tr, batch_size=batch_size
+                )
+            else:
+                batch_sampler = SequentialBatchSampler(
+                    data_source=self.train,
+                    batch_size=batch_size,
+                    shuffle=True,
+                    training_mode=TrainingMode.step,
+                    drop_last=False,
+                    generator=self.generator,
+                )
         return self._make_dataloader(
             ds=self.train,
-            batch_size=batch_size,
+            batch_size=1,
             batch_sampler=batch_sampler,
             num_workers=num_workers,
         )
