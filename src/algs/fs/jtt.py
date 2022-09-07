@@ -20,7 +20,6 @@ __all__ = ["Jtt"]
 @dataclass(eq=False)
 class Jtt(FsAlg):
     criterion: Loss = field(default_factory=CrossEntropyLoss)
-    steps: int = 1_000
     id_steps: Union[float, int] = 0.02
     lambda_uw: Optional[float] = None
 
