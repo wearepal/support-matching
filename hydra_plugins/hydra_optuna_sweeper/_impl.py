@@ -2,7 +2,6 @@
 import functools
 import logging
 import sys
-import warnings
 from textwrap import dedent
 from typing import (
     Any,
@@ -15,8 +14,8 @@ from typing import (
     Sequence,
     Tuple,
 )
+import warnings
 
-import optuna
 from hydra._internal.deprecation_warning import deprecation_warning
 from hydra.core.override_parser.overrides_parser import OverridesParser
 from hydra.core.override_parser.types import (
@@ -31,6 +30,7 @@ from hydra.plugins.sweeper import Sweeper
 from hydra.types import HydraContext, TaskFunction
 from hydra.utils import get_method
 from omegaconf import DictConfig, OmegaConf
+import optuna
 from optuna.distributions import (
     BaseDistribution,
     CategoricalChoiceType,
