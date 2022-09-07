@@ -18,6 +18,7 @@ import torch
 from torch import Tensor
 import wandb
 
+from src.data import EvalTuple
 from src.utils import to_numpy
 
 __all__ = [
@@ -34,6 +35,10 @@ class EmEvalPair:
     actual: LabelTuple
 
     @classmethod
+    def from_et(cls, et: EvalTuple, *, pred_s: bool = False) -> Self:
+        return cls.from_tensors(y_pred=et.y_pred, y_true=et.y_true, s=et.s, pred_s=pred_s)
+
+    @classmethod
     def from_tensors(
         cls, y_pred: Tensor, *, y_true: Tensor, s: Tensor, pred_s: bool = False
     ) -> Self:
@@ -47,6 +52,7 @@ class EmEvalPair:
 
 
 MetricDict: TypeAlias = Dict[str, float]
+
 
 @torch.no_grad()
 def compute_metrics(

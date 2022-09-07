@@ -41,5 +41,4 @@ class Erm(FsAlg):
         )
 
         # Generate predictions with the trained model
-        preds, y_true, s_true = classifier.predict_dataset(dm.test_dataloader(), device=self.device)
-        return EvalTuple(y_true=y_true, y_pred=preds, s=s_true)
+        return classifier.predict_dataset(dm.test_dataloader(), device=self.device)

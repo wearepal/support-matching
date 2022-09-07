@@ -307,5 +307,4 @@ class Gdro(FsAlg):
             grad_scaler=self.grad_scaler,
             use_wandb=True,
         )
-        preds, y_true, s_true = classifier.predict_dataset(dm.test_dataloader(), device=self.device)
-        return EvalTuple(y_true=y_true, y_pred=preds, s=s_true)
+        return classifier.predict_dataset(dm.test_dataloader(), device=self.device)

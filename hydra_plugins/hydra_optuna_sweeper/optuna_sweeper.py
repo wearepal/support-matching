@@ -46,9 +46,7 @@ class OptunaSweeper(Sweeper):
         task_function: TaskFunction,
         config: DictConfig,
     ) -> None:
-        self.sweeper.setup(
-            hydra_context=hydra_context, task_function=task_function, config=config
-        )
+        self.sweeper.setup(hydra_context=hydra_context, task_function=task_function, config=config)
 
     def sweep(self, arguments: List[str]) -> None:
         return self.sweeper.sweep(arguments)

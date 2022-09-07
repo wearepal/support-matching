@@ -6,7 +6,6 @@ from typing_extensions import Literal
 from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import TernarySample
 from conduit.metrics import hard_prediction
-from conduit.models.utils import prefix_keys
 from conduit.types import Loss
 from loguru import logger
 from ranzen.torch.loss import CrossEntropyLoss
@@ -17,6 +16,7 @@ from torch.cuda.amp.grad_scaler import GradScaler
 from tqdm import tqdm, trange
 import wandb
 
+from src.data import EvalTuple
 from src.evaluation.metrics import EmEvalPair, compute_metrics
 
 from .base import Model
@@ -62,7 +62,7 @@ class Classifier(Model):
         *,
         device: torch.device,
         with_soft: Literal[False] = ...,
-    ) -> tuple[Tensor, Tensor, Tensor]:
+    ) -> EvalTuple[None]:
         ...
 
     @overload
@@ -72,7 +72,7 @@ class Classifier(Model):
         *,
         device: torch.device,
         with_soft: Literal[True],
-    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+    ) -> EvalTuple[Tensor]:
         ...
 
     @torch.no_grad()
@@ -82,7 +82,7 @@ class Classifier(Model):
         *,
         device: torch.device,
         with_soft: bool = False,
-    ) -> Union[Tuple[Tensor, Tensor, Tensor], Tuple[Tensor, Tensor, Tensor, Tensor]]:
+    ) -> EvalTuple:
         self.to(device)
         hard_preds_ls, actual_ls, sens_ls, soft_preds_ls = [], [], [], []
         with torch.no_grad():
@@ -100,8 +100,8 @@ class Classifier(Model):
 
         if with_soft:
             (soft_preds,) = cat_cpu_flatten(soft_preds_ls)
-            return hard_preds, actual, sens, soft_preds
-        return hard_preds, actual, sens
+            return EvalTuple(y_pred=hard_preds, y_true=actual, s=sens, probs=soft_preds)
+        return EvalTuple(y_pred=hard_preds, y_true=actual, s=sens)
 
     def training_step(self, batch: TernarySample, *, pred_s: bool = False) -> Tensor:
         target = batch.s if pred_s else batch.y
@@ -159,7 +159,9 @@ class Classifier(Model):
                         targets_ls.append(target)
                         groups_ls.append(batch.s)
                 preds, targets, groups = cat_cpu_flatten(preds_ls, targets_ls, groups_ls, dim=0)
-                pair = EmEvalPair.from_tensors(y_pred=preds, y_true=targets, s=groups, pred_s=pred_s)
+                pair = EmEvalPair.from_tensors(
+                    y_pred=preds, y_true=targets, s=groups, pred_s=pred_s
+                )
                 metrics = compute_metrics(
                     pair=pair,
                     model_name=self.__class__.__name__.lower(),

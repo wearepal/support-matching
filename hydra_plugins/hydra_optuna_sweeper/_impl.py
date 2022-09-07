@@ -48,9 +48,7 @@ from .config import Direction, DistributionConfig, DistributionType
 log = logging.getLogger(__name__)
 
 
-def create_optuna_distribution_from_config(
-    config: MutableMapping[str, Any]
-) -> BaseDistribution:
+def create_optuna_distribution_from_config(config: MutableMapping[str, Any]) -> BaseDistribution:
     kwargs = dict(config)
     if isinstance(config["type"], str):
         kwargs["type"] = DistributionType[config["type"]]
@@ -108,9 +106,7 @@ def create_optuna_distribution_from_override(override: Override) -> Any:
             or isinstance(value.step, float)
         ):
             return DiscreteUniformDistribution(value.start, value.stop, value.step)
-        return IntUniformDistribution(
-            int(value.start), int(value.stop), step=int(value.step)
-        )
+        return IntUniformDistribution(int(value.start), int(value.stop), step=int(value.step))
 
     if override.is_interval_sweep():
         assert isinstance(value, IntervalSweep)
@@ -169,9 +165,7 @@ class OptunaSweeperImpl(Sweeper):
         self.max_failure_rate = max_failure_rate
         assert self.max_failure_rate >= 0.0
         assert self.max_failure_rate <= 1.0
-        self.custom_search_space_extender: Optional[
-            Callable[[DictConfig, Trial], None]
-        ] = None
+        self.custom_search_space_extender: Optional[Callable[[DictConfig, Trial], None]] = None
         if custom_search_space:
             self.custom_search_space_extender = get_method(custom_search_space)
         self.search_space = search_space
@@ -314,9 +308,7 @@ class OptunaSweeperImpl(Sweeper):
             for v in search_space_for_grid_sampler.values():
                 n_trial *= len(v)
             self.n_trials = min(self.n_trials, n_trial)
-            log.info(
-                f"Updating num of trials to {self.n_trials} due to using GridSampler."
-            )
+            log.info(f"Updating num of trials to {self.n_trials} due to using GridSampler.")
 
         # Remove fixed parameters from Optuna search space.
         for param_name in fixed_params:
@@ -344,9 +336,7 @@ class OptunaSweeperImpl(Sweeper):
             batch_size = min(n_trials_to_go, batch_size)
 
             trials = [study.ask() for _ in range(batch_size)]
-            overrides = self._configure_trials(
-                trials, search_space_distributions, fixed_params
-            )
+            overrides = self._configure_trials(trials, search_space_distributions, fixed_params)
 
             returns = self.launcher.launch(overrides, initial_job_idx=self.job_idx)
             self.job_idx += len(returns)
@@ -418,9 +408,7 @@ class OptunaSweeperImpl(Sweeper):
             log.info(f"Best value: {best_trial.value}")
         else:
             best_trials = study.best_trials
-            pareto_front = [
-                {"params": t.params, "values": t.values} for t in best_trials
-            ]
+            pareto_front = [{"params": t.params, "values": t.values} for t in best_trials]
             results_to_serialize = {
                 "name": "optuna",
                 "solutions": pareto_front,

@@ -329,13 +329,11 @@ class Evaluator:
         clf = self._fit_classifier(dm=dm, pred_s=False, device=device)
 
         # TODO: the soft predictions should only be computed if they're needed
-        preds, labels, sens, _ = clf.predict_dataset(
-            dm.test_dataloader(), device=torch.device(device), with_soft=True
-        )
+        et = clf.predict_dataset(dm.test_dataloader(), device=torch.device(device), with_soft=True)
         # TODO: investigate why the histogram plotting fails when s_dim != 1
         # if (cfg.logging.mode is not WandbMode.disabled) and (dm.card_s == 2):
         #     plot_histogram_by_source(soft_preds, s=sens, y=labels, step=step, name=name)
-        pair = EmEvalPair.from_tensors(y_pred=preds, y_true=labels, s=sens, pred_s=pred_s)
+        pair = EmEvalPair.from_et(et=et, pred_s=pred_s)
         compute_metrics(
             pair=pair,
             exp_name=name,

@@ -52,12 +52,10 @@ class Jtt(FsAlg):
             use_wandb=True,
         )
         # Generate predictions with the trained model
-        preds, labels, _ = classifier.predict_dataset(
-            dm.train_dataloader(eval=True), device=self.device
-        )
+        et = classifier.predict_dataset(dm.train_dataloader(eval=True), device=self.device)
         del model_id
         # Stage two: upweighting identified points
-        correct = preds.flatten() == labels.flatten()
+        correct = et.y_pred.flatten() == et.y_true.flatten()
         error_set = (~correct).nonzero().squeeze(-1)
         weights = correct.float()
         lambda_uw = len(dm.train) / len(error_set) if self.lambda_uw is None else self.lambda_uw
@@ -76,5 +74,4 @@ class Jtt(FsAlg):
         )
 
         # Generate predictions with the trained model
-        preds, y_true, s_true = classifier.predict_dataset(dm.test_dataloader(), device=self.device)
-        return EvalTuple(y_true=y_true, y_pred=preds, s=s_true)
+        return classifier.predict_dataset(dm.test_dataloader(), device=self.device)

@@ -3,7 +3,7 @@
 # usage: +experiment=nih/sb10_sm
 
 defaults:
-    - override /ds: nih_gender_cardio
+    - override /ds: nih_gender_infiltration
     - override /dm: nih/base
     - override /alg: base
     - override /labeller: gt
@@ -64,7 +64,7 @@ eval:
     batch_size: 256
     balanced_sampling: true
     lr: 1.e-4
-    steps: 5000
+    steps: 10000
     num_hidden: 2
     hidden_dim: null
     scheduler_cls: torch.optim.lr_scheduler.CosineAnnealingLR

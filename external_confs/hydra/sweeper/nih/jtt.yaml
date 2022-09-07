@@ -1,0 +1,7 @@
+# @package hydra.sweeper
+defaults:
+    - nih/erm
+    - _self_
+
+params:
+    alg.id_steps: interval(0.05, 0.50)

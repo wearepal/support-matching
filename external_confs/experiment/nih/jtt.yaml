@@ -1,0 +1,14 @@
+# @package _global_
+
+# usage: +experiment=nih/jtt
+
+defaults:
+    - nih/fs_base
+    - override /alg: erm
+    - _self_
+
+alg:
+    id_steps: 1000
+
+wandb:
+    group: jtt_nih_${ds.sens_attr}_${ds.target_attr}_sb10

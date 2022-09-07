@@ -1,14 +1,14 @@
 from dataclasses import dataclass
-from loguru import logger
-from src.evaluation.metrics import EmEvalPair, compute_metrics, MetricDict
-import torch.nn as nn
 from typing import Optional
 
+from loguru import logger
 from omegaconf import DictConfig
 from ranzen import implements
+import torch.nn as nn
 
 from src.algs.base import Algorithm
 from src.data import DataModule, EvalTuple
+from src.evaluation.metrics import EmEvalPair, MetricDict, compute_metrics
 from src.models import Optimizer
 
 __all__ = ["FsAlg"]
