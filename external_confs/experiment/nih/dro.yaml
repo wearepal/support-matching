@@ -1,0 +1,13 @@
+# @package _global_
+
+# usage: +experiment=nih/dro
+
+defaults:
+    - override /alg: dro
+    - _self_
+
+alg:
+    eta: 0.5
+
+wandb:
+    group: dro_nih_${ds.sens_attr}_${ds.target_attr}_sb10

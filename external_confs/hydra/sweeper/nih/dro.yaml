@@ -1,0 +1,7 @@
+# @package hydra.sweeper
+defaults:
+    - nih/erm
+    - _self_
+
+params:
+    eta: interval(0.1, 0.5)

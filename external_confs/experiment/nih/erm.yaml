@@ -1,0 +1,11 @@
+# @package _global_
+
+# usage: +experiment=nih/erm
+
+defaults:
+    - nih/fs_base
+    - override /alg: erm
+    - _self_
+
+wandb:
+    group: erm_nih_${ds.sens_attr}_${ds.target_attr}_sb10

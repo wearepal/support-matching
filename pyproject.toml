@@ -4,12 +4,9 @@ version = "1.0.0"
 description = "Addressing Missing Sources with Adversarial Support-Matching"
 authors = ["PAL <info@wearepal.com>"]
 packages = [
-  { include = "clustering" },
-  { include = "advrep" },
-  { include = "shared" },
+  { include = "src" },
   { include = "hydra_plugins" }
 ]
-include=["clustering/py.typed", "advrep/py.typed", "shared/py.typed"]
 classifiers=[
   "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
@@ -23,22 +20,23 @@ readme="README.md"
 GitPython = { version = ">=2.1.11" }
 aioredis = "^1.3.1"
 clip = { git = "https://github.com/openai/CLIP.git", branch = "main" }
-ethicml = { version="*", allow-prereleases=true }
+ethicml = { version="1.0.0b2", allow-prereleases=true }
 hydra-submitit-launcher = { version = "^1.1.6" }
 lapjv = "*"
 llvmlite = ">=0.35.0.,<0.39"
 matplotlib = ">= 3.0.2, < 3.3.1"
 neoconfigen = ">=2.3.3"
-numpy = { version = ">=1.22" }
+numpy = { version = "1.22.3" }
 pandas = { version = "^1.1" }
 pillow = "*"
 python = ">=3.9.11,<3.11"
-ranzen = {version = ">=2.0.2", extras = ["hydra"]}
+ranzen = {version = "https://github.com/wearepal/ranzen.git", extras = ["hydra"], allow-prereleases=true }
 scikit-image = ">=0.14"
 scikit_learn = { version = ">=0.20.1" }
 scipy = { version = ">=1.2.1" }
 seaborn = { version = ">=0.9.0" }
-torch-conduit = { version = ">=0.1.6" }
+torch-conduit = { git = "https://github.com/wearepal/conduit.git", branch = "main", allow-prereleases=true }
+
 tqdm = { version = ">=4.31.1" }
 typer = "*"
 umap-learn = "^0.5.1"
@@ -46,6 +44,8 @@ wandb = "*"
 loguru = "^0.6.0"
 ftfy = "^6.1.1"
 regex = "^2022.8.17"
+timm = "^0.6.7"
+optuna = "^3.0.0"
 
 [tool.poetry.dev-dependencies]
 black = "*"

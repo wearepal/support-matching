@@ -11,7 +11,7 @@ defaults:
     - override /ae: base
     - override /ae_arch: resnet
     - override /disc: base
-    - override /disc_arch: kvq
+    - override /disc_arch: fcn
     - override /wandb: base
     - _self_
 
@@ -23,7 +23,6 @@ dm:
 alg:
     steps: 10000
     num_disc_updates: 5
-    twoway_disc_loss: true
     prior_loss_w: 0
     log_freq: 1000
     pred_y_loss_w: 0
@@ -48,29 +47,23 @@ ae_arch:
 
 disc:
     lr: 4.e-4
-    criterion: LOGISTIC_NS
     optimizer_cls: ADAM
 
 disc_arch:
-    hidden_dim_pre: null
-    hidden_dim_post: null
-    num_hidden_post: 0
-    num_hidden_pre: 0
-    agg_input_dim: null
+    hidden_dim: null
+    num_hidden: 2
     input_norm: true
     final_bias: true
 
 eval:
-    batch_size: 256
-    balanced_sampling: true
     lr: 1.e-4
+    batch_size: 12
+    balanced_sampling: true
     steps: 10000
-    num_hidden: 2
-    hidden_dim: null
-    scheduler_cls: torch.optim.lr_scheduler.CosineAnnealingLR
+    num_hidden: 1
     scheduler_kwargs:
-    T_max: ${ eval.steps }
-    eta_min: 5e-7
+        T_max: ${ alg.steps }
+        eta_min: 5e-7
 
 wandb:
     group: nih_sb10_sm

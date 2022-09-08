@@ -1,0 +1,11 @@
+# @package _global_
+
+# usage: +experiment=nih/erm_gt
+
+defaults:
+    - nih/erm
+    - override /labeller: gt
+    - _self_
+
+wandb:
+    group: oracle_erm_nih_${ds.sens_attr}_${ds.target_attr}_sb10

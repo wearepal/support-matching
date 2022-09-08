@@ -1,0 +1,15 @@
+# @package _global_
+
+# usage: +experiment=nih/lff
+
+defaults:
+    - nih/fs_base
+    - override /alg: lff
+    - _self_
+
+alg:
+    alpha: 0.7
+    q: 0.7
+
+wandb:
+    group: lff_nih_${ds.sens_attr}_${ds.target_attr}_sb10
