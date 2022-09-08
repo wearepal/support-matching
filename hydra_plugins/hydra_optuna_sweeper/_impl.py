@@ -98,20 +98,16 @@ def create_optuna_distribution_from_override(override: Override) -> Any:
             or isinstance(value.step, float)
         ):
             return DiscreteUniformDistribution(value.start, value.stop, value.step)
-        return IntUniformDistribution(int(value.start), int(value.stop), step=int(value.step))
+        return IntDistribution(int(value.start), int(value.stop), step=int(value.step))
 
     if override.is_interval_sweep():
         assert isinstance(value, IntervalSweep)
         assert value.start is not None
         assert value.end is not None
-        if "log" in value.tags:
-            if isinstance(value.start, int) and isinstance(value.end, int):
-                return IntLogUniformDistribution(int(value.start), int(value.end))
-            return LogUniformDistribution(value.start, value.end)
-        else:
-            if isinstance(value.start, int) and isinstance(value.end, int):
-                return IntUniformDistribution(value.start, value.end)
-            return UniformDistribution(value.start, value.end)
+        log = "log" in value.tags
+        if isinstance(value.start, int) and isinstance(value.end, int):
+            return IntDistribution(low=value.start, high=value.end, log=log)
+        return FloatDistribution(value.start, value.end, log=log)
 
     raise NotImplementedError(f"{override} is not supported by Optuna sweeper.")
 
@@ -252,7 +248,7 @@ class OptunaSweeperImpl(Sweeper):
     def _to_grid_sampler_choices(self, distribution: BaseDistribution) -> Any:
         if isinstance(distribution, CategoricalDistribution):
             return distribution.choices
-        elif isinstance(distribution, IntUniformDistribution):
+        elif isinstance(distribution, IntDistribution):
             assert (
                 distribution.step is not None
             ), "`step` of IntUniformDistribution must be a positive integer."
