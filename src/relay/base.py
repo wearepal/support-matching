@@ -68,7 +68,6 @@ class BaseRelay(Relay):
         torch.multiprocessing.set_sharing_strategy("file_system")
         splitter = instantiate(self.split)
         ds = instantiate(self.ds, root=process_data_dir(self.ds.root))
-        # === Fit and evaluate the clusterer ===
         labeller: Labeller = instantiate(self.labeller)
         dm = DataModule.from_ds(
             config=self.dm,
