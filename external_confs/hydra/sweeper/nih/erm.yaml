@@ -9,7 +9,7 @@ sampler:
   constraints_func: null
 _target_: hydra_plugins.hydra_optuna_sweeper.optuna_sweeper.OptunaSweeper
 direction:
-- minimize
+- maximize
 storage: null
 study_name: erm
 n_trials: 5

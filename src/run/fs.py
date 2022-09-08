@@ -3,7 +3,7 @@ from __future__ import annotations
 from conduit.data.datasets.vision import Camelyon17, CelebA, ColoredMNIST
 from ranzen.hydra import Option
 
-from src.algs import Dro, Erm, Gdro, Jtt, LfF
+from src.algs.fs import Dro, Erm, Gdro, Jtt, LfF
 from src.arch.backbones import ResNet, SimpleCNN
 from src.arch.predictors import Fcn
 from src.arch.predictors.fcn import Fcn
