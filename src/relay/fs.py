@@ -1,8 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Protocol, Union
-from typing_extensions import Self
+from typing import Any, Dict, List, Optional, Union
 
 from hydra.utils import instantiate
 from omegaconf import DictConfig, MISSING
@@ -10,17 +9,12 @@ from ranzen.decorators import implements
 from ranzen.hydra import Option
 import torch.nn as nn
 
+from src.algs.fs.base import FsAlg
 from src.arch import BackboneFactory, PredictorFactory
-from src.data import DataModule
 
 from .base import BaseRelay
 
 __all__ = ["FsRelay"]
-
-
-class FsAlg(Protocol):
-    def run(self, dm: DataModule, *, model: nn.Module) -> Self:
-        ...
 
 
 @dataclass(eq=False)

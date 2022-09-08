@@ -8,7 +8,7 @@ import torch.nn as nn
 
 from src.algs.base import Algorithm
 from src.data import DataModule, EvalTuple
-from src.evaluation.metrics import EmEvalPair, MetricDict, compute_metrics
+from src.evaluation.metrics import EmEvalPair, compute_metrics
 from src.models import Optimizer
 
 __all__ = ["FsAlg"]
