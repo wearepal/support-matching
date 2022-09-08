@@ -219,7 +219,7 @@ class OptunaSweeperImpl(Sweeper):
         for trial in trials:
             for param_name, distribution in search_space_distributions.items():
                 assert type(param_name) is str
-                trial._suggest(param_name, distribution)
+                trial._suggest(param_name, distribution)  # type: ignore
             for param_name, value in fixed_params.items():
                 trial.set_user_attr(param_name, value)
 
@@ -251,12 +251,15 @@ class OptunaSweeperImpl(Sweeper):
         elif isinstance(distribution, IntDistribution):
             assert (
                 distribution.step is not None
-            ), "`step` of IntUniformDistribution must be a positive integer."
+            ), "`step` of IntDistribution must be a positive integer."
             n_items = (distribution.high - distribution.low) // distribution.step
             return [distribution.low + i * distribution.step for i in range(n_items)]
-        elif isinstance(distribution, DiscreteUniformDistribution):
-            n_items = int((distribution.high - distribution.low) // distribution.q)
-            return [distribution.low + i * distribution.q for i in range(n_items)]
+        elif isinstance(distribution, FloatDistribution):
+            assert (
+                distribution.step is not None
+            ), "`step` of FloatDistribution must be a positive integer."
+            n_items = int((distribution.high - distribution.low) // distribution.step)
+            return [distribution.low + i * distribution.step for i in range(n_items)]
         else:
             raise ValueError("GridSampler only supports discrete distributions.")
 
@@ -308,7 +311,7 @@ class OptunaSweeperImpl(Sweeper):
         study = optuna.create_study(
             study_name=self.study_name,
             storage=self.storage,
-            sampler=self.sampler,
+            sampler=self.sampler,  # type: ignore
             directions=directions,
             load_if_exists=True,
         )
