@@ -10,12 +10,12 @@ from conduit.data.datasets.vision.base import CdtVisionDataset
 from conduit.data.structures import TernarySample
 from conduit.types import LRScheduler
 from loguru import logger
-from matplotlib import pyplot as plt
-from matplotlib.colors import ListedColormap
+# from matplotlib import pyplot as plt
+# from matplotlib.colors import ListedColormap
 import numpy as np
 from omegaconf import DictConfig
 from ranzen.misc import gcopy
-import seaborn as sns
+# import seaborn as sns
 import torch
 from torch import Tensor
 from tqdm import tqdm
