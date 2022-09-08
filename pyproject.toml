@@ -36,6 +36,9 @@ scikit_learn = { version = ">=0.20.1" }
 scipy = { version = ">=1.2.1" }
 seaborn = { version = ">=0.9.0" }
 torch-conduit = { git = "https://github.com/wearepal/conduit.git", branch = "main", allow-prereleases=true }
+torch = {version = ">=1.12.1", source = "cu116"}
+torchaudio = {version = ">=0.12.1", source = "cu116"}
+torchvision = {version = ">=0.13.1", source = "cu116"}
 
 tqdm = { version = ">=4.31.1" }
 typer = "*"
@@ -53,6 +56,12 @@ isort = "*"
 mypy = "*"
 pre-commit = "*"
 pytest = "*"
+
+[[tool.poetry.source]]
+name = "cu116"
+url = "https://download.pytorch.org/whl/cu116"
+default = false
+secondary = true
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
