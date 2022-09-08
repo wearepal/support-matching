@@ -3,7 +3,7 @@ from __future__ import annotations
 from conduit.data.datasets.vision import Camelyon17, CelebA, ColoredMNIST
 from ranzen.hydra import Option
 
-from src.algs import Dro, Erm, Gdro, LfF
+from src.algs import Dro, Erm, Gdro, Jtt, LfF
 from src.arch.backbones import ResNet, SimpleCNN
 from src.arch.predictors import Fcn
 from src.arch.predictors.fcn import Fcn
@@ -41,6 +41,7 @@ def main() -> None:
         Option(Dro, name="dro"),
         Option(Erm, name="erm"),
         Option(Gdro, name="gdro"),
+        Option(Jtt, name="jtt"),
         Option(LfF, name="lff"),
     ]
 
