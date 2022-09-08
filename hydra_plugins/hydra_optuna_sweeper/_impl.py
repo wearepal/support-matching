@@ -36,10 +36,8 @@ from optuna.distributions import (
     CategoricalChoiceType,
     CategoricalDistribution,
     DiscreteUniformDistribution,
-    IntLogUniformDistribution,
-    IntUniformDistribution,
-    LogUniformDistribution,
-    UniformDistribution,
+    FloatDistribution,
+    IntDistribution,
 )
 from optuna.trial import Trial
 
@@ -59,18 +57,12 @@ def create_optuna_distribution_from_config(config: MutableMapping[str, Any]) -> 
     if param.type == DistributionType.int:
         assert param.low is not None
         assert param.high is not None
-        if param.log:
-            return IntLogUniformDistribution(int(param.low), int(param.high))
         step = int(param.step) if param.step is not None else 1
-        return IntUniformDistribution(int(param.low), int(param.high), step=step)
+        return IntDistribution(low=int(param.low), high=int(param.high), log=param.log, step=step)
     if param.type == DistributionType.float:
         assert param.low is not None
         assert param.high is not None
-        if param.log:
-            return LogUniformDistribution(param.low, param.high)
-        if param.step is not None:
-            return DiscreteUniformDistribution(param.low, param.high, param.step)
-        return UniformDistribution(param.low, param.high)
+        return FloatDistribution(low=param.low, high=param.high, log=param.log, step=param.step)
     raise NotImplementedError(f"{param.type} is not supported by Optuna sweeper.")
 
 
