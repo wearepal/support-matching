@@ -50,7 +50,7 @@ def _encode_and_score_recons(
             y_ls.append(batch.y)
             s_ls.append(batch.s)
             x_hat = ae.decode(z)
-            recon_score -= to_item(torch.abs(batch.x - x_hat).flatten(start_dim=1).mean(-1).sum())
+            recon_score -= to_item((batch.x - x_hat).abs().flatten(start_dim=1).mean(-1).sum())
             n += len(batch.x)
     recon_score /= n
     zy, y, s = cat(zy_ls, y_ls, s_ls, dim=0)
@@ -94,7 +94,7 @@ class NeuralScorer:
     optimizer: torch.optim.Optimizer = field(init=False)
     scheduler_cls: Optional[str] = None
     scheduler_kwargs: Optional[DictConfig] = None
-    test_batches: int = 1000
+    eval_batches: int = 1000
     inv_score_w: float = 1
 
     @implements(Scorer)
@@ -151,7 +151,7 @@ class NeuralScorer:
             dm.train_dataloader(batch_size=batch_size_te),
             dm.deployment_dataloader(batch_size=batch_size_te),
             device=device,
-            max_steps=self.test_batches,
+            max_steps=self.eval_batches,
         )
         inv_score =  1.0 - balanced_accuracy(y_pred=et.y_pred, y_true=et.y_true)
         inv_score *= self.inv_score_w

@@ -47,7 +47,6 @@ class SupportMatching(AdvSemiSupervisedAlg):
         warmup: bool,
     ) -> Tuple[Tensor, Dict[str, float]]:
         """Compute the losses for the encoder and update its parameters."""
-        breakpoint()
         # Compute losses for the encoder.
         logging_dict = {}
 
