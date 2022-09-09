@@ -23,18 +23,16 @@ max_failure_rate: 0.0
 search_space: null
 custom_search_space: null
 
-max_grad_norm: null
-steps: 10000
 params:
-    alg.ga_steps: interval(1, 4)
-    alg.num_disc_updates: interval(1, 5)
-    alg.disc_loss_w: tag(log, interval(1.e-2, 1e.1)) 
+    alg.ga_steps: choice(1, 2)
+    alg.num_disc_updates: range(1, 6)
+    alg.disc_loss_w: tag(log, interval(1.e-2, 10.0)) 
     alg.twoway_disc_loss: choice(true, false)
 
     ae.lr: tag(log, interval(1.e-5, 1.e-3))
     disc.lr: tag(log, interval(1.e-5, 1.e-3))
 
-    disc_arch.num_hidden_post: interval(0, 2)
-    disc_arch.num_hidden_pre: interval(0, 2)
+    disc_arch.num_hidden_post: range(0, 3)
+    disc_arch.num_hidden_pre: range(0, 3)
 
     disc.criterion: choice(LOGISTIC_NS, LS, WASSERSTEIN)
