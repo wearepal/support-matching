@@ -1,6 +1,8 @@
 from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
+from enum import Enum
+from functools import partial
 from pathlib import Path
 from typing import Dict
 from typing_extensions import Self, TypeAlias
@@ -23,6 +25,7 @@ from src.utils import to_numpy
 
 __all__ = [
     "MetricDict",
+    "SummaryMetric",
     "compute_metrics",
     "print_metrics",
     "write_results_to_csv",
@@ -52,6 +55,24 @@ class EmEvalPair:
 
 
 MetricDict: TypeAlias = Dict[str, float]
+
+
+class SummaryMetric(Enum):
+    ACC = "Accuracy"
+    ROB_ACC = "Robust_Accuracy"
+    BAL_ACC = "Balanced_Accuracy"
+    ROB_GAP = "Robust_Gap"
+    TPR = "TPR"
+    TNR = "TNR"
+    ROB_TPR = "Robust_TPR"
+    ROB_TNR = "Robust_TNR"
+    ROB_TPR_GAP = "Robust_TPR_Gap"
+    RENYI = "Renyi preds and s"
+
+
+robust_tpr_gap = cdtm.subclasswise_metric(
+    comparator=partial(cdtm.conditional_equal, y_true_cond=1), aggregator=cdtm.Aggregator.MAX_DIFF
+)
 
 
 @torch.no_grad()
@@ -95,10 +116,12 @@ def compute_metrics(
     y_true_t = torch.as_tensor(torch.as_tensor(actual.y, dtype=torch.long))
     s_t = torch.as_tensor(torch.as_tensor(actual.s, dtype=torch.long))
     cdt_metrics = {
-        "Robust_Accuracy": cdtm.robust_accuracy,
-        "Balanced_Accuracy": cdtm.subclass_balanced_accuracy,
-        "Robust_TPR": cdtm.robust_tpr,
-        "Robust_TNR": cdtm.robust_tnr,
+        SummaryMetric.ROB_ACC.value: cdtm.robust_accuracy,
+        SummaryMetric.BAL_ACC.value: cdtm.subclass_balanced_accuracy,
+        SummaryMetric.ROB_GAP.value: cdtm.robust_gap,
+        SummaryMetric.ROB_TPR_GAP.value: robust_tpr_gap,
+        SummaryMetric.ROB_TPR.value: cdtm.robust_tpr,
+        SummaryMetric.ROB_TNR.value: cdtm.robust_tnr,
     }
     for name, fn in cdt_metrics.items():
         metrics[name] = fn(y_pred=y_pred_t, y_true=y_true_t, s=s_t).item()
@@ -149,7 +172,7 @@ def write_results_to_csv(results: Mapping[str, int | float | str], csv_dir: Path
         # load previous results and append new results
         previous_results = pd.read_csv(results_path)
         results_df = pd.concat(
-            [previous_results, results_df], sort=False, ignore_index=True, axis="index"
+            [previous_results, results_df], sort=False, ignore_index=True, axis="index"  # type: ignore
         )
     results_df.reset_index(drop=True).to_csv(results_path, index=False)
     logger.info(f"Results have been written to {results_path.resolve()}")

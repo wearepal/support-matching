@@ -282,7 +282,7 @@ class DataModule(Generic[D]):
                 num_workers=num_workers,
             )
         batch_size = self.batch_size_tr if batch_size is None else batch_size
-        if batch_sampler is not None:
+        if batch_sampler is None:
             if balance:
                 batch_sampler = self._make_stratified_sampler(
                     group_ids=self.group_ids_tr, batch_size=batch_size

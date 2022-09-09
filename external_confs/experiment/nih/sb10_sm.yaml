@@ -12,6 +12,7 @@ defaults:
     - override /ae_arch: resnet
     - override /disc: base
     - override /disc_arch: kvq
+    - override /scorer: nih/sm
     - override /wandb: base
     - _self_
 
@@ -25,7 +26,7 @@ alg:
     num_disc_updates: 5
     twoway_disc_loss: true
     prior_loss_w: 0
-    log_freq: 1000
+    log_freq: ${alg.steps} # disable image-logging
     pred_y_loss_w: 0
     pred_s_loss_w: 0
     warmup_steps: 0
@@ -61,16 +62,16 @@ disc_arch:
     final_bias: true
 
 eval:
-    batch_size: 256
+    batch_size: 12
     balanced_sampling: true
     lr: 1.e-4
     steps: 10000
-    num_hidden: 2
+    num_hidden: 1
     hidden_dim: null
     scheduler_cls: torch.optim.lr_scheduler.CosineAnnealingLR
     scheduler_kwargs:
-    T_max: ${ eval.steps }
-    eta_min: 5e-7
+        T_max: ${ eval.steps }
+        eta_min: 5e-7
 
 wandb:
     group: nih_sb10_sm

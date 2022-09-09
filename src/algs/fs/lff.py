@@ -163,7 +163,7 @@ class LfF(FsAlg):
     q: float = 0.7
 
     @implements(FsAlg)
-    def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple:
+    def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:
         sample_loss_ema_b = LabelEma(dm.train.y, alpha=self.alpha).to(self.device)
         sample_loss_ema_d = LabelEma(dm.train.y, alpha=self.alpha).to(self.device)
         dm.train = IndexedDataset(dm.train)
@@ -192,4 +192,4 @@ class LfF(FsAlg):
             pred_s=False,
         )
         # Generate predictions with the trained model
-        return classifier.predict_dataset(dm.test_dataloader(), device=self.device)
+        return classifier.predict(dm.test_dataloader(), device=self.device)

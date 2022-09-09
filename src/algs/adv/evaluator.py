@@ -133,7 +133,6 @@ def encode_dataset(
     device: str | torch.device,
     invariant_to: InvariantAttr = "s",
 ) -> InvariantDatasets:
-    logger.info("Encoding dataset")
     all_inv_s = []
     all_inv_y = []
     all_s = []
@@ -142,7 +141,7 @@ def encode_dataset(
     device = torch.device(device)
 
     with torch.no_grad():
-        for batch in tqdm(dl):
+        for batch in tqdm(dl, desc="Encoding dataset"):
 
             x = batch.x.to(device, non_blocking=True)
             all_s.append(batch.s)
@@ -277,7 +276,6 @@ class Evaluator:
     optimizer: torch.optim.Optimizer = field(init=False)
     scheduler_cls: Optional[str] = None
     scheduler_kwargs: Optional[DictConfig] = None
-    scheduler: Optional[LRScheduler] = field(init=False)
 
     def _fit_classifier(
         self,
@@ -304,15 +302,15 @@ class Evaluator:
         )
 
         train_dl = dm.train_dataloader(batch_size=self.batch_size, balance=self.balanced_sampling)
-        test_dl = dm.test_dataloader()
 
         clf.to(torch.device(device))
         clf.fit(
             train_data=train_dl,
-            test_data=test_dl,
+            test_data=None,
             steps=self.steps,
             device=torch.device(device),
             pred_s=pred_s,
+            use_wandb=False,
         )
 
         return clf
@@ -329,7 +327,7 @@ class Evaluator:
         clf = self._fit_classifier(dm=dm, pred_s=False, device=device)
 
         # TODO: the soft predictions should only be computed if they're needed
-        et = clf.predict_dataset(dm.test_dataloader(), device=torch.device(device), with_soft=True)
+        et = clf.predict(dm.test_dataloader(), device=torch.device(device), with_soft=True)
         # TODO: investigate why the histogram plotting fails when s_dim != 1
         # if (cfg.logging.mode is not WandbMode.disabled) and (dm.card_s == 2):
         #     plot_histogram_by_source(soft_preds, s=sens, y=labels, step=step, name=name)

@@ -35,12 +35,13 @@ def labels_to_group_id(*, s: I, y: I, s_count: int) -> I:
     return y * s_count + s
 
 
+S = TypeVar("S", Tensor, None)
 P = TypeVar("P", Tensor, None)
 
 
 @dataclass(eq=False, init=False)
-class EvalTuple(Generic[P]):
-    def __init__(self, y_true: Tensor, *, y_pred: Tensor, s: Tensor, probs: P = None):
+class EvalTuple(Generic[S, P]):
+    def __init__(self, y_true: Tensor, *, y_pred: Tensor, s: S = None, probs: P = None):
         self.y_true = y_true
         self.y_pred = y_pred
         self.s = s
