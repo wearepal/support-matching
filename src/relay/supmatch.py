@@ -9,7 +9,7 @@ from ranzen.decorators import implements
 from ranzen.hydra import Option
 
 from src.algs import SupportMatching
-from src.algs.adv import Evaluator
+from src.algs.adv import Evaluator, Scorer
 from src.arch.autoencoder import AePair
 from src.models import SplitLatentAe
 from src.models.discriminator import NeuralDiscriminator
@@ -26,6 +26,7 @@ class SupMatchRelay(BaseRelay):
     disc_arch: DictConfig = MISSING
     disc: DictConfig = MISSING
     eval: DictConfig = MISSING
+    scorer: DictConfig = MISSING
 
     @classmethod
     @implements(BaseRelay)
@@ -42,14 +43,15 @@ class SupMatchRelay(BaseRelay):
         instantiate_recursively: bool = False,
     ) -> None:
         configs = dict(
-            alg=[Option(SupportMatching, name="base")],
             ae=[Option(SplitLatentAe, name="base")],
-            eval=[Option(Evaluator, name="base")],
             ae_arch=ae_arch,
-            ds=ds,
+            alg=[Option(SupportMatching, name="base")],
             disc=disc,
             disc_arch=disc_arch,
+            ds=ds,
+            eval=[Option(Evaluator, name="base")],
             labeller=labeller,
+            scorer=[Option(Scorer, name="base")],
         )
         super().with_hydra(
             root=root,
@@ -59,7 +61,7 @@ class SupMatchRelay(BaseRelay):
         )
 
     @implements(BaseRelay)
-    def run(self, raw_config: Optional[Dict[str, Any]] = None) -> None:
+    def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Optional[float]:
         run = self.init_wandb(raw_config, self.labeller, self.ae_arch, self.disc_arch)
         dm = self.init_dm()
         alg: SupportMatching = instantiate(self.alg)
@@ -76,5 +78,7 @@ class SupMatchRelay(BaseRelay):
         )
         disc: NeuralDiscriminator = instantiate(self.disc, _partial_=True)(model=disc_net)
         evaluator: Evaluator = instantiate(self.eval)
-        alg.run(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
+        scorer: Scorer = instantiate(self.scorer)
+        score = alg.run(dm=dm, ae=ae, disc=disc, evaluator=evaluator, scorer=scorer)
         run.finish()  # type: ignore
+        return score

@@ -4,6 +4,7 @@ from typing import Optional, Union
 from conduit.types import Loss
 from ranzen import gcopy, implements
 from ranzen.torch import CrossEntropyLoss, WeightedBatchSampler
+from torch import Tensor
 import torch.nn as nn
 
 from src.data import DataModule, EvalTuple
@@ -26,7 +27,7 @@ class Jtt(FsAlg):
                 raise AttributeError("'id_steps' must be in the range [0, 1].")
 
     @implements(FsAlg)
-    def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple:
+    def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:
         model_id = gcopy(model, deep=True)
         # Stage one: identification
         classifier = Classifier(
@@ -52,7 +53,7 @@ class Jtt(FsAlg):
             use_wandb=True,
         )
         # Generate predictions with the trained model
-        et = classifier.predict_dataset(dm.train_dataloader(eval=True), device=self.device)
+        et = classifier.predict(dm.train_dataloader(eval=True), device=self.device)
         del model_id
         # Stage two: upweighting identified points
         correct = et.y_pred.flatten() == et.y_true.flatten()
@@ -74,4 +75,4 @@ class Jtt(FsAlg):
         )
 
         # Generate predictions with the trained model
-        return classifier.predict_dataset(dm.test_dataloader(), device=self.device)
+        return classifier.predict(dm.test_dataloader(), device=self.device)

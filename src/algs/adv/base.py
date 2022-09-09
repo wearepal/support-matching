@@ -338,6 +338,8 @@ class AdvSemiSupervisedAlg(Algorithm):
         return self
 
     @implements(Algorithm)
-    def run(self, dm: DataModule, *, ae: SplitLatentAe, disc: Any, evaluator: Evaluator) -> Self:
+    def run(
+        self, dm: DataModule, *, ae: SplitLatentAe, disc: Any, evaluator: Evaluator, **kwargs: Any
+    ) -> Any:
         self.fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
         return self

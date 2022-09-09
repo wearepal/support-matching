@@ -4,11 +4,12 @@ from typing import Optional
 from loguru import logger
 from omegaconf import DictConfig
 from ranzen import implements
+from torch import Tensor
 import torch.nn as nn
 
 from src.algs.base import Algorithm
 from src.data import DataModule, EvalTuple
-from src.evaluation.metrics import EmEvalPair, compute_metrics
+from src.evaluation.metrics import EmEvalPair, SummaryMetric, compute_metrics
 from src.models import Optimizer
 
 __all__ = ["FsAlg"]
@@ -24,13 +25,13 @@ class FsAlg(Algorithm):
     scheduler_cls: Optional[str] = None
     scheduler_kwargs: Optional[DictConfig] = None
     val_interval: float = 0.1
-    monitor: str = "Robust_Accuracy"
+    monitor: SummaryMetric = SummaryMetric.ROB_ACC
 
     @property
     def alg_name(self) -> str:
         return self.__class__.__name__.lower()
 
-    def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple:
+    def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:
         ...
 
     @implements(Algorithm)
@@ -48,4 +49,4 @@ class FsAlg(Algorithm):
             use_wandb=True,
             verbose=True,
         )
-        return metrics.get(f"test/{self.monitor} ({alg_name})", None)
+        return metrics.get(f"test/{self.monitor.value} ({alg_name})", None)

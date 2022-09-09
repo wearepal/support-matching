@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from conduit.types import Loss
 from ranzen import implements
 from ranzen.torch import CrossEntropyLoss
+from torch import Tensor
 import torch.nn as nn
 
 from src.data import DataModule
@@ -19,7 +20,7 @@ class Erm(FsAlg):
     criterion: Loss = field(init=False, default_factory=CrossEntropyLoss)
 
     @implements(FsAlg)
-    def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple:
+    def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:
         classifier = Classifier(
             model=model,
             lr=self.lr,
@@ -41,4 +42,4 @@ class Erm(FsAlg):
         )
 
         # Generate predictions with the trained model
-        return classifier.predict_dataset(dm.test_dataloader(), device=self.device)
+        return classifier.predict(dm.test_dataloader(), device=self.device)

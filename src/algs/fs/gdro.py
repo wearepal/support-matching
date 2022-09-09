@@ -265,7 +265,7 @@ class Gdro(FsAlg):
     adjustments: Optional[Tuple[float]] = None
 
     @implements(FsAlg)
-    def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple:
+    def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:
         s_count = dm.card_s
         s_all = dm.train.s
         _, group_counts = s_all.unique(return_counts=True)
@@ -307,4 +307,4 @@ class Gdro(FsAlg):
             grad_scaler=self.grad_scaler,
             use_wandb=True,
         )
-        return classifier.predict_dataset(dm.test_dataloader(), device=self.device)
+        return classifier.predict(dm.test_dataloader(), device=self.device)

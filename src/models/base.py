@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, ClassVar, Optional
 
 from conduit.types import LRScheduler
 from hydra.utils import instantiate
@@ -24,6 +24,8 @@ class Optimizer(Enum):
 
 @dataclass(eq=False)
 class Model(DcModule):
+    _PBAR_COL: ClassVar[str] = "#ffe252"
+
     model: nn.Module
     optimizer_cls: Optimizer = Optimizer.ADAM
     lr: float = 5.0e-4

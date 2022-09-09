@@ -5,9 +5,9 @@ from src.arch.autoencoder import ResNetAE, SimpleConvAE
 from src.arch.predictors.fcn import Fcn, GatedSetFcn, KvqSetFcn
 from src.data.nih import NIHChestXRayDataset
 from src.labelling.pipeline import (
-    ArtifactLoader,
     GroundTruthLabeller,
     KmeansOnClipEncodings,
+    LabelFromArtifact,
     NullLabeller,
 )
 from src.models.discriminator import NeuralDiscriminator
@@ -31,7 +31,7 @@ def main() -> None:
         Option(KvqSetFcn, name="kvq"),
     ]
     labeller_ops = [
-        Option(ArtifactLoader, name="artifact"),
+        Option(LabelFromArtifact, name="artifact"),
         Option(GroundTruthLabeller, name="gt"),
         Option(KmeansOnClipEncodings, name="kmeans"),
         Option(NullLabeller, name="none"),

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 from typing_extensions import Self
 
 from conduit.data.structures import TernarySample
@@ -8,6 +8,7 @@ from ranzen import implements
 import torch
 from torch import Tensor
 
+from src.arch.predictors import SetPredictor
 from src.data.data_module import DataModule
 from src.models.autoencoder import SplitLatentAe
 from src.models.discriminator import BinaryDiscriminator, NeuralDiscriminator
@@ -15,6 +16,7 @@ from src.utils import to_item
 
 from .base import AdvSemiSupervisedAlg, Components, IterDep, IterTr
 from .evaluator import Evaluator
+from .scorer import Scorer
 
 __all__ = ["SupportMatching"]
 
@@ -155,3 +157,22 @@ class SupportMatching(AdvSemiSupervisedAlg):
             raise ValueError(f"zs_dim has to be equal to s_dim ({dm.card_s}) if `s_as_zs` is True.")
 
         return super().fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
+
+    @implements(AdvSemiSupervisedAlg)
+    def run(
+        self,
+        dm: DataModule,
+        *,
+        ae: SplitLatentAe,
+        disc: BinaryDiscriminator,
+        evaluator: Evaluator,
+        scorer: Optional[Scorer] = None,
+    ) -> Optional[float]:
+        self.fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
+        # TODO: Generalise this to other discriminator types and architectures
+        if (
+            (scorer is not None)
+            and isinstance(disc, NeuralDiscriminator)
+            and isinstance(disc.model, SetPredictor)
+        ):
+            return Scorer.run(dm=dm, ae=ae, disc=disc.model)

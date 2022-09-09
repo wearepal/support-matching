@@ -7,7 +7,7 @@ from src.arch.autoencoder import ResNetAE, SimpleConvAE
 from src.arch.predictors.fcn import Fcn
 from src.data.nih import NIHChestXRayDataset
 from src.labelling.pipeline import (
-    ArtifactLoader,
+    LabelFromArtifact,
     GroundTruthLabeller,
     KmeansOnClipEncodings,
     NullLabeller,
@@ -28,7 +28,7 @@ def main() -> None:
     ]
     disc_arch_ops = [Option(Fcn, name="fcn")]
     labeller_ops = [
-        Option(ArtifactLoader, name="artifact"),
+        Option(LabelFromArtifact, name="artifact"),
         Option(GroundTruthLabeller, name="gt"),
         Option(KmeansOnClipEncodings, name="kmeans"),
         Option(NullLabeller, name="none"),

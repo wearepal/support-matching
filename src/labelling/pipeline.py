@@ -17,7 +17,7 @@ from .encoder import ClipVersion, ClipVisualEncoder
 from .kmeans import KMeans
 
 __all__ = [
-    "ArtifactLoader",
+    "LabelFromArtifact",
     "GroundTruthLabeller",
     "KmeansOnClipEncodings",
     "Labeller",
@@ -102,7 +102,7 @@ class KmeansOnClipEncodings(DcModule, Labeller):
 
 
 @dataclass
-class ArtifactLoader(Labeller):
+class LabelFromArtifact(Labeller):
     version: Optional[int] = None  # latest by default
     root: Optional[Path] = None  # artifacts/clustering by default
 
