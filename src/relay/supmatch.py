@@ -9,7 +9,7 @@ from ranzen.decorators import implements
 from ranzen.hydra import Option
 
 from src.algs import SupportMatching
-from src.algs.adv import Evaluator, Scorer
+from src.algs.adv import Evaluator, NeuralScorer, NullScorer, Scorer
 from src.arch.autoencoder import AePair
 from src.models import SplitLatentAe
 from src.models.discriminator import NeuralDiscriminator
@@ -51,7 +51,7 @@ class SupMatchRelay(BaseRelay):
             ds=ds,
             eval=[Option(Evaluator, name="base")],
             labeller=labeller,
-            scorer=[Option(Scorer, name="base")],
+            scorer=[Option(NeuralScorer, name="neural"), Option(NullScorer, name="none")],
         )
         super().with_hydra(
             root=root,

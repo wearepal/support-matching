@@ -1,10 +1,11 @@
 from dataclasses import dataclass, field
-from typing import Optional, Tuple, Union
+from typing import Any, Optional, Protocol, Tuple, Union
 
 from conduit.data import CdtDataLoader, CdtDataset
 from conduit.data.structures import TernarySample
 import conduit.metrics as cdtm
 from omegaconf import DictConfig
+from ranzen import implements
 from ranzen.misc import gcopy
 from ranzen.torch.loss import CrossEntropyLoss, ReductionType
 import torch
@@ -16,7 +17,11 @@ from src.data import DataModule, resolve_device
 from src.models import Optimizer, SetClassifier, SplitLatentAe
 from src.utils import cat, to_item
 
-__all__ = ["Scorer"]
+__all__ = [
+    "NeuralScorer",
+    "NeuralScorer",
+    "Scorer",
+]
 
 
 @torch.no_grad()
@@ -52,7 +57,25 @@ def balanced_accuracy(y_pred: Tensor, *, y_true: Tensor) -> Tensor:
 
 
 @dataclass(eq=False)
-class Scorer:
+class Scorer(Protocol):
+    def run(
+        self,
+        dm: DataModule[CdtDataset],
+        *,
+        device: torch.device,
+        **kwargs: Any,
+    ) -> float:
+        ...
+
+
+@dataclass(eq=False)
+class NullScorer(Protocol):
+    def run(self, dm: DataModule[CdtDataset], *, device: torch.device, **kwargs: Any) -> float:
+        return 0.0
+
+
+@dataclass(eq=False)
+class NeuralScorer:
     steps: int = 5_000
     batch_size_tr: int = 16
     batch_size_te: Optional[int] = None
@@ -67,6 +90,7 @@ class Scorer:
     test_batches: int = 1000
     disc_score_w: float = 1
 
+    @implements(Scorer)
     def run(
         self,
         dm: DataModule[CdtDataset],

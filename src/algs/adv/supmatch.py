@@ -175,4 +175,4 @@ class SupportMatching(AdvSemiSupervisedAlg):
             and isinstance(disc, NeuralDiscriminator)
             and isinstance(disc.model, SetPredictor)
         ):
-            return Scorer.run(dm=dm, ae=ae, disc=disc.model)
+            return scorer.run(dm=dm, ae=ae, disc=disc.model, device=self.device)
