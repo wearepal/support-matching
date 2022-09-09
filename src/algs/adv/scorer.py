@@ -34,7 +34,6 @@ def _encode_and_score_recons(
     with torch.no_grad():
         for batch in tqdm(dl, desc="Encoding dataset and scoring reconstructions"):
             batch = batch.to(device, non_blocking=True)
-            # don't do the zs transform here because we might want to look at the raw distribution
             z = ae.encode(batch.x, transform_zs=False)
             zy_ls.append(z.zy)
             y_ls.append(batch.y)
