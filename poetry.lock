@@ -343,10 +343,12 @@ optional = false
 python-versions = ">=3.8,<3.11"
 
 [package.dependencies]
+folktables = {version = ">=0.0.11,<0.0.12", optional = true, markers = "extra == \"data\" or extra == \"all\" or extra == \"ci\""}
 joblib = ">=1.1.0,<2.0.0"
 numpy = ">=1.20.1"
 pandas = ">=1.0,<2.0"
 ranzen = ">=2.0.1,<3.0.0"
+scikit-learn = {version = ">=0.20.1", optional = true, markers = "extra == \"metrics\" or extra == \"models\" or extra == \"all\" or extra == \"ci\""}
 teext = ">=0.1.3,<0.2.0"
 typing-extensions = ">=4.0"
 
@@ -369,6 +371,20 @@ python-versions = ">=3.7"
 [package.extras]
 docs = ["furo (>=2022.6.21)", "sphinx (>=5.1.1)", "sphinx-autodoc-typehints (>=1.19.1)"]
 testing = ["covdefaults (>=2.2)", "coverage (>=6.4.2)", "pytest (>=7.1.2)", "pytest-cov (>=3)", "pytest-timeout (>=2.1)"]
+
+[[package]]
+name = "folktables"
+version = "0.0.11"
+description = "New machine learning benchmarks from tabular datasets."
+category = "main"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+numpy = "*"
+pandas = "*"
+requests = "*"
+sklearn = "*"
 
 [[package]]
 name = "frozenlist"
@@ -1534,6 +1550,17 @@ optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
+name = "sklearn"
+version = "0.0"
+description = "A set of python modules for machine learning and data mining"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+scikit-learn = "*"
+
+[[package]]
 name = "smmap"
 version = "5.0.0"
 description = "A pure Python implementation of a sliding window memory map manager"
@@ -2050,7 +2077,7 @@ testing = ["func-timeout", "jaraco.itertools", "pytest (>=6)", "pytest-black (>=
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.9.11,<3.11"
-content-hash = "61c143721607798ea4be0593a774e9f1a35d3d5d6a40bf6edb094c3f47040f85"
+content-hash = "37c2b1eebd508409aa29100bc64af88ae9c4821627452d3f0838d546f013d5cc"
 
 [metadata.files]
 absl-py = [
@@ -2321,6 +2348,9 @@ ethicml = [
 filelock = [
     {file = "filelock-3.8.0-py3-none-any.whl", hash = "sha256:617eb4e5eedc82fc5f47b6d61e4d11cb837c56cb4544e39081099fa17ad109d4"},
     {file = "filelock-3.8.0.tar.gz", hash = "sha256:55447caa666f2198c5b6b13a26d2084d26fa5b115c00d065664b2124680c4edc"},
+]
+folktables = [
+    {file = "folktables-0.0.11.tar.gz", hash = "sha256:e8e133e08975d9c28800fee0385a45fe123d26dad6b887bef7177360217f279d"},
 ]
 frozenlist = [
     {file = "frozenlist-1.3.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:5f271c93f001748fc26ddea409241312a75e13466b06c94798d1a341cf0e6989"},
@@ -3581,6 +3611,9 @@ shortuuid = [
 six = [
     {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
     {file = "six-1.16.0.tar.gz", hash = "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926"},
+]
+sklearn = [
+    {file = "sklearn-0.0.tar.gz", hash = "sha256:e23001573aa194b834122d2b9562459bf5ae494a2d59ca6b8aa22c85a44c0e31"},
 ]
 smmap = [
     {file = "smmap-5.0.0-py3-none-any.whl", hash = "sha256:2aba19d6a040e78d8b09de5c57e96207b09ed71d8e55ce0959eeee6c8e190d94"},
