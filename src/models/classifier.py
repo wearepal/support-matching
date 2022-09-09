@@ -169,7 +169,7 @@ class Classifier(Model):
 
 
 @dataclass(eq=False)
-class _Bag(BinarySample[Tensor]):
+class _ScSample(BinarySample[Tensor]):
     b: int
 
 
@@ -188,13 +188,13 @@ class SetClassifier(Model):
         self,
         *args: Tuple[Iterator[S], int],
         device: torch.device,
-    ) -> Iterator[_Bag]:
+    ) -> Iterator[_ScSample]:
         for i, (dl_iter, bs) in enumerate(args):
             batch = next(dl_iter)
             y = torch.full(size=(bs,), fill_value=i, dtype=torch.long)
-            yield _Bag(x=batch.x, y=y, b=bs).to(device=device, non_blocking=True)
+            yield _ScSample(x=batch.x, y=y, b=bs).to(device=device, non_blocking=True)
 
-    def training_step(self, *batches: _Bag) -> Tuple[Tensor, Tensor]:
+    def training_step(self, *batches: _ScSample) -> Tuple[Tensor, Tensor]:
         logits_ls, target_ls = [], []
         for batch in batches:
             logits_ls.append(self.forward(batch.x, batch_size=batch.b))
