@@ -89,7 +89,7 @@ class Scorer:
             ae=ae,
             device=device,
         )
-        score = recon_score_tr + recon_score_dep
+        score = (recon_score_tr + recon_score_dep) / 2
 
         classifier = SetClassifier(
             model=disc,
