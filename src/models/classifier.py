@@ -256,9 +256,8 @@ class SetClassifier(Model):
                 assert isinstance(dl.batch_sampler, StratifiedBatchSampler)
                 bs = dl.batch_sampler.batch_size
                 self.model.batch_size = bs
-                max_steps = min(len(dl), max_steps)
                 pbar = trange(max_steps, desc="Generating predictions", colour=self._PBAR_COL)
-                dl_iter = iter(dl)
+                dl_iter = inf_generator(dl)
                 for _ in range(max_steps):
                     x = next(dl_iter).x
                     logits = self.forward(x)

@@ -1,9 +1,12 @@
 from dataclasses import dataclass, field
-from typing import Any, Optional, Protocol, Tuple, Union
+from conduit.models.utils import prefix_keys
+import wandb
+from typing import Any, Optional, Protocol, Tuple, Union, Final
 
 from conduit.data import CdtDataLoader, CdtDataset
 from conduit.data.structures import TernarySample
 import conduit.metrics as cdtm
+from loguru import logger
 from omegaconf import DictConfig
 from ranzen import implements
 from ranzen.misc import gcopy
@@ -19,10 +22,11 @@ from src.utils import cat, to_item
 
 __all__ = [
     "NeuralScorer",
-    "NeuralScorer",
+    "NullScorer",
     "Scorer",
 ]
 
+_PBAR_COL: Final[str] = "#ffe252"
 
 @torch.no_grad()
 def _encode_and_score_recons(
@@ -31,13 +35,15 @@ def _encode_and_score_recons(
     ae: SplitLatentAe,
     device: Union[str, torch.device],
 ) -> Tuple[CdtDataset[TernarySample, Tensor, Tensor, Tensor], float]:
-    ae.eval()
     device = resolve_device(device)
+    ae.eval()
+    ae.to(device)
+
     zy_ls, y_ls, s_ls = [], [], []
     recon_score = 0.0
     n = 0
     with torch.no_grad():
-        for batch in tqdm(dl, desc="Encoding dataset and scoring reconstructions"):
+        for batch in tqdm(dl, desc="Encoding dataset and scoring reconstructions", colour=_PBAR_COL):
             batch = batch.to(device, non_blocking=True)
             z = ae.encode(batch.x, transform_zs=False)
             zy_ls.append(z.zy)
@@ -48,6 +54,7 @@ def _encode_and_score_recons(
             n += len(batch.x)
     recon_score /= n
     zy, y, s = cat(zy_ls, y_ls, s_ls, dim=0)
+    logger.info(f"Reconstruction score: {recon_score}")
     return CdtDataset(x=zy, y=y, s=s), recon_score
 
 
@@ -88,7 +95,7 @@ class NeuralScorer:
     scheduler_cls: Optional[str] = None
     scheduler_kwargs: Optional[DictConfig] = None
     test_batches: int = 1000
-    disc_score_w: float = 1
+    inv_score_w: float = 1
 
     @implements(Scorer)
     def run(
@@ -98,9 +105,13 @@ class NeuralScorer:
         ae: SplitLatentAe,
         disc: SetPredictor,
         device: torch.device,
+        use_wandb: bool = True
     ) -> float:
-        ae.eval()
         device = resolve_device(device)
+        ae.eval()
+        ae.to(device)
+        disc.to(device)
+
         dm = gcopy(dm, batch_size_tr=self.batch_size_tr, deep=False)
         batch_size_te = self.batch_size_tr if self.batch_size_te is None else self.batch_size_te
         dm.train, recon_score_tr = _encode_and_score_recons(
@@ -113,7 +124,8 @@ class NeuralScorer:
             ae=ae,
             device=device,
         )
-        score = (recon_score_tr + recon_score_dep) / 2
+        score = recon_score = (recon_score_tr + recon_score_dep) / 2
+        logger.info(f"Aggregate reconstruction score: {recon_score}")
 
         classifier = SetClassifier(
             model=disc,
@@ -125,6 +137,7 @@ class NeuralScorer:
             scheduler_kwargs=self.scheduler_kwargs,
             criterion=CrossEntropyLoss(reduction=ReductionType.mean),
         )
+        logger.info("Training invariance-scorer")
         classifier.fit(
             dm.train_dataloader(batch_size=self.batch_size_tr),
             dm.deployment_dataloader(batch_size=self.batch_size_tr),
@@ -132,6 +145,7 @@ class NeuralScorer:
             use_wandb=False,
             device=device,
         )
+        logger.info("Scoring invariance of encodings")
         # Generate predictions with the trained model
         et = classifier.predict(
             dm.train_dataloader(batch_size=batch_size_te),
@@ -139,7 +153,13 @@ class NeuralScorer:
             device=device,
             max_steps=self.test_batches,
         )
-        disc_score = 1.0 - balanced_accuracy(y_pred=et.y_pred, y_true=et.y_true)
-        score += self.disc_score_w * disc_score
+        inv_score =  1.0 - balanced_accuracy(y_pred=et.y_pred, y_true=et.y_true)
+        inv_score *= self.inv_score_w
+        logger.info(f"Invariance score: {inv_score}")
+        score +=  inv_score
+        logger.info(f"Aggregate score: {score}")
+        if use_wandb:
+            log_dict = {"recon": recon_score, "invariance": inv_score, "total": score}
+            wandb.log(prefix_keys(log_dict, prefix="scorer", sep="/"))
 
         return to_item(score)

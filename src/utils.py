@@ -39,7 +39,6 @@ def to_item(tensor: Tensor) -> Number:
     return tensor.detach().cpu().item()
 
 
-@torch.no_grad()
 def cat(*ls: List[Tensor], dim: int = 0) -> Iterator[Tensor]:
     for ls_ in ls:
         yield torch.cat(ls_, dim=dim)
@@ -51,7 +50,6 @@ def hard_prediction(logits: Tensor) -> Tensor:
     return (logits > 0).long() if logits.ndim == 1 else logits.argmax(dim=1)
 
 
-@torch.no_grad()
 def soft_prediction(logits: Tensor) -> Tensor:
     logits = torch.atleast_1d(logits.squeeze())
     return logits.sigmoid() if logits.ndim == 1 else logits.softmax(dim=1)
