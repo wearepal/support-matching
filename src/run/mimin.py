@@ -7,9 +7,9 @@ from src.arch.autoencoder import ResNetAE, SimpleConvAE
 from src.arch.predictors.fcn import Fcn
 from src.data.nih import NIHChestXRayDataset
 from src.labelling.pipeline import (
-    LabelFromArtifact,
     GroundTruthLabeller,
     KmeansOnClipEncodings,
+    LabelFromArtifact,
     NullLabeller,
 )
 from src.relay.mimin import MiMinRelay
