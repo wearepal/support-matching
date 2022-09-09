@@ -2,7 +2,7 @@
 defaults:
   - /schema/split: random
   - _self_
-seed: 42
+seed: 0
 transductive: false
 dep_prop: 0.4
 test_prop: 0.2

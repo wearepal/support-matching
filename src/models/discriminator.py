@@ -58,6 +58,7 @@ class GanLoss(Enum):
     WASSERSTEIN = auto()
     LOGISTIC_NS = auto()
     LOGISTIC_S = auto()
+    LS = auto()
 
 
 @dataclass(eq=False)
@@ -76,6 +77,8 @@ class NeuralDiscriminator(BinaryDiscriminator, Model):
             loss_real = F.softplus(-real_scores)
             loss_fake = F.softplus(fake_scores)
             return loss_real.mean() + loss_fake.mean()
+        elif self.criterion is GanLoss.LS:
+            return 0.5 * ((real_scores - 1).pow(2).mean() + (fake_scores).pow(2).mean())
         return real_scores.mean() - fake_scores.mean()
 
     @implements(BinaryDiscriminator)
@@ -93,6 +96,10 @@ class NeuralDiscriminator(BinaryDiscriminator, Model):
             loss += F.softplus(-fake_scores).mean()
             if real_scores is not None:
                 loss -= F.softplus(-real_scores).mean()
+        elif self.criterion is GanLoss.LS:
+            loss += 0.5 * (fake_scores - 1).square().mean()
+            if real_scores is not None:
+                loss += 0.5 * real_scores.square().mean()
         else:
             loss += fake_scores.mean()
             if real_scores is not None:

@@ -1,3 +1,4 @@
+---
 # @package hydra.sweeper
 sampler:
     _target_: optuna.samplers.TPESampler
@@ -10,17 +11,30 @@ sampler:
     multivariate: false
     warn_independent_sampling: true
 
+
 _target_: hydra_plugins.hydra_optuna_sweeper.optuna_sweeper.OptunaSweeper
 direction:
 - maximize
 storage: null
 study_name: erm
-n_trials: 20
+n_trials: 30
 n_jobs: 1
 max_failure_rate: 0.0
 search_space: null
 custom_search_space: null
 
+max_grad_norm: null
+steps: 10000
 params:
-    alg.weight_decay: tag(log, interval(1.e-8, 1.e-1))
-    alg.lr: tag(log, interval(1.e-5, 1.e-3))
+    alg.ga_steps: interval(1, 4)
+    alg.num_disc_updates: interval(1, 5)
+    alg.disc_loss_w: tag(log, interval(1.e-2, 1e.1)) 
+    alg.twoway_disc_loss: choice(true, false)
+
+    ae.lr: tag(log, interval(1.e-5, 1.e-3))
+    disc.lr: tag(log, interval(1.e-5, 1.e-3))
+
+    disc_arch.num_hidden_post: interval(0, 2)
+    disc_arch.num_hidden_pre: interval(0, 2)
+
+    disc.criterion: choice(LOGISTIC_NS, LS, WASSERSTEIN)
