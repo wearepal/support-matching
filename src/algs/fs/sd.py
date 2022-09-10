@@ -52,14 +52,17 @@ class SdRegularisedXent(nn.Module, Loss):
         loss = self.loss_fn(input, target=target)
         reg = 0.5 * _reduce(
             lambda_ * (input - self.gamma).square().sum(dim=1),
-            reduction_type=self.loss_fn.reduction,
+            reduction_type=self.reduction,
         )
         return loss + reg
 
 
 @dataclass(eq=False)
 class SdErm(Erm):
-    """Spectral decoupling"""
+    """ERM with spectral decoupling applied to the logits, as proposed in `Gradient Starvation`_
+    .. _Gradient Starvation:
+        https://arxiv.org/abs/2011.09468
+    """
 
     criterion: SdRegularisedXent = field(init=False)
     lambda_: Union[float, Tuple[float, ...]] = 1.0
