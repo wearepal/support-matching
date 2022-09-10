@@ -1,11 +1,10 @@
 from dataclasses import dataclass, field
-from conduit.models.utils import prefix_keys
-import wandb
-from typing import Any, Optional, Protocol, Tuple, Union, Final
+from typing import Any, Final, Optional, Protocol, Tuple, Union
 
 from conduit.data import CdtDataLoader, CdtDataset
 from conduit.data.structures import TernarySample
 import conduit.metrics as cdtm
+from conduit.models.utils import prefix_keys
 from loguru import logger
 from omegaconf import DictConfig
 from ranzen import implements
@@ -14,6 +13,7 @@ from ranzen.torch.loss import CrossEntropyLoss, ReductionType
 import torch
 from torch import Tensor
 from tqdm import tqdm
+import wandb
 
 from src.arch.predictors import SetPredictor
 from src.data import DataModule, resolve_device
@@ -27,6 +27,7 @@ __all__ = [
 ]
 
 _PBAR_COL: Final[str] = "#ffe252"
+
 
 @torch.no_grad()
 def _encode_and_score_recons(
@@ -43,7 +44,9 @@ def _encode_and_score_recons(
     recon_score = 0.0
     n = 0
     with torch.no_grad():
-        for batch in tqdm(dl, desc="Encoding dataset and scoring reconstructions", colour=_PBAR_COL):
+        for batch in tqdm(
+            dl, desc="Encoding dataset and scoring reconstructions", colour=_PBAR_COL
+        ):
             batch = batch.to(device, non_blocking=True)
             z = ae.encode(batch.x, transform_zs=False)
             zy_ls.append(z.zy)
@@ -106,7 +109,7 @@ class NeuralScorer:
         ae: SplitLatentAe,
         disc: SetPredictor,
         device: torch.device,
-        use_wandb: bool = True
+        use_wandb: bool = True,
     ) -> float:
         device = resolve_device(device)
         ae.eval()
@@ -156,10 +159,10 @@ class NeuralScorer:
             device=device,
             max_steps=self.eval_batches,
         )
-        inv_score =  1.0 - balanced_accuracy(y_pred=et.y_pred, y_true=et.y_true)
+        inv_score = 1.0 - balanced_accuracy(y_pred=et.y_pred, y_true=et.y_true)
         inv_score *= self.inv_score_w
         logger.info(f"Invariance score: {inv_score}")
-        score +=  inv_score
+        score += inv_score
         logger.info(f"Aggregate score: {score}")
         if use_wandb:
             log_dict = {"recon": recon_score, "invariance": inv_score, "total": score}

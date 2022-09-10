@@ -16,7 +16,7 @@ _target_: hydra_plugins.hydra_optuna_sweeper.optuna_sweeper.OptunaSweeper
 direction:
 - maximize
 storage: null
-study_name: erm
+study_name: supmatch
 n_trials: 40
 n_jobs: 4
 max_failure_rate: 0.0
