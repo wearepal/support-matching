@@ -118,13 +118,13 @@ class NeuralScorer:
 
         dm = gcopy(dm, batch_size_tr=self.batch_size_tr, deep=False)
         batch_size_enc = self.batch_size_tr if self.batch_size_enc is None else self.batch_size_enc
-        logger.info("Encoding and scoring training set")
+        logger.info("Encoding training set and scoring its reconstructions")
         dm.train, recon_score_tr = _encode_and_score_recons(
             dl=dm.train_dataloader(eval=True, batch_size=batch_size_enc),
             ae=ae,
             device=device,
         )
-        logger.info("Encoding and scoring dtrain_neweployment set")
+        logger.info("Encoding deployment set and scoring its reconstructions")
         dm.deployment, recon_score_dep = _encode_and_score_recons(
             dl=dm.deployment_dataloader(eval=True, batch_size=batch_size_enc),
             ae=ae,
@@ -165,7 +165,7 @@ class NeuralScorer:
         score += inv_score
         logger.info(f"Aggregate score: {score}")
         if use_wandb:
-            log_dict = {"recon": recon_score, "invariance": inv_score, "total": score}
+            log_dict = {"reconstruction": recon_score, "invariance": inv_score, "total": score}
             wandb.log(prefix_keys(log_dict, prefix="scorer", sep="/"))
 
         return to_item(score)

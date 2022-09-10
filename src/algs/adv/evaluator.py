@@ -131,25 +131,20 @@ def encode_dataset(
     device: str | torch.device,
     invariant_to: InvariantAttr = "s",
 ) -> InvariantDatasets:
-    all_inv_s = []
-    all_inv_y = []
-    all_s = []
-    all_y = []
-
-    device = torch.device(device)
-
+    device = resolve_device(device)
+    zy_ls, zs_ls, s_ls, y_ls = [], [], [], []
     with torch.no_grad():
         for batch in tqdm(dl, desc="Encoding dataset", colour=_PBAR_COL):
 
             x = batch.x.to(device, non_blocking=True)
-            all_s.append(batch.s)
-            all_y.append(batch.y)
+            s_ls.append(batch.s)
+            y_ls.append(batch.y)
 
             # don't do the zs transform here because we might want to look at the raw distribution
             encodings = encoder.encode(x, transform_zs=False)
 
             if invariant_to in ("s", "both"):
-                all_inv_s.append(
+                zy_ls.append(
                     _get_classifer_input(
                         encodings=encodings,
                         invariant_to="s",
@@ -157,27 +152,27 @@ def encode_dataset(
                 )
 
             if invariant_to in ("y", "both"):
-                all_inv_y.append(
+                zs_ls.append(
                     _get_classifer_input(
                         encodings=encodings,
                         invariant_to="y",
                     )
                 )
 
-    all_s = torch.cat(all_s, dim=0)
-    all_y = torch.cat(all_y, dim=0)
-
+    s_ls = torch.cat(s_ls, dim=0)
+    y_ls = torch.cat(y_ls, dim=0)
     inv_y = None
-    if all_inv_y:
-        inv_y = torch.cat(all_inv_y, dim=0)
-        inv_y = CdtDataset(x=inv_y, s=all_s, y=all_y)
+    if zs_ls:
+        inv_y = torch.cat(zs_ls, dim=0)
+        inv_y = CdtDataset(x=inv_y, s=s_ls, y=y_ls)
 
     inv_s = None
-    if all_inv_s:
-        inv_s = torch.cat(all_inv_s, dim=0)
-        inv_s = CdtDataset(x=inv_s, s=all_s, y=all_y)
+    if zy_ls:
+        inv_s = torch.cat(zy_ls, dim=0)
+        inv_s = CdtDataset(x=inv_s, s=s_ls, y=y_ls)
 
-    logger.info("Done.")
+    logger.info("Finished encoding")
+
     return InvariantDatasets(inv_y=inv_y, inv_s=inv_s)
 
 
@@ -323,11 +318,7 @@ class Evaluator:
         pred_s: bool = False,
     ) -> None:
         clf = self._fit_classifier(dm=dm, pred_s=False, device=device)
-
         et = clf.predict(dm.test_dataloader(), device=torch.device(device))
-        # TODO: investigate why the histogram plotting fails when s_dim != 1
-        # if (cfg.logging.mode is not WandbMode.disabled) and (dm.card_s == 2):
-        #     plot_histogram_by_source(soft_preds, s=sens, y=labels, step=step, name=name)
         pair = EmEvalPair.from_et(et=et, pred_s=pred_s)
         compute_metrics(
             pair=pair,
@@ -336,6 +327,7 @@ class Evaluator:
             step=step,
             save_summary=self.save_summary,
             prefix="test",
+            use_wandb=True,
         )
 
     def run(

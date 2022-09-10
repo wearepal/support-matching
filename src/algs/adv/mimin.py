@@ -51,7 +51,7 @@ class MiMin(AdvSemiSupervisedAlg):
             logging_dict.update({k: v + logging_dict_dep[k] for k, v in logging_dict_tr.items()})
             enc_loss_tr = 0.5 * (enc_loss_tr + enc_loss_dep)  # take average of the two recon losses
             enc_loss_tr *= self.enc_loss_w
-            logging_dict["Loss Encoder"] = to_item(enc_loss_tr)
+            logging_dict["loss/autoencoder"] = to_item(enc_loss_tr)
             total_loss = enc_loss_tr
             # ================================= adversarial losses ================================
             if not warmup:
@@ -62,7 +62,7 @@ class MiMin(AdvSemiSupervisedAlg):
                 )
                 disc_loss *= self.disc_loss_w
                 total_loss += disc_loss
-                logging_dict["Loss Discriminator"] = to_item(disc_loss)
+                logging_dict["loss/discriminator"] = to_item(disc_loss)
 
             loss_pred, ld_pred = self._predictor_loss(
                 comp=comp,
@@ -74,7 +74,7 @@ class MiMin(AdvSemiSupervisedAlg):
             logging_dict.update(ld_pred)
             total_loss += loss_pred
 
-        logging_dict["Loss Total"] = to_item(total_loss)
+        logging_dict["loss/total"] = to_item(total_loss)
 
         return total_loss, logging_dict
 

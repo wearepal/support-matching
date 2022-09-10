@@ -19,6 +19,7 @@ from conduit.data.structures import NamedSample, TernarySample
 from conduit.metrics import accuracy
 from conduit.models.utils import prefix_keys
 from loguru import logger
+from pandas.core.frame import Literal
 from ranzen import implements
 from ranzen.torch import DcModule, cross_entropy_loss
 import torch
@@ -89,7 +90,7 @@ class AdvSemiSupervisedAlg(Algorithm):
     lr: float = 4.0e-4
     enc_loss_w: float = 1
     disc_loss_w: float = 1
-    prior_loss_w: float = 0.0
+    prior_loss_w: Optional[float] = None
     num_disc_updates: int = 3
     # Whether to use the deployment set when computing the encoder's adversarial loss
     twoway_disc_loss: bool = True
@@ -201,8 +202,8 @@ class AdvSemiSupervisedAlg(Algorithm):
         # Log images
         if ((itr % self.log_freq) == 0) and (batch_tr.x.ndim == 4):
             with torch.no_grad():
-                self.log_recons(x=batch_tr.x, dm=dm, ae=comp.ae, itr=itr, prefix="train")
-                self.log_recons(x=x_dep, dm=dm, ae=comp.ae, itr=itr, prefix="deployment")
+                self.log_recons(x=batch_tr.x, dm=dm, ae=comp.ae, itr=itr, split="train")
+                self.log_recons(x=x_dep, dm=dm, ae=comp.ae, itr=itr, split="deployment")
         return logging_dict
 
     @torch.no_grad()
@@ -213,7 +214,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         dm: DataModule,
         ae: SplitLatentAe,
         itr: int,
-        prefix: Optional[str] = None,
+        split: Literal["train", "deployment"],
     ) -> None:
         """Log the reconstructed and original images."""
         num_blocks = min(4, len(x))
@@ -244,7 +245,7 @@ class AdvSemiSupervisedAlg(Algorithm):
             step=itr,
             nsamples=[ncols * rows_per_block] * num_blocks,
             ncols=ncols,
-            prefix=prefix,
+            prefix=split,
             caption=caption,
         )
 
@@ -265,16 +266,16 @@ class AdvSemiSupervisedAlg(Algorithm):
             pred_y_acc = accuracy(y_pred=logits_pred_y, y_true=y)
 
             pred_y_loss *= self.pred_y_loss_w
-            logging_dict["Loss Predictor y"] = to_item(pred_y_loss)
-            logging_dict["Accuracy Predictor y"] = to_item(pred_y_acc)
+            logging_dict["loss/pred_y"] = to_item(pred_y_loss)
+            logging_dict["pred_y_acc"] = to_item(pred_y_acc)
             loss += pred_y_loss
         if comp.pred_s is not None:
             logits_pred_s = comp.pred_s(zs)
             pred_s_loss = cross_entropy_loss(input=logits_pred_s, target=s)
             pred_s_acc = accuracy(y_pred=logits_pred_s, y_true=s)
             pred_s_loss *= self.pred_s_loss_w
-            logging_dict["Loss Predictor s"] = to_item(pred_s_loss)
-            logging_dict["Accuracy Predictor s"] = to_item(pred_s_acc)
+            logging_dict["loss/pred_s"] = to_item(pred_s_loss)
+            logging_dict["pred_s_acc"] = to_item(pred_s_acc)
             loss += pred_s_loss
         return loss, logging_dict
 

@@ -4,7 +4,7 @@ defaults:
   - _self_
 
 steps: 5000
-inv_score_w: 2
+inv_score_w: 3
 eval_batches: 500
 batch_size_tr: 64
 batch_size_enc: 64

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Iterator, Optional, Tuple, TypeVar, overload
+from typing import Iterator, Optional, Tuple, TypeVar, overload, Union
 from typing_extensions import Literal
 
 from conduit.data.datasets.utils import CdtDataLoader
@@ -22,6 +22,7 @@ import wandb
 
 from src.arch.predictors import SetPredictor
 from src.data import EvalTuple
+from src.data.utils import resolve_device
 from src.evaluation.metrics import EmEvalPair, compute_metrics
 from src.utils import cat, hard_prediction, soft_prediction, to_item
 
@@ -70,9 +71,10 @@ class Classifier(Model):
         self,
         data: CdtDataLoader[TernarySample],
         *,
-        device: torch.device,
+        device: Union[torch.device, str],
         with_soft: bool = False,
     ) -> EvalTuple:
+        device = resolve_device(device)
         self.to(device)
         hard_preds_ls, actual_ls, sens_ls, soft_preds_ls = [], [], [], []
         with torch.no_grad():
@@ -245,8 +247,9 @@ class SetClassifier(Model):
 
     @torch.no_grad()
     def predict(
-        self, *dls: CdtDataLoader[S], device: torch.device, max_steps: int
+        self, *dls: CdtDataLoader[S], device: Union[torch.device, str], max_steps: int
     ) -> EvalTuple[None, None]:
+        device = resolve_device(device)
         self.to(device)
         self.eval()
         with torch.no_grad():
@@ -259,7 +262,7 @@ class SetClassifier(Model):
                 pbar = trange(max_steps, desc="Generating predictions", colour=self._PBAR_COL)
                 dl_iter = inf_generator(dl)
                 for _ in range(max_steps):
-                    x = next(dl_iter).x
+                    x = next(dl_iter).x.to(device, non_blocking=True)
                     logits = self.forward(x)
                     y_pred_ls.append(hard_prediction(logits))
                     y_true_ls.append(
