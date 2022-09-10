@@ -2,7 +2,7 @@
 # @package hydra.sweeper
 sampler:
     _target_: optuna.samplers.TPESampler
-    seed: 47
+    seed: 0
     consider_prior: true
     prior_weight: 1.0
     consider_magic_clip: true
@@ -17,8 +17,8 @@ direction:
 - maximize
 storage: null
 study_name: erm
-n_trials: 30
-n_jobs: 1
+n_trials: 40
+n_jobs: 4
 max_failure_rate: 0.0
 search_space: null
 custom_search_space: null
@@ -34,5 +34,3 @@ params:
 
     disc_arch.num_hidden_post: range(0, 3)
     disc_arch.num_hidden_pre: range(0, 3)
-
-    disc.criterion: choice(LOGISTIC_NS, LS, WASSERSTEIN)

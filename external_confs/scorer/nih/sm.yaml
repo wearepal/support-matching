@@ -5,8 +5,9 @@ defaults:
 
 steps: 5000
 inv_score_w: 2
-eval_batches: 1000
+eval_batches: 500
 batch_size_tr: 64
+batch_size_enc: 64
 batch_size_te: 64
 lr: 1.e-4
 scheduler_cls: torch.optim.lr_scheduler.CosineAnnealingLR

@@ -53,7 +53,7 @@ def _encode_and_score_recons(
             recon_score -= to_item((batch.x - x_hat).abs().flatten(start_dim=1).mean(-1).sum())
             n += len(batch.x)
     recon_score /= n
-    zy, y, s = cat(zy_ls, y_ls, s_ls, dim=0)
+    zy, y, s = cat(zy_ls, y_ls, s_ls, dim=0, device="cpu")
     logger.info(f"Reconstruction score: {recon_score}")
     return CdtDataset(x=zy, y=y, s=s), recon_score
 
@@ -86,6 +86,7 @@ class NeuralScorer:
     steps: int = 5_000
     batch_size_tr: int = 16
     batch_size_te: Optional[int] = None
+    batch_size_enc: Optional[int] = None
 
     optimizer_cls: Optimizer = Optimizer.ADAM
     lr: float = 1.0e-4
@@ -113,14 +114,16 @@ class NeuralScorer:
         disc.to(device)
 
         dm = gcopy(dm, batch_size_tr=self.batch_size_tr, deep=False)
-        batch_size_te = self.batch_size_tr if self.batch_size_te is None else self.batch_size_te
+        batch_size_enc = self.batch_size_tr if self.batch_size_enc is None else self.batch_size_enc
+        logger.info("Encoding and scoring training set")
         dm.train, recon_score_tr = _encode_and_score_recons(
-            dl=dm.train_dataloader(eval=True, batch_size=batch_size_te),
+            dl=dm.train_dataloader(eval=True, batch_size=batch_size_enc),
             ae=ae,
             device=device,
         )
+        logger.info("Encoding and scoring dtrain_neweployment set")
         dm.deployment, recon_score_dep = _encode_and_score_recons(
-            dl=dm.deployment_dataloader(eval=True, batch_size=batch_size_te),
+            dl=dm.deployment_dataloader(eval=True, batch_size=batch_size_enc),
             ae=ae,
             device=device,
         )
@@ -146,7 +149,7 @@ class NeuralScorer:
             device=device,
         )
         logger.info("Scoring invariance of encodings")
-        # Generate predictions with the trained model
+        batch_size_te = self.batch_size_tr if self.batch_size_te is None else self.batch_size_te
         et = classifier.predict(
             dm.train_dataloader(batch_size=batch_size_te),
             dm.deployment_dataloader(batch_size=batch_size_te),

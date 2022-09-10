@@ -23,7 +23,7 @@ import wandb
 from src.arch.predictors import SetPredictor
 from src.data import EvalTuple
 from src.evaluation.metrics import EmEvalPair, compute_metrics
-from src.utils import cat, hard_prediction, soft_prediction
+from src.utils import cat, hard_prediction, soft_prediction, to_item
 
 from .base import Model
 
@@ -228,7 +228,7 @@ class SetClassifier(Model):
 
             with torch.cuda.amp.autocast(enabled=use_amp):  # type: ignore
                 loss, accuracy = self.training_step(*batches)
-                log_dict = {"loss": loss, "accuracy": accuracy}
+                log_dict = {"loss": to_item(loss), "accuracy": to_item(accuracy)}
                 if use_wandb:
                     wandb.log(prefix_keys(log_dict, prefix="test", sep="/"))
 

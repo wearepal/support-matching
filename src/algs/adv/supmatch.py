@@ -167,7 +167,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         evaluator: Evaluator,
         scorer: Optional[Scorer] = None,
     ) -> Optional[float]:
-        self.fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
+        super().run(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
         # TODO: Generalise this to other discriminator types and architectures
         if (
             (scorer is not None)

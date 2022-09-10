@@ -3,6 +3,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import (
     Any,
+    Union,
     ClassVar,
     DefaultDict,
     Dict,
@@ -105,8 +106,14 @@ class AdvSemiSupervisedAlg(Algorithm):
 
     # Misc
     validate: bool = True
-    val_freq: int = 1_000  # how often to do validation
+    val_freq: Union[int, float] = 0.1  # how often to do validation
     log_freq: int = 150
+
+
+    def __post_init__(self) -> None:
+        if isinstance(self.val_freq, float) and (not (0 <= self.val_freq <= 1)):
+            raise AttributeError("If 'val_freq' is a float, it must be in the range [0, 1].")
+        super().__post_init__()
 
     def _sample_dep(self, iterator_dep: Iterator[NamedSample[Tensor]]) -> Tensor:
         return next(iterator_dep).x.to(self.device, non_blocking=True)
@@ -299,27 +306,27 @@ class AdvSemiSupervisedAlg(Algorithm):
         return iter(dl_tr), iter(dl_dep)
 
     def _evaluate(
-        self, dm: DataModule, *, ae: SplitLatentAe, evaluator: Evaluator, step: int
+        self, dm: DataModule, *, ae: SplitLatentAe, evaluator: Evaluator, step: Optional[int] = None
     ) -> None:
         if evaluator is not None:
             evaluator(dm=dm, encoder=ae, step=step, device=self.device)
 
     def fit(self, dm: DataModule, *, ae: SplitLatentAe, disc: Any, evaluator: Evaluator) -> Self:
-        # Construct the data iterators
         iterator_tr, iterator_dep = self._get_data_iterators(dm=dm)
-        # ==== construct networks ====
         pred_y, pred_s = self._build_predictors(ae=ae, y_dim=dm.card_y, s_dim=dm.card_s)
         comp = Components(ae=ae, disc=disc, pred_y=pred_y, pred_s=pred_s)
         comp.to(self.device)
 
-        start_itr = 1  # start at 1 so that the val_freq works correctly
-        step = start_itr
+        val_freq = max(
+            (self.val_freq if isinstance(self.val_freq, int) else round(self.val_freq * self.steps)),
+            1,
+        )
         with tqdm(
-            total=self.steps - start_itr,
+            total=self.steps,
             desc="Training",
             colour=self._PBAR_COL,
         ) as pbar:
-            for step in range(start_itr, self.steps + 1):
+            for step in range(1, self.steps + 1):
                 logging_dict = self.training_step(
                     comp=comp,
                     dm=dm,
@@ -330,16 +337,19 @@ class AdvSemiSupervisedAlg(Algorithm):
                 pbar.set_postfix(logging_dict)
                 pbar.update()
 
-                if self.validate and (step % self.val_freq == 0):
+                if self.validate and (step % val_freq == 0):
                     self._evaluate(dm=dm, ae=ae, evaluator=evaluator, step=step)
 
-        self._evaluate(dm=dm, ae=ae, evaluator=evaluator, step=step)
-        logger.info("Training has finished.")
+        logger.info("Finished training")
         return self
 
     @implements(Algorithm)
     def run(
         self, dm: DataModule, *, ae: SplitLatentAe, disc: Any, evaluator: Evaluator, **kwargs: Any
     ) -> Any:
-        self.fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
-        return self
+        try:
+            self.fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
+        except KeyboardInterrupt:
+            ...
+        logger.info("Performing final evaluation")
+        self._evaluate(dm=dm, ae=ae, evaluator=evaluator, step=None)

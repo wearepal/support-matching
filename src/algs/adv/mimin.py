@@ -126,4 +126,4 @@ class MiMin(AdvSemiSupervisedAlg):
         if self.s_as_zs and self.zs_dim != dm.card_s:
             raise ValueError(f"zs_dim has to be equal to s_dim ({dm.card_s}) if `s_as_zs` is True.")
 
-        return super().fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
+        return super().run(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
