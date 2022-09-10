@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Any, Generic, Optional, Sequence, TypeVar, overload, Final
+from typing import Any, Final, Generic, Optional, Sequence, TypeVar, overload
 from typing_extensions import Literal
 
 from conduit.data import CdtDataLoader
@@ -90,6 +90,7 @@ InvariantAttr = Literal["s", "y", "both"]
 
 _PBAR_COL: Final[str] = "#ffe252"
 
+
 @overload
 def encode_dataset(
     dl: CdtDataLoader[TernarySample],
@@ -121,6 +122,7 @@ def encode_dataset(
     invariant_to: Literal["both"],
 ) -> InvariantDatasets[Dataset, Dataset]:
     ...
+
 
 def encode_dataset(
     dl: CdtDataLoader[TernarySample],

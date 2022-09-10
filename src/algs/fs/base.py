@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
-from albumentations.core.utils import abstractmethod
 
+from albumentations.core.utils import abstractmethod
 from loguru import logger
 from omegaconf import DictConfig
 from ranzen import implements

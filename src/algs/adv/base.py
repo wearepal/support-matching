@@ -3,7 +3,6 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import (
     Any,
-    Union,
     ClassVar,
     DefaultDict,
     Dict,
@@ -12,6 +11,7 @@ from typing import (
     Optional,
     Tuple,
     TypeVar,
+    Union,
 )
 from typing_extensions import Self, TypeAlias
 
@@ -108,7 +108,6 @@ class AdvSemiSupervisedAlg(Algorithm):
     validate: bool = True
     val_freq: Union[int, float] = 0.1  # how often to do validation
     log_freq: int = 150
-
 
     def __post_init__(self) -> None:
         if isinstance(self.val_freq, float) and (not (0 <= self.val_freq <= 1)):
@@ -318,7 +317,11 @@ class AdvSemiSupervisedAlg(Algorithm):
         comp.to(self.device)
 
         val_freq = max(
-            (self.val_freq if isinstance(self.val_freq, int) else round(self.val_freq * self.steps)),
+            (
+                self.val_freq
+                if isinstance(self.val_freq, int)
+                else round(self.val_freq * self.steps)
+            ),
             1,
         )
         with tqdm(
