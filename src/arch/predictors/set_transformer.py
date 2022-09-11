@@ -71,12 +71,16 @@ class _SetTransformer(nn.Module):
         super().__init__()
         self.embedder = nn.Sequential(nn.Linear(in_dim, hidden_dim), nn.ReLU(inplace=True))
         self.encoder = nn.Sequential(
-            InducedSetAttentionBlock(hidden_dim,  out_dim=hidden_dim, num_heads=num_heads, num_inds=num_inds),
-            InducedSetAttentionBlock(hidden_dim, out_dim=hidden_dim, num_heads=num_heads, num_inds=num_inds),
+            InducedSetAttentionBlock(
+                hidden_dim, out_dim=hidden_dim, num_heads=num_heads, num_inds=num_inds
+            ),
+            InducedSetAttentionBlock(
+                hidden_dim, out_dim=hidden_dim, num_heads=num_heads, num_inds=num_inds
+            ),
         )
         self.decoder = nn.Sequential(
             PoolingMultiheadAttention(hidden_dim, num_heads=num_heads, num_seeds=num_outputs),
-            SetAttentionBlock(hidden_dim,  num_heads=num_heads),
+            SetAttentionBlock(hidden_dim, num_heads=num_heads),
             SetAttentionBlock(hidden_dim, num_heads=num_heads),
         )
         self.predictor = nn.Linear(hidden_dim * num_inds, target_dim)

@@ -4,7 +4,7 @@ from typing_extensions import Self
 
 from conduit.data.structures import TernarySample
 from loguru import logger
-from ranzen import implements
+from ranzen import gcopy, implements
 import torch
 from torch import Tensor
 
@@ -62,7 +62,9 @@ class SupportMatching(AdvSemiSupervisedAlg):
             encoding_c, enc_loss_dep, logging_dict_dep = comp.ae.training_step(
                 x_dep, prior_loss_w=self.prior_loss_w
             )
-            logging_dict.update({k: (v + logging_dict_dep[k]) / 2 for k, v in logging_dict_tr.items()})
+            logging_dict.update(
+                {k: (v + logging_dict_dep[k]) / 2 for k, v in logging_dict_tr.items()}
+            )
             enc_loss_tr = (enc_loss_tr + enc_loss_dep) / 2
             enc_loss_tr *= self.enc_loss_w
             logging_dict["loss/autoencoder"] = to_item(enc_loss_tr)
@@ -167,11 +169,14 @@ class SupportMatching(AdvSemiSupervisedAlg):
         evaluator: Evaluator,
         scorer: Optional[Scorer] = None,
     ) -> Optional[float]:
-        super().run(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
-        # TODO: Generalise this to other discriminator types and architectures
+        disc_model_cp = None
         if (
             (scorer is not None)
             and isinstance(disc, NeuralDiscriminator)
             and isinstance(disc.model, SetPredictor)
         ):
-            return scorer.run(dm=dm, ae=ae, disc=disc.model, device=self.device, use_wandb=True)
+            disc_model_cp = gcopy(disc.model, deep=True)
+        super().run(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
+        # TODO: Generalise this to other discriminator types and architectures
+        if (scorer is not None) and (disc_model_cp is not None):
+            return scorer.run(dm=dm, ae=ae, disc=disc_model_cp, device=self.device, use_wandb=True)

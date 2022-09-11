@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Generic, Optional, TypeVar, Type
+from typing import Any, Callable, Generic, Optional, Type, TypeVar
 
 from ranzen import implements
 from ranzen.torch import DcModule
@@ -99,6 +99,7 @@ class SetPredictor(DcModule, Generic[A]):
             self.batch_size = batch_size
         return self.post(self.agg(self.pre(x)))
 
+
 class BatchAggregatorEnum(Enum):
     KVQ = (KvqAggregator,)
     GATED = (GatedAggregator,)
@@ -148,9 +149,16 @@ class SetFcn(PredictorFactory):
             final_bias=self.final_bias,
         )(input_dim, target_dim=target_dim)
 
-    def _aggregator(self, input_dim: int, *, batch_size: int) -> PredictorFactoryOut[BatchAggregator]:
-        return self.agg_fn.init( batch_size=batch_size, dim=input_dim,), input_dim
-        
+    def _aggregator(
+        self, input_dim: int, *, batch_size: int
+    ) -> PredictorFactoryOut[BatchAggregator]:
+        return (
+            self.agg_fn.init(
+                batch_size=batch_size,
+                dim=input_dim,
+            ),
+            input_dim,
+        )
 
     @implements(PredictorFactory)
     def __call__(

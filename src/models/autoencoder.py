@@ -201,7 +201,7 @@ class SplitLatentAe(Model):
 
         loss = self.recon_loss_fn(recon_all, x)
         loss /= x.numel()
-        logging_dict = { "loss/reconstruction": to_item(loss)}
+        logging_dict = {"loss/reconstruction": to_item(loss)}
         if (prior_loss_w is not None) and (prior_loss_w > 0.0):
             prior_loss = prior_loss_w * encoding.zy.norm(dim=1).mean()
             logging_dict["loss/prior"] = to_item(prior_loss)
