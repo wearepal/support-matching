@@ -35,6 +35,7 @@ def _encode_and_score_recons(
     *,
     ae: SplitLatentAe,
     device: Union[str, torch.device],
+    minimize: bool = False,
 ) -> Tuple[CdtDataset[TernarySample, Tensor, Tensor, Tensor], float]:
     device = resolve_device(device)
     ae.eval()
@@ -56,6 +57,8 @@ def _encode_and_score_recons(
             recon_score -= to_item((batch.x - x_hat).abs().flatten(start_dim=1).mean(-1).sum())
             n += len(batch.x)
     recon_score /= n
+    if minimize:
+        recon_score *= -1
     zy, y, s = cat(zy_ls, y_ls, s_ls, dim=0, device="cpu")
     logger.info(f"Reconstruction score: {recon_score}")
     return CdtDataset(x=zy, y=y, s=s), recon_score
@@ -100,6 +103,7 @@ class NeuralScorer:
     scheduler_kwargs: Optional[DictConfig] = None
     eval_batches: int = 1000
     inv_score_w: float = 1
+    minimize: bool = False
 
     @implements(Scorer)
     def run(
@@ -123,12 +127,14 @@ class NeuralScorer:
             dl=dm.train_dataloader(eval=True, batch_size=batch_size_enc),
             ae=ae,
             device=device,
+            minimize=self.minimize,
         )
         logger.info("Encoding deployment set and scoring its reconstructions")
         dm.deployment, recon_score_dep = _encode_and_score_recons(
             dl=dm.deployment_dataloader(eval=True, batch_size=batch_size_enc),
             ae=ae,
             device=device,
+            minimize=self.minimize,
         )
         score = recon_score = (recon_score_tr + recon_score_dep) / 2
         logger.info(f"Aggregate reconstruction score: {recon_score}")
@@ -159,7 +165,9 @@ class NeuralScorer:
             device=device,
             max_steps=self.eval_batches,
         )
-        inv_score = 1.0 - balanced_accuracy(y_pred=et.y_pred, y_true=et.y_true)
+        inv_score = balanced_accuracy(y_pred=et.y_pred, y_true=et.y_true)
+        if not self.minimize:
+            inv_score *= -1
         inv_score *= self.inv_score_w
         logger.info(f"Invariance score: {inv_score}")
         score += inv_score

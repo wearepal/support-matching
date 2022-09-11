@@ -40,12 +40,11 @@ class KvqAggregator(BatchAggregator):
 
     attn: nn.MultiheadAttention = field(init=False)
     act_fn: Callable[[Tensor], Tensor] = field(init=False)
-    num_heads: int = 1
 
     def __post_init__(self) -> None:
         self.attn = nn.MultiheadAttention(
             embed_dim=self.dim,
-            num_heads=self.num_heads,
+            num_heads=1,
             dropout=self.dropout,
             bias=True,
         )
