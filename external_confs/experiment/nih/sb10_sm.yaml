@@ -27,7 +27,7 @@ alg:
     num_disc_updates: 5
     twoway_disc_loss: true
     prior_loss_w: 0
-    log_freq: ${alg.steps} # disable image-logging
+    log_freq: ${alg.steps} # only log on the final iteration
     val_freq: 0.1
     pred_y_loss_w: 0
     pred_s_loss_w: 0
