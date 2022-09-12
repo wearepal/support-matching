@@ -32,6 +32,7 @@ alg:
     scheduler_kwargs:
         T_max: ${ alg.steps }
         eta_min: 5e-7
+    monitor: ROB_TPR
 
 wandb:
     group: ${alg}_nih_${ds.sens_attr}_${ds.target_attr}_sb10

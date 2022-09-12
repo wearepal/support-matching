@@ -4,4 +4,4 @@ defaults:
     - _self_
 
 params:
-    eta: interval(0.1, 0.5)
+    alg.eta: interval(0.1, 0.5)
