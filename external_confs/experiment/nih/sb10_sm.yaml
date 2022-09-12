@@ -3,11 +3,11 @@
 # usage: +experiment=nih/sb10_sm
 
 defaults:
-    - override /ds: nih_gender_infiltration
+    - override /ds: nih/gender_infiltration
     - override /dm: nih/base
     - override /alg: base
     - override /labeller: gt
-    - override /split: nih/sb10
+    - override /split: nih/sb10_gender_infiltration_art
     - override /ae: base
     - override /ae_arch: resnet
     - override /disc: base

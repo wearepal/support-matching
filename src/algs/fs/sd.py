@@ -4,7 +4,7 @@ from typing import List, Tuple, Union
 from conduit.types import Loss
 from omegaconf.listconfig import ListConfig
 from ranzen import implements
-from ranzen.torch.loss import CrossEntropyLoss, ReductionType, _reduce  # type: ignore
+from ranzen.torch.loss import CrossEntropyLoss, ReductionType, reduce  # type: ignore
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -27,7 +27,6 @@ class SdRegularisedXent(nn.Module, Loss):
         lambda_: Union[float, Tuple[float, ...], List[float], ListConfig] = 1.0,
         *,
         gamma: Union[float, Tuple[float, ...], List[float], ListConfig] = 0.0,
-        reduction_type: ReductionType = ReductionType.mean,
     ) -> None:
         super().__init__()
         if isinstance(lambda_, ListConfig):
@@ -56,7 +55,7 @@ class SdRegularisedXent(nn.Module, Loss):
     def forward(self, input: Tensor, *, target: Tensor) -> Tensor:  # type: ignore
         lambda_ = self.lambda_[target] if isinstance(self.lambda_, Tensor) else self.lambda_
         loss = self.loss_fn(input, target=target)
-        reg = 0.5 * _reduce(
+        reg = 0.5 * reduce(
             lambda_ * (input - self.gamma).square().sum(dim=1),
             reduction_type=self.reduction,
         )

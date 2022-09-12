@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import platform
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, Final, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, Final, List, Optional, Union, cast
 
 from conduit.data.constants import IMAGENET_STATS
 from conduit.data.datasets import CdtVisionDataset
@@ -82,16 +82,6 @@ class DataSplitter:
         return splits
 
 
-def _artifact_info(ds: Dataset, seed: int) -> Tuple[str, Dict[str, Union[str, int]]]:
-    ds_str = str(ds.__class__.__name__).lower()
-    # Embed the name of machine (as reported by operating system) in the name
-    # as the seed is machine-dependent.
-    name_of_machine = platform.node()
-    name = f"split_{ds_str}_{name_of_machine}_{seed}"
-    metadata = {"dataset": ds_str, "seed": seed}
-    return name, metadata
-
-
 FILENAME: Final[str] = "split_inds.pt"
 
 
@@ -109,6 +99,7 @@ def save_split_inds_as_artifact(
     dep_inds: Tensor,
     ds: Dataset,
     seed: int,
+    artifact_name: Optional[str] = None,
 ) -> Optional[str]:
     if run is None:
         run = cast(Optional[Run], wandb.run)
@@ -119,7 +110,13 @@ def save_split_inds_as_artifact(
             return None
     with TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)
-        artifact_name, metadata = _artifact_info(ds=ds, seed=seed)
+        ds_str = str(ds.__class__.__name__).lower()
+        # Store the name of machine (as reported by operating system) as the seed is
+        # machine-dependent.
+        name_of_machine = platform.node()
+        metadata = {"dataset": ds_str, "seed": seed, "machine": name_of_machine}
+        if artifact_name is None:
+            artifact_name = f"split_{ds_str}_{name_of_machine}_{seed}"
         save_path = tmpdir / FILENAME
         to_save = {"train": train_inds, "dep": dep_inds, "test": test_inds}
         torch.save(to_save, f=save_path)
@@ -132,7 +129,7 @@ def save_split_inds_as_artifact(
     return versioned_name
 
 
-@dataclass(eq=True)
+@dataclass(eq=False)
 class RandomSplitter(DataSplitter):
     seed: int = 42
     dep_prop: float = 0.4
@@ -143,6 +140,7 @@ class RandomSplitter(DataSplitter):
     # Dataset manipulation
     dep_subsampling_props: Optional[Dict[int, Any]] = None
     train_subsampling_props: Optional[Dict[int, Any]] = None
+    artifact_name: Optional[str] = None
     save_as_artifact: bool = False
 
     def __post_init__(self) -> None:
@@ -212,6 +210,7 @@ class RandomSplitter(DataSplitter):
                 test_inds=torch.as_tensor(test_inds),
                 ds=dataset,
                 seed=self.seed,
+                artifact_name=self.artifact_name,
             )
 
         return TrainDepTestSplit(train=train_data, deployment=dep_data, test=test_data)
