@@ -29,5 +29,5 @@ params:
     alg.twoway_disc_loss: choice(true, false)
     ae.lr: tag(log, interval(1.e-5, 1.e-3))
     disc.lr: tag(log, interval(1.e-5, 1.e-3))
-    # disc.criterion: choice(LOGISTIC_NS, LS)
-    disc_arch.agg_fn: choice(KVQ, GATED)
+    disc.criterion: choice(LOGISTIC_NS, LS)
+    # disc_arch.agg_fn: choice(KVQ, GATED)
