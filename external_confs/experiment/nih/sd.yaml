@@ -1,0 +1,15 @@
+# @package _global_
+
+# usage: +experiment=nih/sd
+
+defaults:
+    - nih/fs_base
+    - override /alg: sd
+    - _self_
+
+alg:
+    lambda_: 1.0
+    gamma: 0.0
+
+wandb:
+    group: sd_nih_${ds.sens_attr}_${ds.target_attr}_sb10
