@@ -103,6 +103,7 @@ class NeuralScorer:
     scheduler_kwargs: Optional[DictConfig] = None
     eval_batches: int = 1000
     inv_score_w: float = 1
+    recon_score_w: float = 1
     minimize: bool = False
 
     @implements(Scorer)
@@ -136,7 +137,7 @@ class NeuralScorer:
             device=device,
             minimize=self.minimize,
         )
-        score = recon_score = (recon_score_tr + recon_score_dep) / 2
+        score = recon_score = self.recon_score_w * 0.5 * (recon_score_tr + recon_score_dep)
         logger.info(f"Aggregate reconstruction score: {recon_score}")
 
         classifier = SetClassifier(
