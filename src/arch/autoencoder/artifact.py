@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Final, Optional, Tuple, Union
+from typing import Any, Dict, Final, Optional, Tuple, Union
 
 from hydra.utils import instantiate
 from loguru import logger
 from omegaconf import DictConfig
+from ranzen.decorators import implements
 import torch
 import wandb
 from wandb.sdk.lib.disabled import RunDisabled
@@ -29,9 +30,11 @@ def save_ae_artifact(
     model: AePair,
     *,
     run: Union[Run, RunDisabled],
-    config: DictConfig,
+    config: Union[DictConfig, Dict[str, Any]],
     name: str,
 ) -> None:
+    if isinstance(config, DictConfig):
+        config = dict(config)
     assert "_target_" in config
     with TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)
@@ -71,10 +74,12 @@ def load_ae_from_artifact(
     root: Optional[Union[Path, str]] = None,
 ) -> AePair:
     root = _process_root_dir(root)
-    version_str = ":latest" if version is None else f":v{version}"
-    versioned_name = name + version_str
+    version_str = "latest" if version is None else f"v{version}"
+    versioned_name = name + f":{version_str}"
     artifact_dir = root / name / version_str
     filepath = artifact_dir / FILENAME
+    if run is None:
+        run = wandb.run
     if (run is not None) and (project is None):
         project = f"{run.entity}/{run.project}"
         full_name = f"{project}/{versioned_name}"
@@ -91,6 +96,10 @@ def load_ae_from_artifact(
     state_dict = torch.load(filepath)
     logger.info("Loading saved parameters and buffers...")
     factory: AeFactory = instantiate(state_dict["config"])
+    if isinstance(factory, AeFromArtifact):
+        raise RuntimeError(
+            "Cannot load in AeFactory as an artifact as this would result in infinite " "recursion."
+        )
     ae_pair = factory(input_shape=input_shape)
     ae_pair.load_state_dict(state_dict["state"])
     logger.info(f"Model successfully loaded from artifact '{full_name}'.")
@@ -98,10 +107,11 @@ def load_ae_from_artifact(
 
 
 @dataclass(eq=False)
-class AeFromArtifact:
+class AeFromArtifact(AeFactory):
     artifact_name: str
     version: Optional[int] = None
 
+    @implements(AeFactory)
     def __call__(
         self,
         input_shape: Tuple[int, int, int],
