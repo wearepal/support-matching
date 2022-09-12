@@ -10,7 +10,7 @@ from ranzen.hydra import Option
 
 from src.algs import SupportMatching
 from src.algs.adv import Evaluator, NeuralScorer, NullScorer, Scorer
-from src.arch.autoencoder import AePair
+from src.arch.autoencoder import AePair, save_ae_artifact
 from src.models import SplitLatentAe
 from src.models.discriminator import NeuralDiscriminator
 
@@ -27,6 +27,7 @@ class SupMatchRelay(BaseRelay):
     disc: DictConfig = MISSING
     eval: DictConfig = MISSING
     scorer: DictConfig = MISSING
+    artifact_name: Optional[str] = None
 
     @classmethod
     @implements(BaseRelay)
@@ -80,5 +81,10 @@ class SupMatchRelay(BaseRelay):
         evaluator: Evaluator = instantiate(self.eval)
         scorer: Scorer = instantiate(self.scorer)
         score = alg.run(dm=dm, ae=ae, disc=disc, evaluator=evaluator, scorer=scorer)
-        run.finish()  # type: ignore
+        if run is not None:
+            if self.artifact_name is not None:
+                save_ae_artifact(
+                    run=run, model=ae_pair, config=self.ae_arch, name=self.artifact_name
+                )
+            run.finish()  # type: ignore
         return score
