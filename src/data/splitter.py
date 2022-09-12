@@ -67,9 +67,8 @@ class DataSplitter:
                 else self.train_transforms
             )
         if isinstance(splits.deployment, CdtVisionDataset):
-            splits.train = cast(CdtVisionDataset, splits.train)
             splits.deployment.transform = (
-                splits.train.transform if self.dep_transforms is None else self.dep_transforms
+                splits.train.transform if self.dep_transforms is None else self.dep_transforms  # type: ignore
             )
         if isinstance(splits.test, CdtVisionDataset):
             splits.test.transform = self.test_transforms
@@ -233,9 +232,6 @@ def load_split_inds_from_artifact(
     root: Optional[Union[Path, str]] = None,
     version: Optional[int] = None,
 ) -> SavedSplitInds:
-    str_ds = ds.__class__.__name__
-    if name.split("_")[1] != (str_ds := str_ds.lower()):
-        raise ValueError(f"Artifact with name {name} is not compatible with dataset {str_ds}")
     root = _process_root_dir(root)
     version_str = ":latest" if version is None else f":v{version}"
     artifact_dir = root / name / version_str

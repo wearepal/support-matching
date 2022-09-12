@@ -396,7 +396,7 @@ class DataModule(Generic[D]):
             train=splits.train,
             deployment=splits.deployment,
             test=splits.test,
-            split_seed=splitter.seed,
+            split_seed=getattr(splitter, "seed", None),
             **config,  # type: ignore
         )
         deployment_ids = labeller.run(dm=dm)
