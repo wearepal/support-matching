@@ -14,6 +14,7 @@ from src.arch.autoencoder import AePair
 from src.discrete import discretize, round_ste, sample_concrete
 from src.loss import MixedLoss
 from src.models.base import Model
+from src.utils import to_item
 
 __all__ = [
     "SplitLatentAe",
@@ -191,22 +192,20 @@ class SplitLatentAe(Model):
         self,
         x: Tensor,
         *,
-        prior_loss_w: float,
         s: Tensor | None = None,
+        prior_loss_w: Optional[float] = None,
     ) -> tuple[SplitEncoding, Tensor, dict[str, float]]:
         # it only makes sense to transform zs if we're actually going to use it
         encoding = self.encode(x, transform_zs=s is None)
         recon_all = self.decode(encoding, s=s)
 
-        recon_loss = self.recon_loss_fn(recon_all, x)
-        recon_loss /= x.numel()
-        prior_loss = prior_loss_w * encoding.zy.norm(dim=1).mean()
-        loss = recon_loss + prior_loss
-
-        logging_dict = {
-            "Loss Reconstruction": recon_loss.detach().cpu().item(),
-            "Prior Loss": prior_loss.detach().cpu().item(),
-        }
+        loss = self.recon_loss_fn(recon_all, x)
+        loss /= x.numel()
+        logging_dict = {"loss/reconstruction": to_item(loss)}
+        if (prior_loss_w is not None) and (prior_loss_w > 0.0):
+            prior_loss = prior_loss_w * encoding.zy.norm(dim=1).mean()
+            logging_dict["loss/prior"] = to_item(prior_loss)
+            loss += prior_loss
         return encoding, loss, logging_dict
 
     @implements(Model)

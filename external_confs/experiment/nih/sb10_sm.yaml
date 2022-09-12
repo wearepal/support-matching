@@ -11,7 +11,7 @@ defaults:
     - override /ae: base
     - override /ae_arch: resnet
     - override /disc: base
-    - override /disc_arch: kvq
+    - override /disc_arch: set
     - override /scorer: nih/sm
     - override /wandb: base
     - _self_
@@ -23,10 +23,12 @@ dm:
 
 alg:
     steps: 10000
+    ga_steps: 1
     num_disc_updates: 5
     twoway_disc_loss: true
     prior_loss_w: 0
     log_freq: ${alg.steps} # disable image-logging
+    val_freq: 0.1
     pred_y_loss_w: 0
     pred_s_loss_w: 0
     warmup_steps: 0
@@ -55,11 +57,12 @@ disc:
 disc_arch:
     hidden_dim_pre: null
     hidden_dim_post: null
-    num_hidden_post: 0
-    num_hidden_pre: 0
+    num_hidden_post: 1
+    num_hidden_pre: 1
     agg_input_dim: null
     input_norm: true
     final_bias: true
+    agg_fn: KVQ
 
 eval:
     batch_size: 12

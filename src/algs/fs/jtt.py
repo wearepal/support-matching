@@ -24,7 +24,7 @@ class Jtt(FsAlg):
     def __post_init__(self) -> None:
         if isinstance(self.id_steps, float):
             if not (0 <= self.id_steps <= 1):
-                raise AttributeError("'id_steps' must be in the range [0, 1].")
+                raise AttributeError("If 'id_steps' is a float, it must be in the range [0, 1].")
 
     @implements(FsAlg)
     def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:

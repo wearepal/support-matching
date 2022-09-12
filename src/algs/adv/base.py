@@ -11,6 +11,7 @@ from typing import (
     Optional,
     Tuple,
     TypeVar,
+    Union,
 )
 from typing_extensions import Self, TypeAlias
 
@@ -18,6 +19,7 @@ from conduit.data.structures import NamedSample, TernarySample
 from conduit.metrics import accuracy
 from conduit.models.utils import prefix_keys
 from loguru import logger
+from pandas.core.frame import Literal
 from ranzen import implements
 from ranzen.torch import DcModule, cross_entropy_loss
 import torch
@@ -88,7 +90,7 @@ class AdvSemiSupervisedAlg(Algorithm):
     lr: float = 4.0e-4
     enc_loss_w: float = 1
     disc_loss_w: float = 1
-    prior_loss_w: float = 0.0
+    prior_loss_w: Optional[float] = None
     num_disc_updates: int = 3
     # Whether to use the deployment set when computing the encoder's adversarial loss
     twoway_disc_loss: bool = True
@@ -105,8 +107,13 @@ class AdvSemiSupervisedAlg(Algorithm):
 
     # Misc
     validate: bool = True
-    val_freq: int = 1_000  # how often to do validation
+    val_freq: Union[int, float] = 0.1  # how often to do validation
     log_freq: int = 150
+
+    def __post_init__(self) -> None:
+        if isinstance(self.val_freq, float) and (not (0 <= self.val_freq <= 1)):
+            raise AttributeError("If 'val_freq' is a float, it must be in the range [0, 1].")
+        super().__post_init__()
 
     def _sample_dep(self, iterator_dep: Iterator[NamedSample[Tensor]]) -> Tensor:
         return next(iterator_dep).x.to(self.device, non_blocking=True)
@@ -195,8 +202,8 @@ class AdvSemiSupervisedAlg(Algorithm):
         # Log images
         if ((itr % self.log_freq) == 0) and (batch_tr.x.ndim == 4):
             with torch.no_grad():
-                self.log_recons(x=batch_tr.x, dm=dm, ae=comp.ae, itr=itr, prefix="train")
-                self.log_recons(x=x_dep, dm=dm, ae=comp.ae, itr=itr, prefix="deployment")
+                self.log_recons(x=batch_tr.x, dm=dm, ae=comp.ae, itr=itr, split="train")
+                self.log_recons(x=x_dep, dm=dm, ae=comp.ae, itr=itr, split="deployment")
         return logging_dict
 
     @torch.no_grad()
@@ -207,7 +214,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         dm: DataModule,
         ae: SplitLatentAe,
         itr: int,
-        prefix: Optional[str] = None,
+        split: Literal["train", "deployment"],
     ) -> None:
         """Log the reconstructed and original images."""
         num_blocks = min(4, len(x))
@@ -238,7 +245,7 @@ class AdvSemiSupervisedAlg(Algorithm):
             step=itr,
             nsamples=[ncols * rows_per_block] * num_blocks,
             ncols=ncols,
-            prefix=prefix,
+            prefix=split,
             caption=caption,
         )
 
@@ -259,16 +266,16 @@ class AdvSemiSupervisedAlg(Algorithm):
             pred_y_acc = accuracy(y_pred=logits_pred_y, y_true=y)
 
             pred_y_loss *= self.pred_y_loss_w
-            logging_dict["Loss Predictor y"] = to_item(pred_y_loss)
-            logging_dict["Accuracy Predictor y"] = to_item(pred_y_acc)
+            logging_dict["loss/pred_y"] = to_item(pred_y_loss)
+            logging_dict["pred_y_acc"] = to_item(pred_y_acc)
             loss += pred_y_loss
         if comp.pred_s is not None:
             logits_pred_s = comp.pred_s(zs)
             pred_s_loss = cross_entropy_loss(input=logits_pred_s, target=s)
             pred_s_acc = accuracy(y_pred=logits_pred_s, y_true=s)
             pred_s_loss *= self.pred_s_loss_w
-            logging_dict["Loss Predictor s"] = to_item(pred_s_loss)
-            logging_dict["Accuracy Predictor s"] = to_item(pred_s_acc)
+            logging_dict["loss/pred_s"] = to_item(pred_s_loss)
+            logging_dict["pred_s_acc"] = to_item(pred_s_acc)
             loss += pred_s_loss
         return loss, logging_dict
 
@@ -299,27 +306,31 @@ class AdvSemiSupervisedAlg(Algorithm):
         return iter(dl_tr), iter(dl_dep)
 
     def _evaluate(
-        self, dm: DataModule, *, ae: SplitLatentAe, evaluator: Evaluator, step: int
+        self, dm: DataModule, *, ae: SplitLatentAe, evaluator: Evaluator, step: Optional[int] = None
     ) -> None:
         if evaluator is not None:
             evaluator(dm=dm, encoder=ae, step=step, device=self.device)
 
     def fit(self, dm: DataModule, *, ae: SplitLatentAe, disc: Any, evaluator: Evaluator) -> Self:
-        # Construct the data iterators
         iterator_tr, iterator_dep = self._get_data_iterators(dm=dm)
-        # ==== construct networks ====
         pred_y, pred_s = self._build_predictors(ae=ae, y_dim=dm.card_y, s_dim=dm.card_s)
         comp = Components(ae=ae, disc=disc, pred_y=pred_y, pred_s=pred_s)
         comp.to(self.device)
 
-        start_itr = 1  # start at 1 so that the val_freq works correctly
-        step = start_itr
+        val_freq = max(
+            (
+                self.val_freq
+                if isinstance(self.val_freq, int)
+                else round(self.val_freq * self.steps)
+            ),
+            1,
+        )
         with tqdm(
-            total=self.steps - start_itr,
+            total=self.steps,
             desc="Training",
             colour=self._PBAR_COL,
         ) as pbar:
-            for step in range(start_itr, self.steps + 1):
+            for step in range(1, self.steps + 1):
                 logging_dict = self.training_step(
                     comp=comp,
                     dm=dm,
@@ -330,16 +341,19 @@ class AdvSemiSupervisedAlg(Algorithm):
                 pbar.set_postfix(logging_dict)
                 pbar.update()
 
-                if self.validate and (step % self.val_freq == 0):
+                if self.validate and (step % val_freq == 0):
                     self._evaluate(dm=dm, ae=ae, evaluator=evaluator, step=step)
 
-        self._evaluate(dm=dm, ae=ae, evaluator=evaluator, step=step)
-        logger.info("Training has finished.")
+        logger.info("Finished training")
         return self
 
     @implements(Algorithm)
     def run(
         self, dm: DataModule, *, ae: SplitLatentAe, disc: Any, evaluator: Evaluator, **kwargs: Any
     ) -> Any:
-        self.fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
-        return self
+        try:
+            self.fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
+        except KeyboardInterrupt:
+            ...
+        logger.info("Performing final evaluation")
+        self._evaluate(dm=dm, ae=ae, evaluator=evaluator, step=None)

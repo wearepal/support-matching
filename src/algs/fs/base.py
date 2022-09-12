@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
+from albumentations.core.utils import abstractmethod
 from loguru import logger
 from omegaconf import DictConfig
 from ranzen import implements
@@ -31,6 +32,7 @@ class FsAlg(Algorithm):
     def alg_name(self) -> str:
         return self.__class__.__name__.lower()
 
+    @abstractmethod
     def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:
         ...
 

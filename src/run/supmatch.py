@@ -2,7 +2,7 @@ from conduit.data.datasets.vision import Camelyon17, CelebA, ColoredMNIST
 from ranzen.hydra import Option
 
 from src.arch.autoencoder import ResNetAE, SimpleConvAE
-from src.arch.predictors.fcn import Fcn, GatedSetFcn, KvqSetFcn
+from src.arch.predictors.fcn import Fcn, SetFcn
 from src.data.nih import NIHChestXRayDataset
 from src.labelling.pipeline import (
     GroundTruthLabeller,
@@ -26,9 +26,8 @@ def main() -> None:
         Option(ResNetAE, name="resnet"),
     ]
     disc_arch_ops = [
-        Option(Fcn, name="sw"),
-        Option(GatedSetFcn, name="gated"),
-        Option(KvqSetFcn, name="kvq"),
+        Option(Fcn, name="sample"),
+        Option(SetFcn, name="set"),
     ]
     labeller_ops = [
         Option(LabelFromArtifact, name="artifact"),

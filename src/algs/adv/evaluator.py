@@ -1,14 +1,13 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Any, Generic, Optional, Sequence, TypeVar, overload
+from typing import Any, Final, Generic, Optional, Sequence, TypeVar, overload
 from typing_extensions import Literal
 
 from conduit.data import CdtDataLoader
 from conduit.data.datasets.base import CdtDataset
 from conduit.data.datasets.vision.base import CdtVisionDataset
 from conduit.data.structures import TernarySample
-from conduit.types import LRScheduler
 from loguru import logger
 from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
@@ -89,11 +88,13 @@ def _get_classifer_input(
 InvariantAttr = Literal["s", "y", "both"]
 
 
+_PBAR_COL: Final[str] = "#ffe252"
+
+
 @overload
 def encode_dataset(
-    *,
-    dm: DataModule,
     dl: CdtDataLoader[TernarySample],
+    *,
     encoder: SplitLatentAe,
     device: str | torch.device,
     invariant_to: Literal["y"] = ...,
@@ -103,9 +104,8 @@ def encode_dataset(
 
 @overload
 def encode_dataset(
-    *,
-    dm: DataModule,
     dl: CdtDataLoader[TernarySample],
+    *,
     encoder: SplitLatentAe,
     device: str | torch.device,
     invariant_to: Literal["s"] = ...,
@@ -115,9 +115,8 @@ def encode_dataset(
 
 @overload
 def encode_dataset(
-    *,
-    dm: DataModule,
     dl: CdtDataLoader[TernarySample],
+    *,
     encoder: SplitLatentAe,
     device: str | torch.device,
     invariant_to: Literal["both"],
@@ -126,32 +125,26 @@ def encode_dataset(
 
 
 def encode_dataset(
-    *,
-    dm: DataModule,
     dl: CdtDataLoader[TernarySample],
+    *,
     encoder: SplitLatentAe,
     device: str | torch.device,
     invariant_to: InvariantAttr = "s",
 ) -> InvariantDatasets:
-    all_inv_s = []
-    all_inv_y = []
-    all_s = []
-    all_y = []
-
-    device = torch.device(device)
-
+    device = resolve_device(device)
+    zy_ls, zs_ls, s_ls, y_ls = [], [], [], []
     with torch.no_grad():
-        for batch in tqdm(dl, desc="Encoding dataset"):
+        for batch in tqdm(dl, desc="Encoding dataset", colour=_PBAR_COL):
 
             x = batch.x.to(device, non_blocking=True)
-            all_s.append(batch.s)
-            all_y.append(batch.y)
+            s_ls.append(batch.s)
+            y_ls.append(batch.y)
 
             # don't do the zs transform here because we might want to look at the raw distribution
             encodings = encoder.encode(x, transform_zs=False)
 
             if invariant_to in ("s", "both"):
-                all_inv_s.append(
+                zy_ls.append(
                     _get_classifer_input(
                         encodings=encodings,
                         invariant_to="s",
@@ -159,27 +152,27 @@ def encode_dataset(
                 )
 
             if invariant_to in ("y", "both"):
-                all_inv_y.append(
+                zs_ls.append(
                     _get_classifer_input(
                         encodings=encodings,
                         invariant_to="y",
                     )
                 )
 
-    all_s = torch.cat(all_s, dim=0)
-    all_y = torch.cat(all_y, dim=0)
-
+    s_ls = torch.cat(s_ls, dim=0)
+    y_ls = torch.cat(y_ls, dim=0)
     inv_y = None
-    if all_inv_y:
-        inv_y = torch.cat(all_inv_y, dim=0)
-        inv_y = CdtDataset(x=inv_y, s=all_s, y=all_y)
+    if zs_ls:
+        inv_y = torch.cat(zs_ls, dim=0)
+        inv_y = CdtDataset(x=inv_y, s=s_ls, y=y_ls)
 
     inv_s = None
-    if all_inv_s:
-        inv_s = torch.cat(all_inv_s, dim=0)
-        inv_s = CdtDataset(x=inv_s, s=all_s, y=all_y)
+    if zy_ls:
+        inv_s = torch.cat(zy_ls, dim=0)
+        inv_s = CdtDataset(x=inv_s, s=s_ls, y=y_ls)
 
-    logger.info("Done.")
+    logger.info("Finished encoding")
+
     return InvariantDatasets(inv_y=inv_y, inv_s=inv_s)
 
 
@@ -325,12 +318,7 @@ class Evaluator:
         pred_s: bool = False,
     ) -> None:
         clf = self._fit_classifier(dm=dm, pred_s=False, device=device)
-
-        # TODO: the soft predictions should only be computed if they're needed
-        et = clf.predict(dm.test_dataloader(), device=torch.device(device), with_soft=True)
-        # TODO: investigate why the histogram plotting fails when s_dim != 1
-        # if (cfg.logging.mode is not WandbMode.disabled) and (dm.card_s == 2):
-        #     plot_histogram_by_source(soft_preds, s=sens, y=labels, step=step, name=name)
+        et = clf.predict(dm.test_dataloader(), device=torch.device(device))
         pair = EmEvalPair.from_et(et=et, pred_s=pred_s)
         compute_metrics(
             pair=pair,
@@ -339,6 +327,7 @@ class Evaluator:
             step=step,
             save_summary=self.save_summary,
             prefix="test",
+            use_wandb=True,
         )
 
     def run(
@@ -353,16 +342,15 @@ class Evaluator:
         encoder.eval()
         invariant_to = "both" if self.eval_s_from_zs is not None else "s"
 
-        logger.info("Encoding training set...")
+        logger.info("Encoding training set")
         train_eval = encode_dataset(
-            dm=dm,
             dl=dm.train_dataloader(eval=True, batch_size=dm.batch_size_te),
             encoder=encoder,
             device=device,
             invariant_to=invariant_to,
         )
+        logger.info("Encoding test set")
         test_eval = encode_dataset(
-            dm=dm,
             dl=dm.test_dataloader(),
             encoder=encoder,
             device=device,
@@ -390,8 +378,7 @@ class Evaluator:
                 train_data = train_eval.inv_y  # the part that is invariant to y corresponds to zs
             else:
                 encoded_dep = encode_dataset(
-                    dm=dm,
-                    dl=dm.deployment_dataloader(eval=True, num_workers=0),
+                    dl=dm.deployment_dataloader(eval=True),
                     encoder=encoder,
                     device=device,
                     invariant_to="y",

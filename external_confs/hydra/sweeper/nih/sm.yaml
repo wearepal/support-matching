@@ -2,7 +2,7 @@
 # @package hydra.sweeper
 sampler:
     _target_: optuna.samplers.TPESampler
-    seed: 47
+    seed: 0
     consider_prior: true
     prior_weight: 1.0
     consider_magic_clip: true
@@ -17,22 +17,17 @@ direction:
 - maximize
 storage: null
 study_name: supmatch
-n_trials: 48
-n_jobs: 1
+n_trials: 40
+n_jobs: 4
 max_failure_rate: 0.0
 search_space: null
 custom_search_space: null
 
 params:
-    alg.ga_steps: choice(1, 2)
-    alg.num_disc_updates: range(1, 6)
+    alg.num_disc_updates: choice(1, 4)
     alg.disc_loss_w: tag(log, interval(1.e-2, 10.0)) 
     alg.twoway_disc_loss: choice(true, false)
-
     ae.lr: tag(log, interval(1.e-5, 1.e-3))
     disc.lr: tag(log, interval(1.e-5, 1.e-3))
-
-    disc_arch.num_hidden_post: range(0, 3)
-    disc_arch.num_hidden_pre: range(0, 3)
-
-    disc.criterion: choice(LOGISTIC_NS, LS, WASSERSTEIN)
+    disc.criterion: choice(LOGISTIC_NS, LS)
+    # disc_arch.agg_fn: choice(KVQ, GATED)

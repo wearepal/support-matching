@@ -26,20 +26,20 @@ class MultiheadAttentionBlock(nn.Module):
 
 
 class SetAttentionBlock(nn.Module):
-    def __init__(self, dim_in: int, dim_out: int, num_heads: int) -> None:
+    def __init__(self, dim_in: int, *, num_heads: int) -> None:
         super().__init__()
-        self.mab = MultiheadAttentionBlock(embed_dim=dim_in)
+        self.mab = MultiheadAttentionBlock(embed_dim=dim_in, num_heads=num_heads)
 
     def forward(self, x: Tensor) -> Tensor:  # type: ignore
         return self.mab(x, x)
 
 
 class InducedSetAttentionBlock(nn.Module):
-    def __init__(self, dim_in: int, dim_out: int, num_heads: int, num_inds: int):
+    def __init__(self, dim_in: int, *, out_dim: int, num_heads: int, num_inds: int) -> None:
         super().__init__()
-        self.inducing_points = Parameter(torch.empty(1, num_inds, dim_out))
+        self.inducing_points = Parameter(torch.empty(1, num_inds, out_dim))
         nn.init.xavier_uniform_(self.inducing_points)
-        self.mab1 = MultiheadAttentionBlock(embed_dim=dim_out, num_heads=num_heads)
+        self.mab1 = MultiheadAttentionBlock(embed_dim=out_dim, num_heads=num_heads)
         self.mab2 = MultiheadAttentionBlock(embed_dim=dim_in, num_heads=num_heads)
 
     def forward(self, x: Tensor) -> Tensor:  # type: ignore
@@ -48,7 +48,7 @@ class InducedSetAttentionBlock(nn.Module):
 
 
 class PoolingMultiheadAttention(nn.Module):
-    def __init__(self, dim: int, num_heads: int, num_seeds: int):
+    def __init__(self, dim: int, *, num_heads: int, num_seeds: int) -> None:
         super().__init__()
         self.seed_vectors = Parameter(torch.empty(1, num_seeds, dim))
         nn.init.xavier_uniform_(self.seed_vectors)
@@ -71,13 +71,17 @@ class _SetTransformer(nn.Module):
         super().__init__()
         self.embedder = nn.Sequential(nn.Linear(in_dim, hidden_dim), nn.ReLU(inplace=True))
         self.encoder = nn.Sequential(
-            InducedSetAttentionBlock(hidden_dim, hidden_dim, num_heads, num_inds),
-            InducedSetAttentionBlock(hidden_dim, hidden_dim, num_heads, num_inds),
+            InducedSetAttentionBlock(
+                hidden_dim, out_dim=hidden_dim, num_heads=num_heads, num_inds=num_inds
+            ),
+            InducedSetAttentionBlock(
+                hidden_dim, out_dim=hidden_dim, num_heads=num_heads, num_inds=num_inds
+            ),
         )
         self.decoder = nn.Sequential(
-            PoolingMultiheadAttention(hidden_dim, num_heads, num_outputs),
-            SetAttentionBlock(hidden_dim, hidden_dim, num_heads),
-            SetAttentionBlock(hidden_dim, hidden_dim, num_heads),
+            PoolingMultiheadAttention(hidden_dim, num_heads=num_heads, num_seeds=num_outputs),
+            SetAttentionBlock(hidden_dim, num_heads=num_heads),
+            SetAttentionBlock(hidden_dim, num_heads=num_heads),
         )
         self.predictor = nn.Linear(hidden_dim * num_inds, target_dim)
 
@@ -88,7 +92,7 @@ class _SetTransformer(nn.Module):
         return self.predictor(out)
 
 
-@dataclass
+@dataclass(eq=False)
 class SetTransformer(PredictorFactory):
     num_outputs: int
     num_inds: int = 32

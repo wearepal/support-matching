@@ -39,9 +39,11 @@ def to_item(tensor: Tensor) -> Number:
     return tensor.detach().cpu().item()
 
 
-def cat(*ls: List[Tensor], dim: int = 0) -> Iterator[Tensor]:
+def cat(
+    *ls: List[Tensor], dim: int = 0, device: Optional[Union[torch.device, str]] = None
+) -> Iterator[Tensor]:
     for ls_ in ls:
-        yield torch.cat(ls_, dim=dim)
+        yield torch.cat(ls_, dim=dim).to(device=device)
 
 
 @torch.no_grad()
