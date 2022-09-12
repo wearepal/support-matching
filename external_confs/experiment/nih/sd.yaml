@@ -4,7 +4,7 @@
 
 defaults:
     - nih/fs_base
-    - override /alg: erm
+    - override /alg: sd
     - _self_
 
 alg:

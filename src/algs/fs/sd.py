@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
-from typing import Tuple, Union
+from typing import List, Tuple, Union
 
 from conduit.types import Loss
+from omegaconf.listconfig import ListConfig
 from ranzen import implements
 from ranzen.torch.loss import CrossEntropyLoss, ReductionType, _reduce  # type: ignore
 import torch
@@ -23,17 +24,22 @@ class SdRegularisedXent(nn.Module, Loss):
 
     def __init__(
         self,
-        lambda_: Union[float, Tuple[float, ...]] = 1.0,
+        lambda_: Union[float, Tuple[float, ...], List[float], ListConfig] = 1.0,
         *,
-        gamma: Union[float, Tuple[float, ...]] = 0.0,
+        gamma: Union[float, Tuple[float, ...], List[float], ListConfig] = 0.0,
         reduction_type: ReductionType = ReductionType.mean,
     ) -> None:
+        super().__init__()
+        if isinstance(lambda_, ListConfig):
+            lambda_ = list(lambda_)
+        if isinstance(gamma, ListConfig):
+            gamma = list(gamma)
         self.loss_fn = CrossEntropyLoss(reduction=ReductionType.mean)
-        if isinstance(lambda_, tuple):
+        if isinstance(lambda_, (tuple, list)):
             self.register_buffer("lambda_", torch.as_tensor(lambda_, dtype=torch.float))
         else:
             self.lambda_ = lambda_
-        if isinstance(gamma, tuple):
+        if isinstance(gamma, (tuple, list)):
             self.register_buffer("gamma", torch.as_tensor(gamma, dtype=torch.float).unsqueeze(0))
         else:
             self.gamma = gamma
