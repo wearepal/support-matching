@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 from conduit.types import Loss
 from omegaconf.listconfig import ListConfig
-from ranzen import implements, str_to_enum
+from ranzen import implements
 from ranzen.torch.loss import CrossEntropyLoss, ReductionType, reduce  # type: ignore
 import torch
 from torch import Tensor
@@ -13,30 +13,31 @@ from .erm import Erm
 
 __all__ = [
     "SdErm",
-    "SdRegularisedXent",
+    "SdCrossEntropyLoss",
 ]
 
 
-class SdRegularisedXent(nn.Module, Loss):
+class SdCrossEntropyLoss(nn.Module, Loss):
     """Cross-entropy loss with spectral-decoupling."""
 
     lambda_: Union[float, Tensor]
+    gamma: Union[float, Tensor]
 
     def __init__(
         self,
-        lambda_: Union[float, Tuple[float, ...], List[float], ListConfig] = 1.0,
+        loss_fn: Optional[Loss] = None,
         *,
+        lambda_: Union[float, Tuple[float, ...], List[float], ListConfig] = 1.0,
         gamma: Union[float, Tuple[float, ...], List[float], ListConfig] = 0.0,
-        reduction: Union[str, ReductionType] = ReductionType.mean,
     ) -> None:
         super().__init__()
-        if isinstance(reduction, str):
-            reduction = str_to_enum(str_=reduction, enum=ReductionType)
         if isinstance(lambda_, ListConfig):
             lambda_ = list(lambda_)
         if isinstance(gamma, ListConfig):
             gamma = list(gamma)
-        self.loss_fn = CrossEntropyLoss(reduction=reduction)
+        if loss_fn is None:
+            loss_fn = CrossEntropyLoss(reduction=ReductionType.mean)
+        self.loss_fn = loss_fn
         if isinstance(lambda_, (tuple, list)):
             self.register_buffer("lambda_", torch.as_tensor(lambda_, dtype=torch.float))
         else:
@@ -72,14 +73,13 @@ class SdErm(Erm):
         https://arxiv.org/abs/2011.09468
     """
 
-    criterion: SdRegularisedXent = field(init=False)
+    criterion: SdCrossEntropyLoss = field(init=False)
     lambda_: Union[float, Tuple[float, ...]] = 1.0
     gamma: Union[float, Tuple[float, ...]] = 0.0
 
     def __post_init__(self) -> None:
-        self.criterion = SdRegularisedXent(
+        self.criterion = SdCrossEntropyLoss(
             lambda_=self.lambda_,
             gamma=self.gamma,
-            reduction=ReductionType.mean,
         )
         super().__post_init__()
