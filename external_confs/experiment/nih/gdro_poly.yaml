@@ -21,4 +21,4 @@ alg:
         alpha: 1.0
 
 wandb:
-    group: gdro_nih_${ds.sens_attr}_${ds.target_attr}_sb10
+    group: gdro_poly_nih_${ds.sens_attr}_${ds.target_attr}_sb10
