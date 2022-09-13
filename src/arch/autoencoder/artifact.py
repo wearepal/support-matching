@@ -125,4 +125,3 @@ class AeFromArtifact(AeFactory):
                 if "bias" not in name:
                     param.requires_grad_(False)
         return ae_pair
-
