@@ -110,12 +110,19 @@ def load_ae_from_artifact(
 class AeFromArtifact(AeFactory):
     artifact_name: str
     version: Optional[int] = None
+    bitfit: bool = False
 
     @implements(AeFactory)
     def __call__(
         self,
         input_shape: Tuple[int, int, int],
     ) -> AePair:
-        return load_ae_from_artifact(
+        ae_pair = load_ae_from_artifact(
             input_shape=input_shape, name=self.artifact_name, version=self.version
         )
+        if self.bitfit:
+            for name, param in ae_pair.named_parameters():
+                if "bias" not in name:
+                    param.requires_grad_(False)
+        return ae_pair
+
