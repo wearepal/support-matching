@@ -1,9 +1,12 @@
+from enum import Enum
+import math
 from typing import Dict, List, Union
 from typing_extensions import Literal
 
+from conduit.types import Loss
 from ranzen import str_to_enum
 from ranzen.decorators import implements
-from ranzen.torch import ReductionType, cross_entropy_loss
+from ranzen.torch.loss import ReductionType, cross_entropy_loss, reduce
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -12,6 +15,7 @@ import torch.nn.functional as F
 __all__ = [
     "GeneralizedCELoss",
     "MixedLoss",
+    "PolynomialLoss",
 ]
 
 
@@ -55,8 +59,7 @@ class GeneralizedCELoss(nn.Module):
         reduction: Union[ReductionType, str] = ReductionType.mean,
     ) -> None:
         super().__init__()
-        if isinstance(reduction, str):
-            reduction = str_to_enum(str_=reduction, enum=ReductionType)
+        reduction = str_to_enum(str_=reduction, enum=ReductionType)
         self.reduction = reduction
         self.q = q
 
@@ -72,3 +75,78 @@ class GeneralizedCELoss(nn.Module):
             reduction=self.reduction,
             instance_weight=loss_weight,
         )
+
+
+class LossLeft(Enum):
+    exp = "exponential"
+    logit = "logit"
+    linear = "linear"
+
+
+class PolynomialLoss(nn.Module, Loss):
+    """
+    Poly-tailed margin based losses that decay as v^{-\alpha} for \alpha > 0.
+    The theory here is that poly-tailed losses do not have max-margin behavior
+    and thus can work with importance weighting.
+
+    Poly-tailed losses are not defined at v=0 for v^{-\alpha}, and so there are
+    several variants that are supported via the [[mode]] option
+    exp : f(v):= exp(-v+1) for v < 1, 1/v^\alpha otherwise
+    logit: f(v):= 1/log(2)log(1+exp(-v+1)) for v < 1, 1/v^\alpha else.
+    """
+
+    def __init__(
+        self,
+        mode: Union[str, LossLeft] = LossLeft.exp,
+        *,
+        alpha: float = 1.0,
+        reduction: Union[str, ReductionType] = ReductionType.mean,
+    ) -> None:
+        super().__init__()
+        mode = str_to_enum(mode, enum=LossLeft)
+        if (mode is LossLeft.linear) and (alpha <= 1):
+            raise ValueError("'linear' mode requires 'alpha' to be greater than 1.")
+        if isinstance(reduction, str):
+            reduction = str_to_enum(str_=reduction, enum=ReductionType)
+        self.mode = mode
+        self.alpha = alpha
+        self.reduction = reduction
+
+    def margin_fn(self, margin_vals: torch.Tensor) -> Tensor:
+        indicator = margin_vals <= 1
+        inv_part = torch.pow(
+            margin_vals.abs(), -1 * self.alpha
+        )  # prevent exponentiating negative numbers by fractional powers
+        if self.mode is LossLeft.exp:
+            exp_part = torch.exp(-1 * margin_vals)
+            scores = exp_part * indicator + inv_part * (~indicator)
+        if self.mode is LossLeft.logit:
+            indicator = margin_vals <= 1
+            inv_part = torch.pow(margin_vals.abs(), -1 * self.alpha)
+            logit_inner = -1 * margin_vals
+            logit_part = F.softplus(logit_inner) / (math.log(1 + math.exp(-1)))
+            scores = logit_part * indicator + inv_part * (~indicator)
+        else:
+            assert self.alpha > 1
+            linear_part = -1 * margin_vals + torch.ones_like(margin_vals) * (
+                self.alpha / (self.alpha - 1)
+            )
+            scores = linear_part * indicator + inv_part * (~indicator) / (self.alpha - 1)
+        return scores
+
+    @implements(nn.Module)
+    def forward(self, input: Tensor, *, target: Tensor, instance_weight: Optional[Tensor] = None) -> Tensor:  # type: ignore
+        dim = input.size(1)
+        if dim > 2:
+            raise ValueError(
+                "PolynomialLoss is only applicable to binary classification: logits must be of size"
+                " 1 or 2 at dimension 1."
+            )
+        elif dim == 1:
+            input = torch.cat((1 - input, input), dim=1)
+        target_sign = 2 * target - 1  # y \in {0, 1} -> y \in {-1, 1}
+        margin_scores = (input[:, 1] - input[:, 0]) * target_sign
+        losses = self.margin_fn(margin_scores)
+        if instance_weight is not None:
+            losses *= instance_weight.view_as(losses)
+        return reduce(losses, reduction_type=self.reduction)

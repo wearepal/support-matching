@@ -3,7 +3,7 @@ from typing import List, Tuple, Union
 
 from conduit.types import Loss
 from omegaconf.listconfig import ListConfig
-from ranzen import implements
+from ranzen import implements, str_to_enum
 from ranzen.torch.loss import CrossEntropyLoss, ReductionType, reduce  # type: ignore
 import torch
 from torch import Tensor
@@ -27,13 +27,16 @@ class SdRegularisedXent(nn.Module, Loss):
         lambda_: Union[float, Tuple[float, ...], List[float], ListConfig] = 1.0,
         *,
         gamma: Union[float, Tuple[float, ...], List[float], ListConfig] = 0.0,
+        reduction: Union[str, ReductionType] = ReductionType.mean,
     ) -> None:
         super().__init__()
+        if isinstance(reduction, str):
+            reduction = str_to_enum(str_=reduction, enum=ReductionType)
         if isinstance(lambda_, ListConfig):
             lambda_ = list(lambda_)
         if isinstance(gamma, ListConfig):
             gamma = list(gamma)
-        self.loss_fn = CrossEntropyLoss(reduction=ReductionType.mean)
+        self.loss_fn = CrossEntropyLoss(reduction=reduction)
         if isinstance(lambda_, (tuple, list)):
             self.register_buffer("lambda_", torch.as_tensor(lambda_, dtype=torch.float))
         else:
@@ -77,6 +80,6 @@ class SdErm(Erm):
         self.criterion = SdRegularisedXent(
             lambda_=self.lambda_,
             gamma=self.gamma,
-            reduction_type=ReductionType.mean,
+            reduction=ReductionType.mean,
         )
         super().__post_init__()

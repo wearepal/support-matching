@@ -1,0 +1,16 @@
+# @package _global_
+
+# usage: +experiment=nih/erm_poly
+
+defaults:
+    - nih/fs_base
+    - override /alg: erm
+    - _self_
+
+alg:
+    criterion:
+        _target_: src.loss.PolynomialLoss
+        mode: exp
+        alpha: 1.0
+wandb:
+    group: erm_poly_nih_${ds.sens_attr}_${ds.target_attr}_sb10

@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
+from typing import Optional
 
 from conduit.types import Loss
 from ranzen import implements
-from ranzen.torch import CrossEntropyLoss
+from ranzen.torch import CrossEntropyLoss, ReductionType
 from torch import Tensor
 import torch.nn as nn
 
@@ -17,7 +18,7 @@ __all__ = ["Erm"]
 
 @dataclass(eq=False)
 class Erm(FsAlg):
-    criterion: Loss = field(init=False, default_factory=CrossEntropyLoss)
+    criterion: Optional[Loss] = None
 
     @implements(FsAlg)
     def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:

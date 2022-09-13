@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Iterator, Optional, Tuple, TypeVar, Union, overload
 from typing_extensions import Literal
 
@@ -12,7 +12,7 @@ from conduit.types import Loss
 from loguru import logger
 from ranzen import implements
 from ranzen.torch.data import StratifiedBatchSampler
-from ranzen.torch.loss import CrossEntropyLoss
+from ranzen.torch.loss import cross_entropy_loss
 from ranzen.torch.utils import inf_generator
 import torch
 from torch import Tensor
@@ -44,7 +44,7 @@ def cat_cpu_flatten(*ls: list[Tensor], dim: int = 0) -> Iterator[Tensor]:
 class Classifier(Model):
     """Wrapper for classifier models equipped witht training/inference routines."""
 
-    criterion: Loss = field(default_factory=CrossEntropyLoss)
+    criterion: Optional[Loss] = None
 
     @overload
     def predict(
@@ -98,7 +98,8 @@ class Classifier(Model):
     def training_step(self, batch: TernarySample, *, pred_s: bool = False) -> Tensor:
         target = batch.s if pred_s else batch.y
         logits = self.forward(batch.x)
-        return self.criterion(input=logits, target=target)
+        criterion = cross_entropy_loss if self.criterion is None else self.criterion
+        return criterion(input=logits, target=target)
 
     def fit(
         self,
@@ -182,7 +183,7 @@ S = TypeVar("S", bound=NamedSample[Tensor])
 class SetClassifier(Model):
     """Wrapper for set classifier models equipped witht training/inference routines."""
 
-    criterion: Loss = field(default_factory=CrossEntropyLoss)
+    criterion: Optional[Loss] = None
     model: SetPredictor
 
     @torch.no_grad()
@@ -202,7 +203,8 @@ class SetClassifier(Model):
             logits_ls.append(self.forward(batch.x, batch_size=batch.b))
             target_ls.append(batch.y)
         logits, target = cat(logits_ls, target_ls)
-        loss = self.criterion(input=logits, target=target)
+        criterion = cross_entropy_loss if self.criterion is None else self.criterion
+        loss = criterion(input=logits, target=target)
         accuracy = cdtm.accuracy(y_pred=logits, y_true=target)
         return loss, accuracy
 

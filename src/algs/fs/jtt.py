@@ -1,9 +1,9 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, Union
 
 from conduit.types import Loss
 from ranzen import gcopy, implements
-from ranzen.torch import CrossEntropyLoss, WeightedBatchSampler
+from ranzen.torch import WeightedBatchSampler
 from torch import Tensor
 import torch.nn as nn
 
@@ -19,7 +19,7 @@ __all__ = ["Jtt"]
 class Jtt(FsAlg):
     id_steps: Union[float, int] = 0.02
     lambda_uw: Optional[float] = None
-    criterion: Loss = field(init=False, default_factory=CrossEntropyLoss)
+    criterion: Optional[Loss] = None
 
     def __post_init__(self) -> None:
         if isinstance(self.id_steps, float):
