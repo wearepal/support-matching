@@ -1,7 +1,6 @@
 from enum import Enum
 import math
 from typing import Dict, List, Union
-from typing_extensions import Literal
 
 from conduit.types import Loss
 from ranzen import str_to_enum
@@ -25,28 +24,36 @@ class MixedLoss(nn.Module):
     def __init__(
         self,
         feature_group_slices: Dict[str, List[slice]],
+        *,
         disc_loss_factor: float = 1.0,
-        reduction: Literal["none", "mean", "sum"] = "mean",
+        reduction: Union[str, ReductionType] = ReductionType.mean,
     ) -> None:
         super().__init__()
+        self.reduction = str_to_enum(reduction, enum=ReductionType)
         assert feature_group_slices["discrete"][0].start == 0, "x has to start with disc features"
         self.disc_feature_slices = feature_group_slices["discrete"]
         assert all(group.stop - group.start >= 2 for group in self.disc_feature_slices)
         self.cont_start = self.disc_feature_slices[-1].stop
         self.disc_loss_factor = disc_loss_factor
-        self.reduction = reduction
 
     @implements(nn.Module)
     def forward(self, input: Tensor, target: Tensor) -> Tensor:  # type: ignore
         disc_loss = input.new_zeros(())
         # for the discrete features do cross entropy loss
         for disc_slice in self.disc_feature_slices:
-            disc_loss += F.cross_entropy(
-                input[:, disc_slice], target[:, disc_slice].argmax(dim=1), reduction=self.reduction
+            disc_loss += cross_entropy_loss(
+                input=input[:, disc_slice],
+                target=target[:, disc_slice].argmax(dim=1),
+                reduction=self.reduction,
             )
         # for the continuous features do MSE
-        cont_loss = F.mse_loss(
-            input[:, self.cont_start :], target[:, self.cont_start :], reduction=self.reduction
+        cont_loss = reduce(
+            F.mse_loss(
+                input=input[:, self.cont_start :],
+                target=target[:, self.cont_start :],
+                reduction="none",
+            ),
+            reduction_type=self.reduction,
         )
         return self.disc_loss_factor * disc_loss + cont_loss
 
@@ -59,8 +66,7 @@ class GeneralizedCELoss(nn.Module):
         reduction: Union[ReductionType, str] = ReductionType.mean,
     ) -> None:
         super().__init__()
-        reduction = str_to_enum(str_=reduction, enum=ReductionType)
-        self.reduction = reduction
+        self.reduction = str_to_enum(str_=reduction, enum=ReductionType)
         self.q = q
 
     @implements(nn.Module)
@@ -77,7 +83,7 @@ class GeneralizedCELoss(nn.Module):
         )
 
 
-class LossLeft(Enum):
+class Mode(Enum):
     exp = "exponential"
     logit = "logit"
     linear = "linear"
@@ -97,30 +103,27 @@ class PolynomialLoss(nn.Module, Loss):
 
     def __init__(
         self,
-        mode: Union[str, LossLeft] = LossLeft.exp,
+        mode: Union[str, Mode] = Mode.exp,
         *,
         alpha: float = 1.0,
         reduction: Union[str, ReductionType] = ReductionType.mean,
     ) -> None:
         super().__init__()
-        mode = str_to_enum(mode, enum=LossLeft)
-        if (mode is LossLeft.linear) and (alpha <= 1):
+        self.mode = str_to_enum(mode, enum=Mode)
+        if (self.mode is Mode.linear) and (alpha <= 1):
             raise ValueError("'linear' mode requires 'alpha' to be greater than 1.")
-        if isinstance(reduction, str):
-            reduction = str_to_enum(str_=reduction, enum=ReductionType)
-        self.mode = mode
+        self.reduction = str_to_enum(str_=reduction, enum=ReductionType)
         self.alpha = alpha
-        self.reduction = reduction
 
     def margin_fn(self, margin_vals: torch.Tensor) -> Tensor:
         indicator = margin_vals <= 1
         inv_part = torch.pow(
             margin_vals.abs(), -1 * self.alpha
         )  # prevent exponentiating negative numbers by fractional powers
-        if self.mode is LossLeft.exp:
+        if self.mode is Mode.exp:
             exp_part = torch.exp(-1 * margin_vals)
             scores = exp_part * indicator + inv_part * (~indicator)
-        if self.mode is LossLeft.logit:
+        if self.mode is Mode.logit:
             indicator = margin_vals <= 1
             inv_part = torch.pow(margin_vals.abs(), -1 * self.alpha)
             logit_inner = -1 * margin_vals
