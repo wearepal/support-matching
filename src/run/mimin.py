@@ -7,10 +7,12 @@ from src.arch.autoencoder import ResNetAE, SimpleConvAE
 from src.arch.predictors.fcn import Fcn
 from src.data.nih import NIHChestXRayDataset
 from src.labelling.pipeline import (
+    CentroidalLabelNoiser,
     GroundTruthLabeller,
     KmeansOnClipEncodings,
     LabelFromArtifact,
     NullLabeller,
+    UniformLabelNoiser,
 )
 from src.relay.mimin import MiMinRelay
 
@@ -28,10 +30,12 @@ def main() -> None:
     ]
     disc_arch_ops = [Option(Fcn, name="fcn")]
     labeller_ops = [
-        Option(LabelFromArtifact, name="artifact"),
+        Option(CentroidalLabelNoiser, name="centroidal_noise"),
         Option(GroundTruthLabeller, name="gt"),
         Option(KmeansOnClipEncodings, name="kmeans"),
+        Option(LabelFromArtifact, name="artifact"),
         Option(NullLabeller, name="none"),
+        Option(UniformLabelNoiser, name="uniform_noise"),
     ]
 
     MiMinRelay.with_hydra(

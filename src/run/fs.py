@@ -9,10 +9,12 @@ from src.arch.predictors import Fcn
 from src.arch.predictors.fcn import Fcn
 from src.data.nih import NIHChestXRayDataset
 from src.labelling.pipeline import (
+    CentroidalLabelNoiser,
     GroundTruthLabeller,
     KmeansOnClipEncodings,
     LabelFromArtifact,
     NullLabeller,
+    UniformLabelNoiser,
 )
 from src.relay import FsRelay
 
@@ -32,10 +34,12 @@ def main() -> None:
         Option(Fcn, name="fcn"),
     ]
     labeller_ops = [
-        Option(LabelFromArtifact, name="artifact"),
+        Option(CentroidalLabelNoiser, name="centroidal_noise"),
         Option(GroundTruthLabeller, name="gt"),
         Option(KmeansOnClipEncodings, name="kmeans"),
+        Option(LabelFromArtifact, name="artifact"),
         Option(NullLabeller, name="none"),
+        Option(UniformLabelNoiser, name="uniform_noise"),
     ]
     alg_ops = [
         Option(Dro, name="dro"),

@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Protocol, Union, cast
 
+from albumentations.core.serialization import abstractmethod
 from ranzen import implements
 from ranzen.torch.module import DcModule
 import torch
@@ -11,17 +12,28 @@ import wandb
 from wandb.wandb_run import Run
 
 from src.data import DataModule, resolve_device
+from src.labelling.encode import encode_with_group_ids
 
 from .artifact import load_labels_from_artifact, save_labels_as_artifact
 from .encoder import ClipVersion, ClipVisualEncoder
 from .kmeans import KMeans
+from .noise import (
+    ClnMetric,
+    centroidal_label_noise,
+    sample_noise_indices,
+    uniform_label_noise,
+)
 
 __all__ = [
-    "LabelFromArtifact",
+    "CentroidalLabelNoiser",
     "GroundTruthLabeller",
     "KmeansOnClipEncodings",
+    "LabelFromArtifact",
     "Labeller",
     "NullLabeller",
+    "UniformLabelNoiser",
+    "centroidal_label_noise",
+    "uniform_label_noise",
 ]
 
 
@@ -120,29 +132,18 @@ class NullLabeller(Labeller):
         return None
 
 
-@torch.no_grad()
-def inject_label_noise(
-    labels: Tensor,
-    *,
-    noise_level: float,
-    generator: torch.Generator,
-    inplace: bool = True,
-) -> Tensor:
-    if not 0 <= noise_level <= 1:
-        raise ValueError("'noise_level' must be in the range [0, 1].")
-    if not inplace:
-        labels = labels.clone()
-    unique, unique_inv = labels.unique(return_inverse=True)
-    num_to_flip = round(noise_level * len(labels))
-    to_flip = torch.randperm(len(labels), generator=generator)[:num_to_flip]
-    unique_inv[to_flip] += torch.randint(low=1, high=len(unique), size=(num_to_flip,))
-    unique_inv[to_flip] %= len(unique)
-    return unique[unique_inv]
-
-
 @dataclass
 class GroundTruthLabeller(Labeller):
-    label_noise: float = 0
+    seed: int = 47
+    generator: torch.Generator = field(init=False)
+
+    @implements(Labeller)
+    def run(self, dm: DataModule) -> Tensor:
+        return dm.group_ids_dep
+
+
+class LabelNoiser(Labeller):
+    label_noise: float = 0.0
     seed: int = 47
     generator: torch.Generator = field(init=False)
 
@@ -151,12 +152,58 @@ class GroundTruthLabeller(Labeller):
             raise ValueError(f"'label_noise' must be in the range [0, 1].")
         self.generator = torch.Generator().manual_seed(self.seed)
 
+    @abstractmethod
+    def _noise(self, dep_ids: Tensor, *, flip_inds: Tensor, dm: DataModule) -> Tensor:
+        ...
+
     @implements(Labeller)
     def run(self, dm: DataModule) -> Tensor:
         group_ids = dm.group_ids_dep
         # Inject label-noise into the group identifiers.
         if self.label_noise > 0:
-            group_ids = inject_label_noise(
-                group_ids, noise_level=self.label_noise, generator=self.generator
+            flip_inds = sample_noise_indices(
+                labels=group_ids, noise_level=self.label_noise, generator=self.generator
             )
+            group_ids = self._noise(dep_ids=group_ids, flip_inds=flip_inds, dm=dm)
         return group_ids
+
+
+@dataclass(eq=False)
+class UniformLabelNoiser(LabelNoiser):
+    @implements(LabelNoiser)
+    def _noise(self, dep_ids: Tensor, *, flip_inds: Tensor, dm: DataModule) -> Tensor:
+        return uniform_label_noise(
+            labels=dep_ids,
+            indices=flip_inds,
+            generator=self.generator,
+            inplace=True,
+        )
+
+
+@dataclass(eq=False)
+class CentroidalLabelNoiser(LabelNoiser):
+    metric: ClnMetric = ClnMetric.COSINE
+    clip_version: ClipVersion = ClipVersion.RN50
+    download_root: Optional[str] = None
+    enc_batch_size: int = 64
+    gpu: int = 0
+
+    @implements(LabelNoiser)
+    def _noise(self, dep_ids: Tensor, *, flip_inds: Tensor, dm: DataModule) -> Tensor:
+        device = resolve_device(self.gpu)
+        encoder = ClipVisualEncoder(
+            version=self.clip_version,
+            download_root=self.download_root,
+        )
+        encodings, _ = encode_with_group_ids(
+            model=encoder,
+            dl=dm.deployment_dataloader(eval=True, batch_size=self.enc_batch_size),
+            device=device,
+        )
+        return centroidal_label_noise(
+            labels=dep_ids,
+            indices=flip_inds,
+            encodings=encodings,
+            generator=self.generator,
+            inplace=True,
+        )
