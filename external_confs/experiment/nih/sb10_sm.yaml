@@ -9,7 +9,8 @@ defaults:
     - override /labeller: gt
     - override /split: nih/sb10_gender_infiltration_art
     - override /ae: base
-    - override /ae_arch: resnet
+    # - override /ae_arch: resnet
+    - override /ae_arch: artifact
     - override /disc: base
     - override /disc_arch: set
     - override /scorer: nih/sm
@@ -44,10 +45,12 @@ ae:
     zs_dim: 1
 
 ae_arch:
-    version: RN18
-    latent_dim: 128
-    first_conv: false
-    maxpool1: false
+    # version: RN18
+    # latent_dim: 128
+    # first_conv: false
+    # maxpool1: false
+    artifact_name: nih_gender_infiltration_sb10_0_ae
+    version: 0
 
 disc:
     lr: 4.e-4

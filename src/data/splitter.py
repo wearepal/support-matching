@@ -241,7 +241,7 @@ def load_split_inds_from_artifact(
         project = f"{run.entity}/{run.project}"
         full_name = f"{project}/{versioned_name}"
         artifact = run.use_artifact(full_name)
-        logger.info("Downloading model artifact...")
+        logger.info("Downloading split-indices artifact...")
         artifact.download(root=artifact_dir)
     else:
         if not filepath.exists():
