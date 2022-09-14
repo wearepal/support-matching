@@ -1,9 +1,9 @@
 from __future__ import annotations
+from abc import abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Protocol, Union, cast
 
-from albumentations.core.serialization import abstractmethod
 from ranzen import implements
 from ranzen.torch.module import DcModule
 import torch
