@@ -1,0 +1,10 @@
+# @package hydra.sweeper
+defaults:
+    - nih/erm
+    - _self_
+
+study_name: gdro_poly
+params:
+    alg.alpha: interval(0.1, 10)
+    alg.criterion.alpha: interval(0.1, 10.0)
+    alg.criterion.mode: choice(exp, logit)

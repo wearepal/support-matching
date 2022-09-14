@@ -1,12 +1,11 @@
 from dataclasses import dataclass
 from typing import Optional, Tuple
-from typing_extensions import Self
 
 from conduit.data.structures import TernarySample
 from conduit.types import Loss
 import numpy as np
 from ranzen import implements
-from ranzen.torch import CrossEntropyLoss
+from ranzen.torch import cross_entropy_loss
 from ranzen.torch.loss import ReductionType
 import torch
 from torch import Tensor
@@ -87,13 +86,20 @@ class LossComputer(nn.Module):
         self.avg_acc = 0.0
         self.batch_count = 0.0
 
-    def forward(self, input: Tensor, *, target: Tensor, group_idx: Tensor, criterion: Loss) -> Tensor:  # type: ignore
-        if isinstance(red := criterion.reduction, ReductionType):
-            assert red is ReductionType.none
+    @staticmethod
+    def _default_criterion(input: Tensor, *, target: Tensor) -> Tensor:
+        return cross_entropy_loss(input=input, target=target, reduction=ReductionType.none)
+
+    def forward(self, input: Tensor, *, target: Tensor, group_idx: Tensor, criterion: Optional[Loss] = None) -> Tensor:  # type: ignore
+        if criterion is None:
+            per_sample_losses = self._default_criterion(input=input, target=target)
         else:
-            assert red == "none"
-        # compute per-sample and per-group losses
-        per_sample_losses = criterion(input=input, target=target)
+            if isinstance(red := criterion.reduction, ReductionType):
+                assert red is ReductionType.none
+            else:
+                assert red == "none"
+            # compute per-sample and per-group losses
+            per_sample_losses = criterion(input=input, target=target)
         group_loss, group_count = self.compute_group_avg(per_sample_losses, group_idx=group_idx)
         group_acc, group_count = self.compute_group_avg(
             (torch.argmax(input, dim=1) == target).float(), group_idx
@@ -237,10 +243,8 @@ class _LcMixin:
 class GdroClassifier(Classifier, _LcMixin):
     def __post_init__(self) -> None:
         # LossComputer requires that the criterion return per-sample (unreduced) losses.
-        if isinstance(red := self.criterion.reduction, ReductionType):
-            assert red is ReductionType.none
-        else:
-            assert red == "none"
+        if self.criterion is not None:
+            self.criterion.reduction = ReductionType.none
         super().__post_init__()
 
     @implements(Classifier)
@@ -263,6 +267,7 @@ class Gdro(FsAlg):
     step_size: float = 0.01
     btl: bool = False
     adjustments: Optional[Tuple[float]] = None
+    criterion: Optional[Loss] = None
 
     @implements(FsAlg)
     def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:
@@ -295,7 +300,7 @@ class Gdro(FsAlg):
             optimizer_kwargs=self.optimizer_kwargs,
             scheduler_cls=self.scheduler_cls,
             scheduler_kwargs=self.scheduler_kwargs,
-            criterion=CrossEntropyLoss(reduction="none"),
+            criterion=self.criterion,
             loss_computer=loss_computer,
         )
         classifier.fit(

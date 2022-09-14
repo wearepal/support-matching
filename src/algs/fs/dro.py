@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, Union
 
 from conduit.types import Loss
@@ -12,7 +12,7 @@ from .erm import Erm
 __all__ = ["DroLoss", "Dro"]
 
 
-class DroLoss(Loss, nn.Module):
+class DroLoss(nn.Module, Loss):
     """Fairness Without Demographics Loss."""
 
     def __init__(
@@ -43,10 +43,8 @@ class DroLoss(Loss, nn.Module):
 
 @dataclass(eq=False)
 class Dro(Erm):
-    criterion: DroLoss = field(init=False)
     eta: float = 0.5
 
     def __post_init__(self) -> None:
-        base_criterion = CrossEntropyLoss(reduction=ReductionType.none)
-        self.criterion = DroLoss(base_criterion, eta=self.eta, reduction=ReductionType.mean)
+        self.criterion = DroLoss(self.criterion, eta=self.eta, reduction=ReductionType.mean)
         super().__post_init__()
