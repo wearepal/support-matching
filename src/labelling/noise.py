@@ -4,9 +4,6 @@ from typing import Optional, Union
 from ranzen import str_to_enum
 import torch
 from torch import Tensor
-import torch.nn.functional as F
-
-F.normalize
 
 __all__ = [
     "ClnMetric",
