@@ -1,6 +1,6 @@
 from enum import Enum
 import math
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 from conduit.types import Loss
 from ranzen import str_to_enum
