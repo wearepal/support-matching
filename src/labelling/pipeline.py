@@ -142,6 +142,7 @@ class GroundTruthLabeller(Labeller):
         return dm.group_ids_dep
 
 
+@dataclass(eq=False)
 class LabelNoiser(Labeller):
     label_noise: float = 0.0
     seed: int = 47
