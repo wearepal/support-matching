@@ -54,6 +54,7 @@ class FsRelay(BaseRelay):
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Any:
         run = self.init_wandb(raw_config, self.labeller, self.backbone, self.predictor)
         dm = self.init_dm()
+        breakpoint()
         alg: FsAlg = instantiate(self.alg)
         backbone_fn: BackboneFactory = instantiate(self.backbone)
         predictor_fn: PredictorFactory = instantiate(self.predictor)

@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Protocol, Union, cast
 
+from loguru import logger
 from ranzen import implements
 from ranzen.torch.module import DcModule
 import torch
@@ -144,13 +145,13 @@ class GroundTruthLabeller(Labeller):
 
 @dataclass(eq=False)
 class LabelNoiser(Labeller):
-    label_noise: float = 0.0
+    level: float = 0.10
     seed: int = 47
     generator: torch.Generator = field(init=False)
 
     def __post_init__(self) -> None:
-        if not (0 <= self.label_noise <= 1):
-            raise ValueError(f"'label_noise' must be in the range [0, 1].")
+        if not (0 < self.level <= 1):
+            raise ValueError(f"'label_noise' must be in the range (0, 1].")
         self.generator = torch.Generator().manual_seed(self.seed)
 
     @abstractmethod
@@ -160,12 +161,15 @@ class LabelNoiser(Labeller):
     @implements(Labeller)
     def run(self, dm: DataModule) -> Tensor:
         group_ids = dm.group_ids_dep
+        logger.info(
+            f"Injecting noise into ground-truth labels with noise level '{self.level}'"
+            f" ({self.level * 100}% of samples will have their labels corrupted)."
+        )
+        flip_inds = sample_noise_indices(
+            labels=group_ids, level=self.level, generator=self.generator
+        )
         # Inject label-noise into the group identifiers.
-        if self.label_noise > 0:
-            flip_inds = sample_noise_indices(
-                labels=group_ids, noise_level=self.label_noise, generator=self.generator
-            )
-            group_ids = self._noise(dep_ids=group_ids, flip_inds=flip_inds, dm=dm)
+        group_ids = self._noise(dep_ids=group_ids, flip_inds=flip_inds, dm=dm)
         return group_ids
 
 
@@ -201,6 +205,7 @@ class CentroidalLabelNoiser(LabelNoiser):
             dl=dm.deployment_dataloader(eval=True, batch_size=self.enc_batch_size),
             device=device,
         )
+        encodings = torch.randn(len(dm.deployment))
         return centroidal_label_noise(
             labels=dep_ids,
             indices=flip_inds,
