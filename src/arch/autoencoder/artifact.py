@@ -78,21 +78,21 @@ def load_ae_from_artifact(
     versioned_name = name + f":{version_str}"
     artifact_dir = root / name / version_str
     filepath = artifact_dir / FILENAME
-    if run is None:
-        run = wandb.run
-    if (run is not None) and (project is None):
-        project = f"{run.entity}/{run.project}"
-        full_name = f"{project}/{versioned_name}"
-        artifact = run.use_artifact(full_name)
-        logger.info("Downloading model artifact...")
-        artifact.download(root=artifact_dir)
-    else:
-        if not filepath.exists():
+    if not filepath.exists():
+        if run is None:
+            run = wandb.run
+        if (run is not None) and (project is None):
+            project = f"{run.entity}/{run.project}"
+            full_name = f"{project}/{versioned_name}"
+            artifact = run.use_artifact(full_name)
+            logger.info("Downloading model artifact...")
+            artifact.download(root=artifact_dir)
+        else:
             raise RuntimeError(
                 f"No pre-existing model-artifact found at location '{filepath.resolve()}'"
                 "and because no wandb run has been specified, it can't be downloaded."
             )
-        full_name = artifact_dir
+    full_name = artifact_dir
     state_dict = torch.load(filepath)
     logger.info("Loading saved parameters and buffers...")
     factory: AeFactory = instantiate(state_dict["config"])

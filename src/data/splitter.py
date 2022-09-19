@@ -227,7 +227,6 @@ def load_split_inds_from_artifact(
     run: Optional[Union[Run, RunDisabled]],
     *,
     name: str,
-    ds: Dataset,
     project: Optional[str] = None,
     root: Optional[Union[Path, str]] = None,
     version: Optional[int] = None,
@@ -238,6 +237,8 @@ def load_split_inds_from_artifact(
     versioned_name = name + version_str
     filepath = artifact_dir / FILENAME
     if not filepath.exists():
+        if run is None:
+            run = wandb.run
         if (run is not None) and (project is None):
             project = f"{run.entity}/{run.project}"
             full_name = f"{project}/{versioned_name}"
@@ -266,7 +267,7 @@ class SplitFromArtifact(DataSplitter, _ArtifactLoaderMixin):
     @implements(DataSplitter)
     def split(self, dataset: D) -> TrainDepTestSplit[D]:
         splits = load_split_inds_from_artifact(
-            run=wandb.run, name=self.artifact_name, version=self.version, ds=dataset
+            run=wandb.run, name=self.artifact_name, version=self.version
         )
         train_data = dataset.subset(splits["train"])
         dep_data = dataset.subset(splits["dep"])

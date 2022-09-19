@@ -85,19 +85,21 @@ def load_labels_from_artifact(
     artifact_dir = root / name / version_str
     versioned_name = name + version_str
     filepath = artifact_dir / FILENAME
-    if (run is not None) and (project is None):
-        project = f"{run.entity}/{run.project}"
-        full_name = f"{project}/{versioned_name}"
-        artifact = run.use_artifact(full_name)
-        logger.info("Downloading model artifact...")
-        artifact.download(root=artifact_dir)
-    else:
-        if not filepath.exists():
+    if not filepath.exists():
+        if run is None:
+            run = wandb.run
+        if (run is not None) and (project is None):
+            project = f"{run.entity}/{run.project}"
+            full_name = f"{project}/{versioned_name}"
+            artifact = run.use_artifact(full_name)
+            logger.info("Downloading model artifact...")
+            artifact.download(root=artifact_dir)
+        else:
             raise RuntimeError(
                 f"No pre-existing artifact found at location '{filepath.resolve()}'"
                 "and because no wandb run has been specified, it can't be downloaded."
             )
-        full_name = artifact_dir
+    full_name = artifact_dir
     labels = torch.load(filepath)
     logger.info(f"Labels successfully loaded from artifact '{full_name}'.")
     return labels

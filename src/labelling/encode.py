@@ -116,12 +116,12 @@ def encode_with_group_ids(
     dl: CdtDataLoader[TernarySample[Tensor]],
     device: str | torch.device,
 ) -> tuple[Tensor, Tensor]:
+    model.to(device)
     encoded: list[Tensor] = []
     group_ids: list[Tensor] = []
     with torch.no_grad():
         for sample in tqdm(dl, total=len(dl), desc="Encoding dataset"):
             enc = model(sample.x.to(device, non_blocking=True)).detach()
-            # normalize so we're doing cosine similarity
             encoded.append(enc.cpu())
             group_ids.append(labels_to_group_id(s=sample.s, y=sample.y, s_count=2))
     logger.info("Done.")

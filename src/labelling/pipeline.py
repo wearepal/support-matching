@@ -150,8 +150,8 @@ class LabelNoiser(Labeller):
     generator: torch.Generator = field(init=False)
 
     def __post_init__(self) -> None:
-        if not (0 < self.level <= 1):
-            raise ValueError(f"'label_noise' must be in the range (0, 1].")
+        if not (0 <= self.level <= 1):
+            raise ValueError(f"'label_noise' must be in the range [0, 1].")
         self.generator = torch.Generator().manual_seed(self.seed)
 
     @abstractmethod
@@ -163,7 +163,7 @@ class LabelNoiser(Labeller):
         group_ids = dm.group_ids_dep
         logger.info(
             f"Injecting noise into ground-truth labels with noise level '{self.level}'"
-            f" ({self.level * 100}% of samples will have their labels corrupted)."
+            f" ({self.level * 100}% of samples will have their labels altered)."
         )
         flip_inds = sample_noise_indices(
             labels=group_ids, level=self.level, generator=self.generator
@@ -205,7 +205,6 @@ class CentroidalLabelNoiser(LabelNoiser):
             dl=dm.deployment_dataloader(eval=True, batch_size=self.enc_batch_size),
             device=device,
         )
-        encodings = torch.randn(len(dm.deployment))
         return centroidal_label_noise(
             labels=dep_ids,
             indices=flip_inds,
