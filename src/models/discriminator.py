@@ -7,6 +7,7 @@ from ranzen import implements
 from ranzen.torch import DcModule
 import torch
 from torch import Tensor
+import torch.nn as nn
 import torch.nn.functional as F
 
 from src.mmd import MMDKernel, mmd2
@@ -61,9 +62,19 @@ class GanLoss(Enum):
     LS = auto()
 
 
+def _maybe_spectral_norm(module: nn.Module, *, name: str = "weight"):
+    if hasattr(module, name):
+        torch.nn.utils.parametrizations.spectral_norm(module, name=name)
+
+
 @dataclass(eq=False)
 class NeuralDiscriminator(BinaryDiscriminator, Model):
     criterion: GanLoss = GanLoss.LOGISTIC_NS
+
+    def __post_init__(self) -> None:
+        if self.criterion is GanLoss.WASSERSTEIN:
+            self.model.apply(_maybe_spectral_norm)
+        super().__post_init__()
 
     @implements(BinaryDiscriminator)
     def discriminator_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
