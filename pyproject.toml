@@ -23,8 +23,7 @@ clip = { git = "https://github.com/openai/CLIP.git", branch = "main" }
 ethicml = { version="1.0.0b2", allow-prereleases=true }
 hydra-core = { version = ">=1.2.0" }
 hydra-submitit-launcher = { version = "^1.1.6" }
-lapjv = "*"
-llvmlite = ">=0.35.0.,<0.39"
+llvmlite = ">=0.35.0,<0.39"
 matplotlib = ">= 3.0.2, < 3.3.1"
 neoconfigen = ">=2.3.3"
 numpy = { version = "1.22.3" }
