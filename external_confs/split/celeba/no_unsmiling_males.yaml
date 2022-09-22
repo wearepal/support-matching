@@ -14,7 +14,7 @@ train_transforms:
     _target_: torchvision.transforms.Compose
     transforms:
         - _target_: torchvision.transforms.Resize
-          size: 64
+          size: 224
         - _target_: torchvision.transforms.ToTensor
           # ImageNet channel-wise moments
         - _target_: torchvision.transforms.Normalize
@@ -25,7 +25,7 @@ test_transforms:
     _target_: torchvision.transforms.Compose
     transforms:
         - _target_: torchvision.transforms.Resize
-          size: 64
+          size: 224
         - _target_: torchvision.transforms.ToTensor
         - _target_: torchvision.transforms.Normalize
           mean: [ 0.485, 0.456, 0.406 ] 
