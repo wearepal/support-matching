@@ -379,7 +379,7 @@ class DataModule(Generic[D]):
 
     def set_transforms_all(self, value: Optional[ImageTform]) -> None:
         self.transforms_tr = value
-        self.transforms_tr = value
+        self.transforms_te = value
         self.transforms_dep = value
 
     @classmethod
