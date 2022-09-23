@@ -1,6 +1,6 @@
 # Code derived from https://github.com/CompVis/taming-transformers/tree/master/taming/models
 from dataclasses import dataclass
-from typing import Optional, Sequence, Tuple
+from typing import Optional, Sequence, Tuple, List
 
 import numpy as np
 from ranzen import implements
@@ -239,7 +239,7 @@ class Decoder(nn.Module):
         num_res_blocks: int,
         resamp_with_conv: bool = True,
         give_pre_end: bool = False,
-        ch_mult: Tuple[int, ...] = (1, 2, 4, 8),
+        ch_mult: Sequence[int] = (1, 2, 4, 8),
         dropout: float = 0.0,
     ) -> None:
         super().__init__()
@@ -323,13 +323,11 @@ class Decoder(nn.Module):
 
 @dataclass(eq=False)
 class VqGanAe(AeFactory):
-    latent_dim: int = 256
-    # Default config taken from:
-    # https://github.com/CompVis/taming-transformers/blob/master/configs/imagenet_vqgan.yaml
-    init_chans: int = 128
-    attn_resolutions: Tuple[int, ...] = (16,)
-    num_res_blocks: int = 2
-    ch_mult: Tuple[int, ...] = (1, 1, 2, 2, 4)
+    attn_resolutions: List[int]
+    ch_mult: List
+    latent_dim: int
+    init_chans: int
+    num_res_blocks: int
     dropout: float = 0.0
 
     @implements(AeFactory)
