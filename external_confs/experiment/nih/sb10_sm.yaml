@@ -17,6 +17,7 @@ defaults:
     - override /wandb: base
     - _self_
 
+seed: 0
 dm:
     batch_size_tr: 12
     batch_size_te: 64
@@ -24,9 +25,9 @@ dm:
 
 alg:
     steps: 10000
-    ga_steps: 1
+    ga_steps: 2
     num_disc_updates: 5
-    twoway_disc_loss: true
+    twoway_disc_loss: false
     prior_loss_w: 0
     log_freq: ${alg.steps} # only log on the final iteration
     val_freq: 0.1
@@ -65,7 +66,7 @@ disc_arch:
     agg_input_dim: null
     input_norm: true
     final_bias: true
-    agg_fn: KVQ
+    agg_fn: GATED
 
 eval:
     batch_size: 12
