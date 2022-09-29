@@ -11,7 +11,7 @@ defaults:
     - override /ae: base
     # - override /ae_arch: resnet
     # - override /ae_arch: artifact
-    - override /ae_arch: in_vqgan
+    - override /ae_arch: artifact/nih/gender_infiltration_sb10_0_vqgan
     - override /disc: base
     - override /disc_arch: set
     - override /scorer: nih/sm
@@ -20,7 +20,7 @@ defaults:
 
 seed: 0
 dm:
-    batch_size_tr: 12
+    batch_size_tr: 4
     batch_size_te: 64
     num_samples_per_group_per_bag: 1
 
@@ -28,10 +28,10 @@ alg:
     steps: 10000
     ga_steps: 2
     num_disc_updates: 5
-    twoway_disc_loss: false
+    twoway_disc_loss: true
     prior_loss_w: 0
     log_freq: ${alg.steps} # only log on the final iteration
-    val_freq: 0.1
+    val_freq: 0.2
     pred_y_loss_w: 0
     pred_s_loss_w: 0
     warmup_steps: 0
@@ -39,7 +39,7 @@ alg:
 
 ae:
     recon_loss: l1
-    lr: 1.e-4
+    lr: 1.e-5
     zs_transform: none
     feature_group_slices: null
     optimizer_cls: ADAM
@@ -55,15 +55,15 @@ ae:
 #     version: 0
 
 disc:
-    lr: 4.e-4
+    lr: 8.e-5
     criterion: LOGISTIC_NS
     optimizer_cls: ADAM
 
 disc_arch:
     hidden_dim_pre: null
     hidden_dim_post: null
-    num_hidden_post: 1
     num_hidden_pre: 1
+    num_hidden_post: ${disc_arch.num_hidden_pre}
     agg_input_dim: null
     input_norm: true
     final_bias: true

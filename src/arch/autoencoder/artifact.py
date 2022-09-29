@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, Final, Optional, Tuple, Union
+from typing import Any, Dict, Final, Optional, Tuple, Union, cast
 
 from hydra.utils import instantiate
 from loguru import logger
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from ranzen.decorators import implements
 import torch
 import wandb
@@ -34,7 +34,9 @@ def save_ae_artifact(
     name: str,
 ) -> None:
     if isinstance(config, DictConfig):
-        config = dict(config)
+        config = cast(
+            Dict[str, Any], OmegaConf.to_container(config, throw_on_missing=True, enum_to_str=False)
+        )
     assert "_target_" in config
     with TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)

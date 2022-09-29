@@ -24,12 +24,13 @@ search_space: null
 custom_search_space: null
 
 params:
-    alg.ga_steps: range(1, 4)
-    alg.num_disc_updates: range(1, 6)
-    alg.disc_loss_w: tag(log, interval(1.e-1, 10.0)) 
+    alg.ga_steps: choice(3)
+    alg.num_disc_updates: range(3, 6)
+    alg.disc_loss_w: interval(1.e-1, 1.0)
     alg.twoway_disc_loss: choice(true, false)
-    ae.lr: tag(log, interval(1.e-5, 1.e-3))
-    disc.lr: tag(log, interval(1.e-5, 1.e-3))
-    # disc.criterion: choice(WASSERSTEIN)
-    # ae.zs_dim: choice(1, 2)
-    # disc_arch.agg_fn: choice(KVQ, GATED)
+    ae.lr: tag(log, interval(1.e-6, 1.e-4))
+    disc.lr: tag(log, interval(1.e-6, 1.e-4))
+    disc.criterion: choice(LOGISTIC_NS)
+    # disc_arch.num_hidden_pre: choice(1, 2)
+    # ae.zs_dim: choice(1, 8)
+    disc_arch.agg_fn: choice(KVQ, GATED)

@@ -148,7 +148,7 @@ class Encoder(nn.Module):
         latent_dim: int,
         dropout: float = 0.0,
         resamp_with_conv: bool = True,
-        ch_mult: Tuple[int, ...] = (1, 2, 4, 8),
+        ch_mult: Sequence[int] = (1, 2, 4, 8),
     ) -> None:
         super().__init__()
         self.ch = ch
@@ -324,7 +324,7 @@ class Decoder(nn.Module):
 @dataclass(eq=False)
 class VqGanAe(AeFactory):
     attn_resolutions: List[int]
-    ch_mult: List
+    ch_mult: List[int]
     latent_dim: int
     init_chans: int
     num_res_blocks: int
