@@ -11,8 +11,6 @@ from conduit import metrics as cdtm
 from conduit.models.utils import prefix_keys
 import ethicml as em
 import ethicml.metrics as emm
-from ethicml.run import run_metrics
-from ethicml.utility.data_structures import LabelTuple
 from loguru import logger
 import numpy as np
 import pandas as pd
@@ -35,7 +33,7 @@ __all__ = [
 @dataclass
 class EmEvalPair:
     pred: em.Prediction
-    actual: LabelTuple
+    actual: em.LabelTuple
 
     @classmethod
     def from_et(cls, et: EvalTuple, *, pred_s: bool = False) -> Self:
@@ -50,7 +48,7 @@ class EmEvalPair:
         pred = em.Prediction(hard=pd.Series(to_numpy(y_pred.flatten())))
         sens_pd = pd.Series(to_numpy(tensor=s.flatten()).astype(np.float32), name="subgroup")
         labels_pd = pd.Series(to_numpy(y_true.flatten()), name="labels")
-        actual = LabelTuple.from_df(s=sens_pd, y=sens_pd if pred_s else labels_pd)
+        actual = em.LabelTuple.from_df(s=sens_pd, y=sens_pd if pred_s else labels_pd)
         return cls(pred=pred, actual=actual)
 
 
@@ -105,7 +103,7 @@ def compute_metrics(
     predictions = pair.pred
     actual = pair.actual
     predictions._info = {}  # type: ignore
-    metrics = run_metrics(
+    metrics = emm.run_metrics(
         predictions=predictions,
         actual=actual,
         metrics=[emm.Accuracy(), emm.TPR(), emm.TNR(), emm.RenyiCorrelation()],  # type: ignore
