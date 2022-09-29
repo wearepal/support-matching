@@ -354,18 +354,18 @@ six = ">=1.4.0"
 
 [[package]]
 name = "ethicml"
-version = "1.0.0b2"
+version = "1.0.0"
 description = "EthicML is a library for performing and assessing algorithmic fairness. Unlike other libraries, EthicML isn't an education tool, but rather a researcher's toolkit."
 category = "main"
 optional = false
 python-versions = ">=3.8,<3.11"
 
 [package.dependencies]
-folktables = {version = ">=0.0.11,<0.0.12", optional = true, markers = "extra == \"data\" or extra == \"all\" or extra == \"ci\""}
 joblib = ">=1.1.0,<2.0.0"
 numpy = ">=1.20.1"
 pandas = ">=1.0,<2.0"
 ranzen = ">=2.0.1,<3.0.0"
+scikit-learn = {version = ">=0.20.1", optional = true, markers = "extra == \"metrics\" or extra == \"models\" or extra == \"all\" or extra == \"ci\""}
 teext = ">=0.1.3,<0.2.0"
 typing-extensions = ">=4.0"
 
@@ -388,20 +388,6 @@ python-versions = ">=3.7"
 [package.extras]
 docs = ["furo (>=2022.6.21)", "sphinx (>=5.1.1)", "sphinx-autodoc-typehints (>=1.19.1)"]
 testing = ["covdefaults (>=2.2)", "coverage (>=6.4.2)", "pytest (>=7.1.2)", "pytest-cov (>=3)", "pytest-timeout (>=2.1)"]
-
-[[package]]
-name = "folktables"
-version = "0.0.11"
-description = "New machine learning benchmarks from tabular datasets."
-category = "main"
-optional = false
-python-versions = ">=3.7"
-
-[package.dependencies]
-numpy = "*"
-pandas = "*"
-requests = "*"
-sklearn = "*"
 
 [[package]]
 name = "fonttools"
@@ -1585,17 +1571,6 @@ optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
-name = "sklearn"
-version = "0.0"
-description = "A set of python modules for machine learning and data mining"
-category = "main"
-optional = false
-python-versions = "*"
-
-[package.dependencies]
-scikit-learn = "*"
-
-[[package]]
 name = "smmap"
 version = "5.0.0"
 description = "A pure Python implementation of a sliding window memory map manager"
@@ -1836,7 +1811,7 @@ fair = ["ethicml (>=0.7.3)"]
 type = "git"
 url = "https://github.com/wearepal/conduit.git"
 reference = "main"
-resolved_reference = "7fa55d6ce3927e5296d492389a7a204e3cf42935"
+resolved_reference = "ccea029710d31f5d5580000cbe79e51381564328"
 
 [[package]]
 name = "torchaudio"
@@ -2097,7 +2072,7 @@ testing = ["func-timeout", "jaraco.itertools", "pytest (>=6)", "pytest-black (>=
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.9.11,<3.11"
-content-hash = "bda8bc44c390c8728c23bb5eb46941a13c628a907fe0cda195965442973b0aab"
+content-hash = "5f6b8843f6f34abf10934593dcbbf4d65d597781f892a6def470239d5299e76f"
 
 [metadata.files]
 absl-py = [
@@ -2448,15 +2423,12 @@ docker-pycreds = [
     {file = "docker_pycreds-0.4.0-py2.py3-none-any.whl", hash = "sha256:7266112468627868005106ec19cd0d722702d2b7d5912a28e19b826c3d37af49"},
 ]
 ethicml = [
-    {file = "EthicML-1.0.0b2-py3-none-any.whl", hash = "sha256:a8e187806049404203c6ec761fcb89ad4fc15eb52654bfec1d69bd6ba837819d"},
-    {file = "EthicML-1.0.0b2.tar.gz", hash = "sha256:21dd70980723747680df308ed150f27f9b5fe36e33c7d8cc3c51a2dc76a3d785"},
+    {file = "EthicML-1.0.0.tar.gz", hash = "sha256:d30719310154482f06b303ae58d3af91c4ed73435b7efe55cf596737fe9bba2e"},
+    {file = "ethicml-1.0.0-py3-none-any.whl", hash = "sha256:a8aef8f45e4b907a5b0a488852a2cfac2f5f5b2c45a488a84b6a48f2ed9cd800"},
 ]
 filelock = [
     {file = "filelock-3.8.0-py3-none-any.whl", hash = "sha256:617eb4e5eedc82fc5f47b6d61e4d11cb837c56cb4544e39081099fa17ad109d4"},
     {file = "filelock-3.8.0.tar.gz", hash = "sha256:55447caa666f2198c5b6b13a26d2084d26fa5b115c00d065664b2124680c4edc"},
-]
-folktables = [
-    {file = "folktables-0.0.11.tar.gz", hash = "sha256:e8e133e08975d9c28800fee0385a45fe123d26dad6b887bef7177360217f279d"},
 ]
 fonttools = [
     {file = "fonttools-4.37.3-py3-none-any.whl", hash = "sha256:a5bc5f5d48faa4085310b8ebd4c5d33bf27c6636c5f10a7de792510af2745a81"},
@@ -3731,9 +3703,6 @@ shortuuid = [
 six = [
     {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
     {file = "six-1.16.0.tar.gz", hash = "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926"},
-]
-sklearn = [
-    {file = "sklearn-0.0.tar.gz", hash = "sha256:e23001573aa194b834122d2b9562459bf5ae494a2d59ca6b8aa22c85a44c0e31"},
 ]
 smmap = [
     {file = "smmap-5.0.0-py3-none-any.whl", hash = "sha256:2aba19d6a040e78d8b09de5c57e96207b09ed71d8e55ce0959eeee6c8e190d94"},
