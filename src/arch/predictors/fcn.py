@@ -12,13 +12,7 @@ from src.arch.common import Activation, BiaslessLayerNorm
 
 from .base import PredictorFactory, PredictorFactoryOut
 
-__all__ = [
-    "BatchAggregatorEnum",
-    "Fcn",
-    "NormType",
-    "SetFcn",
-    "SetPredictor",
-]
+__all__ = ["BatchAggregatorEnum", "Fcn", "NormType", "SetFcn", "SetPredictor"]
 
 
 class NormType(Enum):
@@ -60,19 +54,10 @@ class Fcn(PredictorFactory):
         if self.num_hidden > 0:
             hidden_dim = input_dim if self.hidden_dim is None else self.hidden_dim
             for _ in range(self.num_hidden):
-                predictor.append(
-                    self._make_block(
-                        in_features=curr_dim,
-                        out_features=hidden_dim,
-                    )
-                )
+                predictor.append(self._make_block(in_features=curr_dim, out_features=hidden_dim))
                 curr_dim = hidden_dim
         predictor.append(
-            nn.Linear(
-                in_features=curr_dim,
-                out_features=target_dim,
-                bias=self.final_bias,
-            )
+            nn.Linear(in_features=curr_dim, out_features=target_dim, bias=self.final_bias)
         )
         return predictor, target_dim
 

@@ -16,10 +16,7 @@ from src.data import DataModule
 from .encode import Encodings, generate_encodings
 from .finetuning import FineTuner
 
-__all__ = [
-    "ClipVersion",
-    "ClipVisualEncoder",
-]
+__all__ = ["ClipVersion", "ClipVisualEncoder"]
 
 
 class ClipVersion(Enum):

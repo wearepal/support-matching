@@ -131,7 +131,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         if self.pred_y_loss_w > 0:
             model, _ = Fcn(hidden_dim=self.pred_y_hidden_dim,)(
                 input_dim=ae.encoding_size.zy, target_dim=y_dim
-            )[0]
+            )
             pred_y = Classifier(model=model, lr=self.lr).to(self.device)
         pred_s = None
         if self.pred_s_loss_w > 0:
