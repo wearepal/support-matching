@@ -128,3 +128,6 @@ dmypy.json
 /flags_bak/
 
 /rayjobs/
+
+/conf/
+/artifacts/

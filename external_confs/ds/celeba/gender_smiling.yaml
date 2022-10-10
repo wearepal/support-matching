@@ -2,8 +2,8 @@
 defaults:
   - /schema/ds: celeba
   - _self_
-root: /srv/galene0/shared/data/
-download: true
+root: /srv/galene0/shared/data
+download: false
 superclass: Smiling
 subclass: Male
 transform: null

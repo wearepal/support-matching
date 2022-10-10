@@ -110,6 +110,7 @@ class FineTuner(DcModule):
 
             if (step % val_freq) == 0:
                 last_acc = self.validate(model, val_loader=val_loader, device=device, step=step)
+                model.train()
             pbar.set_postfix(loss=loss, last_acc=last_acc)
 
     def train_step(

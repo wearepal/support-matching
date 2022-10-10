@@ -97,6 +97,7 @@ class KMeans:
         train_clusters = dm.group_ids_tr.unique()
         dep_clusters = dm.group_ids_dep.unique()
         n_clusters = len(dep_clusters)
+        logger.info(f"clusters in deployment set: {n_clusters}; in training: {len(train_clusters)}")
 
         if self.supervised_cluster_init:
             logger.info("Using pre-computed centroids")

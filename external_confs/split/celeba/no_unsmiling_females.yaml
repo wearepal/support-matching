@@ -1,0 +1,7 @@
+---
+defaults:
+  - celeba/all@_here_
+  - _self_
+
+artifact_name: split_celeba_no_unsmiling_females_${oc.env:SLURM_NODELIST}_${.seed}
+train_subsampling_props: {0: {0: 0}} # Drop all unsmiling females

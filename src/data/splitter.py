@@ -3,13 +3,12 @@ from dataclasses import dataclass
 from pathlib import Path
 import platform
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, Final, List, Optional, Union, cast
+from typing import Any, Dict, Final, List, Optional, TypedDict, Union, cast
 
 from conduit.data.constants import IMAGENET_STATS
 from conduit.data.datasets import CdtVisionDataset
 from conduit.data.datasets.utils import ImageTform, PillowTform, stratified_split
 from loguru import logger
-from pandas.io.formats.style_render import TypedDict
 from ranzen import implements
 import torch
 from torch import Tensor
