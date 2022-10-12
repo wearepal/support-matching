@@ -1,6 +1,6 @@
 # Code derived from https://github.com/CompVis/taming-transformers/tree/master/taming/models
 from dataclasses import dataclass
-from typing import Optional, Sequence, Tuple, List
+from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
 from ranzen import implements

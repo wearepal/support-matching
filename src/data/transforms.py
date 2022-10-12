@@ -1,6 +1,7 @@
+from functools import partial
+
 import torchvision.transforms as T
 import torchvision.transforms.functional as TF
-from functools import partial
 
 __all__ = ["random_rot90"]
 
