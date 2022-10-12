@@ -1,0 +1,7 @@
+---
+defaults:
+  - celeba/artifact/base@_here_
+  - _self_
+
+artifact_name: split_celeba_no_smiling_females_goedel_0
+version: null # defaults to 'latest'

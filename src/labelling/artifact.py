@@ -78,9 +78,11 @@ def load_labels_from_artifact(
     project: str | None = None,
     root: Path | str | None = None,
     version: int | None = None,
+    name: str | None = None,
 ) -> Tensor:
     root = _process_root_dir(root)
-    name, _ = _artifact_info_from_dm(datamodule)
+    if name is None:
+        name, _ = _artifact_info_from_dm(datamodule)
     version_str = ":latest" if version is None else f":v{version}"
     artifact_dir = root / name / version_str
     versioned_name = name + version_str

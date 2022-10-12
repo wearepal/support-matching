@@ -1,6 +1,6 @@
 # @package _global_
 
-# usage: +experiment=nih/sb10_sm
+# usage: +experiment=nih/sb10_gender_infiltration_pt
 
 defaults:
     - override /ds: nih/gender_infiltration
@@ -9,14 +9,14 @@ defaults:
     - override /labeller: gt
     - override /split: nih/sb10_gender_infiltration_art
     - override /ae: base
-    # - override /ae_arch: resnet
-    - override /ae_arch: artifact
+    - override /ae_arch: in_vqgan
     - override /disc: base
     - override /disc_arch: set
-    - override /scorer: nih/sm
+    - override /scorer: none
     - override /wandb: base
     - _self_
 
+seed: 0
 dm:
     batch_size_tr: 12
     batch_size_te: 64
@@ -25,48 +25,26 @@ dm:
 alg:
     steps: 10000
     ga_steps: 1
-    num_disc_updates: 6
+    num_disc_updates: 0
     twoway_disc_loss: false
     prior_loss_w: 0
     log_freq: ${alg.steps} # only log on the final iteration
-    val_freq: 0.20
-    disc_loss_w: 0.21854129142604625
+    val_freq: 1.0
     pred_y_loss_w: 0
     pred_s_loss_w: 0
     warmup_steps: 0
     max_grad_norm: 5
+    disc_loss_w: 0
+    artifact_name: ${split.artifact_name}_in_vqgan_pt
 
 ae:
     recon_loss: l1
-    lr: 0.000017684676704416717
+    lr: 1.e-4
     zs_transform: none
     feature_group_slices: null
     optimizer_cls: ADAM
     weight_decay: 0
     zs_dim: 1
-
-ae_arch:
-    # version: RN18
-    # latent_dim: 128
-    # first_conv: false
-    # maxpool1: false
-    artifact_name: nih_gender_infiltration_sb10_0_ae
-    version: 0
-
-disc:
-    lr: 0.00008668740185182302
-    criterion: LOGISTIC_NS
-    optimizer_cls: ADAM
-
-disc_arch:
-    hidden_dim_pre: null
-    hidden_dim_post: null
-    num_hidden_pre: 1
-    num_hidden_post: ${disc_arch.num_hidden_pre}
-    agg_input_dim: null
-    input_norm: true
-    final_bias: true
-    agg_fn: GATED
 
 eval:
     batch_size: 12
@@ -81,4 +59,4 @@ eval:
         eta_min: 5e-7
 
 wandb:
-    group: nih_sb10_sm
+    group: ${split.artifact_name}_ae_pretraining
