@@ -120,12 +120,17 @@ class KmeansOnClipEncodings(DcModule, Labeller):
 @dataclass
 class LabelFromArtifact(Labeller):
     version: Optional[int] = None  # latest by default
+    artifact_name: Optional[str] = None
     root: Optional[Path] = None  # artifacts/clustering by default
 
     @implements(Labeller)
     def run(self, dm: DataModule) -> Tensor:
         return load_labels_from_artifact(
-            run=wandb.run, datamodule=dm, version=self.version, root=self.root
+            run=wandb.run,
+            datamodule=dm,
+            version=self.version,
+            root=self.root,
+            artifact_name=self.artifact_name,
         )
 
 
