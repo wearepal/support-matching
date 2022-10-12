@@ -225,15 +225,15 @@ def _process_root_dir(root: Optional[Union[Path, str]]) -> Path:
 def load_split_inds_from_artifact(
     run: Optional[Union[Run, RunDisabled]],
     *,
-    artifact_name: str,
+    name: str,
     project: Optional[str] = None,
     root: Optional[Union[Path, str]] = None,
     version: Optional[int] = None,
 ) -> SavedSplitInds:
     root = _process_root_dir(root)
     version_str = ":latest" if version is None else f":v{version}"
-    artifact_dir = root / artifact_name / version_str
-    versioned_name = artifact_name + version_str
+    artifact_dir = root / name / version_str
+    versioned_name = name + version_str
     filepath = artifact_dir / FILENAME
     if not filepath.exists():
         if run is None:
@@ -266,7 +266,7 @@ class SplitFromArtifact(DataSplitter, _ArtifactLoaderMixin):
     @implements(DataSplitter)
     def split(self, dataset: D) -> TrainDepTestSplit[D]:
         splits = load_split_inds_from_artifact(
-            run=wandb.run, artifact_name=self.artifact_name, version=self.version
+            run=wandb.run, name=self.artifact_name, version=self.version
         )
         train_data = dataset.subset(splits["train"])
         dep_data = dataset.subset(splits["dep"])

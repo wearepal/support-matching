@@ -130,7 +130,7 @@ class LabelFromArtifact(Labeller):
             datamodule=dm,
             version=self.version,
             root=self.root,
-            artifact_name=self.artifact_name,
+            name=self.artifact_name,
         )
 
 
