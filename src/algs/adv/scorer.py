@@ -20,11 +20,7 @@ from src.data import DataModule, resolve_device
 from src.models import Optimizer, SetClassifier, SplitLatentAe
 from src.utils import cat, to_item
 
-__all__ = [
-    "NeuralScorer",
-    "NullScorer",
-    "Scorer",
-]
+__all__ = ["NeuralScorer", "NullScorer", "Scorer"]
 
 _PBAR_COL: Final[str] = "#ffe252"
 
@@ -69,15 +65,8 @@ def balanced_accuracy(y_pred: Tensor, *, y_true: Tensor) -> Tensor:
     return cdtm.subclass_balanced_accuracy(y_pred=y_pred, y_true=y_true, s=y_true)
 
 
-@dataclass(eq=False)
 class Scorer(Protocol):
-    def run(
-        self,
-        dm: DataModule[CdtDataset],
-        *,
-        device: torch.device,
-        **kwargs: Any,
-    ) -> float:
+    def run(self, dm: DataModule[CdtDataset], *, device: torch.device, **kwargs: Any) -> float:
         ...
 
 

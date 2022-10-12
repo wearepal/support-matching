@@ -100,4 +100,4 @@ reportUnknownLambdaType = "none"
 reportUnknownVariableType = "none"
 reportUnknownMemberType = "none"
 reportMissingTypeArgument = "none"
-exclude = ["outputs", "multirun", "results", "data", "local_logging"]
+exclude = ["outputs", "multirun", "results", "data", "local_logging", "venv", "artifacts", "hydra_plugins", "external_confs", "conf"]

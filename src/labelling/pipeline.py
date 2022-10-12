@@ -64,6 +64,7 @@ class KmeansOnClipEncodings(DcModule, Labeller):
     supervised_cluster_init: bool = False
     n_init: int = 10
     save_as_artifact: bool = True
+    artifact_name: Optional[str] = None
 
     cache_encoder: bool = False
     encoder: Optional[ClipVisualEncoder] = field(init=False, default=None)
@@ -110,7 +111,9 @@ class KmeansOnClipEncodings(DcModule, Labeller):
         preds = torch.as_tensor(kmeans.predict(encodings.dep.numpy()), dtype=torch.long)
         if self.save_as_artifact:
             run = cast(Optional[Run], wandb.run)
-            save_labels_as_artifact(run=run, labels=preds, datamodule=dm)
+            save_labels_as_artifact(
+                run=run, labels=preds, datamodule=dm, artifact_name=self.artifact_name
+            )
         return preds
 
 

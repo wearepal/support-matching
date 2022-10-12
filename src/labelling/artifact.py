@@ -15,10 +15,7 @@ from wandb.wandb_run import Run
 
 from src.data import DataModule
 
-__all__ = [
-    "load_labels_from_artifact",
-    "save_labels_as_artifact",
-]
+__all__ = ["load_labels_from_artifact", "save_labels_as_artifact"]
 FILENAME: Final[str] = "labels.pt"
 
 
@@ -39,6 +36,7 @@ def save_labels_as_artifact(
     *,
     labels: Tensor | npt.NDArray,
     datamodule: DataModule,
+    artifact_name: str | None = None,
 ) -> Optional[str]:
     if run is None:
         run = cast(Optional[Run], wandb.run)
@@ -51,7 +49,9 @@ def save_labels_as_artifact(
         labels = torch.as_tensor(labels, dtype=torch.long)
     with TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)
-        artifact_name, metadata = _artifact_info_from_dm(datamodule)
+        default_artifact_name, metadata = _artifact_info_from_dm(datamodule)
+        if artifact_name is None:
+            artifact_name = default_artifact_name
         save_path = tmpdir / FILENAME
         torch.save(labels, f=save_path)
         artifact = wandb.Artifact(artifact_name, type="labels", metadata=metadata)
