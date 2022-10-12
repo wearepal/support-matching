@@ -40,7 +40,7 @@ class WandbConf:
     reinit: bool = True
     job_type: Optional[str] = None
     resume: Optional[str] = None
-    dir: Optional[str] = "local_logging"
+    dir: Optional[str] = ".wandb"
     notes: Optional[str] = None
 
 

@@ -13,8 +13,9 @@ train_transforms:
     _target_: torchvision.transforms.Compose
     transforms:
         - _target_: torchvision.transforms.Resize
-          size: 224
+          size: 256
         - _target_: torchvision.transforms.RandomHorizontalFlip
+        # - _target_: src.data.transforms.random_rot90
         - _target_: torchvision.transforms.ToTensor
           # ImageNet channel-wise moments
         - _target_: torchvision.transforms.Normalize
@@ -25,7 +26,7 @@ test_transforms:
     _target_: torchvision.transforms.Compose
     transforms:
         - _target_: torchvision.transforms.Resize
-          size: 224
+          size: 256
         - _target_: torchvision.transforms.ToTensor
           # ImageNet channel-wise moments
         - _target_: torchvision.transforms.Normalize

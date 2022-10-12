@@ -82,13 +82,14 @@ class Scorer(Protocol):
 
 
 @dataclass(eq=False)
-class NullScorer(Protocol):
+class NullScorer(Scorer):
+    @implements(Scorer)
     def run(self, dm: DataModule[CdtDataset], *, device: torch.device, **kwargs: Any) -> float:
         return 0.0
 
 
 @dataclass(eq=False)
-class NeuralScorer:
+class NeuralScorer(Scorer):
     steps: int = 5_000
     batch_size_tr: int = 16
     batch_size_te: Optional[int] = None

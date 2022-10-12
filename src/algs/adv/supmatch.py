@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, cast
 from typing_extensions import Self
 
 from conduit.data.structures import TernarySample
@@ -49,34 +49,39 @@ class SupportMatching(AdvSemiSupervisedAlg):
         """Compute the losses for the encoder."""
         # Compute losses for the encoder.
         logging_dict = {}
+        total_loss = x_dep.new_zeros(())
 
         with torch.cuda.amp.autocast(enabled=self.use_amp):  # type: ignore
-            # ============================= recon loss for training set ===========================
-            encoding_t, enc_loss_tr, logging_dict_tr = comp.ae.training_step(
-                batch_tr.x,
-                prior_loss_w=self.prior_loss_w,
-                s=batch_tr.s if self.s_as_zs else None,  # using s for the reconstruction
-            )
+            if self.enc_loss_w > 0:
+                # ============================= recon loss for training set ===========================
+                encoding_tr, enc_loss_tr, logging_dict_tr = comp.ae.training_step(
+                    batch_tr.x,
+                    prior_loss_w=self.prior_loss_w,
+                    s=batch_tr.s if self.s_as_zs else None,  # using s for the reconstruction
+                )
 
-            # ============================ recon loss for deployment set ===========================
-            encoding_c, enc_loss_dep, logging_dict_dep = comp.ae.training_step(
-                x_dep, prior_loss_w=self.prior_loss_w
-            )
-            logging_dict.update(
-                {k: (v + logging_dict_dep[k]) / 2 for k, v in logging_dict_tr.items()}
-            )
-            enc_loss_tr = (enc_loss_tr + enc_loss_dep) / 2
-            enc_loss_tr *= self.enc_loss_w
-            logging_dict["loss/autoencoder"] = to_item(enc_loss_tr)
-            total_loss = enc_loss_tr
+                # ============================ recon loss for deployment set ===========================
+                encoding_dep, enc_loss_dep, logging_dict_dep = comp.ae.training_step(
+                    x_dep, prior_loss_w=self.prior_loss_w
+                )
+                logging_dict.update(
+                    {k: (v + logging_dict_dep[k]) / 2 for k, v in logging_dict_tr.items()}
+                )
+                enc_loss_tr = (enc_loss_tr + enc_loss_dep) / 2
+                enc_loss_tr *= self.enc_loss_w
+                logging_dict["loss/autoencoder"] = to_item(enc_loss_tr)
+                total_loss += enc_loss_tr
+            else:
+                encoding_tr = comp.ae.encode(batch_tr.x)
+                encoding_dep = comp.ae.encode(x_dep)
             # ================================= adversarial losses ================================
             if not warmup:
-                disc_input_tr = encoding_t.zy
+                disc_input_tr = encoding_tr.zy
                 if isinstance(comp.disc, NeuralDiscriminator):
-                    disc_input_dep = encoding_c.zy if self.twoway_disc_loss else None
+                    disc_input_dep = encoding_dep.zy if self.twoway_disc_loss else None
                     disc_loss = comp.disc.encoder_loss(fake=disc_input_tr, real=disc_input_dep)
                 else:
-                    disc_input_dep = encoding_c.zy
+                    disc_input_dep = encoding_dep.zy
                     if not self.twoway_disc_loss:
                         disc_input_dep = disc_input_dep.detach()
                     disc_loss = comp.disc.encoder_loss(fake=disc_input_tr, real=disc_input_dep)
@@ -87,8 +92,8 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
             loss_pred, ld_pred = self._predictor_loss(
                 comp=comp,
-                zy=encoding_t.zy,
-                zs=encoding_t.zs,
+                zy=encoding_tr.zy,
+                zs=encoding_tr.zs,
                 y=batch_tr.y,
                 s=batch_tr.s,
             )
@@ -169,14 +174,16 @@ class SupportMatching(AdvSemiSupervisedAlg):
         evaluator: Evaluator,
         scorer: Optional[Scorer] = None,
     ) -> Optional[float]:
-        disc_model_cp = None
+        disc_model_sd0 = None
         if (
             (scorer is not None)
             and isinstance(disc, NeuralDiscriminator)
             and isinstance(disc.model, SetPredictor)
         ):
-            disc_model_cp = gcopy(disc.model, deep=True)
+            disc_model_sd0 = disc.model.state_dict()
         super().run(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
         # TODO: Generalise this to other discriminator types and architectures
-        if (scorer is not None) and (disc_model_cp is not None):
-            return scorer.run(dm=dm, ae=ae, disc=disc_model_cp, device=self.device, use_wandb=True)
+        if (scorer is not None) and (disc_model_sd0 is not None):
+            disc = cast(NeuralDiscriminator, disc)
+            disc.model.load_state_dict(disc_model_sd0)
+            return scorer.run(dm=dm, ae=ae, disc=disc.model, device=self.device, use_wandb=True)
