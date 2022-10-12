@@ -8,12 +8,12 @@ defaults:
     - override /labeller: none
     - override /split: nih/sb10_gender_infiltration_art
     - override /wandb: base
-    - override /backbone: resnet
+    - override /backbone: densenet
     - override /predictor: fcn
     - _self_
 
 backbone:
-    version: RN18
+    version: DN121
 
 predictor:
     num_hidden: 1

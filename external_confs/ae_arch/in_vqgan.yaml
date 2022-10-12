@@ -1,0 +1,12 @@
+---
+defaults:
+  - /schema/ae_arch: vqgan
+  - _self_
+# Config taken from:
+# https://github.com/CompVis/taming-transformers/blob/master/configs/imagenet_vqgan.yaml
+latent_dim: 256
+init_chans: 128
+attn_resolutions: [16]
+num_res_blocks: 2
+ch_mult: [1, 1, 2, 2, 4]
+dropout: 0.0

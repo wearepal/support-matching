@@ -44,7 +44,7 @@ def _up_conv(
     )
 
 
-@dataclass
+@dataclass(eq=False)
 class SimpleConvAE(AeFactory):
     latent_dim: int = 128
     levels: int = 4

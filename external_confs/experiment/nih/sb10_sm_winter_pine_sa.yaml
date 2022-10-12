@@ -1,0 +1,11 @@
+# @package _global_
+
+# usage: +experiment=nih/sb10_sm_winter_pine
+defaults:
+    - nih/sb10_sm_winter_pine
+    - override /labeller: centroidal_noise
+    - _self_
+
+labeller:
+    enc_batch_size: 64
+    metric: COSINE

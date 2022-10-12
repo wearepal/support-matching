@@ -3,7 +3,7 @@ from __future__ import annotations
 from conduit.data.datasets.vision import Camelyon17, CelebA, ColoredMNIST
 from ranzen.hydra import Option
 
-from src.arch.autoencoder import ResNetAE, SimpleConvAE
+from src.arch.autoencoder import AeFromArtifact, ResNetAE, SimpleConvAE, VqGanAe
 from src.arch.predictors.fcn import Fcn
 from src.data.nih import NIHChestXRayDataset
 from src.labelling.pipeline import (
@@ -25,8 +25,10 @@ def main() -> None:
         Option(NIHChestXRayDataset, name="nih"),
     ]
     ae_arch_ops = [
-        Option(SimpleConvAE, name="simple"),
+        Option(AeFromArtifact, name="artifact"),
         Option(ResNetAE, name="resnet"),
+        Option(SimpleConvAE, name="simple"),
+        Option(VqGanAe, name="vqgan"),
     ]
     disc_arch_ops = [Option(Fcn, name="fcn")]
     labeller_ops = [

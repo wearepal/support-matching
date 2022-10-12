@@ -16,6 +16,7 @@ from .base import BackboneFactory, BackboneFactoryOut
 __all__ = [
     "Beit",
     "ConvNeXt",
+    "DenseNet",
     "NfNet",
     "ResNet",
     "SimpleCNN",
@@ -40,11 +41,40 @@ class ResNet(BackboneFactory):
     @implements(BackboneFactory)
     def __call__(self, input_dim: int) -> BackboneFactoryOut[tvm.ResNet]:
         fn_name = f"resnet{self.version.value}"
-        weights_enum_name = f"ResNet{self.version.value}_Weights"
-        enum: tvm._api.WeightsEnum = getattr(tvm, weights_enum_name)  # type: ignore
-        model: tvm.ResNet = getattr(tvm, fn_name)(weights=enum.DEFAULT)
+        if self.pretrained:
+            weights_enum_name = f"ResNet{self.version.value}_Weights"
+            weights = getattr(tvm, weights_enum_name).DEFAULT
+        else:
+            weights = None
+        model: tvm.ResNet = getattr(tvm, fn_name)(weights=weights)
         out_dim = model.fc.in_features
         model.fc = nn.Identity()  # type: ignore
+        return model, out_dim
+
+
+class DenseNetVersion(Enum):
+    DN121 = "121"
+    DN161 = "161"
+    DN169 = "169"
+    DN201 = "201"
+
+
+@dataclass
+class DenseNet(BackboneFactory):
+    pretrained: bool = False
+    version: DenseNetVersion = DenseNetVersion.DN121
+
+    @implements(BackboneFactory)
+    def __call__(self, input_dim: int) -> BackboneFactoryOut[tvm.DenseNet]:
+        fn_name = f"densenet{self.version.value}"
+        if self.pretrained:
+            weights_enum_name = f"DenseNet{self.version.value}_Weights"
+            weights = getattr(tvm, weights_enum_name).DEFAULT
+        else:
+            weights = None
+        model: tvm.DenseNet = getattr(tvm, fn_name)(weights=weights)
+        out_dim = model.classifier.in_features
+        model.classifier = nn.Identity()  # type: ignore
         return model, out_dim
 
 

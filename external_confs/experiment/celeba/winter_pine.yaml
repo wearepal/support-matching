@@ -1,17 +1,16 @@
 # @package _global_
 
-# usage: +experiment=nih/sb10_sm
+# usage: +experiment=nih/sb10_sm_winter_pine
 
 defaults:
-    - override /ds: nih/gender_infiltration
-    - override /dm: nih/base
+    - override /ds: celeba/gender_smiling
+    - override /dm: celeba/base
     - override /alg: base
     - override /labeller: gt
     - override /split: nih/sb10_gender_infiltration_art
     - override /ae: base
-    # - override /ae_arch: resnet
-    # - override /ae_arch: artifact
-    - override /ae_arch: artifact/nih/gender_infiltration_sb10_0_vqgan
+    - override /ae_arch: in_vqgan
+    # - override /ae_arch: artifact/nih/gender_infiltration_sb10_0_vqgan
     - override /disc: base
     - override /disc_arch: set
     - override /scorer: nih/sm
@@ -26,9 +25,9 @@ dm:
 
 alg:
     steps: 10000
-    ga_steps: 2
+    ga_steps: 4
     num_disc_updates: 5
-    twoway_disc_loss: true
+    twoway_disc_loss: false
     prior_loss_w: 0
     log_freq: ${alg.steps} # only log on the final iteration
     val_freq: 0.2
@@ -36,26 +35,19 @@ alg:
     pred_s_loss_w: 0
     warmup_steps: 0
     max_grad_norm: 5
+    disc_loss_w: 0.05
 
 ae:
     recon_loss: l1
-    lr: 1.e-5
+    lr: 0.0000018348295456200725
     zs_transform: none
     feature_group_slices: null
     optimizer_cls: ADAM
     weight_decay: 0
     zs_dim: 1
 
-# ae_arch:
-#     # version: RN18
-#     # latent_dim: 128
-#     # first_conv: false
-#     # maxpool1: false
-#     artifact_name: nih_gender_infiltration_sb10_0_ae
-#     version: 0
-
 disc:
-    lr: 8.e-5
+    lr: 0.000027080358427157673
     criterion: LOGISTIC_NS
     optimizer_cls: ADAM
 
@@ -67,7 +59,7 @@ disc_arch:
     agg_input_dim: null
     input_norm: true
     final_bias: true
-    agg_fn: GATED
+    agg_fn: KVQ
 
 eval:
     batch_size: 12
@@ -82,4 +74,4 @@ eval:
         eta_min: 5e-7
 
 wandb:
-    group: nih_sb10_sm
+    group: nih_sb10_sm_winter_pine

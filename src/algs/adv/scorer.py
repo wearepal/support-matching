@@ -72,6 +72,7 @@ class Scorer(Protocol):
 
 @dataclass(eq=False)
 class NullScorer(Scorer):
+    @implements(Scorer)
     def run(self, dm: DataModule[CdtDataset], *, device: torch.device, **kwargs: Any) -> float:
         return 0.0
 
