@@ -15,9 +15,10 @@ defaults:
     - override /scorer: none
     - override /wandb: base
 
+artifact_name: ${split.artifact_name}_in_vqgan_pt
 seed: 0
 dm:
-    batch_size_tr: 16
+    batch_size_tr: 12
     batch_size_te: 64
     num_samples_per_group_per_bag: 1
 
@@ -34,7 +35,6 @@ alg:
     warmup_steps: 0
     max_grad_norm: 5
     disc_loss_w: 0
-    artifact_name: ${split.artifact_name}_in_vqgan_pt
 
 ae:
     recon_loss: l1

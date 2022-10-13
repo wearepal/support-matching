@@ -39,9 +39,11 @@ class Downsample(nn.Module):
         if self.with_conv:
             # no asymmetric padding in torch conv, must do it ourselves
             self.conv = nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=0)
+        else:
+            self.conv = None
 
     def forward(self, x: Tensor) -> Tensor:  # type: ignore
-        if self.with_conv:
+        if self.conv is not None:
             pad = (0, 1, 0, 1)
             x = F.pad(x, pad, mode="constant", value=0)
             return self.conv(x)
@@ -336,7 +338,7 @@ class VqGanAe(AeFactory):
         if h != w:
             raise ValueError(
                 f"{self.__class__.__name__} expects input images to be square but received"
-                f"input resolution of {h} X {w}."
+                f" input of resolution {h} X {w}."
             )
 
         encoder = Encoder(
