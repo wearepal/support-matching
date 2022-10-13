@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from omegaconf import DictConfig, MISSING
 from ranzen.decorators import implements
 from ranzen.hydra import Option
 
@@ -13,14 +12,6 @@ __all__ = ["LabelRelay"]
 
 @dataclass(eq=False)
 class LabelRelay(BaseRelay):
-    ae: DictConfig = MISSING
-    ae_arch: DictConfig = MISSING
-    disc_arch: DictConfig = MISSING
-    disc: DictConfig = MISSING
-    eval: DictConfig = MISSING
-    scorer: DictConfig = MISSING
-    artifact_name: Optional[str] = None
-
     @classmethod
     @implements(BaseRelay)
     def with_hydra(
@@ -42,7 +33,7 @@ class LabelRelay(BaseRelay):
 
     @implements(BaseRelay)
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Optional[float]:
-        run = self.init_wandb(raw_config, self.labeller, self.ae_arch, self.disc_arch)
+        run = self.init_wandb(raw_config, self.labeller)
         self.init_dm()
         if run is not None:
             run.finish()
