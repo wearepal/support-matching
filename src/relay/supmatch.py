@@ -21,6 +21,7 @@ __all__ = ["SupMatchRelay"]
 
 @dataclass(eq=False)
 class SupMatchRelay(BaseRelay):
+    alg: DictConfig = MISSING
     ae: DictConfig = MISSING
     ae_arch: DictConfig = MISSING
     disc_arch: DictConfig = MISSING

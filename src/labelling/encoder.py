@@ -25,8 +25,8 @@ class ClipVersion(Enum):
     RN50x4 = "RN50x4"
     RN50x16 = "RN50x16"
     RN50x64 = "RN50x64"
-    ViT_B32 = "ViT-B/32"
     ViT_B16 = "ViT-B/16"
+    ViT_B32 = "ViT-B/32"
     ViT_L14 = "ViT-L/14"
 
 

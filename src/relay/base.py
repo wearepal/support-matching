@@ -30,7 +30,6 @@ Run: TypeAlias = Union[
 
 @dataclass(eq=False)
 class BaseRelay(Relay):
-    alg: DictConfig = MISSING
     dm: DataModuleConf = MISSING
     ds: DictConfig = MISSING
     labeller: DictConfig = MISSING

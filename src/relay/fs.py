@@ -19,6 +19,7 @@ __all__ = ["FsRelay"]
 
 @dataclass(eq=False)
 class FsRelay(BaseRelay):
+    alg: DictConfig = MISSING
     backbone: DictConfig = MISSING
     predictor: DictConfig = MISSING
 

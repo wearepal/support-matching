@@ -129,7 +129,7 @@ class KMeans:
                 logger.info("Done.")
             else:
                 centroids_np = centroids.numpy()
-            kmeans = SklKMeans(n_clusters=n_clusters, init=centroids_np, n_init=1)
+            kmeans = SklKMeans(n_clusters=n_clusters, init=centroids_np, n_init=1)  # type: ignore
             kmeans.fit(encodings.to_cluster)
             preds = kmeans.predict(encodings.test)
             evaluate(y_true=encodings.test_labels, y_pred=preds)

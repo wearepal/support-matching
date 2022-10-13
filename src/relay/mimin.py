@@ -20,6 +20,7 @@ __all__ = ["MiMinRelay"]
 
 @dataclass(eq=False)
 class MiMinRelay(BaseRelay):
+    alg: DictConfig = MISSING
     ae_arch: DictConfig = MISSING
     disc_arch: DictConfig = MISSING
     disc: DictConfig = MISSING
