@@ -1,0 +1,9 @@
+# usage: +experiment=nih/gdro_poly_gt
+
+defaults:
+    - nih/gdro_poly
+    - override /labeller: gt
+    - _self_
+
+wandb:
+    group: gdro_poly_gt_nih_${ds.sens_attr}_${ds.target_attr}_sb10
