@@ -15,11 +15,20 @@ __all__ = [
 
 @torch.no_grad()
 def sample_noise_indices(
-    labels: Tensor, *, level: float, generator: Optional[torch.Generator] = None
+    labels: Tensor,
+    *,
+    level: float,
+    generator: Optional[torch.Generator] = None,
+    weighted: bool = False,
 ) -> Tensor:
     if not 0 <= level <= 1:
         raise ValueError("'noise_level' must be in the range [0, 1].")
     num_to_flip = round(level * len(labels))
+    if weighted:
+        _, inv, counts = labels.unique(return_inverse=True, return_counts=True)
+        return torch.multinomial(
+            counts.reciprocal()[inv], num_samples=num_to_flip, replacement=False
+        )
     return torch.randperm(len(labels), generator=generator)[:num_to_flip]
 
 

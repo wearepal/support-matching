@@ -155,6 +155,7 @@ class GroundTruthLabeller(Labeller):
 class LabelNoiser(Labeller):
     level: float = 0.10
     seed: int = 47
+    weighted_index_sampling: bool = True
     generator: torch.Generator = field(init=False)
 
     def __post_init__(self) -> None:
@@ -174,7 +175,10 @@ class LabelNoiser(Labeller):
             f" ({self.level * 100}% of samples will have their labels altered)."
         )
         flip_inds = sample_noise_indices(
-            labels=group_ids, level=self.level, generator=self.generator
+            labels=group_ids,
+            level=self.level,
+            generator=self.generator,
+            weighted=self.weighted_index_sampling,
         )
         # Inject label-noise into the group identifiers.
         group_ids = self._noise(dep_ids=group_ids, flip_inds=flip_inds, dm=dm)
