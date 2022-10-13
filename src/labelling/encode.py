@@ -35,14 +35,15 @@ class Encodings:
     test_labels: npt.NDArray[np.int32]  # Same as above.
 
     def normalize_(self, p: float = 2) -> None:
-        self.train = F.normalize(self.train, dim=1, p=2)
-        self.dep = F.normalize(self.dep, dim=1, p=2)
-        self.test = F.normalize(torch.as_tensor(self.test), dim=1, p=2).numpy()
+        self.train = F.normalize(self.train, dim=1, p=p)
+        self.dep = F.normalize(self.dep, dim=1, p=p)
+        self.test = F.normalize(torch.as_tensor(self.test), dim=1, p=p).numpy()
 
     def save(self, fpath: Path | str) -> None:
         fpath = Path(fpath)
         logger.info(f"Saving encodings to '{fpath.resolve()}'")
-        np.savez_compressed(file=Path(fpath), **asdict(self))
+        data = {k: v if isinstance(v, np.ndarray) else v.numpy() for k, v in asdict(self).items()}
+        np.savez_compressed(Path(fpath), **data)
         logger.info("Done.")
 
     @property
@@ -56,10 +57,10 @@ class Encodings:
             loaded: NpzContent = np.load(f)
             enc = cls(
                 train=torch.from_numpy(loaded["train"]),
-                train_labels=torch.from_numpy(loaded["train_ids"]),
+                train_labels=torch.from_numpy(loaded["train_labels"]),
                 dep=torch.from_numpy(loaded["dep"]),
                 test=loaded["test"],
-                test_labels=loaded["test_ids"],
+                test_labels=loaded["test_labels"],
             )
         return enc
 
@@ -132,7 +133,7 @@ class NpzContent(TypedDict):
     """Content of the npz file (which is basically a dictionary)."""
 
     train: npt.NDArray
-    train_ids: npt.NDArray
+    train_labels: npt.NDArray
     dep: npt.NDArray
     test: npt.NDArray
-    test_ids: npt.NDArray[np.int32]
+    test_labels: npt.NDArray[np.int32]
