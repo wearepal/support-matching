@@ -17,11 +17,11 @@ from src.logging import WandbConf
 
 from .base import BaseRelay
 
-__all__ = ["ArtifactGenRelay"]
+__all__ = ["SplitRelay"]
 
 
 @dataclass(eq=False)
-class ArtifactGenRelay(Relay):
+class SplitRelay(Relay):
     ds: DictConfig = MISSING
     split: DictConfig = MISSING
     wandb: DictConfig = MISSING
@@ -61,4 +61,5 @@ class ArtifactGenRelay(Relay):
         splitter: RandomSplitter = instantiate(self.split, save_as_artifact=True)
         ds = instantiate(self.ds, root=process_data_dir(self.ds.root))
         splitter(ds)
-        run.finish()  # type: ignore
+        if run is not None:
+            run.finish()

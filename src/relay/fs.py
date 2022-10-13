@@ -61,5 +61,6 @@ class FsRelay(BaseRelay):
         predictor, _ = predictor_fn(input_dim=out_dim, target_dim=dm.card_y)
         model = nn.Sequential(backbone, predictor)
         result = alg.run(dm=dm, model=model)
-        run.finish()  # type: ignore
+        if run is not None:
+            run.finish()  # type: ignore
         return result

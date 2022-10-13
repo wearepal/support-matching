@@ -88,5 +88,5 @@ class SupMatchRelay(BaseRelay):
                 save_ae_artifact(
                     run=run, model=ae_pair, config=self.ae_arch, name=self.artifact_name
                 )
-            run.finish()  # type: ignore
+            run.finish()
         return score
