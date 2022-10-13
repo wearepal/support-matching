@@ -124,7 +124,7 @@ dmypy.json
 /multirun/
 /experiments/
 /local_logging/*
-./wandb
+/wandb
 *.pdf
 /experiments_copy/
 /flags_bak/
