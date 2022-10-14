@@ -41,14 +41,14 @@ class FineTuner(DcModule):
         if isinstance(self.val_batches, float) and (not (0 <= self.val_batches <= 1)):
             raise AttributeError("If 'val_batches' is a float, it must be in the range [0, 1].")
 
-    def run(self, dm: DataModule, *, backbone: nn.Module, out_dim: int) -> None:
+    def run(self, dm: DataModule, *, backbone: nn.Module, out_dim: int) -> nn.Sequential:
         dm = gcopy(dm, deep=False)
         dm.batch_size_tr = self.batch_size
         device = resolve_device(self.device)
 
         logger.info(f"Initialising predictor for fine-tuning.")
         model = nn.Sequential(
-            backbone, nn.Linear(in_features=out_dim, out_features=dm.num_sources_dep)
+            backbone, nn.Linear(in_features=out_dim, out_features=dm.num_sources_tr)
         )
         model.to(device)
         optimizer = optim.AdamW(model.parameters(), lr=self.lr)
@@ -68,6 +68,7 @@ class FineTuner(DcModule):
             torch.save(backbone.state_dict(), f=self.save_path)
             logger.info(f"Fine-tuned model saved to '{Path(self.save_path).resolve()}'")
         model.cpu()
+        return model
 
     def train_loop(
         self,

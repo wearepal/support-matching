@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Protocol, Union, cast
 
+import conduit.metrics as cdtm
+from conduit.models.utils import prefix_keys
 from loguru import logger
 from ranzen import implements
 from ranzen.torch.module import DcModule
@@ -13,7 +15,10 @@ import wandb
 from wandb.wandb_run import Run
 
 from src.data import DataModule, resolve_device
+from src.evaluation.metrics import print_metrics
 from src.labelling.encode import encode_with_group_ids
+from src.models import Classifier
+from src.utils import to_item
 
 from .artifact import load_labels_from_artifact, save_labels_as_artifact
 from .encoder import ClipVersion, ClipVisualEncoder
@@ -27,6 +32,7 @@ from .noise import (
 
 __all__ = [
     "CentroidalLabelNoiser",
+    "ClipClassifier",
     "GroundTruthLabeller",
     "KmeansOnClipEncodings",
     "LabelFromArtifact",
@@ -73,12 +79,6 @@ class KmeansOnClipEncodings(DcModule, Labeller):
     @implements(Labeller)
     def run(self, dm: DataModule, *, use_cached_encoder: bool = False) -> Tensor:
         device = resolve_device(self.gpu)
-        kmeans = KMeans(
-            spherical=self.spherical,
-            supervised_cluster_init=self.supervised_cluster_init,
-            n_init=self.n_init,
-            device=device,
-        )
         if self.encoder is None or not use_cached_encoder:
             encoder = ClipVisualEncoder(
                 version=self.clip_version,
@@ -107,6 +107,12 @@ class KmeansOnClipEncodings(DcModule, Labeller):
             del encoder
             torch.cuda.empty_cache()
 
+        kmeans = KMeans(
+            spherical=self.spherical,
+            supervised_cluster_init=self.supervised_cluster_init,
+            n_init=self.n_init,
+            device=device,
+        )
         kmeans.fit(dm=dm, encodings=encodings)
         preds = torch.as_tensor(kmeans.predict(encodings.dep.numpy()), dtype=torch.long)
         if self.save_as_artifact:
@@ -115,6 +121,87 @@ class KmeansOnClipEncodings(DcModule, Labeller):
                 run=run, labels=preds, datamodule=dm, artifact_name=self.artifact_name
             )
         return preds
+
+
+@dataclass
+class ClipClassifier(Labeller):
+    clip_version: ClipVersion = ClipVersion.RN50
+    download_root: Optional[str] = None
+    steps: int = 1000
+    batch_size_tr: int = 16
+    batch_size_te: int = 64
+    lr: float = 1.0e-5
+    weight_decay: float = 0.0
+    val_freq: Union[int, float] = 0.1
+    val_batches: Union[int, float] = 1.0
+    lr: float = 1.0e-5
+    enc_batch_size: int = 64
+
+    gpu: int = 0
+    save_as_artifact: bool = True
+    artifact_name: Optional[str] = None
+
+    cache_encoder: bool = False
+    encoder: Optional[ClipVisualEncoder] = field(init=False, default=None)
+    _fitted_kmeans: Optional[KMeans] = field(init=False, default=None)
+
+    @torch.no_grad()
+    def evaluate(
+        self, g_pred: Tensor, *, g_true: Tensor, use_wandb: bool, prefix: str | None = None
+    ) -> dict[str, float]:
+        metrics = {
+            "Accuracy": to_item(cdtm.accuracy(y_pred=g_pred, y_true=g_true)),
+            "Balanced_Accuracy": to_item(
+                cdtm.subclass_balanced_accuracy(y_pred=g_pred, y_true=g_true, s=g_true)
+            ),
+            "Robust_Accuracy": to_item(
+                cdtm.robust_accuracy(y_pred=g_pred, y_true=g_true, s=g_true)
+            ),
+        }
+        if prefix is not None:
+            metrics = prefix_keys(metrics, prefix=prefix, sep="/")
+        if use_wandb:
+            wandb.log(metrics)
+
+        return metrics
+
+    @implements(Labeller)
+    def run(self, dm: DataModule, *, use_cached_encoder: bool = False) -> Tensor:
+        device = resolve_device(self.gpu)
+        encoder = ClipVisualEncoder(
+            version=self.clip_version,
+            download_root=self.download_root,
+        )
+        ft_model = encoder.finetune(
+            dm=dm,
+            steps=self.steps,
+            batch_size=self.batch_size_tr,
+            lr=self.lr,
+            val_freq=self.val_freq,
+            val_batches=self.val_batches,
+            device=device,
+        )
+        classifier = Classifier(model=ft_model)
+        preds = classifier.predict(
+            dm.deployment_dataloader(eval=True, batch_size=self.batch_size_te),
+            device=device,
+            with_soft=True,
+        )
+        g_pred = preds.y_true
+        g_true = preds.group_ids
+        # missing_sources = torch.as_tensor(list(dm.missing_sources))
+        metrics = self.evaluate(g_pred=g_pred, g_true=g_true, prefix="labelling", use_wandb=True)
+        print_metrics(metrics)
+
+        if self.save_as_artifact:
+            run = cast(Optional[Run], wandb.run)
+            save_labels_as_artifact(
+                run=run,
+                labels=g_pred,
+                datamodule=dm,
+                artifact_name=self.artifact_name,
+            )
+        return g_pred
 
 
 @dataclass

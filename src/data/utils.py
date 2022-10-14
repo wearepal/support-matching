@@ -47,6 +47,13 @@ class EvalTuple(Generic[S, P]):
         self.s = s
         self.probs = probs
 
+    @property
+    def group_ids(self) -> Tensor:
+        if self.s is None:
+            return self.y_true
+        s_count = len(self.s.unique())
+        return labels_to_group_id(s=self.s, y=self.y_true, s_count=s_count)
+
 
 I = TypeVar("I", Tensor, int)
 

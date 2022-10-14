@@ -10,6 +10,7 @@ from typing import (
     Iterator,
     List,
     Optional,
+    Set,
     Type,
     TYPE_CHECKING,
 )
@@ -167,6 +168,12 @@ class DataModule(Generic[D]):
     @property
     def num_sources_dep(self) -> int:
         return len(self.group_ids_dep.unique())
+
+    @property
+    def missing_sources(self) -> Set[int]:
+        sources_tr = set(self.group_ids_tr.unique().tolist())
+        sources_dep = set(self.group_ids_tr.unique().tolist())
+        return sources_dep - sources_tr
 
     @property
     def num_classes(self) -> int:

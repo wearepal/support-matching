@@ -4,6 +4,7 @@ from ranzen.hydra import Option
 from src.data.nih import NIHChestXRayDataset
 from src.labelling.pipeline import (
     CentroidalLabelNoiser,
+    ClipClassifier,
     KmeansOnClipEncodings,
     UniformLabelNoiser,
 )
@@ -19,6 +20,7 @@ def main() -> None:
     ]
     labeller_ops = [
         Option(CentroidalLabelNoiser, name="centroidal_noise"),
+        Option(ClipClassifier, name="classifier"),
         Option(KmeansOnClipEncodings, name="kmeans"),
         Option(UniformLabelNoiser, name="uniform_noise"),
     ]

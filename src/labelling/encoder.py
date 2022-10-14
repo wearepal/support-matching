@@ -84,7 +84,7 @@ class ClipVisualEncoder(nn.Module):
         lr: float = 1.0e-5,
         device: str | torch.device | int = 0,
         val_batches: int | float = 1.0,
-    ) -> None:
+    ) -> nn.Sequential:
         dm = gcopy(dm, deep=False)
         dm.set_transforms_all(self.transforms)
         finetuner = FineTuner(
@@ -97,4 +97,4 @@ class ClipVisualEncoder(nn.Module):
             device=device,
         )
         logger.info(f"Fine-tuning visual encoder for {steps} steps with batch size {batch_size}.")
-        finetuner.run(dm=dm, backbone=self, out_dim=self.out_dim)
+        return finetuner.run(dm=dm, backbone=self, out_dim=self.out_dim)
