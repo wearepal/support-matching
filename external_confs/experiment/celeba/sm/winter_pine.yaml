@@ -3,13 +3,13 @@
 # usage: +experiment=celeba/winter_pine
 
 defaults:
+    - /schema/ae_arch: artifact
     - override /ds: celeba/gender_smiling
     - override /dm: celeba/base
     - override /alg: base
     - override /labeller: gt
     - override /split: celeba/artifact/base
     - override /ae: base
-    - override /ae_arch: in_vqgan
     - override /disc: base
     - override /disc_arch: set
     - override /scorer: celeba/sm
@@ -35,6 +35,10 @@ alg:
     warmup_steps: 0
     max_grad_norm: 5
     disc_loss_w: 0.05
+
+ae_arch:
+    artifact_name: ${split.artifact_name}_in_vqgan_pt
+    version: null # defaults to 'latest'
 
 ae:
     recon_loss: l1
@@ -73,4 +77,4 @@ eval:
         eta_min: 5e-7
 
 wandb:
-    group: nih_sb10_sm_winter_pine
+    group: ${split.artifact_name}_winter_pine
