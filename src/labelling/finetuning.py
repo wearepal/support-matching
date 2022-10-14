@@ -48,7 +48,7 @@ class FineTuner(DcModule):
 
         logger.info(f"Initialising predictor for fine-tuning.")
         model = nn.Sequential(
-            backbone, nn.Linear(in_features=out_dim, out_features=dm.num_sources_tr)
+            backbone, nn.Linear(in_features=out_dim, out_features=dm.num_sources_dep)
         )
         model.to(device)
         optimizer = optim.AdamW(model.parameters(), lr=self.lr)
