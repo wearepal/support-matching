@@ -52,7 +52,7 @@ class Labeller(Protocol):
         return self.run(dm=dm)
 
 
-@dataclass
+@dataclass(eq=False)
 class KmeansOnClipEncodings(DcModule, Labeller):
     clip_version: ClipVersion = ClipVersion.RN50
     download_root: Optional[str] = None
@@ -123,7 +123,7 @@ class KmeansOnClipEncodings(DcModule, Labeller):
         return preds
 
 
-@dataclass
+@dataclass(eq=False)
 class ClipClassifier(Labeller):
     clip_version: ClipVersion = ClipVersion.RN50
     download_root: Optional[str] = None
@@ -189,7 +189,6 @@ class ClipClassifier(Labeller):
         )
         g_pred = preds.y_true
         g_true = preds.group_ids
-        # missing_sources = torch.as_tensor(list(dm.missing_sources))
         metrics = self.evaluate(g_pred=g_pred, g_true=g_true, prefix="labelling", use_wandb=True)
         print_metrics(metrics)
 

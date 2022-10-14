@@ -172,7 +172,7 @@ class DataModule(Generic[D]):
     @property
     def missing_sources(self) -> Set[int]:
         sources_tr = set(self.group_ids_tr.unique().tolist())
-        sources_dep = set(self.group_ids_tr.unique().tolist())
+        sources_dep = set(self.group_ids_dep.unique().tolist())
         return sources_dep - sources_tr
 
     @property
@@ -418,7 +418,8 @@ class DataModule(Generic[D]):
         size_info = (
             f"- Size of training-set: {self.num_train_samples}\n"
             f"- Size of deployment-set: {self.num_dep_samples}\n"
-            f"- Size of test-set: {self.num_test_samples}"
+            f"- Size of test-set: {self.num_test_samples}\n"
+            f"- Missing source(s): {self.missing_sources}"
         )
         return f"\nDataModule for dataset of type '{ds_name}'\n{size_info}"
 
