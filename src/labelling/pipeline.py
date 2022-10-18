@@ -191,6 +191,7 @@ class ClipClassifier(Labeller):
         g_true = preds.group_ids
         metrics = self.evaluate(g_pred=g_pred, g_true=g_true, prefix="labelling", use_wandb=True)
         print_metrics(metrics)
+        breakpoint()
 
         if self.save_as_artifact:
             run = cast(Optional[Run], wandb.run)

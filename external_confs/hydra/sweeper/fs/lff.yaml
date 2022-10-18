@@ -3,5 +3,6 @@ defaults:
     - nih/erm
     - _self_
 
+study_name: lff
 params:
     alg.q: interval(0.1, 0.9)

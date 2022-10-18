@@ -3,5 +3,6 @@ defaults:
     - nih/erm
     - _self_
 
+study_name: gdro
 params:
-    alg.id_steps: interval(0.05, 0.50)
+    alg.alpha: interval(0.1, 10)
