@@ -26,8 +26,8 @@ dm:
 
 alg:
     lr: 1.e-4
-    steps: 10000
-    weight_decay: 0
+    steps: 20000
+    weight_decay: 1.e-4
     scheduler_cls: torch.optim.lr_scheduler.CosineAnnealingLR
     scheduler_kwargs:
         T_max: ${ alg.steps }

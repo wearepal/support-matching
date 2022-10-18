@@ -1,0 +1,11 @@
+# @package _global_
+
+# usage: +experiment=celeba/erm
+
+defaults:
+    - celeba/fs_base
+    - override /alg: gdro
+    - _self_
+
+wandb:
+    group: erm_${split.artifact_name}
