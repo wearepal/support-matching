@@ -191,7 +191,6 @@ class ClipClassifier(Labeller):
         g_true = preds.group_ids
         metrics = self.evaluate(g_pred=g_pred, g_true=g_true, prefix="labelling", use_wandb=True)
         print_metrics(metrics)
-        breakpoint()
 
         if self.save_as_artifact:
             run = cast(Optional[Run], wandb.run)
@@ -204,7 +203,7 @@ class ClipClassifier(Labeller):
         return g_pred
 
 
-@dataclass
+@dataclass(eq=False)
 class LabelFromArtifact(Labeller):
     version: Optional[int] = None  # latest by default
     artifact_name: Optional[str] = None
@@ -221,17 +220,20 @@ class LabelFromArtifact(Labeller):
         )
 
 
-@dataclass
+@dataclass(eq=False)
 class NullLabeller(Labeller):
     @implements(Labeller)
     def run(self, dm: DataModule) -> None:
         return None
 
 
-@dataclass
+@dataclass(eq=False)
 class GroundTruthLabeller(Labeller):
     seed: int = 47
-    generator: torch.Generator = field(init=False)
+
+    @property
+    def generator(self) -> torch.Generator:
+        return torch.Generator().manual_seed(self.seed)
 
     @implements(Labeller)
     def run(self, dm: DataModule) -> Tensor:
@@ -243,12 +245,14 @@ class LabelNoiser(Labeller):
     level: float = 0.10
     seed: int = 47
     weighted_index_sampling: bool = True
-    generator: torch.Generator = field(init=False)
 
     def __post_init__(self) -> None:
         if not (0 <= self.level <= 1):
             raise ValueError(f"'label_noise' must be in the range [0, 1].")
-        self.generator = torch.Generator().manual_seed(self.seed)
+
+    @property
+    def generator(self) -> torch.Generator:
+        return torch.Generator().manual_seed(self.seed)
 
     @abstractmethod
     def _noise(self, dep_ids: Tensor, *, flip_inds: Tensor, dm: DataModule) -> Tensor:

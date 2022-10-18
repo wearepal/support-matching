@@ -39,7 +39,7 @@ class FsAlg(Algorithm):
     @implements(Algorithm)
     def run(self, dm: DataModule, *, model: nn.Module) -> Optional[float]:
         if dm.deployment_ids is not None:
-            dm = dm.merge_train_and_deployment()
+            dm = dm.merge_deployment_into_train()
         et = self.routine(dm=dm, model=model)
         logger.info("Evaluating on the test set")
         pair = EmEvalPair.from_tensors(y_pred=et.y_pred, y_true=et.y_true, s=et.s, pred_s=False)
