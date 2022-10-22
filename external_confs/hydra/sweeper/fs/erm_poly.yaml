@@ -1,6 +1,6 @@
 # @package hydra.sweeper
 defaults:
-    - nih/erm
+    - fs/erm
     - _self_
 
 study_name: erm_poly

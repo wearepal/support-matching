@@ -57,6 +57,19 @@ class NiHTargetAttr(Enum):
 
 
 class NIHChestXRayDataset(CdtVisionDataset):
+    """"
+    National Institutes of Health Chest X-Ray Dataset 
+    This NIH Chest X-ray Dataset is comprised of 112,120 X-ray images with disease labels from
+    30,805 unique patients. To create these labels, the authors used Natural Language Processing to
+    text-mine disease classifications from the associated radiological reports. The labels are
+    expected to be >90% accurate and suitable for weakly-supervised learning. The original radiology
+    reports are not publicly available but you can find more details on the labeling process in
+    `this
+    <https://www.nih.gov/news-events/news-releases/nih-clinical-center-provides-one-largest-publicly-available-chest-x-ray-datasets-scientific-community>`__
+    Open Access paper.
+
+    The dataset can be downloaded by following the above link or from `kaggle <https://www.kaggle.com/datasets/nih-chest-xrays/data>`__
+    """
     def __init__(
         self,
         root: Union[Path, str],

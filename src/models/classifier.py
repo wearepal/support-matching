@@ -156,7 +156,6 @@ class Classifier(Model):
                 )
                 metrics = compute_metrics(
                     pair=pair,
-                    model_name=self.__class__.__name__.lower(),
                     use_wandb=False,
                     prefix="test",
                     verbose=False,

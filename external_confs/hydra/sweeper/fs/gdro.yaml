@@ -1,8 +1,9 @@
 # @package hydra.sweeper
 defaults:
-    - nih/erm
+    - fs/erm
     - _self_
 
 study_name: gdro
 params:
     alg.alpha: interval(0.1, 10)
+    # alg.normalize_loss: choice(true, false)
