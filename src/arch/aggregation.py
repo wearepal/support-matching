@@ -9,18 +9,13 @@ import torch
 from torch import Tensor, nn
 from torch.nn.parameter import Parameter
 
-from src.arch.common import Activation
+from src.arch.common import Activation, BiaslessLayerNorm
 
-__all__ = [
-    "BatchAggregator",
-    "GatedAggregator",
-    "KvqAggregator",
-]
+__all__ = ["BatchAggregator", "GatedAggregator", "KvqAggregator", "BagMean"]
 
 
 @dataclass(eq=False)
 class BatchAggregator(DcModule):
-    dim: int
     batch_size: int
 
     def batch_to_bags(self, batch: Tensor) -> Tensor:
@@ -33,39 +28,78 @@ class BatchAggregator(DcModule):
 
 
 @dataclass(eq=False)
-class KvqAggregator(BatchAggregator):
+class BagMean(BatchAggregator):
+    @implements(BatchAggregator)
+    def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
+        inputs_batched = self.batch_to_bags(inputs)
+        return inputs_batched.mean(1)
 
+
+@dataclass(eq=False)
+class AttentionBlock(BatchAggregator):
+    dim: int
+    num_heads: int = 4
     activation: Activation = Activation.GELU
     dropout: float = 0.0
 
-    attn: nn.MultiheadAttention = field(init=False)
-    act_fn: Callable[[Tensor], Tensor] = field(init=False)
-
     def __post_init__(self) -> None:
         self.attn = nn.MultiheadAttention(
-            embed_dim=self.dim,
-            num_heads=1,
-            dropout=self.dropout,
-            bias=True,
+            embed_dim=self.dim, num_heads=self.num_heads, dropout=self.dropout, bias=True
         )
         self.act_fn = self.activation.init()
+        self.ln0 = BiaslessLayerNorm(self.dim)
+        self.linear = nn.Linear(self.dim, self.dim)
+        self.ln1 = BiaslessLayerNorm(self.dim)
 
-    @implements(BatchAggregator)
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
         # `attn` expects the *second* dimension to be the batch dimension
         # that's why we have to transpose here
         inputs_batched = self.batch_to_bags(inputs).transpose(0, 1)  # shape: (bag, batch, latent)
-        # for the query we just use an average of the bags
-        query = inputs_batched.mean(dim=0, keepdim=True)
-        key = inputs_batched
-        value = key
-        output = self.act_fn(self.attn(query=query, key=key, value=value, need_weights=False)[0])
-        return output.view(-1, self.dim)
+        outputs = self.act_fn(
+            self.attn(
+                query=inputs_batched, key=inputs_batched, value=inputs_batched, need_weights=False
+            )[0]
+        )
+        outputs = outputs.movedim(0, 1).contiguous().view(-1, self.dim) + inputs
+        return self.ln1(self.linear(outputs)) + outputs
+
+
+@dataclass(eq=False)
+class KvqAggregator(BatchAggregator):
+
+    dim: int
+    activation: Activation = Activation.GELU
+    attn: nn.MultiheadAttention = field(init=False)
+    num_heads: int = 4
+    act_fn: Callable[[Tensor], Tensor] = field(init=False)
+    blocks: nn.Sequential = field(init=False)
+    num_blocks: int = 1
+    dropout: float = 0.0
+
+    def __post_init__(self) -> None:
+        blocks = []
+        for _ in range(self.num_blocks):
+            blocks.append(
+                AttentionBlock(
+                    dim=self.dim,
+                    batch_size=self.batch_size,
+                    num_heads=self.num_heads,
+                    activation=self.activation,
+                    dropout=self.dropout,
+                )
+            )
+        self.blocks = nn.Sequential(*blocks)
+
+    @implements(BatchAggregator)
+    def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
+        outputs = self.blocks(inputs)
+        return self.batch_to_bags(outputs).mean(1)
 
 
 @dataclass(eq=False)
 class GatedAggregator(BatchAggregator):
 
+    dim: int
     v: Parameter = field(init=False)
     u: Parameter = field(init=False)
     w: Parameter = field(init=False)
