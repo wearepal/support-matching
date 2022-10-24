@@ -14,6 +14,15 @@ from src.arch.common import Activation, BiaslessLayerNorm
 __all__ = ["BatchAggregator", "GatedAggregator", "KvqAggregator", "BagMean"]
 
 
+def batch_to_bags(batch: Tensor, *, batch_size: int) -> Tensor:
+    """
+    Reshape a batch so that it's a batch of bags.
+
+    This is the only certified way of producing bags. Use all other methods at your own risk.
+    """
+    return batch.view(-1, *batch.shape[1:], batch_size).movedim(-1, 0)
+
+
 @dataclass(eq=False)
 class BatchAggregator(DcModule):
     batch_size: int
@@ -24,7 +33,7 @@ class BatchAggregator(DcModule):
 
         This is the only certified way of producing bags. Use all other methods at your own risk.
         """
-        return batch.view(-1, *batch.shape[1:], self.batch_size).movedim(-1, 0)
+        return batch_to_bags(batch=batch, batch_size=self.batch_size)
 
 
 @dataclass(eq=False)
@@ -35,46 +44,71 @@ class BagMean(BatchAggregator):
         return inputs_batched.mean(1)
 
 
-@dataclass(eq=False)
-class AttentionBlock(BatchAggregator):
-    dim: int
-    num_heads: int = 4
-    activation: Activation = Activation.GELU
-    dropout: float = 0.0
+class FeedForward(nn.Module):
+    def __init__(self, dim: int, hidden_dim: int, dropout: float = 0.0):
+        super().__init__()
+        self.net = nn.Sequential(
+            BiaslessLayerNorm(dim),
+            nn.Linear(dim, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, dim),
+            nn.Dropout(dropout),
+        )
 
-    def __post_init__(self) -> None:
+    @implements(nn.Module)
+    def forward(self, x) -> Tensor:  # type: ignore
+        return self.net(x)
+
+
+class AttentionBlock(nn.Module):
+    def __init__(
+        self,
+        dim: int,
+        batch_size: int,
+        hidden_dim: Optional[int] = None,
+        num_heads: int = 1,
+        dropout: float = 0.0,
+    ) -> None:
+        super().__init__()
+        self.batch_size = batch_size
+        self.dim = dim
+        self.hidden_dim = dim if hidden_dim is None else hidden_dim
+        self.num_heads = num_heads
+        self.dropout = dropout
         self.attn = nn.MultiheadAttention(
             embed_dim=self.dim, num_heads=self.num_heads, dropout=self.dropout, bias=True
         )
-        self.act_fn = self.activation.init()
         self.ln0 = BiaslessLayerNorm(self.dim)
-        self.linear = nn.Linear(self.dim, self.dim)
-        self.ln1 = BiaslessLayerNorm(self.dim)
+        self.post_attn = nn.Linear(self.dim, self.dim)
+        self.ff = FeedForward(dim=self.dim, hidden_dim=self.hidden_dim)
 
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
+        inputs = self.ln0(inputs)
         # `attn` expects the *second* dimension to be the batch dimension
         # that's why we have to transpose here
-        inputs_batched = self.batch_to_bags(inputs).transpose(0, 1)  # shape: (bag, batch, latent)
-        outputs = self.act_fn(
-            self.attn(
-                query=inputs_batched, key=inputs_batched, value=inputs_batched, need_weights=False
-            )[0]
+        inputs_batched = batch_to_bags(inputs, batch_size=self.batch_size).transpose(
+            0, 1
+        )  # shape: (bag, batch, latent)
+        outputs = self.attn(
+            query=inputs_batched, key=inputs_batched, value=inputs_batched, need_weights=False
         )
         outputs = outputs.movedim(0, 1).contiguous().view(-1, self.dim) + inputs
-        return self.ln1(self.linear(outputs)) + outputs
+        outputs = self.post_attn(outputs)
+        return self.ff(outputs)
 
 
 @dataclass(eq=False)
 class KvqAggregator(BatchAggregator):
 
     dim: int
-    activation: Activation = Activation.GELU
     attn: nn.MultiheadAttention = field(init=False)
     num_heads: int = 4
     act_fn: Callable[[Tensor], Tensor] = field(init=False)
     blocks: nn.Sequential = field(init=False)
     num_blocks: int = 1
     dropout: float = 0.0
+    hidden_dim: Optional[int] = None
 
     def __post_init__(self) -> None:
         blocks = []
@@ -84,7 +118,6 @@ class KvqAggregator(BatchAggregator):
                     dim=self.dim,
                     batch_size=self.batch_size,
                     num_heads=self.num_heads,
-                    activation=self.activation,
                     dropout=self.dropout,
                 )
             )
