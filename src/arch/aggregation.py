@@ -9,7 +9,7 @@ import torch
 from torch import Tensor, nn
 from torch.nn.parameter import Parameter
 
-from src.arch.common import Activation, BiaslessLayerNorm
+from src.arch.common import BiaslessLayerNorm
 
 __all__ = ["BatchAggregator", "GatedAggregator", "KvqAggregator", "BagMean"]
 
@@ -90,10 +90,10 @@ class AttentionBlock(nn.Module):
         inputs_batched = batch_to_bags(inputs, batch_size=self.batch_size).transpose(
             0, 1
         )  # shape: (bag, batch, latent)
-        outputs = self.attn(
+        outputs, _ = self.attn(
             query=inputs_batched, key=inputs_batched, value=inputs_batched, need_weights=False
         )
-        outputs = outputs.movedim(0, 1).contiguous().view(-1, self.dim) + inputs
+        outputs = outputs.movedim(0, 1).contiguous().view(-1, self.dim)
         outputs = self.post_attn(outputs)
         return self.ff(outputs)
 

@@ -62,7 +62,7 @@ disc_arch:
     agg_input_dim: null
     input_norm: true
     final_bias: true
-    agg_fn: KVQ
+    # agg_fn: KVQ
 
 eval:
     batch_size: 12
