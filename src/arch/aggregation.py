@@ -9,8 +9,6 @@ import torch
 from torch import Tensor, nn
 from torch.nn.parameter import Parameter
 
-from src.arch.common import BiaslessLayerNorm
-
 __all__ = ["BatchAggregator", "GatedAggregator", "KvqAggregator", "BagMean"]
 
 
@@ -48,7 +46,7 @@ class FeedForward(nn.Module):
     def __init__(self, dim: int, hidden_dim: int, dropout: float = 0.0):
         super().__init__()
         self.net = nn.Sequential(
-            BiaslessLayerNorm(dim),
+            nn.LayerNorm(dim),
             nn.Linear(dim, hidden_dim),
             nn.GELU(),
             nn.Dropout(dropout),
@@ -81,9 +79,9 @@ class AttentionBlock(nn.Module):
         self.attn = nn.MultiheadAttention(
             embed_dim=self.dim, num_heads=self.num_heads, dropout=self.dropout, bias=True
         )
-        self.ln0 = BiaslessLayerNorm(self.dim)
+        self.ln0 = nn.LayerNorm(self.dim)
         self.post_attn = nn.Linear(self.dim, self.dim)
-        self.ff = FeedForward(dim=self.dim, hidden_dim=self.hidden_dim)
+        self.ffw = FeedForward(dim=self.dim, hidden_dim=self.hidden_dim)
 
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
         inputs = self.ln0(inputs)
@@ -104,7 +102,7 @@ class AttentionBlock(nn.Module):
             outputs = outputs.movedim(0, 1).contiguous()
         outputs = outputs.view(-1, self.dim)
         outputs = self.post_attn(outputs)
-        return self.ff(outputs)
+        return self.ffw(outputs)
 
 
 @dataclass(eq=False)
