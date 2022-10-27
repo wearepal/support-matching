@@ -69,9 +69,11 @@ class AttentionBlock(nn.Module):
         hidden_dim: Optional[int] = None,
         num_heads: int = 1,
         dropout: float = 0.0,
+        mean_query: bool = False,
     ) -> None:
         super().__init__()
         self.batch_size = batch_size
+        self.mean_query = mean_query
         self.dim = dim
         self.hidden_dim = dim if hidden_dim is None else hidden_dim
         self.num_heads = num_heads
@@ -90,10 +92,17 @@ class AttentionBlock(nn.Module):
         inputs_batched = batch_to_bags(inputs, batch_size=self.batch_size).transpose(
             0, 1
         )  # shape: (bag, batch, latent)
+        if self.mean_query:
+            query = inputs_batched.mean(0, keepdim=True)
+        else:
+            query = inputs_batched
+
         outputs, _ = self.attn(
-            query=inputs_batched, key=inputs_batched, value=inputs_batched, need_weights=False
+            query=query, key=inputs_batched, value=inputs_batched, need_weights=False
         )
-        outputs = outputs.movedim(0, 1).contiguous().view(-1, self.dim)
+        if self.mean_query:
+            outputs = outputs.movedim(0, 1).contiguous()
+        outputs = outputs.view(-1, self.dim)
         outputs = self.post_attn(outputs)
         return self.ff(outputs)
 
@@ -109,6 +118,7 @@ class KvqAggregator(BatchAggregator):
     num_blocks: int = 1
     dropout: float = 0.0
     hidden_dim: Optional[int] = None
+    mean_query: bool = True
 
     def __post_init__(self) -> None:
         blocks = []
@@ -121,12 +131,22 @@ class KvqAggregator(BatchAggregator):
                     dropout=self.dropout,
                 )
             )
+        if self.mean_query:
+            agg_block = AttentionBlock(
+                dim=self.dim,
+                batch_size=self.batch_size,
+                num_heads=self.num_heads,
+                dropout=self.dropout,
+                mean_query=True,
+            )
+        else:
+            agg_block = BagMean(batch_size=self.batch_size)
+        blocks.append(agg_block)
         self.blocks = nn.Sequential(*blocks)
 
     @implements(BatchAggregator)
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
-        outputs = self.blocks(inputs)
-        return self.batch_to_bags(outputs).mean(1)
+        return self.blocks(inputs)
 
 
 @dataclass(eq=False)
