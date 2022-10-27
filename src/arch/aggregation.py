@@ -99,9 +99,12 @@ class AttentionBlock(nn.Module):
             query=query, key=inputs_batched, value=inputs_batched, need_weights=False
         )
         if self.mean_query:
-            outputs = outputs.movedim(0, 1).contiguous()
-        outputs = outputs.view(-1, self.dim)
-        outputs = self.post_attn(outputs)
+            outputs = outputs.squeeze(0)
+            return self.ffw(outputs)
+        # If not reducing (mean_query==False) then insert a residual connection
+        outputs = outputs.movedim(0, 1).contiguous().view(-1, self.dim)
+        outputs = inputs + outputs
+        outputs = self.post_attn(outputs) + outputs
         return self.ffw(outputs)
 
 
