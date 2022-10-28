@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
+from einops import rearrange
 from ranzen import implements
 from ranzen.torch import DcModule
 import torch
@@ -18,7 +19,14 @@ def batch_to_bags(batch: Tensor, *, batch_size: int) -> Tensor:
 
     This is the only certified way of producing bags. Use all other methods at your own risk.
     """
-    return batch.view(-1, *batch.shape[1:], batch_size).movedim(-1, 0)
+    return batch.reshape(-1, *batch.shape[1:], batch_size).movedim(-1, 0)
+
+
+def bags_to_batch(batch: Tensor, *, batch_size: int) -> Tensor:
+    """
+    Invert the ``batch_to_bags`` function.
+    """
+    return batch.movedim(0, -1).reshape(-1, *batch.shape[2:])
 
 
 @dataclass(eq=False)
@@ -63,8 +71,10 @@ class AttentionBlock(nn.Module):
     def __init__(
         self,
         dim: int,
+        *,
         batch_size: int,
-        num_heads: int = 1,
+        num_heads: int = 8,
+        head_dim: Optional[int] = 64,
         dropout: float = 0.0,
         mean_query: bool = False,
     ) -> None:
@@ -73,34 +83,37 @@ class AttentionBlock(nn.Module):
         self.mean_query = mean_query
         self.dim = dim
         self.num_heads = num_heads
-        self.dropout = dropout
-        self.attn = nn.MultiheadAttention(
-            embed_dim=self.dim, num_heads=self.num_heads, dropout=self.dropout, bias=True
+        self.head_dim = dim if head_dim is None else dim
+        self.embed_dim = self.head_dim * num_heads
+        self.to_qkv = nn.Sequential(
+            nn.LayerNorm(self.dim),
+            nn.Linear(dim, self.embed_dim * 3, bias=False),
         )
-        self.ln = nn.LayerNorm(self.dim)
-        self.post_attn = nn.Identity()
+        self.dropout = nn.Dropout(dropout)
+        project_out = not (num_heads == 1 and head_dim == dim)
+        self.post_attn = nn.Linear(self.embed_dim, dim) if project_out else nn.Identity()
         self.ffw = FeedForward(dim=self.dim, hidden_dim=self.dim)
+        self._scale = self.head_dim**-0.5
 
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
-        inputs = self.ln(inputs)
-        # `attn` expects the *second* dimension to be the batch dimension
-        # that's why we have to transpose here
-        inputs_batched = batch_to_bags(inputs, batch_size=self.batch_size).transpose(
-            0, 1
-        )  # shape: (bag, batch, latent)
+        qkv = self.to_qkv(inputs)
+        qkv = batch_to_bags(qkv, batch_size=self.batch_size)
+        # shape: (batch, num_heads, bag, latent)
+        qkv = rearrange(qkv, "b n (h d) -> b h n d", h=self.num_heads)
+        q, k, v = qkv.chunk(3, dim=-1)
         if self.mean_query:
-            query = inputs_batched.mean(0, keepdim=True)
-        else:
-            query = inputs_batched
+            q = q.mean(2, keepdim=True)
+        dots = q @ k.transpose(-1, -2) * self._scale
+        attn = dots.softmax(dim=-1)
+        attn = self.dropout(attn)
+        outputs = attn @ v
+        outputs = rearrange(outputs, "b h n d -> b n (h d)", h=self.num_heads)
 
-        outputs, _ = self.attn(
-            query=query, key=inputs_batched, value=inputs_batched, need_weights=False
-        )
         if self.mean_query:
-            outputs = outputs.squeeze(0)
+            outputs = self.post_attn(outputs.squeeze(1))
             return self.ffw(outputs)
+        outputs = bags_to_batch(outputs, batch_size=self.batch_size)
         # If not reducing (mean_query==False) then insert a residual connection
-        outputs = outputs.movedim(0, 1).contiguous().view(-1, self.dim)
         outputs = self.post_attn(outputs) + inputs
         return self.ffw(outputs) + outputs
 
@@ -109,13 +122,12 @@ class AttentionBlock(nn.Module):
 class KvqAggregator(BatchAggregator):
 
     dim: int
-    attn: nn.MultiheadAttention = field(init=False)
-    num_heads: int = 4
-    act_fn: Callable[[Tensor], Tensor] = field(init=False)
-    blocks: nn.Sequential = field(init=False)
     num_blocks: int = 1
     dropout: float = 0.0
     mean_query: bool = True
+    num_heads: int = 8
+    head_dim: Optional[int] = 64
+    blocks: nn.Sequential = field(init=False)
 
     def __post_init__(self) -> None:
         blocks = []
@@ -125,6 +137,7 @@ class KvqAggregator(BatchAggregator):
                     dim=self.dim,
                     batch_size=self.batch_size,
                     num_heads=self.num_heads,
+                    head_dim=self.head_dim,
                     dropout=self.dropout,
                     mean_query=False,
                 )
@@ -134,6 +147,7 @@ class KvqAggregator(BatchAggregator):
                 dim=self.dim,
                 batch_size=self.batch_size,
                 num_heads=self.num_heads,
+                head_dim=self.head_dim,
                 dropout=self.dropout,
                 mean_query=True,
             )
