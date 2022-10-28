@@ -43,7 +43,7 @@ class BagMean(BatchAggregator):
 
 
 class FeedForward(nn.Module):
-    def __init__(self, dim: int, hidden_dim: int, dropout: float = 0.0):
+    def __init__(self, dim: int, *, hidden_dim: int, dropout: float = 0.0):
         super().__init__()
         self.net = nn.Sequential(
             nn.LayerNorm(dim),
@@ -64,7 +64,6 @@ class AttentionBlock(nn.Module):
         self,
         dim: int,
         batch_size: int,
-        hidden_dim: Optional[int] = None,
         num_heads: int = 1,
         dropout: float = 0.0,
         mean_query: bool = False,
@@ -73,18 +72,17 @@ class AttentionBlock(nn.Module):
         self.batch_size = batch_size
         self.mean_query = mean_query
         self.dim = dim
-        self.hidden_dim = dim if hidden_dim is None else hidden_dim
         self.num_heads = num_heads
         self.dropout = dropout
         self.attn = nn.MultiheadAttention(
             embed_dim=self.dim, num_heads=self.num_heads, dropout=self.dropout, bias=True
         )
-        self.ln0 = nn.LayerNorm(self.dim)
-        self.post_attn = nn.Linear(self.dim, self.dim)
-        self.ffw = FeedForward(dim=self.dim, hidden_dim=self.hidden_dim)
+        self.ln = nn.LayerNorm(self.dim)
+        self.post_attn = nn.Identity()
+        self.ffw = FeedForward(dim=self.dim, hidden_dim=self.dim)
 
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
-        inputs = self.ln0(inputs)
+        inputs = self.ln(inputs)
         # `attn` expects the *second* dimension to be the batch dimension
         # that's why we have to transpose here
         inputs_batched = batch_to_bags(inputs, batch_size=self.batch_size).transpose(
@@ -103,9 +101,8 @@ class AttentionBlock(nn.Module):
             return self.ffw(outputs)
         # If not reducing (mean_query==False) then insert a residual connection
         outputs = outputs.movedim(0, 1).contiguous().view(-1, self.dim)
-        outputs = inputs + outputs
-        outputs = self.post_attn(outputs) + outputs
-        return self.ffw(outputs)
+        outputs = self.post_attn(outputs) + inputs
+        return self.ffw(outputs) + outputs
 
 
 @dataclass(eq=False)
@@ -118,7 +115,6 @@ class KvqAggregator(BatchAggregator):
     blocks: nn.Sequential = field(init=False)
     num_blocks: int = 1
     dropout: float = 0.0
-    hidden_dim: Optional[int] = None
     mean_query: bool = True
 
     def __post_init__(self) -> None:
@@ -130,6 +126,7 @@ class KvqAggregator(BatchAggregator):
                     batch_size=self.batch_size,
                     num_heads=self.num_heads,
                     dropout=self.dropout,
+                    mean_query=False,
                 )
             )
         if self.mean_query:

@@ -107,9 +107,7 @@ class SetFcn(PredictorFactory):
     input_norm: bool = True
     num_heads: int = 1
     num_blocks: int = 0
-    query_mean: bool = True
-    agg_hidden_dim: Optional[int] = None
-    # agg_fn: BatchAggregatorEnum = BatchAggregatorEnum.KVQ
+    mean_query: bool = True
 
     def _pre_agg_fcn(self, input_dim: int) -> PredictorFactoryOut[nn.Sequential]:
         agg_input_dim = self.agg_input_dim
@@ -147,8 +145,7 @@ class SetFcn(PredictorFactory):
                 num_heads=self.num_heads,
                 num_blocks=self.num_blocks,
                 dim=input_dim,
-                hidden_dim=self.agg_hidden_dim,
-                mean_query=True,
+                mean_query=self.mean_query,
             ),
             input_dim,
         )
