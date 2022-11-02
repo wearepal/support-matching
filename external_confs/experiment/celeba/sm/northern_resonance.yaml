@@ -18,14 +18,14 @@ defaults:
 
 seed: 0
 dm:
-    batch_size_tr: 8
+    batch_size_tr: 4
     batch_size_te: 64
     num_samples_per_group_per_bag: 1
 
 alg:
     steps: 10000
     ga_steps: 4
-    num_disc_updates: 5
+    num_disc_updates: 3
     twoway_disc_loss: false
     prior_loss_w: 0
     log_freq: ${alg.steps} # only log on the final iteration
@@ -34,7 +34,7 @@ alg:
     pred_s_loss_w: 0
     warmup_steps: 0
     max_grad_norm: 5
-    disc_loss_w: 0.05
+    disc_loss_w: 0.01
 
 ae_arch:
     artifact_name: ${split.artifact_name}_in_vqgan_pt
@@ -62,7 +62,11 @@ disc_arch:
     agg_input_dim: null
     input_norm: true
     final_bias: true
-    # agg_fn: KVQ
+
+    head_dim: null
+    num_heads: 1
+    num_blocks: 0
+    mean_query: true
 
 eval:
     batch_size: 12

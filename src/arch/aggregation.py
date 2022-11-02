@@ -83,24 +83,28 @@ class AttentionBlock(nn.Module):
         self.mean_query = mean_query
         self.dim = dim
         self.num_heads = num_heads
-        self.head_dim = dim if head_dim is None else dim
-        self.embed_dim = self.head_dim * num_heads
+        self.head_dim = dim if head_dim is None else head_dim
+        self._scale = self.head_dim**-0.5
+        self.embed_dim = self.head_dim * self.num_heads
         self.to_qkv = nn.Sequential(
             nn.LayerNorm(self.dim),
-            nn.Linear(dim, self.embed_dim * 3, bias=False),
+            nn.Linear(self.dim, self.embed_dim * 3, bias=False),
         )
         self.dropout = nn.Dropout(dropout)
-        project_out = not (num_heads == 1 and head_dim == dim)
-        self.post_attn = nn.Linear(self.embed_dim, dim) if project_out else nn.Identity()
+        project_out = not (self.num_heads == 1 and self.head_dim == self.dim)
+        self.post_attn = nn.Linear(self.embed_dim, self.dim) if project_out else nn.Identity()
         self.ffw = FeedForward(dim=self.dim, hidden_dim=self.dim)
-        self._scale = self.head_dim**-0.5
 
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
         qkv = self.to_qkv(inputs)
-        qkv = batch_to_bags(qkv, batch_size=self.batch_size)
-        # shape: (batch, num_heads, bag, latent)
-        qkv = rearrange(qkv, "b n (h d) -> b h n d", h=self.num_heads)
-        q, k, v = qkv.chunk(3, dim=-1)
+        qkv = batch_to_bags(
+            qkv, batch_size=self.batch_size
+        )  # [batch, bag, 3 * head_dim * num_heads]
+        q, k, v = map(
+            lambda t: rearrange(t, "b n (h d) -> b h n d", h=self.num_heads), qkv.chunk(3, dim=-1)
+        )
+        # qkv = rearrange(qkv, "b n (h d) -> b h n d", h=self.num_heads)
+        # q, k, v = qkv.chunk(3, dim=-1)
         if self.mean_query:
             q = q.mean(2, keepdim=True)
         dots = q @ k.transpose(-1, -2) * self._scale
@@ -113,7 +117,7 @@ class AttentionBlock(nn.Module):
             outputs = self.post_attn(outputs.squeeze(1))
             return self.ffw(outputs)
         outputs = bags_to_batch(outputs, batch_size=self.batch_size)
-        # If not reducing (mean_query==False) then insert a residual connection
+        # If not reducing (mean_query==False) then insert connections
         outputs = self.post_attn(outputs) + inputs
         return self.ffw(outputs) + outputs
 

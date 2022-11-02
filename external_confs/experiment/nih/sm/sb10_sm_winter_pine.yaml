@@ -60,6 +60,11 @@ disc_arch:
     input_norm: true
     final_bias: true
 
+    head_dim: null
+    num_heads: 1
+    num_blocks: 0
+    mean_query: true
+
 eval:
     batch_size: 12
     balanced_sampling: true

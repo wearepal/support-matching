@@ -106,7 +106,7 @@ class SetFcn(PredictorFactory):
     final_bias: bool = True
     input_norm: bool = True
     num_heads: int = 1
-    head_dim: int = 512
+    head_dim: Optional[int] = 512
     num_blocks: int = 0
     mean_query: bool = True
 
