@@ -25,8 +25,8 @@ class ClipVersion(Enum):
     RN50x4 = "RN50x4"
     RN50x16 = "RN50x16"
     RN50x64 = "RN50x64"
-    ViT_B32 = "ViT-B/32"
     ViT_B16 = "ViT-B/16"
+    ViT_B32 = "ViT-B/32"
     ViT_L14 = "ViT-L/14"
 
 
@@ -84,7 +84,7 @@ class ClipVisualEncoder(nn.Module):
         lr: float = 1.0e-5,
         device: str | torch.device | int = 0,
         val_batches: int | float = 1.0,
-    ) -> None:
+    ) -> nn.Sequential:
         dm = gcopy(dm, deep=False)
         dm.set_transforms_all(self.transforms)
         finetuner = FineTuner(
@@ -97,4 +97,4 @@ class ClipVisualEncoder(nn.Module):
             device=device,
         )
         logger.info(f"Fine-tuning visual encoder for {steps} steps with batch size {batch_size}.")
-        finetuner.run(dm=dm, backbone=self, out_dim=self.out_dim)
+        return finetuner.run(dm=dm, backbone=self, out_dim=self.out_dim)

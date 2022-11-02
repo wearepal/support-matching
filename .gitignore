@@ -111,6 +111,7 @@ dmypy.json
 # IDEs
 .idea/
 .vscode/
+.undodir/
 
 # project-specific
 /logging/
@@ -122,7 +123,8 @@ dmypy.json
 /outputs/
 /multirun/
 /experiments/
-/local_logging/
+/local_logging/*
+/wandb
 *.pdf
 /experiments_copy/
 /flags_bak/

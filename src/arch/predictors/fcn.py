@@ -97,15 +97,18 @@ class BatchAggregatorEnum(Enum):
 class SetFcn(PredictorFactory):
     hidden_dim_pre: Optional[int]
     hidden_dim_post: Optional[int]
-    num_hidden_pre: int = 2
-    num_hidden_post: int = 2
+    num_hidden_pre: int = 1
+    num_hidden_post: int = 1
     agg_input_dim: Optional[int] = None
     activation: Activation = Activation.GELU
     norm: NormType = NormType.LN
     dropout_prob: float = 0
     final_bias: bool = True
     input_norm: bool = True
-    agg_fn: BatchAggregatorEnum = BatchAggregatorEnum.KVQ
+    num_heads: int = 1
+    head_dim: Optional[int] = 512
+    num_blocks: int = 0
+    mean_query: bool = True
 
     def _pre_agg_fcn(self, input_dim: int) -> PredictorFactoryOut[nn.Sequential]:
         agg_input_dim = self.agg_input_dim
@@ -138,9 +141,13 @@ class SetFcn(PredictorFactory):
         self, input_dim: int, *, batch_size: int
     ) -> PredictorFactoryOut[BatchAggregator]:
         return (
-            self.agg_fn.init(
+            KvqAggregator(
                 batch_size=batch_size,
+                num_heads=self.num_heads,
+                num_blocks=self.num_blocks,
                 dim=input_dim,
+                head_dim=self.head_dim,
+                mean_query=self.mean_query,
             ),
             input_dim,
         )

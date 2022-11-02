@@ -1,8 +1,9 @@
 # @package hydra.sweeper
 defaults:
-    - nih/erm
+    - fs/erm
     - _self_
 
+study_name: sd
 params:
     alg.lambda_: tag(log, interval(1.e-2, 10.0))
     alg.gamma: interval(0, 5)

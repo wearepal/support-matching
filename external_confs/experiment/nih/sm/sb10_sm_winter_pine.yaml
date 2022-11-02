@@ -59,7 +59,11 @@ disc_arch:
     agg_input_dim: null
     input_norm: true
     final_bias: true
-    agg_fn: KVQ
+
+    head_dim: null
+    num_heads: 1
+    num_blocks: 0
+    mean_query: true
 
 eval:
     batch_size: 12

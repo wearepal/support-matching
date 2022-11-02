@@ -129,16 +129,13 @@ class KMeans:
                 logger.info("Done.")
             else:
                 centroids_np = centroids.numpy()
-            kmeans = SklKMeans(n_clusters=n_clusters, init=centroids_np, n_init=1)
-            kmeans.fit(encodings.to_cluster)
-            preds = kmeans.predict(encodings.test)
-            evaluate(y_true=encodings.test_labels, y_pred=preds)
+            kmeans = SklKMeans(n_clusters=n_clusters, init=centroids_np, n_init=1)  # type: ignore
         else:
             logger.info("Using kmeans++")
             kmeans = SklKMeans(n_clusters=n_clusters, init="k-means++", n_init=self.n_init)
-            kmeans.fit(encodings.to_cluster)
-            preds = kmeans.predict(encodings.test)
-            evaluate(y_true=encodings.test_labels, y_pred=preds)
+        kmeans.fit(encodings.to_cluster)
+        preds = kmeans.predict(encodings.test)
+        evaluate(y_true=encodings.test_labels, y_pred=preds, use_wandb=True, prefix="clustering")
 
         self._fitted_model = kmeans
 

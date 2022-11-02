@@ -323,7 +323,6 @@ class Evaluator:
         compute_metrics(
             pair=pair,
             exp_name=name,
-            model_name="pytorch_classifier",
             step=step,
             save_summary=self.save_summary,
             prefix="test",

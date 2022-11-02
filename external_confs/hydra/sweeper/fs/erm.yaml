@@ -22,5 +22,5 @@ search_space: null
 custom_search_space: null
 
 params:
-    alg.weight_decay: tag(log, interval(1.e-8, 1.e-1))
+    alg.weight_decay: tag(log, interval(1.e-8, 1))
     alg.lr: tag(log, interval(1.e-5, 1.e-3))

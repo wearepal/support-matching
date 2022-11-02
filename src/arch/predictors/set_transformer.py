@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import math
 from typing import Any
 
 import torch
@@ -63,7 +64,7 @@ class _SetTransformer(nn.Module):
         self,
         in_dim: int,
         target_dim: int,
-        num_outputs: int,
+        num_seeds: int,
         num_inds: int = 32,
         hidden_dim: int = 128,
         num_heads: int = 4,
@@ -79,7 +80,7 @@ class _SetTransformer(nn.Module):
             ),
         )
         self.decoder = nn.Sequential(
-            PoolingMultiheadAttention(hidden_dim, num_heads=num_heads, num_seeds=num_outputs),
+            PoolingMultiheadAttention(hidden_dim, num_heads=num_heads, num_seeds=num_seeds),
             SetAttentionBlock(hidden_dim, num_heads=num_heads),
             SetAttentionBlock(hidden_dim, num_heads=num_heads),
         )
@@ -94,7 +95,7 @@ class _SetTransformer(nn.Module):
 
 @dataclass(eq=False)
 class SetTransformer(PredictorFactory):
-    num_outputs: int
+    num_seeds: int
     num_inds: int = 32
     hidden_dim: int = 128
     num_heads: int = 4
@@ -105,7 +106,7 @@ class SetTransformer(PredictorFactory):
         st = _SetTransformer(
             in_dim=input_dim,
             target_dim=target_dim,
-            num_outputs=self.num_outputs,
+            num_seeds=self.num_seeds,
             num_inds=self.num_inds,
             hidden_dim=self.hidden_dim,
             num_heads=self.num_heads,

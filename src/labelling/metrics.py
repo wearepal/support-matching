@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from conduit.models.utils import prefix_keys
+from loguru import logger
 import numpy as np
 import numpy.typing as npt
 from scipy.optimize import linear_sum_assignment
@@ -8,6 +10,7 @@ from sklearn.metrics import (
     adjusted_rand_score,
     normalized_mutual_info_score,
 )
+import wandb
 
 __all__ = ["compute_accuracy", "evaluate"]
 
@@ -44,8 +47,24 @@ def compute_accuracy(
     return num_corectly_assigned / len(test_group_ids)
 
 
-def evaluate(y_true: npt.NDArray[np.int32], *, y_pred: npt.NDArray[np.int32]) -> None:
-    print(f"ARI: {adjusted_rand_score(y_true, y_pred)}")
-    print(f"AMI: {adjusted_mutual_info_score(y_true, y_pred)}")
-    print(f"NMI: {normalized_mutual_info_score(y_true, y_pred)}")
-    print(f"Accuracy: {compute_accuracy(y_true, clusters=y_pred)}")
+def evaluate(
+    y_true: npt.NDArray[np.int32],
+    *,
+    y_pred: npt.NDArray[np.int32],
+    use_wandb: bool = True,
+    prefix: str | None = None,
+) -> None:
+    metrics = {
+        "ARI": adjusted_rand_score(y_true, y_pred),
+        "AMI": adjusted_mutual_info_score(y_true, y_pred),
+        "NMI": normalized_mutual_info_score(y_true, y_pred),
+        "Accuracy": compute_accuracy(y_true, clusters=y_pred),
+    }
+    if prefix is not None:
+        metrics = prefix_keys(metrics, prefix=prefix, sep="/")
+    for metric, value in metrics.items():
+        logger.info(f"{metric}: {value:.3g}")
+    logger.info("---")
+    if use_wandb:
+        wandb.log(metrics)
+    return metrics

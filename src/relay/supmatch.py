@@ -21,6 +21,7 @@ __all__ = ["SupMatchRelay"]
 
 @dataclass(eq=False)
 class SupMatchRelay(BaseRelay):
+    alg: DictConfig = MISSING
     ae: DictConfig = MISSING
     ae_arch: DictConfig = MISSING
     disc_arch: DictConfig = MISSING
@@ -88,5 +89,5 @@ class SupMatchRelay(BaseRelay):
                 save_ae_artifact(
                     run=run, model=ae_pair, config=self.ae_arch, name=self.artifact_name
                 )
-            run.finish()  # type: ignore
+            run.finish()
         return score

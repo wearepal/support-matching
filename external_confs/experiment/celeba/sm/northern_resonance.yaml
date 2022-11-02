@@ -3,13 +3,13 @@
 # usage: +experiment=celeba/winter_pine
 
 defaults:
+    - /schema/ae_arch: artifact
     - override /ds: celeba/gender_smiling
     - override /dm: celeba/base
     - override /alg: base
     - override /labeller: gt
     - override /split: celeba/artifact/base
     - override /ae: base
-    - override /ae_arch: in_vqgan
     - override /disc: base
     - override /disc_arch: set
     - override /scorer: celeba/sm
@@ -18,14 +18,14 @@ defaults:
 
 seed: 0
 dm:
-    batch_size_tr: 8
+    batch_size_tr: 4
     batch_size_te: 64
     num_samples_per_group_per_bag: 1
 
 alg:
     steps: 10000
     ga_steps: 4
-    num_disc_updates: 5
+    num_disc_updates: 3
     twoway_disc_loss: false
     prior_loss_w: 0
     log_freq: ${alg.steps} # only log on the final iteration
@@ -34,7 +34,11 @@ alg:
     pred_s_loss_w: 0
     warmup_steps: 0
     max_grad_norm: 5
-    disc_loss_w: 0.05
+    disc_loss_w: 0.01
+
+ae_arch:
+    artifact_name: ${split.artifact_name}_in_vqgan_pt
+    version: null # defaults to 'latest'
 
 ae:
     recon_loss: l1
@@ -58,7 +62,11 @@ disc_arch:
     agg_input_dim: null
     input_norm: true
     final_bias: true
-    agg_fn: KVQ
+
+    head_dim: null
+    num_heads: 1
+    num_blocks: 0
+    mean_query: true
 
 eval:
     batch_size: 12
@@ -73,4 +81,4 @@ eval:
         eta_min: 5e-7
 
 wandb:
-    group: nih_sb10_sm_winter_pine
+    group: ${split.artifact_name}_winter_pine

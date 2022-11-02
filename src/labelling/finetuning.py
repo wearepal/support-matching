@@ -41,7 +41,7 @@ class FineTuner(DcModule):
         if isinstance(self.val_batches, float) and (not (0 <= self.val_batches <= 1)):
             raise AttributeError("If 'val_batches' is a float, it must be in the range [0, 1].")
 
-    def run(self, dm: DataModule, *, backbone: nn.Module, out_dim: int) -> None:
+    def run(self, dm: DataModule, *, backbone: nn.Module, out_dim: int) -> nn.Sequential:
         dm = gcopy(dm, deep=False)
         dm.batch_size_tr = self.batch_size
         device = resolve_device(self.device)
@@ -68,6 +68,7 @@ class FineTuner(DcModule):
             torch.save(backbone.state_dict(), f=self.save_path)
             logger.info(f"Fine-tuned model saved to '{Path(self.save_path).resolve()}'")
         model.cpu()
+        return model
 
     def train_loop(
         self,
@@ -93,18 +94,10 @@ class FineTuner(DcModule):
         )
         logger.info(f"Set to validate every {val_freq} steps.")
         for step, sample in enumerate(pbar, start=1):
-            x = sample.x.to(device, non_blocking=True)
-            s = sample.s.to(device, non_blocking=True)
-            y = sample.y.to(device, non_blocking=True)
-            group_id = labels_to_group_id(s=s, y=y, s_count=card_s)
-
-            _, loss = self.train_step(model, inputs=x, targets=group_id, optimizer=optimizer)
-
-            to_log = {
-                "loss": loss,
-                "s1_share": sample.s.float().mean().item(),
-                "y1_share": sample.y.float().mean().item(),
-            }
+            sample.to(device, non_blocking=True)
+            group_id = labels_to_group_id(s=sample.s, y=sample.y, s_count=card_s)
+            _, loss = self.train_step(model, inputs=sample.x, targets=group_id, optimizer=optimizer)
+            to_log = {"loss": loss}
             to_log = prefix_keys(to_log, prefix=self._LOG_PREFIX)
             wandb.log(to_log, step=step)
 
@@ -173,6 +166,12 @@ class FineTuner(DcModule):
     ) -> float:
         preds, s, y = self.predict_loop(model, val_loader=val_loader, device=device)
         group_ids = labels_to_group_id(s=s, y=y, s_count=2)
-        accuracy = cdtm.accuracy(y_pred=preds, y_true=group_ids).item()
-        wandb.log({f"{self._LOG_PREFIX}/Accuracy": accuracy}, step=step)
-        return accuracy
+        acc = cdtm.accuracy(y_pred=preds, y_true=group_ids).item()
+        rob_acc = cdtm.robust_accuracy(y_pred=preds, y_true=group_ids, s=group_ids).item()
+        to_log = {
+            f"Accuracy": acc,
+            f"Robust_Accuracy": rob_acc,
+        }
+        to_log = prefix_keys(to_log, prefix=self._LOG_PREFIX)
+        wandb.log(to_log, step=step)
+        return acc

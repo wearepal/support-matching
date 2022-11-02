@@ -77,7 +77,6 @@ robust_tpr_gap = cdtm.subclasswise_metric(
 def compute_metrics(
     pair: EmEvalPair,
     *,
-    model_name: str,
     step: int | None = None,
     exp_name: str | None = None,
     save_summary: bool = False,
@@ -89,7 +88,6 @@ def compute_metrics(
     """Compute accuracy and fairness metrics and log them.
 
     :param pair: predictions and labels in a format that is compatible with EthicML
-    :param model_name: name of the model used
     :param step: step of training (needed for logging to W&B)
     :param s_dim: dimension of s
     :param exp_name: name of the experiment
@@ -125,9 +123,8 @@ def compute_metrics(
         metrics[name] = fn(y_pred=y_pred_t, y_true=y_true_t, s=s_t).item()
     # replace the slash; it's causing problems
     metrics = {k.replace("/", "÷"): v for k, v in metrics.items()}
-    metrics = {f"{k} ({model_name})": v for k, v in metrics.items()}
     if exp_name:
-        metrics = {f"{exp_name}/{k}": v for k, v in metrics.items()}
+        metrics = prefix_keys(metrics, prefix=exp_name, sep="/")
     if prefix is not None:
         metrics = prefix_keys(metrics, prefix=prefix, sep="/")
 
@@ -143,7 +140,7 @@ def compute_metrics(
                 wandb.run.summary[metric_name] = value  # type: ignore
 
     if verbose:
-        logger.info(f"Results for {exp_name or ''} ({model_name}):")
+        logger.info(f"Results for {exp_name or ''}:")
         print_metrics(metrics)
     return metrics
 

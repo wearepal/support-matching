@@ -1,0 +1,23 @@
+# @package _global_
+
+# usage: +experiment=celeba/gdro_poly
+
+defaults:
+    - celeba/fs_base
+    - override /alg: gdro
+    - _self_
+
+alg:
+    alpha: 1.0
+    normalize_loss: false
+    gamma: 0.1
+    step_size: 0.1
+    btl: false
+    adjustments: null
+    criterion:
+        _target_: src.loss.PolynomialLoss
+        mode: exp
+        alpha: 1.0
+
+wandb:
+    group: gdro_poly_${split.artifact_name}

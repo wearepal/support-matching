@@ -20,6 +20,7 @@ __all__ = ["MiMinRelay"]
 
 @dataclass(eq=False)
 class MiMinRelay(BaseRelay):
+    alg: DictConfig = MISSING
     ae_arch: DictConfig = MISSING
     disc_arch: DictConfig = MISSING
     disc: DictConfig = MISSING
@@ -76,4 +77,5 @@ class MiMinRelay(BaseRelay):
         disc: Model = instantiate(self.disc, _partial_=True)(model=disc_net)
         evaluator: Evaluator = instantiate(self.eval)
         alg.run(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
-        run.finish()  # type: ignore
+        if run is not None:
+            run.finish()  # type: ignore

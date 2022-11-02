@@ -10,6 +10,7 @@ from typing import (
     Iterator,
     List,
     Optional,
+    Set,
     Type,
     TYPE_CHECKING,
 )
@@ -85,10 +86,9 @@ class DataModule(Generic[D]):
     pin_memory: bool = True
     seed: int = 47
 
-    generator: torch.Generator = attr.field(init=False)
-
-    def __attrs_post_init__(self) -> None:
-        self.generator = torch.Generator().manual_seed(self.seed)
+    @property
+    def generator(self) -> torch.Generator:
+        return torch.Generator().manual_seed(self.seed)
 
     @property
     def batch_size_te(self) -> int:
@@ -138,14 +138,14 @@ class DataModule(Generic[D]):
             labels = group_id_to_label(group_id=ids, s_count=s_count)
             y_dep = labels.y.flatten()
             s_dep = labels.s.flatten()
-            copy = gcopy(self, deep=False)
+            copy = gcopy(self, deep=True)
             copy.deployment.y = y_dep
             copy.deployment.s = s_dep
             return copy
-        logger.warning("No deployment ids to be converted into labels and set.")
+        logger.warning("No deployment ids to be converted into labels and subsequently set.")
         return self
 
-    def merge_train_and_deployment(self) -> Self:
+    def merge_deployment_into_train(self) -> Self:
         if self.deployment_ids is None:
             logger.warning(
                 "'train' and 'deployment' sets cannot be merged as the latter is"
@@ -169,6 +169,16 @@ class DataModule(Generic[D]):
         return len(self.group_ids_dep.unique())
 
     @property
+    def num_sources_te(self) -> int:
+        return len(self.group_ids_te.unique())
+
+    @property
+    def missing_sources(self) -> Set[int]:
+        sources_tr = set(self.group_ids_tr.unique().tolist())
+        sources_dep = set(self.group_ids_dep.unique().tolist())
+        return sources_dep - sources_tr
+
+    @property
     def num_classes(self) -> int:
         return max(2, self.card_y)
 
@@ -183,6 +193,10 @@ class DataModule(Generic[D]):
     @property
     def group_ids_dep(self) -> Tensor:
         return get_group_ids(self.deployment)
+
+    @property
+    def group_ids_te(self) -> Tensor:
+        return get_group_ids(self.test)
 
     @property
     def feature_group_slices(self) -> Optional[Dict[str, List[slice]]]:
@@ -411,7 +425,8 @@ class DataModule(Generic[D]):
         size_info = (
             f"- Size of training-set: {self.num_train_samples}\n"
             f"- Size of deployment-set: {self.num_dep_samples}\n"
-            f"- Size of test-set: {self.num_test_samples}"
+            f"- Size of test-set: {self.num_test_samples}\n"
+            f"- Missing source(s): {self.missing_sources}"
         )
         return f"\nDataModule for dataset of type '{ds_name}'\n{size_info}"
 

@@ -1,0 +1,38 @@
+# @package _global_
+
+# usage: +experiment=celeba/fs_base
+
+defaults:
+    - override /ds: celeba/gender_smiling
+    - override /dm: celeba/base
+    - override /labeller: none
+    - override /split: celeba/artifact/base
+    - override /wandb: base
+    - override /backbone: resnet
+    - override /predictor: fcn
+    - _self_
+
+backbone:
+    version: RN50
+
+predictor:
+    num_hidden: 1
+    hidden_dim: null
+
+dm:
+    batch_size_tr: 12
+    batch_size_te: 64
+    num_samples_per_group_per_bag: 1
+
+alg:
+    lr: 1.e-4
+    steps: 20000
+    weight_decay: 1.e-4
+    scheduler_cls: torch.optim.lr_scheduler.CosineAnnealingLR
+    scheduler_kwargs:
+        T_max: ${ alg.steps }
+        eta_min: 5e-7
+    monitor: ROB_ACC
+
+wandb:
+    group: ${alg}_${split.artifact_name}
