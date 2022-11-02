@@ -353,6 +353,14 @@ python-versions = "*"
 six = ">=1.4.0"
 
 [[package]]
+name = "einops"
+version = "0.5.0"
+description = "A new flavour of deep learning operations"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+
+[[package]]
 name = "ethicml"
 version = "1.0.1"
 description = "EthicML is a library for performing and assessing algorithmic fairness. Unlike other libraries, EthicML isn't an education tool, but rather a researcher's toolkit."
@@ -1840,7 +1848,7 @@ fair = ["ethicml[data] (>=1.0.0,<2.0.0)"]
 type = "git"
 url = "https://github.com/wearepal/conduit.git"
 reference = "main"
-resolved_reference = "facd79827e18754765d2146514a02f80f89f376c"
+resolved_reference = "1ba7de3561521d6bf0b7439913daf83a043fa904"
 
 [[package]]
 name = "torchaudio"
@@ -2101,7 +2109,7 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.9.11,<3.11"
-content-hash = "5f6b8843f6f34abf10934593dcbbf4d65d597781f892a6def470239d5299e76f"
+content-hash = "4f54c5fd83336c393b48887592e44cd46ee04089d709f729092eb66d75f2c6e6"
 
 [metadata.files]
 absl-py = [
@@ -2448,6 +2456,10 @@ distlib = [
 docker-pycreds = [
     {file = "docker-pycreds-0.4.0.tar.gz", hash = "sha256:6ce3270bcaf404cc4c3e27e4b6c70d3521deae82fb508767870fdbf772d584d4"},
     {file = "docker_pycreds-0.4.0-py2.py3-none-any.whl", hash = "sha256:7266112468627868005106ec19cd0d722702d2b7d5912a28e19b826c3d37af49"},
+]
+einops = [
+    {file = "einops-0.5.0-py3-none-any.whl", hash = "sha256:055de7eeb3cb9e9710ef3085a811090c6b52e809b7044e8785824ed185f486d1"},
+    {file = "einops-0.5.0.tar.gz", hash = "sha256:8b7a83cffc1ea88e306df099b7cbb9c3ba5003bd84d05ae44be5655864abb8d3"},
 ]
 ethicml = [
     {file = "EthicML-1.0.1.tar.gz", hash = "sha256:4f45f3c5ae717be3cde46a32f6e5066cf9bb3d7dd7b2548c3d9f47321fb813bd"},
