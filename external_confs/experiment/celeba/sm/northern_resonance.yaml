@@ -23,9 +23,9 @@ dm:
     num_samples_per_group_per_bag: 1
 
 alg:
-    steps: 10000
+    steps: 20000
     ga_steps: 4
-    num_disc_updates: 3
+    num_disc_updates: 1
     twoway_disc_loss: false
     prior_loss_w: 0
     log_freq: ${alg.steps} # only log on the final iteration
@@ -63,9 +63,9 @@ disc_arch:
     input_norm: true
     final_bias: true
 
-    head_dim: null
+    head_dim: 64
     num_heads: 1
-    num_blocks: 0
+    num_blocks: 4
     mean_query: true
 
 eval:
