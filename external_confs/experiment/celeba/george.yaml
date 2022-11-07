@@ -1,0 +1,14 @@
+# @package _global_
+
+# usage: +experiment=celeba/george
+
+defaults:
+    - celeba/gdro
+    - override /labeller: celeba/kmeans
+    - _self_
+
+labeller:
+    gpu: ${alg.gpu}
+
+wandb:
+    group: george_${split.artifact_name}

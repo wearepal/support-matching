@@ -1,8 +1,9 @@
 # @package _global_
 
-# usage: +experiment=nih/sb10_sm_winter_pine_sa
+# usage: +experiment=nih/george_sa
+
 defaults:
-    - nih/sb10_sm_winter_pine
+    - nih/gdro
     - override /labeller: centroidal_noise
     - _self_
 
@@ -11,3 +12,6 @@ labeller:
     metric: COSINE
     clip_version: RN50
     level: 0.05
+
+wandb:
+    group: george_sa_nih_${ds.sens_attr}_${ds.target_attr}_sb10

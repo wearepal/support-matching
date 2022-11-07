@@ -1,0 +1,18 @@
+# @package _global_
+
+# GEORGE with sensitivity analysis mediated by the centroidal noiser
+# usage: +experiment=celeba/george_Sa
+
+defaults:
+    - celeba/gdro
+    - override /labeller: celeba/centroidal_noise
+    - _self_
+
+labeller:
+    enc_batch_size: 64
+    metric: COSINE
+    clip_version: RN50
+    level: 0.05
+
+wandb:
+    group: george_${split.artifact_name}
