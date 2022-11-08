@@ -2,7 +2,7 @@ from __future__ import annotations
 from enum import Enum, auto
 import math
 from pathlib import Path
-from typing import Callable, Dict, Tuple
+from typing import Callable, Dict, NamedTuple
 from typing_extensions import Final
 
 from matplotlib import pyplot as plt
@@ -12,6 +12,7 @@ import seaborn as sns
 from wandb_downloader import RunsDownloader
 
 __all__ = [
+    "Group",
     "MethodName",
     "Metrics",
     "concat_with_suffix",
@@ -150,7 +151,7 @@ METHOD_RENAMES: Final = {
 KNOWN_CLASSIFIERS: Final = ["pytorch_classifier", "cnn", "dro", "gdro", "lff", "erm", "oracle"]
 
 
-def merge_cols(df, correct_col: str, incorrect_col: str) -> bool:
+def merge_cols(df: pd.DataFrame, correct_col: str, incorrect_col: str) -> bool:
     try:
         to_merge = df[incorrect_col]
     except KeyError:
@@ -203,18 +204,26 @@ def load_data(*csv_files: Path) -> pd.DataFrame:
     return simple_concat(*dfs)
 
 
-def download_groups(
-    downloader: RunsDownloader, group_mapping: Dict[str, Tuple[MethodName, str]]
-) -> pd.DataFrame:
+class Group(NamedTuple):
+    name: MethodName
+    metrics_prefix: str = ""
+    metrics_suffix: str = ""
+
+
+def download_groups(downloader: RunsDownloader, group_mapping: Dict[str, Group]) -> pd.DataFrame:
     """Download groups from W&B which do not have `misc.log_method` set.
 
     This method can also remove metric prefixes.
     """
     dfs = []
-    for group, (method_name, metric_prefix) in group_mapping.items():
+    for group, (method_name, metric_prefix, metric_suffix) in group_mapping.items():
         df = downloader.groups(group)
         df = df.rename(
-            columns={col: col.removeprefix(metric_prefix) for col in df.columns}, inplace=False
+            columns={
+                col: col.removeprefix(metric_prefix).removesuffix(metric_suffix)
+                for col in df.columns
+            },
+            inplace=False,
         )
         df["misc.log_method"] = method_name.value
         dfs.append(df)

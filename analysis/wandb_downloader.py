@@ -4,6 +4,7 @@ from functools import lru_cache
 from typing import Sequence
 
 import pandas as pd
+from ranzen import flatten_dict
 import wandb
 
 
@@ -60,7 +61,9 @@ class RunsDownloader:
             summary_list.append(run.summary._json_dict)
 
             # run.config is the input metrics.  We remove special values that start with _.
-            config_list.append({k: v for k, v in run.config.items() if not k.startswith("_")})
+            config_list.append(
+                flatten_dict({k: v for k, v in run.config.items() if not k.startswith("_")})
+            )
 
             # run.name is the name of the run.
             name_list.append(run.name)
