@@ -2,18 +2,29 @@ from __future__ import annotations
 from enum import Enum, auto
 import math
 from pathlib import Path
-from typing import Callable, Dict
+from typing import Callable, Dict, Tuple
 from typing_extensions import Final
 
 from matplotlib import pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-__all__ = ["Metrics", "load_data", "plot", "concat_with_suffix", "simple_concat"]
+from wandb_downloader import RunsDownloader
+
+__all__ = [
+    "MethodName",
+    "Metrics",
+    "concat_with_suffix",
+    "download_groups",
+    "load_data",
+    "plot",
+    "simple_concat",
+]
 
 
 class Metrics(Enum):
     acc = auto()
+    rob_acc = auto()
     hgr = auto()  # Renyi correlation
     # ratios
     prr = auto()
@@ -37,6 +48,7 @@ class Aggregation(Enum):
 
 METRICS_COL_NAMES: Final = {
     Metrics.acc: lambda s, cl: f"Accuracy ({cl})",
+    Metrics.rob_acc: lambda s, cl: f"Robust_Accuracy",
     Metrics.hgr: lambda s, cl: f"Renyi preds and s ({cl})",
     Metrics.prr: lambda s, cl: f"prob_pos_{s}_0.0÷{s}_1.0 ({cl})",
     Metrics.tprr: lambda s, cl: f"TPR_{s}_0.0÷{s}_1.0 ({cl})",
@@ -83,6 +95,7 @@ AGG_METRICS_COL_NAMES: Final = {
 METRICS_RENAMES: Final = {
     Metrics.clust_acc: lambda a: f"Cluster. Acc.{a} $\\rightarrow$",
     Metrics.acc: lambda a: f"Accuracy{a} $\\rightarrow$",
+    Metrics.rob_acc: lambda a: f"Robust accuracy{a} $\\rightarrow$",
     Metrics.hgr: lambda a: f"$\\leftarrow$ HGR{a}",
     Metrics.prr: lambda a: f"PR ratio{a} $\\rightarrow 1.0 \\leftarrow$",
     Metrics.tprr: lambda a: f"TPR ratio{a} $\\rightarrow 1.0 \\leftarrow$",
@@ -92,22 +105,30 @@ METRICS_RENAMES: Final = {
     Metrics.tnrd: lambda a: f"TNR diff{a} $\\rightarrow 0.0 \\leftarrow$",
 }
 
+
+class MethodName(Enum):
+    ours_no_balancing = "Ours (No Balancing)"
+    ours_bag_oracle = "Ours (Bag Oracle)"
+    erm = "ERM"
+    gdro = "gDRO"
+
+
 METHOD_RENAMES: Final = {
-    "balanced-False": "Ours (No Balancing)",
-    "balanced-True": "Ours (Bag Oracle)",
+    "balanced-False": MethodName.ours_no_balancing.value,
+    "balanced-True": MethodName.ours_bag_oracle.value,
     "balanced-with-clustering": "Ours (Clustering)",
-    "baseline_cnn": "ERM",
+    "baseline_cnn": MethodName.erm.value,
     "baseline_dro": "DRO",
     "baseline_dro_0.01": "DRO",
     "baseline_dro_0.1": "DRO",
     "baseline_dro_0.3": "DRO",
     "baseline_dro_1.0": "DRO",
-    "baseline_erm": "ERM",
+    "baseline_erm": MethodName.erm.value,
     "baseline_gdro": "gDRO",
     "baseline_lff": "LfF",
     "baseline_oracle": "ERM (Label Oracle)",
     "cluster_and_gdro": "GEORGE",
-    "erm_no_context_no_reg": "ERM",
+    "erm_no_context_no_reg": MethodName.erm.value,
     "kmeans-fdm": "k-means",
     "kmeans-fdm-6": "k-means (6)",
     "kmeans-fdm-8": "k-means (8)",
@@ -182,6 +203,24 @@ def load_data(*csv_files: Path) -> pd.DataFrame:
     return simple_concat(*dfs)
 
 
+def download_groups(
+    downloader: RunsDownloader, group_mapping: Dict[str, Tuple[MethodName, str]]
+) -> pd.DataFrame:
+    """Download groups from W&B which do not have `misc.log_method` set.
+
+    This method can also remove metric prefixes.
+    """
+    dfs = []
+    for group, (method_name, metric_prefix) in group_mapping.items():
+        df = downloader.groups(group)
+        df = df.rename(
+            columns={col: col.removeprefix(metric_prefix) for col in df.columns}, inplace=False
+        )
+        df["misc.log_method"] = method_name.value
+        dfs.append(df)
+    return pd.concat(dfs, axis="index", sort=False, ignore_index=True)
+
+
 def plot(
     data: pd.DataFrame,
     groupby: str = "misc.log_method",
@@ -202,7 +241,12 @@ def plot(
 
     for metric in metrics:
         df, renamed_col_to_plot = _prepare_dataframe(
-            df, groupby=groupby, agg=agg, metric=metric, sens_attr=sens_attr, fillna=fillna
+            df,
+            groupby=groupby,
+            agg=agg,
+            metric=metric,
+            sens_attr=sens_attr,
+            fillna=fillna,
         )
 
         fig = _make_plot(
@@ -224,7 +268,12 @@ def plot(
 
 
 def _prepare_dataframe(
-    df: pd.DataFrame, groupby: str, agg: Aggregation, metric: Metrics, sens_attr: str, fillna: bool
+    df: pd.DataFrame,
+    groupby: str,
+    agg: Aggregation,
+    metric: Metrics,
+    sens_attr: str,
+    fillna: bool,
 ) -> tuple[pd.DataFrame, str]:
     """Merge columns to get the right metrics and find out the right column to plot.
 
@@ -239,7 +288,11 @@ def _prepare_dataframe(
 
         # merge all other classifier-based columns into the first column
         for classifier in KNOWN_CLASSIFIERS[1:]:
-            merge_cols(df, column_to_plot, METRICS_COL_NAMES[metric](sens_attr, classifier))
+            merge_cols(
+                df,
+                column_to_plot,
+                METRICS_COL_NAMES[metric](sens_attr, classifier),
+            )
     else:
         cols_to_aggregate = AGG_METRICS_COL_NAMES[metric](sens_attr, KNOWN_CLASSIFIERS[0])
 
