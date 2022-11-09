@@ -2,7 +2,7 @@ from __future__ import annotations
 from enum import Enum, auto
 import math
 from pathlib import Path
-from typing import Callable, Dict, NamedTuple
+from typing import Dict, NamedTuple
 from typing_extensions import Final
 
 from matplotlib import pyplot as plt
@@ -25,22 +25,30 @@ __all__ = [
 
 
 class Metrics(Enum):
-    acc = auto()
-    rob_acc = auto()
-    rob_tpr = auto()
-    hgr = auto()  # Renyi correlation
+    # each metric is defined via two strings:
+    # string 1: the column name with the placeholder {cl} for the classifier name and {s} for the
+    # sensitive attribute
+    # string 2: the display name with the placeholders {a} for the aggregation name
+    acc = ("Accuracy ({cl})", "Accuracy{a} $\\rightarrow$")
+    rob_acc = ("Robust_Accuracy", "Robust accuracy{a} $\\rightarrow$")
+    rob_tpr = ("Robust_TPR", "Robust TPR{a} $\\rightarrow$")
+    hgr = ("Renyi preds and s ({cl})", "$\\leftarrow$ HGR{a}")
     # ratios
-    prr = auto()
-    tprr = auto()
-    tnrr = auto()
+    prr = ("prob_pos_{s}_0.0÷{s}_1.0 ({cl})", "PR ratio{a} $\\rightarrow 1.0 \\leftarrow$")
+    tprr = ("TPR_{s}_0.0÷{s}_1.0 ({cl})", "TPR ratio{a} $\\rightarrow 1.0 \\leftarrow$")
+    tnrr = ("TNR_{s}_0.0÷{s}_1.0 ({cl})", "TNR ratio{a} $\\rightarrow 1.0 \\leftarrow$")
     # diffs
-    prd = auto()
-    tprd = auto()
-    tnrd = auto()
+    prd = ("", "PR diff{a} $\\rightarrow 0.0 \\leftarrow$")
+    tprd = ("", "TPR diff{a} $\\rightarrow 0.0 \\leftarrow$")
+    tnrd = ("", "TNR diff{a} $\\rightarrow 0.0 \\leftarrow$")
     # cluster metrics
-    clust_acc = auto()
-    clust_ari = auto()
-    clust_nmi = auto()
+    clust_acc = ("Clust/Context Accuracy", "Cluster. Acc.{a} $\\rightarrow$")
+    clust_ari = ("Clust/Context ARI", "")
+    clust_nmi = ("Clust/Context NMI", "")
+
+    def __init__(self, col_name: str, display_name: str):
+        self.col_name = col_name
+        self.display_name = display_name
 
 
 class Aggregation(Enum):
@@ -48,19 +56,6 @@ class Aggregation(Enum):
     min = auto()
     max = auto()
 
-
-METRICS_COL_NAMES: Final = {
-    Metrics.acc: lambda s, cl: f"Accuracy ({cl})",
-    Metrics.rob_acc: lambda s, cl: f"Robust_Accuracy",
-    Metrics.rob_tpr: lambda s, cl: f"Robust_TPR",
-    Metrics.hgr: lambda s, cl: f"Renyi preds and s ({cl})",
-    Metrics.prr: lambda s, cl: f"prob_pos_{s}_0.0÷{s}_1.0 ({cl})",
-    Metrics.tprr: lambda s, cl: f"TPR_{s}_0.0÷{s}_1.0 ({cl})",
-    Metrics.tnrr: lambda s, cl: f"TNR_{s}_0.0÷{s}_1.0 ({cl})",
-    Metrics.clust_acc: lambda s, cl: "Clust/Context Accuracy",
-    Metrics.clust_ari: lambda s, cl: "Clust/Context ARI",
-    Metrics.clust_nmi: lambda s, cl: "Clust/Context NMI",
-}
 
 AGG_METRICS_COL_NAMES: Final = {
     Metrics.acc: lambda s, cl: (f"Accuracy_{s}_0.0 ({cl})", f"Accuracy_{s}_1.0 ({cl})"),
@@ -96,20 +91,6 @@ AGG_METRICS_COL_NAMES: Final = {
     ),
 }
 
-METRICS_RENAMES: Final = {
-    Metrics.clust_acc: lambda a: f"Cluster. Acc.{a} $\\rightarrow$",
-    Metrics.acc: lambda a: f"Accuracy{a} $\\rightarrow$",
-    Metrics.rob_acc: lambda a: f"Robust accuracy{a} $\\rightarrow$",
-    Metrics.rob_tpr: lambda a: f"Robust TPR{a} $\\rightarrow$",
-    Metrics.hgr: lambda a: f"$\\leftarrow$ HGR{a}",
-    Metrics.prr: lambda a: f"PR ratio{a} $\\rightarrow 1.0 \\leftarrow$",
-    Metrics.tprr: lambda a: f"TPR ratio{a} $\\rightarrow 1.0 \\leftarrow$",
-    Metrics.tnrr: lambda a: f"TNR ratio{a} $\\rightarrow 1.0 \\leftarrow$",
-    Metrics.prd: lambda a: f"PR diff{a} $\\rightarrow 0.0 \\leftarrow$",
-    Metrics.tprd: lambda a: f"TPR diff{a} $\\rightarrow 0.0 \\leftarrow$",
-    Metrics.tnrd: lambda a: f"TNR diff{a} $\\rightarrow 0.0 \\leftarrow$",
-}
-
 
 class MethodName(Enum):
     ours_no_balancing = "Ours (No Balancing)"
@@ -117,6 +98,7 @@ class MethodName(Enum):
     erm = "ERM"
     gdro = "gDRO"
     george = "GEORGE"
+    dro = "DRO"
 
 
 METHOD_RENAMES: Final = {
@@ -124,11 +106,11 @@ METHOD_RENAMES: Final = {
     "balanced-True": MethodName.ours_bag_oracle.value,
     "balanced-with-clustering": "Ours (Clustering)",
     "baseline_cnn": MethodName.erm.value,
-    "baseline_dro": "DRO",
-    "baseline_dro_0.01": "DRO",
-    "baseline_dro_0.1": "DRO",
-    "baseline_dro_0.3": "DRO",
-    "baseline_dro_1.0": "DRO",
+    "baseline_dro": MethodName.dro.value,
+    "baseline_dro_0.01": MethodName.dro.value,
+    "baseline_dro_0.1": MethodName.dro.value,
+    "baseline_dro_0.3": MethodName.dro.value,
+    "baseline_dro_1.0": MethodName.dro.value,
     "baseline_erm": MethodName.erm.value,
     "baseline_gdro": "gDRO",
     "baseline_lff": "LfF",
@@ -165,26 +147,22 @@ def merge_cols(df: pd.DataFrame, correct_col: str, incorrect_col: str) -> bool:
     return True
 
 
-def compute_min(
-    df: pd.DataFrame, to_aggregate: tuple[str, ...], rename: Callable[[str], str]
-) -> str:
+def compute_min(df: pd.DataFrame, to_aggregate: tuple[str, ...], display_name: str) -> str:
     ratios = tuple(df[col] for col in to_aggregate)
     min_ = pd.Series(1, ratios[0].index)
     for ratio in ratios:
         min_ = min_.where(min_ < ratio, ratio)
-    new_col = rename(" min")
+    new_col = display_name.format(a=" min")
     df[new_col] = min_
     return new_col
 
 
-def compute_max(
-    df: pd.DataFrame, to_aggregate: tuple[str, ...], rename: Callable[[str], str]
-) -> str:
+def compute_max(df: pd.DataFrame, to_aggregate: tuple[str, ...], display_name: str) -> str:
     diffs = tuple(df[col] for col in to_aggregate)
     max_ = pd.Series(0, diffs[0].index)
     for diff in diffs:
         max_ = max_.where(max_ > diff, diff)
-    new_col = rename(" max")
+    new_col = display_name.format(a=" max")
     df[new_col] = max_
     return new_col
 
@@ -306,16 +284,12 @@ def _prepare_dataframe(
     one column.
     """
     if agg is Aggregation.none:
-        column_to_plot = METRICS_COL_NAMES[metric](sens_attr, KNOWN_CLASSIFIERS[0])
-        col_renames = {column_to_plot: METRICS_RENAMES[metric]("")}
+        column_to_plot = metric.col_name.format(s=sens_attr, cl=KNOWN_CLASSIFIERS[0])
+        col_renames = {column_to_plot: metric.display_name.format(a="")}
 
         # merge all other classifier-based columns into the first column
         for classifier in KNOWN_CLASSIFIERS[1:]:
-            merge_cols(
-                df,
-                column_to_plot,
-                METRICS_COL_NAMES[metric](sens_attr, classifier),
-            )
+            merge_cols(df, column_to_plot, metric.col_name.format(s=sens_attr, cl=classifier))
     else:
         cols_to_aggregate = AGG_METRICS_COL_NAMES[metric](sens_attr, KNOWN_CLASSIFIERS[0])
 
@@ -327,9 +301,9 @@ def _prepare_dataframe(
                 merge_cols(df, col_to_aggregate, variant)
 
         if agg is Aggregation.max:
-            column_to_plot = compute_max(df, cols_to_aggregate, METRICS_RENAMES[metric])
+            column_to_plot = compute_max(df, cols_to_aggregate, metric.display_name)
         else:
-            column_to_plot = compute_min(df, cols_to_aggregate, METRICS_RENAMES[metric])
+            column_to_plot = compute_min(df, cols_to_aggregate, metric.display_name)
 
         # no need for a rename because we wrote the result in the correctly named column
         col_renames = {column_to_plot: column_to_plot}
