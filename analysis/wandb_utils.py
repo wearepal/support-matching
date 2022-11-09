@@ -15,6 +15,7 @@ __all__ = [
     "Group",
     "MethodName",
     "Metrics",
+    "PlotStyle",
     "concat_with_suffix",
     "download_groups",
     "load_data",
@@ -26,6 +27,7 @@ __all__ = [
 class Metrics(Enum):
     acc = auto()
     rob_acc = auto()
+    rob_tpr = auto()
     hgr = auto()  # Renyi correlation
     # ratios
     prr = auto()
@@ -50,6 +52,7 @@ class Aggregation(Enum):
 METRICS_COL_NAMES: Final = {
     Metrics.acc: lambda s, cl: f"Accuracy ({cl})",
     Metrics.rob_acc: lambda s, cl: f"Robust_Accuracy",
+    Metrics.rob_tpr: lambda s, cl: f"Robust_TPR",
     Metrics.hgr: lambda s, cl: f"Renyi preds and s ({cl})",
     Metrics.prr: lambda s, cl: f"prob_pos_{s}_0.0÷{s}_1.0 ({cl})",
     Metrics.tprr: lambda s, cl: f"TPR_{s}_0.0÷{s}_1.0 ({cl})",
@@ -97,6 +100,7 @@ METRICS_RENAMES: Final = {
     Metrics.clust_acc: lambda a: f"Cluster. Acc.{a} $\\rightarrow$",
     Metrics.acc: lambda a: f"Accuracy{a} $\\rightarrow$",
     Metrics.rob_acc: lambda a: f"Robust accuracy{a} $\\rightarrow$",
+    Metrics.rob_tpr: lambda a: f"Robust TPR{a} $\\rightarrow$",
     Metrics.hgr: lambda a: f"$\\leftarrow$ HGR{a}",
     Metrics.prr: lambda a: f"PR ratio{a} $\\rightarrow 1.0 \\leftarrow$",
     Metrics.tprr: lambda a: f"TPR ratio{a} $\\rightarrow 1.0 \\leftarrow$",
@@ -112,6 +116,7 @@ class MethodName(Enum):
     ours_bag_oracle = "Ours (Bag Oracle)"
     erm = "ERM"
     gdro = "gDRO"
+    george = "GEORGE"
 
 
 METHOD_RENAMES: Final = {
@@ -128,7 +133,7 @@ METHOD_RENAMES: Final = {
     "baseline_gdro": "gDRO",
     "baseline_lff": "LfF",
     "baseline_oracle": "ERM (Label Oracle)",
-    "cluster_and_gdro": "GEORGE",
+    "cluster_and_gdro": MethodName.george.value,
     "erm_no_context_no_reg": MethodName.erm.value,
     "kmeans-fdm": "k-means",
     "kmeans-fdm-6": "k-means (6)",
@@ -230,6 +235,13 @@ def download_groups(downloader: RunsDownloader, group_mapping: Dict[str, Group])
     return pd.concat(dfs, axis="index", sort=False, ignore_index=True)
 
 
+class PlotStyle(Enum):
+    boxplot = auto()
+    boxplot_hue = auto()
+    lineplot = auto()
+    scatterplot = auto()
+
+
 def plot(
     data: pd.DataFrame,
     groupby: str = "misc.log_method",
@@ -245,6 +257,7 @@ def plot(
     fillna: bool = False,
     hide_left_ticks: bool = False,
     x_label: str | None = None,
+    plot_style: PlotStyle = PlotStyle.boxplot,
 ) -> None:
     df = data.copy()
 
@@ -266,6 +279,7 @@ def plot(
             y_limits=y_limits,
             hide_left_ticks=hide_left_ticks,
             x_label=x_label,
+            plot_style=plot_style,
         )
         filename = _prepare_filename(
             metric=metric, agg=agg, file_format=file_format, file_prefix=file_prefix
@@ -321,6 +335,8 @@ def _prepare_dataframe(
         col_renames = {column_to_plot: column_to_plot}
 
     base_cols = [groupby]
+    if groupby != "misc.log_method":
+        base_cols.append("misc.log_method")
     col_renames[groupby] = "Method"
 
     df = df[base_cols + [column_to_plot]]
@@ -347,13 +363,39 @@ def _make_plot(
     fig_dim: tuple[float, float],
     x_limits: tuple[float, float],
     y_limits: tuple[float, float],
-    hide_left_ticks: bool = False,
-    x_label: str | None = None,
+    hide_left_ticks: bool,
+    x_label: str | None,
+    plot_style: PlotStyle,
 ) -> plt.Figure:
     # sns.set_style("whitegrid")
-    sns.set_palette("husl", 12)
     fig, plot = plt.subplots(figsize=fig_dim, dpi=300, facecolor="white")
-    sns.boxplot(y="Method", x=renamed_col_to_plot, data=df, ax=plot, whis=1.0)
+    if plot_style is PlotStyle.boxplot:
+        sns.set_palette("husl", 12)
+        sns.boxplot(y="Method", x=renamed_col_to_plot, data=df, ax=plot, whis=1.0)
+    else:
+        df = df.rename(columns={"Method": "x-axis", "misc.log_method": "Method"}, inplace=False)
+        if plot_style is PlotStyle.scatterplot:
+            sns.set_palette("pastel")
+            sns.scatterplot(
+                x="x-axis",
+                y=renamed_col_to_plot,
+                data=df,
+                ax=plot,
+                style="Method",
+                hue="Method",
+            )
+        elif plot_style is PlotStyle.lineplot:
+            sns.set_palette("Set2")
+            sns.lineplot(
+                x="x-axis",
+                y=renamed_col_to_plot,
+                data=df,
+                ax=plot,
+                style="Method",
+                hue="Method",
+            )
+        elif plot_style is PlotStyle.boxplot_hue:
+            sns.boxplot(x="x-axis", y=renamed_col_to_plot, data=df, ax=plot, whis=1.0, hue="Method")
     hatches = ["/", "\\", ".", "x", "/", "\\", ".", "x"]
     for hatch, patch in zip(hatches, plot.artists):
         # patch.set_hatch(hatch)
