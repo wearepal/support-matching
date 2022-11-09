@@ -212,13 +212,13 @@ def load_data(*csv_files: Path) -> pd.DataFrame:
 class Group(NamedTuple):
     name: MethodName
     metrics_prefix: str = ""
-    metrics_suffix: str = ""
+    metrics_suffix: str = " (pytorch_classifier)"
 
 
 def download_groups(downloader: RunsDownloader, group_mapping: Dict[str, Group]) -> pd.DataFrame:
     """Download groups from W&B which do not have `misc.log_method` set.
 
-    This method can also remove metric prefixes.
+    This method can also remove metric prefixes and suffixes.
     """
     dfs = []
     for group, (method_name, metric_prefix, metric_suffix) in group_mapping.items():
