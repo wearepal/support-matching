@@ -4,7 +4,7 @@ from conduit.data.datasets.vision import Camelyon17, CelebA, ColoredMNIST
 from ranzen.hydra import Option
 
 from src.algs.fs import Dro, Erm, Gdro, Jtt, LfF, SdErm
-from src.arch.backbones import ResNet, SimpleCNN
+from src.arch.backbones import DenseNet, ResNet, SimpleCNN
 from src.arch.predictors import Fcn
 from src.arch.predictors.fcn import Fcn
 from src.data.nih import NIHChestXRayDataset
@@ -27,8 +27,9 @@ def main() -> None:
         Option(NIHChestXRayDataset, name="nih"),
     ]
     backbone_ops = [
-        Option(SimpleCNN, name="simple"),
+        Option(DenseNet, name="densenet"),
         Option(ResNet, name="resnet"),
+        Option(SimpleCNN, name="simple"),
     ]
     pred_ops = [
         Option(Fcn, name="fcn"),

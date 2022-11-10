@@ -265,14 +265,15 @@ class LabelNoiser(Labeller):
             f"Injecting noise into ground-truth labels with noise level '{self.level}'"
             f" ({self.level * 100}% of samples will have their labels altered)."
         )
-        flip_inds = sample_noise_indices(
-            labels=group_ids,
-            level=self.level,
-            generator=self.generator,
-            weighted=self.weighted_index_sampling,
-        )
-        # Inject label-noise into the group identifiers.
-        group_ids = self._noise(dep_ids=group_ids, flip_inds=flip_inds, dm=dm)
+        if self.level > 0:  # At level 0, the original labels are preserved in their entirety
+            flip_inds = sample_noise_indices(
+                labels=group_ids,
+                level=self.level,
+                generator=self.generator,
+                weighted=self.weighted_index_sampling,
+            )
+            # Inject label-noise into the group identifiers.
+            group_ids = self._noise(dep_ids=group_ids, flip_inds=flip_inds, dm=dm)
         return group_ids
 
 
