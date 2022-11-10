@@ -5,12 +5,7 @@ from ranzen import str_to_enum
 import torch
 from torch import Tensor
 
-__all__ = [
-    "ClnMetric",
-    "centroidal_label_noise",
-    "sample_noise_indices",
-    "uniform_label_noise",
-]
+__all__ = ["ClnMetric", "centroidal_label_noise", "sample_noise_indices", "uniform_label_noise"]
 
 
 @torch.no_grad()
@@ -86,12 +81,7 @@ def centroidal_label_noise(
     zeros = encodings.new_zeros(size=(len(unique), encodings.size(1)))
     scatter_inds = inv.unsqueeze(-1).expand_as(encodings)
     centroids = torch.scatter_reduce(
-        input=zeros,
-        src=encodings,
-        index=scatter_inds,
-        dim=0,
-        reduce="mean",
-        include_self=False,
+        input=zeros, src=encodings, index=scatter_inds, dim=0, reduce="mean", include_self=False
     )
     encodings_ln = encodings[indices]
     if metric is ClnMetric.COSINE:

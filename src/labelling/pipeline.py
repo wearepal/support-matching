@@ -248,7 +248,7 @@ class LabelNoiser(Labeller):
 
     def __post_init__(self) -> None:
         if not (0 <= self.level <= 1):
-            raise ValueError(f"'label_noise' must be in the range [0, 1].")
+            raise ValueError("'label_noise' must be in the range [0, 1].")
 
     @property
     def generator(self) -> torch.Generator:

@@ -54,6 +54,7 @@ class NiHTargetAttr(Enum):
     pleural_thickening = "Pleural_Thickening"
     pneumonia = "Pneumonia"
     pneumothorax = "Pneumothorax"
+    no_finding = "No Finding"
 
 
 class NIHChestXRayDataset(CdtVisionDataset):
@@ -89,9 +90,10 @@ class NIHChestXRayDataset(CdtVisionDataset):
         findings_ml = pd.DataFrame(
             self.encoder.transform(findings_str), columns=self.encoder.classes_
         )
-        findings_ml.drop("No Finding", axis=1, inplace=True)
         self.metadata = pd.concat((self.metadata, findings_ml), axis=1)
-        if self.target_attr is not None:
+        if self.target_attr is None:
+            findings_ml.drop("No Finding", axis=1, inplace=True)
+        else:
             findings_ml = findings_ml[self.target_attr.value]
         y = torch.as_tensor(findings_ml.to_numpy(), dtype=torch.long)
         image_index_flat = self.root.glob("*/*/*")
