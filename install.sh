@@ -1,5 +1,7 @@
 #!/bin/bash
+poetry install
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        pip3 uninstall --yes torch torchvision torchaudio
 	# Determine whether any GPUs are available and thus whether 
 	# to install the CUDA-enabled version of PyTorch.
 	if [[ $(lshw -C display | grep vendor) =~ NVIDIA ]]
@@ -10,4 +12,3 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
             pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cpu
 	fi
 fi
-poetry install
