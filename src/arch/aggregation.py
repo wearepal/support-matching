@@ -1,7 +1,7 @@
 """Modules that aggregate over a batch."""
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Callable, Optional
+from typing import Optional
 
 from einops import rearrange
 from ranzen import implements
@@ -22,7 +22,7 @@ def batch_to_bags(batch: Tensor, *, batch_size: int) -> Tensor:
     return batch.reshape(-1, *batch.shape[1:], batch_size).movedim(-1, 0)
 
 
-def bags_to_batch(batch: Tensor, *, batch_size: int) -> Tensor:
+def bags_to_batch(batch: Tensor) -> Tensor:
     """
     Invert the ``batch_to_bags`` function.
     """
@@ -116,7 +116,7 @@ class AttentionBlock(nn.Module):
         if self.mean_query:
             outputs = self.post_attn(outputs.squeeze(1))
             return self.ffw(outputs)
-        outputs = bags_to_batch(outputs, batch_size=self.batch_size)
+        outputs = bags_to_batch(outputs)
         # If not reducing (mean_query==False) then insert connections
         outputs = self.post_attn(outputs) + inputs
         return self.ffw(outputs) + outputs

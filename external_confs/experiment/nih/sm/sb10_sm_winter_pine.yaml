@@ -24,7 +24,7 @@ dm:
     num_samples_per_group_per_bag: 1
 
 alg:
-    steps: 10000
+    steps: 20000
     ga_steps: 4
     num_disc_updates: 5
     twoway_disc_loss: false
