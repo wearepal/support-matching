@@ -1,0 +1,11 @@
+# @package _global_
+
+# usage: +experiment=label/nih/sb10_gender_no_finding_kmeans
+
+defaults:
+    - override /ds: nih/gender_no_finding
+    - override /dm: nih/base
+    - override /labeller: nih/kmeans
+    - override /split: nih/sb10_gender_no_finding_art
+    - override /wandb: base
+    - _self_

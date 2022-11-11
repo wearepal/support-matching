@@ -65,11 +65,15 @@ class SummaryMetric(Enum):
     ROB_TPR = "Robust_TPR"
     ROB_TNR = "Robust_TNR"
     ROB_TPR_GAP = "Robust_TPR_Gap"
+    ROB_TNR_GAP = "Robust_TNR_Gap"
     RENYI = "Renyi preds and s"
 
 
 robust_tpr_gap = cdtm.subclasswise_metric(
     comparator=partial(cdtm.conditional_equal, y_true_cond=1), aggregator=cdtm.Aggregator.MAX_DIFF
+)
+robust_tnr_gap = cdtm.subclasswise_metric(
+    comparator=partial(cdtm.conditional_equal, y_true_cond=0), aggregator=cdtm.Aggregator.MAX_DIFF
 )
 
 
@@ -116,6 +120,7 @@ def compute_metrics(
         SummaryMetric.BAL_ACC.value: cdtm.subclass_balanced_accuracy,
         SummaryMetric.ROB_GAP.value: cdtm.robust_gap,
         SummaryMetric.ROB_TPR_GAP.value: robust_tpr_gap,
+        SummaryMetric.ROB_TNR_GAP.value: robust_tnr_gap,
         SummaryMetric.ROB_TPR.value: cdtm.robust_tpr,
         SummaryMetric.ROB_TNR.value: cdtm.robust_tnr,
     }
