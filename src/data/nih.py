@@ -95,6 +95,8 @@ class NIHChestXRayDataset(CdtVisionDataset):
             findings_ml.drop("No Finding", axis=1, inplace=True)
         else:
             findings_ml = findings_ml[self.target_attr.value]
+            if self.target_attr is NiHTargetAttr.no_finding:
+                findings_ml = 1 - findings_ml
         y = torch.as_tensor(findings_ml.to_numpy(), dtype=torch.long)
         image_index_flat = self.root.glob("*/*/*")
         self.metadata["Image Index"] = sorted(list(image_index_flat))

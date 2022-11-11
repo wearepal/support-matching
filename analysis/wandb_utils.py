@@ -8,7 +8,6 @@ from typing_extensions import Final
 from matplotlib import pyplot as plt
 import pandas as pd
 import seaborn as sns
-
 from wandb_downloader import RunsDownloader
 
 __all__ = [
