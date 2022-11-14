@@ -1,13 +1,15 @@
 from __future__ import annotations
+from dataclasses import dataclass
 from enum import Enum, auto
 import math
 from pathlib import Path
-from typing import Dict, NamedTuple
+from typing import Callable, Dict, NamedTuple
 from typing_extensions import Final
 
 from matplotlib import pyplot as plt
 import pandas as pd
 import seaborn as sns
+
 from wandb_downloader import RunsDownloader
 
 __all__ = [
@@ -111,7 +113,7 @@ METHOD_RENAMES: Final = {
     "baseline_dro_0.3": MethodName.dro.value,
     "baseline_dro_1.0": MethodName.dro.value,
     "baseline_erm": MethodName.erm.value,
-    "baseline_gdro": "gDRO",
+    "baseline_gdro": MethodName.gdro.value,
     "baseline_lff": "LfF",
     "baseline_oracle": "ERM (Label Oracle)",
     "cluster_and_gdro": MethodName.george.value,
@@ -146,24 +148,24 @@ def merge_cols(df: pd.DataFrame, correct_col: str, incorrect_col: str) -> bool:
     return True
 
 
-def compute_min(df: pd.DataFrame, to_aggregate: tuple[str, ...], display_name: str) -> str:
-    ratios = tuple(df[col] for col in to_aggregate)
-    min_ = pd.Series(1, ratios[0].index)
-    for ratio in ratios:
-        min_ = min_.where(min_ < ratio, ratio)
-    new_col = display_name.format(a=" min")
-    df[new_col] = min_
-    return new_col
+@dataclass
+class Aggregate:
+    agg: Callable[[pd.Series, pd.Series], pd.Series]
+    suffix: str
+    default_value: int
+
+    def __call__(self, df: pd.DataFrame, to_aggregate: tuple[str, ...], display_name: str) -> str:
+        ratios = tuple(df[col] for col in to_aggregate)
+        min_ = pd.Series(self.default_value, ratios[0].index)
+        for ratio in ratios:
+            min_ = min_.where(self.agg(min_, ratio), ratio)
+        new_col = display_name.format(a=self.suffix)
+        df[new_col] = min_
+        return new_col
 
 
-def compute_max(df: pd.DataFrame, to_aggregate: tuple[str, ...], display_name: str) -> str:
-    diffs = tuple(df[col] for col in to_aggregate)
-    max_ = pd.Series(0, diffs[0].index)
-    for diff in diffs:
-        max_ = max_.where(max_ > diff, diff)
-    new_col = display_name.format(a=" max")
-    df[new_col] = max_
-    return new_col
+compute_min = Aggregate(agg=lambda x, y: x < y, suffix=" min", default_value=1)
+compute_max = Aggregate(agg=lambda x, y: x > y, suffix=" max", default_value=0)
 
 
 def simple_concat(*dfs: pd.DataFrame) -> pd.DataFrame:
