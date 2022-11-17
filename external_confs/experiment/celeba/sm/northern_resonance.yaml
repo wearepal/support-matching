@@ -3,7 +3,7 @@
 # usage: +experiment=celeba/winter_pine
 
 defaults:
-    - /schema/ae_arch: artifact
+    # - /schema/ae_arch: artifact
     - override /ds: celeba/gender_smiling
     - override /dm: celeba/base
     - override /alg: base
@@ -36,9 +36,9 @@ alg:
     max_grad_norm: 5
     disc_loss_w: 0.01
 
-ae_arch:
-    artifact_name: ${split.artifact_name}_in_vqgan_pt
-    version: null # defaults to 'latest'
+# ae_arch:
+#     artifact_name: ${split.artifact_name}_in_vqgan_pt
+#     version: null # defaults to 'latest'
 
 ae:
     recon_loss: l1

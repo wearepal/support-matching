@@ -1,0 +1,7 @@
+---
+defaults:
+  - /schema/ae_arch: simple
+  - _self_
+latent_dim: 256
+levels: 5
+init_chans: 128

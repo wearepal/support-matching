@@ -238,12 +238,13 @@ class ResNetEncoder(nn.Module):
         else:
             self.maxpool = nn.MaxPool2d(kernel_size=1, stride=1)
 
-        self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
+        self.layer1 = self._make_layer(block, planes=64, blocks=layers[0], stride=1)
+        self.layer2 = self._make_layer(block, planes=128, blocks=layers[1], stride=2)
+        self.layer3 = self._make_layer(block, planes=256, blocks=layers[2], stride=2)
+        self.layer4 = self._make_layer(block, planes=512, blocks=layers[3], stride=2)
+        self.prelatent_dim = block.expansion * 512
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.projector = nn.Linear(in_features=512, out_features=latent_dim)
+        self.projector = nn.Linear(in_features=self.prelatent_dim, out_features=latent_dim)
 
     def _make_layer(
         self,
@@ -282,6 +283,7 @@ class ResNetEncoder(nn.Module):
 
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
+
         return self.projector(x)
 
 
