@@ -2,7 +2,7 @@
 
 Code for the paper *Addressing Missing Sources with Adversarial Support-Matching* [https://arxiv.org/abs/2203.13154].
 
-Requires Python 3.8+.
+Requires Python 3.9+.
 
 # Installation
 
