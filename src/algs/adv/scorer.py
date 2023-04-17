@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Any, Final, Optional, Protocol, Tuple, Union
 
-from conduit.data import CdtDataLoader, CdtDataset
-from conduit.data.structures import TernarySample
+from conduit.data.datasets import CdtDataLoader, CdtDataset
+from conduit.data import TernarySample
 import conduit.metrics as cdtm
 from conduit.models.utils import prefix_keys
 from loguru import logger

@@ -5,7 +5,8 @@ import platform
 from typing import Any, Final, Generic, Iterator, TypeVar
 from typing_extensions import TypeAlias
 
-from conduit.data import CdtDataset, LoadedData, TernarySample
+from conduit.data import LoadedData, TernarySample
+from conduit.data.datasets import CdtDataset
 from hydra.utils import to_absolute_path
 from torch import Tensor
 

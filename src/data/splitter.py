@@ -6,8 +6,8 @@ from tempfile import TemporaryDirectory
 from typing import Any, Dict, Final, List, Optional, TypedDict, Union, cast
 
 from conduit.data.constants import IMAGENET_STATS
-from conduit.data.datasets import CdtVisionDataset
-from conduit.data.datasets.utils import ImageTform, PillowTform, stratified_split
+from conduit.data.datasets.vision import ImageTform, PillowTform, CdtVisionDataset
+from conduit.data.datasets.utils import stratified_split
 from loguru import logger
 from ranzen import implements
 import torch

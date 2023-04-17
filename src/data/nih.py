@@ -2,8 +2,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional, Union, cast
 
-from conduit.data.datasets.utils import ImageTform
-from conduit.data.datasets.vision.base import CdtVisionDataset
+from conduit.data.datasets.vision import CdtVisionDataset, ImageTform
 import pandas as pd
 from sklearn.preprocessing import MultiLabelBinarizer
 import torch

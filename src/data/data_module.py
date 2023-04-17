@@ -19,13 +19,8 @@ from typing_extensions import Self
 import albumentations as A
 import attr
 from conduit.data.constants import IMAGENET_STATS
-from conduit.data.datasets import CdtVisionDataset
-from conduit.data.datasets.utils import (
-    CdtDataLoader,
-    ImageTform,
-    PillowTform,
-    get_group_ids,
-)
+from conduit.data.datasets.vision import CdtVisionDataset, ImageTform, PillowTform
+from conduit.data.datasets.utils import CdtDataLoader, get_group_ids
 from conduit.data.structures import MeanStd, TernarySample
 from conduit.transforms import denormalize
 from loguru import logger

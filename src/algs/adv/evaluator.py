@@ -4,10 +4,9 @@ from enum import Enum, auto
 from typing import Any, Final, Generic, Optional, Sequence, TypeVar, overload
 from typing_extensions import Literal
 
-from conduit.data import CdtDataLoader
-from conduit.data.datasets.base import CdtDataset
-from conduit.data.datasets.vision.base import CdtVisionDataset
-from conduit.data.structures import TernarySample
+from conduit.data.datasets import CdtDataLoader, CdtDataset
+from conduit.data.datasets.vision import CdtVisionDataset
+from conduit.data import TernarySample
 from loguru import logger
 from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
