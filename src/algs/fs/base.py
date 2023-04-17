@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Dict
 
 from loguru import logger
 from omegaconf import DictConfig
@@ -22,9 +22,9 @@ class FsAlg(Algorithm):
     lr: float = 5.0e-4
     weight_decay: float = 0
     optimizer_cls: Optimizer = Optimizer.ADAM
-    optimizer_kwargs: Optional[DictConfig] = None
+    optimizer_kwargs: Optional[Dict] = None
     scheduler_cls: Optional[str] = None
-    scheduler_kwargs: Optional[DictConfig] = None
+    scheduler_kwargs: Optional[Dict] = None
     val_interval: float = 0.1
     monitor: SummaryMetric = SummaryMetric.ROB_ACC
 

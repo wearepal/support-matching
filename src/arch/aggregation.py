@@ -124,7 +124,6 @@ class AttentionBlock(nn.Module):
 
 @dataclass(eq=False)
 class KvqAggregator(BatchAggregator):
-
     dim: int
     num_blocks: int = 1
     dropout: float = 0.0
@@ -167,7 +166,6 @@ class KvqAggregator(BatchAggregator):
 
 @dataclass(eq=False)
 class GatedAggregator(BatchAggregator):
-
     dim: int
     v: Parameter = field(init=False)
     u: Parameter = field(init=False)

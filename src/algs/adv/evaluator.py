@@ -134,7 +134,6 @@ def encode_dataset(
     zy_ls, zs_ls, s_ls, y_ls = [], [], [], []
     with torch.no_grad():
         for batch in tqdm(dl, desc="Encoding dataset", colour=_PBAR_COL):
-
             x = batch.x.to(device, non_blocking=True)
             s_ls.append(batch.s)
             y_ls.append(batch.y)
@@ -264,10 +263,10 @@ class Evaluator:
     optimizer_cls: Optimizer = Optimizer.ADAM
     lr: float = 1.0e-4
     weight_decay: float = 0
-    optimizer_kwargs: Optional[DictConfig] = None
-    optimizer: torch.optim.Optimizer = field(init=False)
+    optimizer_kwargs: Optional[Dict] = None
+    optimizer: Any = field(init=False)
     scheduler_cls: Optional[str] = None
-    scheduler_kwargs: Optional[DictConfig] = None
+    scheduler_kwargs: Optional[Dict] = None
 
     def _fit_classifier(
         self,

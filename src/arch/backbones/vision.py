@@ -228,7 +228,6 @@ class BeitVersion(Enum):
 
 @dataclass
 class Beit(BackboneFactory):
-
     pretrained: bool = True
     version: BeitVersion = BeitVersion.BASE_P16_224_21K
     checkpoint_path: str = ""
@@ -264,7 +263,6 @@ class NfNetVersion(Enum):
 
 @dataclass
 class NfNet(BackboneFactory):
-
     pretrained: bool = True
     version: NfNetVersion = NfNetVersion.F6
     checkpoint_path: str = ""

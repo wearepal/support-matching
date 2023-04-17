@@ -1,5 +1,5 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Dict
 
 from hydra.plugins.sweeper import Sweeper
 from hydra.types import HydraContext, TaskFunction
@@ -20,9 +20,9 @@ class OptunaSweeper(Sweeper):
         n_trials: int,
         n_jobs: int,
         max_failure_rate: float,
-        search_space: Optional[DictConfig],
+        search_space: Optional[Dict],
         custom_search_space: Optional[str],
-        params: Optional[DictConfig],
+        params: Optional[Dict],
     ) -> None:
         from ._impl import OptunaSweeperImpl
 

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, ClassVar
 from typing_extensions import TypeAlias
 
 from hydra.utils import instantiate
@@ -28,14 +28,16 @@ Run: TypeAlias = Union[
 ]
 
 
-@dataclass(eq=False)
-class BaseRelay(Relay):
-    dm: DataModuleConf = MISSING
-    ds: DictConfig = MISSING
-    labeller: DictConfig = MISSING
-    split: DictConfig = MISSING
-    wandb: DictConfig = MISSING
+@dataclass(eq=False, kw_only=True)
+class BaseRelay:
+    dm: DataModuleConf
+    split: Any  # Union[RandomSplitter, SplitFromArtifact]
+    wandb: WandbConf
     seed: int = 0
+
+    options: ClassVar[Dict[str, type]] = {
+        "split": {"random": RandomSplitter, "artifact": SplitFromArtifact}
+    }
 
     @classmethod
     @implements(Relay)

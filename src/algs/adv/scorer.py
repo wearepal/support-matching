@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Final, Optional, Protocol, Tuple, Union
+from typing import Any, Final, Optional, Protocol, Tuple, Union, Dict
 
 from conduit.data.datasets import CdtDataLoader, CdtDataset
 from conduit.data import TernarySample
@@ -87,10 +87,10 @@ class NeuralScorer(Scorer):
     optimizer_cls: Optimizer = Optimizer.ADAM
     lr: float = 1.0e-4
     weight_decay: float = 0
-    optimizer_kwargs: Optional[DictConfig] = None
-    optimizer: torch.optim.Optimizer = field(init=False)
+    optimizer_kwargs: Optional[Dict] = None
+    optimizer: Any = field(init=False)
     scheduler_cls: Optional[str] = None
-    scheduler_kwargs: Optional[DictConfig] = None
+    scheduler_kwargs: Optional[Dict] = None
     eval_batches: int = 1000
     inv_score_w: float = 1
     recon_score_w: float = 1

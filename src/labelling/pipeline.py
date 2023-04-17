@@ -2,7 +2,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Protocol, Union, cast
+from typing import Any, Optional, Protocol, Union, cast
 
 import conduit.metrics as cdtm
 from conduit.models.utils import prefix_keys
@@ -73,8 +73,8 @@ class KmeansOnClipEncodings(DcModule, Labeller):
     artifact_name: Optional[str] = None
 
     cache_encoder: bool = False
-    encoder: Optional[ClipVisualEncoder] = field(init=False, default=None)
-    _fitted_kmeans: Optional[KMeans] = field(init=False, default=None)
+    encoder: Any = field(init=False, default=None)
+    _fitted_kmeans: Any = field(init=False, default=None)
 
     @implements(Labeller)
     def run(self, dm: DataModule, *, use_cached_encoder: bool = False) -> Tensor:

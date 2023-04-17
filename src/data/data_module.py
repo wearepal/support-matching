@@ -64,7 +64,6 @@ class DataModuleConf:
 
 @attr.define(kw_only=True)
 class DataModule(Generic[D]):
-
     train: D
     deployment: D
     deployment_ids: Optional[Tensor] = None

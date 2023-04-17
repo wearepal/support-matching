@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar, Optional, Dict
 
 from conduit.types import LRScheduler
 from hydra.utils import instantiate
@@ -30,10 +30,10 @@ class Model(DcModule):
     optimizer_cls: Optimizer = Optimizer.ADAM
     lr: float = 5.0e-4
     weight_decay: float = 0
-    optimizer_kwargs: Optional[DictConfig] = None
-    optimizer: torch.optim.Optimizer = field(init=False)
+    optimizer_kwargs: Optional[Dict] = None
+    optimizer: Any = field(init=False)
     scheduler_cls: Optional[str] = None
-    scheduler_kwargs: Optional[DictConfig] = None
+    scheduler_kwargs: Optional[Dict] = None
     scheduler: Optional[LRScheduler] = field(init=False, default=None)
 
     def __post_init__(self) -> None:

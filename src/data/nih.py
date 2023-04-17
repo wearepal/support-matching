@@ -1,6 +1,7 @@
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Union, cast
+from typing import Any, Optional, Union, cast
+import attr
 
 from conduit.data.datasets.vision import CdtVisionDataset, ImageTform
 import pandas as pd
@@ -56,6 +57,7 @@ class NiHTargetAttr(Enum):
     no_finding = "No Finding"
 
 
+@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class NIHChestXRayDataset(CdtVisionDataset):
     """ "
     National Institutes of Health Chest X-Ray Dataset
@@ -71,16 +73,12 @@ class NIHChestXRayDataset(CdtVisionDataset):
     The dataset can be downloaded by following the above link or from `kaggle <https://www.kaggle.com/datasets/nih-chest-xrays/data>`__
     """
 
-    def __init__(
-        self,
-        root: Union[Path, str],
-        sens_attr: NiHSensAttr = NiHSensAttr.gender,
-        target_attr: Optional[NiHTargetAttr] = NiHTargetAttr.cardiomegaly,
-        transform: Optional[ImageTform] = None,
-    ) -> None:
-        self.root = Path(root)
-        self.sens_attr = sens_attr
-        self.target_attr = target_attr
+    root: Union[Path, str]
+    sens_attr: NiHSensAttr = NiHSensAttr.gender
+    target_attr: Optional[NiHTargetAttr] = NiHTargetAttr.cardiomegaly
+    transform: Optional[ImageTform] = None
+
+    def __attrs_pre_init__(self):
         self.metadata = cast(pd.DataFrame, pd.read_csv(self.root / "Data_Entry_2017.csv"))
         # In the case of Patient Gender, factorize yields the mapping: M -> 0, F -> 1
         s = torch.as_tensor(self.metadata[self.sens_attr.value].factorize()[0], dtype=torch.long)
@@ -100,4 +98,4 @@ class NIHChestXRayDataset(CdtVisionDataset):
         image_index_flat = self.root.glob("*/*/*")
         self.metadata["Image Index"] = sorted(list(image_index_flat))
         x = self.metadata["Image Index"].to_numpy()
-        super().__init__(image_dir=self.root, x=x, s=s, y=y, transform=transform)
+        super().__init__(image_dir=self.root, x=x, s=s, y=y, transform=self.transform)
