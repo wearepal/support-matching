@@ -1,5 +1,6 @@
-from dataclasses import dataclass, field
 from typing import Any, ClassVar, Dict, Optional
+
+from attrs import define, field
 
 from src.data import RandomSplitter
 from src.data.splitter import RandomSplitter
@@ -11,11 +12,13 @@ from src.logging import WandbConf
 __all__ = ["SplitRelay"]
 
 
-@dataclass(eq=False)
+@define(eq=False, kw_only=True)
 class SplitRelay:
+    defaults: list[Any] = field(default=[{"ds": "cmnist"}])
+
     ds: Any  # CdtDataset
-    split: RandomSplitter = field(default_factory=RandomSplitter)
-    wandb: WandbConf = field(default_factory=WandbConf)
+    split: RandomSplitter = field(default=RandomSplitter)
+    wandb: WandbConf = field(default=WandbConf)
 
     options: ClassVar[Dict[str, Dict[str, type]]] = {
         "ds": {

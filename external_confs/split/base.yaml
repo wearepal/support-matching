@@ -1,6 +1,6 @@
 ---
 defaults:
-  - /schema/split: base
+  - /split/base@_here_
   - defaults
   - _self_
 log_dataset: ''

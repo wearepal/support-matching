@@ -1,9 +1,11 @@
 from typing import Any, ClassVar, Optional, Protocol
 
+from attrs import NOTHING, Attribute, fields
 import hydra
 from hydra.core.config_store import ConfigStore
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
+
 from src.data.common import process_data_dir
 from src.relay.supmatch import SupMatchRelay
 
@@ -18,6 +20,28 @@ class Experiment(Protocol):
 
 
 def run(relay_cls: type[Experiment]) -> None:
+    # verify some aspects of the configs
+    configs: tuple[Attribute, ...] = fields(relay_cls)
+    for config in configs:
+        if config.type == Any:
+            if config.name not in relay_cls.options:
+                raise ValueError(
+                    f"if an entry has type Any, there should be variants: {config.name}"
+                )
+            if config.default is not NOTHING:
+                raise ValueError(
+                    f"if an entry has type Any, there should be no default value: {config.name}"
+                )
+        else:
+            if config.name in relay_cls.options:
+                raise ValueError(
+                    f"if an entry has a real type, there should be no variants: {config.name}"
+                )
+            if config.default is NOTHING:
+                raise ValueError(
+                    f"if an entry has a real type, there should be a default value: {config.name}"
+                )
+
     cs = ConfigStore.instance()
     cs.store(node=relay_cls, name="config_schema")
     for group, entries in relay_cls.options.items():

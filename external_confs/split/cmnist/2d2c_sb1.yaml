@@ -1,6 +1,6 @@
 ---
 defaults:
-  - /schema/split: base
+  - /split/base@_here_
   - defaults
   - _self_
 log_dataset: ''
@@ -15,7 +15,7 @@ dep_subsampling_props:
         1: 0.4
     1:
         0: 0.2
-        
+
 train_subsampling_props:
     0:
         1: 0.3

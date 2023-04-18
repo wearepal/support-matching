@@ -1,15 +1,3 @@
 defaults:
   - config_schema
-  # - dm: base/default
-  # - wandb: base/default
-  - split: random
-  # - ae: base/default
-  - ae_arch: simple
-  # - alg: base/default
-  # - disc: base/default
-  - disc_arch: set
-  - ds: cmnist
-  # - eval: base/default
-  - labeller: none
-  - scorer: none
   - _self_

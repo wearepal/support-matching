@@ -39,11 +39,21 @@ __all__ = ["SupMatchRelay"]
 
 @define(eq=False, kw_only=True)
 class SupMatchRelay(BaseRelay):
+    defaults: list[Any] = field(
+        default=[
+            {"ae_arch": "simple"},
+            {"ds": "cmnist"},
+            {"disc_arch": "set"},
+            {"labeller": "none"},
+            {"scorer": "none"},
+            {"split": "random"},
+        ]
+    )
     alg: SupportMatching = field(default=SupportMatching)
     ae: SplitLatentAeConf = field(default=SplitLatentAeConf)
-    ae_arch: AeFactory
+    ae_arch: Any  # AeFactory
     ds: Any  # CdtDataset
-    disc_arch: PredictorFactory
+    disc_arch: Any  # PredictorFactory
     disc: NeuralDiscriminatorConf = field(default=NeuralDiscriminatorConf)
     eval: Evaluator = field(default=Evaluator)
     labeller: Any  # Labeller
@@ -81,11 +91,13 @@ class SupMatchRelay(BaseRelay):
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Optional[float]:
         run = self.wandb.init(raw_config, (self.labeller, self.ae_arch, self.disc_arch))
         dm = self.init_dm(self.ds, self.labeller)
+        assert isinstance(self.ae_arch, AeFactory)
         ae_pair: AePair = self.ae_arch(input_shape=dm.dim_x)
         ae = SplitLatentAe(cfg=self.ae, model=ae_pair, feature_group_slices=dm.feature_group_slices)
         logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
+        assert isinstance(self.disc_arch, PredictorFactory)
         disc_net, _ = self.disc_arch(
-            input_dim=ae.encoding_size.zy, target_dim=1, batch_size=dm.batch_size_tr
+            input_dim=ae.encoding_size.zy, target_dim=1, batch_size=dm.cfg.batch_size_tr
         )
         disc = NeuralDiscriminator(cfg=self.disc, model=disc_net)
         scorer: Scorer = self.scorer

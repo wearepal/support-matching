@@ -1,6 +1,6 @@
 ---
 defaults:
-  - /schema/alg: base
+  - /alg/base@_here_
   - defaults
   - _self_
 iters: 50000
