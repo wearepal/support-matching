@@ -73,8 +73,10 @@ class KmeansOnClipEncodings(DcModule, Labeller):
     artifact_name: Optional[str] = None
 
     cache_encoder: bool = False
-    # encoder: Optional[ClipVisualEncoder] = field(init=False, default=None)
-    # _fitted_kmeans: Optional[KMeans] = field(init=False, default=None)
+
+    def __post_init__(self) -> None:
+        self.encoder: Optional[ClipVisualEncoder] = None
+        self._fitted_kmeans: Optional[KMeans] = None
 
     @override
     def run(self, dm: DataModule, *, use_cached_encoder: bool = False) -> Tensor:

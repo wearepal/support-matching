@@ -1,8 +1,8 @@
 from abc import abstractmethod
-from dataclasses import dataclass
 from typing import Dict, Optional
 from typing_extensions import override
 
+import attrs
 from loguru import logger
 from torch import Tensor
 import torch.nn as nn
@@ -15,7 +15,7 @@ from src.models import Optimizer
 __all__ = ["FsAlg"]
 
 
-@dataclass(eq=False)
+@attrs.define(kw_only=True, repr=False, eq=False)
 class FsAlg(Algorithm):
     steps: int = 10_000
     lr: float = 5.0e-4
