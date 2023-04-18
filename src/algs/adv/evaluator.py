@@ -266,7 +266,7 @@ class Evaluator:
     optimizer_kwargs: Optional[Dict] = None
     scheduler_cls: Optional[str] = None
     scheduler_kwargs: Optional[Dict] = None
-    optimizer: torch.optim.Optimizer = field(init=False)
+    # optimizer: torch.optim.Optimizer = field(init=False)
 
     def _fit_classifier(
         self,
