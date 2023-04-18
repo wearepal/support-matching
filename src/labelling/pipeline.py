@@ -18,6 +18,7 @@ from src.data import DataModule, resolve_device
 from src.evaluation.metrics import print_metrics
 from src.labelling.encode import encode_with_group_ids
 from src.models import Classifier
+from src.models.base import ModelConf
 from src.utils import to_item
 
 from .artifact import load_labels_from_artifact, save_labels_as_artifact
@@ -183,7 +184,7 @@ class ClipClassifier(Labeller):
             val_batches=self.val_batches,
             device=device,
         )
-        classifier = Classifier(model=ft_model)
+        classifier = Classifier(model=ft_model, cfg=ModelConf())
         preds = classifier.predict(
             dm.deployment_dataloader(eval=True, batch_size=self.batch_size_te),
             device=device,
