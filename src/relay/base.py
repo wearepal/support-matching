@@ -1,29 +1,18 @@
 import os
-from typing import ClassVar, Dict, Union
-from typing_extensions import TypeAlias
+from typing import ClassVar, Dict
 
 from attrs import define, field
 from conduit.data.datasets.vision import CdtVisionDataset
 from loguru import logger
-from omegaconf import DictConfig, OmegaConf
 from ranzen.torch import random_seed
 import torch
-import wandb
 
 from src.data import DataModule, DataModuleConf, RandomSplitter, SplitFromArtifact
-from src.data.common import process_data_dir
 from src.data.splitter import DataSplitter
 from src.labelling import Labeller
 from src.logging import WandbConf
 
-__all__ = ["BaseRelay", "fix_dataset_root"]
-
-
-Run: TypeAlias = Union[
-    wandb.sdk.wandb_run.Run,  # type: ignore
-    wandb.sdk.lib.disabled.RunDisabled,  # type: ignore
-    None,
-]
+__all__ = ["BaseRelay"]
 
 
 @define(eq=False, kw_only=True)
@@ -47,12 +36,3 @@ class BaseRelay:
         dm = DataModule.from_ds(config=self.dm, ds=ds, splitter=splitter, labeller=labeller)
         logger.info(str(dm))
         return dm
-
-
-def fix_dataset_root(hydra_config: DictConfig) -> None:
-    """Deal with missing `root`."""
-
-    if OmegaConf.is_missing(hydra_config["ds"], "root"):
-        hydra_config["ds"]["root"] = process_data_dir(None)
-    else:
-        hydra_config["ds"]["root"] = process_data_dir(hydra_config["ds"]["root"])

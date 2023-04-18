@@ -1,21 +1,25 @@
-from typing import Any, Dict, Optional, ClassVar
+from typing import Any, ClassVar, Dict, Optional
 
 from attrs import define, field
+from loguru import logger
+
+from src.algs import SupportMatching
+from src.algs.adv import Evaluator, NeuralScorer, NullScorer, Scorer
+from src.arch.autoencoder import (
+    AeFactory,
+    AeFromArtifact,
+    AePair,
+    ResNetAE,
+    SimpleConvAE,
+    VqGanAe,
+    save_ae_artifact,
+)
 from src.arch.predictors.base import PredictorFactory
+from src.arch.predictors.fcn import Fcn, SetFcn
 from src.hydra_confs.camelyon17.conf import Camelyon17Conf
 from src.hydra_confs.celeba.conf import CelebAConf
 from src.hydra_confs.cmnist.conf import ColoredMNISTConf
 from src.hydra_confs.nih.conf import NIHChestXRayDatasetConf
-from loguru import logger
-
-from src.arch.predictors.fcn import Fcn, SetFcn
-from src.arch.autoencoder import AeFromArtifact, ResNetAE, SimpleConvAE, VqGanAe
-from src.algs import SupportMatching
-from src.algs.adv import Evaluator, NeuralScorer, NullScorer, Scorer
-from src.arch.autoencoder import AeFactory, AeFromArtifact, AePair, save_ae_artifact
-from src.models import SplitLatentAe
-from src.models.autoencoder import SplitLatentAeConf
-from src.models.discriminator import NeuralDiscriminator, NeuralDiscriminatorConf
 from src.labelling.pipeline import (
     CentroidalLabelNoiser,
     GroundTruthLabeller,
@@ -24,6 +28,9 @@ from src.labelling.pipeline import (
     NullLabeller,
     UniformLabelNoiser,
 )
+from src.models import SplitLatentAe
+from src.models.autoencoder import SplitLatentAeConf
+from src.models.discriminator import NeuralDiscriminator, NeuralDiscriminatorConf
 
 from .base import BaseRelay
 
@@ -72,30 +79,20 @@ class SupMatchRelay(BaseRelay):
     }
 
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Optional[float]:
-        keys_for_default_group = ("labeller", "ae_arch", "disc_arch")
-        run = self.wandb.init(raw_config, keys_for_default_group)
+        run = self.wandb.init(raw_config, (self.labeller, self.ae_arch, self.disc_arch))
         dm = self.init_dm(self.ds, self.labeller)
-        alg: SupportMatching = self.alg
-        ae_factory: AeFactory = self.ae_arch
-        ae_pair: AePair = ae_factory(input_shape=dm.dim_x)
-        ae = SplitLatentAe(
-            cfg=self.ae,
-            model=ae_pair,
-            feature_group_slices=dm.feature_group_slices,
-        )
+        ae_pair: AePair = self.ae_arch(input_shape=dm.dim_x)
+        ae = SplitLatentAe(cfg=self.ae, model=ae_pair, feature_group_slices=dm.feature_group_slices)
         logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
         disc_net, _ = self.disc_arch(
-            input_dim=ae.encoding_size.zy,
-            target_dim=1,
-            batch_size=dm.batch_size_tr,
+            input_dim=ae.encoding_size.zy, target_dim=1, batch_size=dm.batch_size_tr
         )
         disc = NeuralDiscriminator(cfg=self.disc, model=disc_net)
-        evaluator: Evaluator = self.eval
         scorer: Scorer = self.scorer
-        score = alg.run(dm=dm, ae=ae, disc=disc, evaluator=evaluator, scorer=scorer)
+        score = self.alg.run(dm=dm, ae=ae, disc=disc, evaluator=self.eval, scorer=scorer)
         if run is not None:
             # Bar the saving of AeFromArtifact instances to prevent infinite recursion.
-            if (self.artifact_name is not None) and (not isinstance(ae_factory, AeFromArtifact)):
+            if (self.artifact_name is not None) and (not isinstance(self.ae_arch, AeFromArtifact)):
                 save_ae_artifact(
                     run=run,
                     model=ae_pair,

@@ -39,9 +39,7 @@ def cat_cpu_flatten(*ls: list[Tensor], dim: int = 0) -> Iterator[Tensor]:
 class Classifier(Model):
     """Wrapper for classifier models equipped witht training/inference routines."""
 
-    def __init__(
-        self, cfg: ModelConf, model: nn.Module, criterion: Optional[Loss] = None
-    ) -> None:
+    def __init__(self, cfg: ModelConf, model: nn.Module, criterion: Optional[Loss] = None) -> None:
         super().__init__(cfg, model)
         self.criterion = criterion
 

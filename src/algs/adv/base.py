@@ -7,11 +7,11 @@ from typing import (
     Dict,
     Generic,
     Iterator,
+    Literal,
     Optional,
     Tuple,
     TypeVar,
     Union,
-    Literal,
 )
 from typing_extensions import Self, TypeAlias
 

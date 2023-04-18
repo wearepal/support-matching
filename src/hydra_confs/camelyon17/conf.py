@@ -1,12 +1,13 @@
 from dataclasses import dataclass, field
-from conduit.data.datasets.vision.camelyon17 import Camelyon17Attr
-from conduit.data.datasets.vision.camelyon17 import Camelyon17Split
-from conduit.data.datasets.vision.camelyon17 import Camelyon17SplitScheme
-from omegaconf import MISSING
 from pathlib import Path
-from typing import Any
-from typing import Optional
-from typing import Union
+from typing import Any, Optional, Union
+
+from conduit.data.datasets.vision.camelyon17 import (
+    Camelyon17Attr,
+    Camelyon17Split,
+    Camelyon17SplitScheme,
+)
+from omegaconf import MISSING
 
 
 @dataclass

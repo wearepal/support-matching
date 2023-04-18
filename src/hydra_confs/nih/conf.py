@@ -1,11 +1,10 @@
 from dataclasses import dataclass, field
-from omegaconf import MISSING
 from pathlib import Path
-from src.data.nih import NiHSensAttr
-from src.data.nih import NiHTargetAttr
-from typing import Any
-from typing import Optional
-from typing import Union
+from typing import Any, Optional, Union
+
+from omegaconf import MISSING
+
+from src.data.nih import NiHSensAttr, NiHTargetAttr
 
 
 @dataclass

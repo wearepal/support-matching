@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import List, Protocol
 from typing_extensions import override
-import attrs
 
+import attrs
 import torch
 from torch import Tensor
 import torch.nn as nn

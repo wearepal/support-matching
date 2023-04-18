@@ -1,11 +1,8 @@
 from dataclasses import dataclass, field
-from omegaconf import MISSING
 from pathlib import Path
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
+from typing import Any, Dict, List, Optional, Union
+
+from omegaconf import MISSING
 
 
 @dataclass

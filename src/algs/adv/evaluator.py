@@ -4,9 +4,9 @@ from enum import Enum, auto
 from typing import Any, Dict, Final, Generic, Optional, Sequence, TypeVar, overload
 from typing_extensions import Literal
 
+from conduit.data import TernarySample
 from conduit.data.datasets import CdtDataLoader, CdtDataset
 from conduit.data.datasets.vision import CdtVisionDataset
-from conduit.data import TernarySample
 from loguru import logger
 from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
@@ -264,9 +264,9 @@ class Evaluator:
     lr: float = 1.0e-4
     weight_decay: float = 0
     optimizer_kwargs: Optional[Dict] = None
-    optimizer: Any = field(init=False)
     scheduler_cls: Optional[str] = None
     scheduler_kwargs: Optional[Dict] = None
+    optimizer: torch.optim.Optimizer = field(init=False)
 
     def _fit_classifier(
         self,

@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Optional, Dict
+from typing import Dict, Optional
 from typing_extensions import override
 
 from loguru import logger

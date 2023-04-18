@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, ClassVar, Optional, Dict
+from typing import Any, ClassVar, Dict, Optional
 from typing_extensions import override
 
 from conduit.types import LRScheduler

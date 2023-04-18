@@ -1,7 +1,7 @@
 from typing import Dict, Optional, Tuple, cast
 from typing_extensions import Self, override
-import attrs
 
+import attrs
 from conduit.data.structures import TernarySample
 from loguru import logger
 import torch

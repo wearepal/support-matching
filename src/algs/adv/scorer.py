@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
-from typing import Any, Final, Optional, Protocol, Tuple, Union, Dict
+from typing import Any, Dict, Final, Optional, Protocol, Tuple, Union
 from typing_extensions import override
 
-from conduit.data.datasets import CdtDataLoader, CdtDataset
 from conduit.data import TernarySample
+from conduit.data.datasets import CdtDataLoader, CdtDataset
 import conduit.metrics as cdtm
 from conduit.models.utils import prefix_keys
 from loguru import logger

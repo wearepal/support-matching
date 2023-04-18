@@ -8,13 +8,13 @@ from typing_extensions import TypeAlias
 
 from conduit.data.datasets.vision.base import CdtVisionDataset
 from hydra.core.hydra_config import HydraConfig
+from loguru import logger
 from omegaconf import OmegaConf
 import torch
 from torch import Tensor
 import torchvision
 import torchvision.transforms.functional as TF
 import wandb
-from loguru import logger
 
 from src.data.data_module import DataModule
 
@@ -26,6 +26,7 @@ __all__ = [
     "log_images",
     "reconstruct_cmd",
 ]
+
 Run: TypeAlias = Union[
     wandb.sdk.wandb_run.Run,  # type: ignore
     wandb.sdk.lib.disabled.RunDisabled,  # type: ignore
@@ -52,7 +53,7 @@ class WandbConf:
     def init(
         self,
         raw_config: Optional[Dict[str, Any]] = None,
-        keys_for_name: Tuple[str, ...] = (),
+        cfgs_for_group: Tuple[object, ...] = (),
         suffix: Optional[str] = None,
     ) -> Run:
         if raw_config is not None and self.group is None:
@@ -60,12 +61,14 @@ class WandbConf:
             if suffix is not None:
                 default_group += suffix
             default_group += "_".join(
-                raw_config[key]["_target_"].split(".")[-1].lower() for key in keys_for_name
+                cfg_obj.__class__.__name__.lower() for cfg_obj in cfgs_for_group
             )
             logger.info(f"No wandb group set - using {default_group} as the inferred default.")
             self.group = default_group
+            raw_config["wandb"]["group"] = self.group
         # TODO: not sure whether `reinit` really should be hardcoded
-        return wandb.init(**asdict(self), config=raw_config, reinit=True)
+        self.reinit = True
+        return wandb.init(**asdict(self), config=raw_config)
 
 
 def log_images(

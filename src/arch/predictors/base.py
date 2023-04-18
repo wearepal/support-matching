@@ -15,5 +15,7 @@ PredictorFactoryOut: TypeAlias = Tuple[M, int]
 
 @dataclass
 class PredictorFactory:
-    def __call__(self, input_dim: int, *, target_dim: int, **kwargs: Any) -> Tuple[nn.Module, int]: #PredictorFactoryOut:
+    def __call__(
+        self, input_dim: int, *, target_dim: int, **kwargs: Any
+    ) -> Tuple[nn.Module, int]:  # PredictorFactoryOut:
         ...
