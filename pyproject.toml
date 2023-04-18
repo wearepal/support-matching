@@ -43,6 +43,7 @@ seaborn = { version = ">=0.9.0" }
 torch-conduit = { version = "^0.2.0", extras = ["image"] }
 
 tqdm = { version = ">=4.31.1" }
+clip = { git = "https://github.com/openai/CLIP.git", rev = "a9b1bf5" }
 typer = "*"
 umap-learn = "^0.5.1"
 wandb = "*"
@@ -57,7 +58,6 @@ optional = true
 
 [tool.poetry.group.torch.dependencies]
 timm = "^0.6.7"
-clip = { git = "https://github.com/openai/CLIP.git", rev = "a9b1bf5" }
 pytorch-lightning = "*"
 torch = { version = "*", source = "torchcu118", markers = "sys_platform == 'linux'" }
 torchvision = { version = "*", source = "torchcu118", markers = "sys_platform == 'linux'" }
