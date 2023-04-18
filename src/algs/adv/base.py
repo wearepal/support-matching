@@ -13,7 +13,7 @@ from typing import (
     TypeVar,
     Union,
 )
-from typing_extensions import Self, TypeAlias
+from typing_extensions import Self, TypeAlias, override
 
 import attrs
 from conduit.data.structures import NamedSample, TernarySample
@@ -32,6 +32,7 @@ from src.arch.predictors.fcn import Fcn
 from src.data import DataModule
 from src.logging import log_images
 from src.models.autoencoder import SplitLatentAe
+from src.models.base import ModelConf
 from src.models.classifier import Classifier
 from src.utils import to_item
 
@@ -112,7 +113,7 @@ class AdvSemiSupervisedAlg(Algorithm):
     val_freq: Union[int, float] = 0.1  # how often to do validation
     log_freq: int = 150
 
-    def __attr_post_init__(self) -> None:
+    def __attrs_post_init__(self) -> None:
         super().__attrs_post_init__()
         if isinstance(self.val_freq, float) and (not (0 <= self.val_freq <= 1)):
             raise AttributeError("If 'val_freq' is a float, it must be in the range [0, 1].")
@@ -135,14 +136,14 @@ class AdvSemiSupervisedAlg(Algorithm):
                 hidden_dim=self.pred_y_hidden_dim,
                 num_hidden=self.pred_y_num_hidden,
             )(input_dim=ae.encoding_size.zy, target_dim=y_dim)
-            pred_y = Classifier(model=model, lr=self.lr).to(self.device)
+            pred_y = Classifier(cfg=ModelConf(lr=self.lr), model=model).to(self.device)
         pred_s = None
         if self.pred_s_loss_w > 0:
             model, _ = Fcn(
                 hidden_dim=None,  # no hidden layers
                 final_bias=self.s_pred_with_bias,
             )(input_dim=ae.encoding_size.zs, target_dim=s_dim)
-            pred_s = Classifier(model=model, lr=self.lr).to(self.device)
+            pred_s = Classifier(cfg=ModelConf(lr=self.lr), model=model).to(self.device)
 
         return pred_y, pred_s
 
@@ -350,6 +351,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         logger.info("Finished training")
         return self
 
+    @override
     def run(
         self, dm: DataModule, *, ae: SplitLatentAe, disc: Any, evaluator: Evaluator, **kwargs: Any
     ) -> Any:

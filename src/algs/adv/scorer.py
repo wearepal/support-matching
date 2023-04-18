@@ -87,7 +87,7 @@ class NeuralScorer(Scorer):
     lr: float = 1.0e-4
     weight_decay: float = 0
     optimizer_kwargs: Optional[Dict] = None
-    optimizer: Any = field(init=False)
+    # optimizer: torch.optim.Optimizer = field(init=False)
     scheduler_cls: Optional[str] = None
     scheduler_kwargs: Optional[Dict] = None
     eval_batches: int = 1000
@@ -131,7 +131,6 @@ class NeuralScorer(Scorer):
 
         classifier = SetClassifier(
             model=disc,
-            criterion=CrossEntropyLoss(reduction=ReductionType.mean),
             cfg=ModelConf(
                 lr=self.lr,
                 weight_decay=self.weight_decay,
@@ -140,6 +139,7 @@ class NeuralScorer(Scorer):
                 scheduler_cls=self.scheduler_cls,
                 scheduler_kwargs=self.scheduler_kwargs,
             ),
+            criterion=CrossEntropyLoss(reduction=ReductionType.mean),
         )
         logger.info("Training invariance-scorer")
         classifier.fit(
