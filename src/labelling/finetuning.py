@@ -1,15 +1,15 @@
-from dataclasses import dataclass, field
 from itertools import islice
 from pathlib import Path
 from typing import ClassVar, List, Optional, Tuple, Union
 
+from attrs import define, field
 from conduit import metrics as cdtm
 from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import TernarySample
 from conduit.models.utils import prefix_keys
 from loguru import logger
 from ranzen import gcopy
-from ranzen.torch import CrossEntropyLoss, DcModule
+from ranzen.torch import CrossEntropyLoss
 import torch
 from torch import Tensor, nn, optim
 import torch.nn as nn
@@ -21,8 +21,8 @@ from src.data import DataModule, labels_to_group_id, resolve_device
 __all__ = ["FineTuner"]
 
 
-@dataclass(eq=False)
-class FineTuner(DcModule):
+@define(eq=False)
+class FineTuner(nn.Module):
     _PBAR_COL: ClassVar[str] = "#ffe252"
 
     batch_size: int = 16
@@ -32,10 +32,13 @@ class FineTuner(DcModule):
     lr: float = 1e-5
     device: Union[int, str, torch.device] = 0
     save_path: Optional[str] = None
-    loss_fn: CrossEntropyLoss = field(default_factory=CrossEntropyLoss)
+    loss_fn: CrossEntropyLoss = field(default=CrossEntropyLoss)
     _LOG_PREFIX: ClassVar[str] = "fine-tuning"
 
-    def __post_init__(self) -> None:
+    def __attrs_pre_init__(self) -> None:
+        super().__init__()
+
+    def __attrs_post_init__(self) -> None:
         if isinstance(self.val_freq, float) and (not (0 <= self.val_freq <= 1)):
             raise AttributeError("If 'val_freq' is a float, it must be in the range [0, 1].")
         if isinstance(self.val_batches, float) and (not (0 <= self.val_batches <= 1)):
@@ -43,7 +46,7 @@ class FineTuner(DcModule):
 
     def run(self, dm: DataModule, *, backbone: nn.Module, out_dim: int) -> nn.Sequential:
         dm = gcopy(dm, deep=False)
-        dm.batch_size_tr = self.batch_size
+        dm.cfg.batch_size_tr = self.batch_size
         device = resolve_device(self.device)
 
         logger.info(f"Initialising predictor for fine-tuning.")

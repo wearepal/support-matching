@@ -1,5 +1,5 @@
 from src.relay import SupMatchRelay
-from src.run.common import generic_run
+from generic_run import run
 
 if __name__ == "__main__":
-    generic_run(SupMatchRelay)
+    run(SupMatchRelay)
