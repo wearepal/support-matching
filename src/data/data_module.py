@@ -17,7 +17,7 @@ from typing import (
 from typing_extensions import Self
 
 import albumentations as A
-import attr
+import attrs
 from conduit.data.constants import IMAGENET_STATS
 from conduit.data.datasets.vision import CdtVisionDataset, ImageTform, PillowTform
 from conduit.data.datasets.utils import CdtDataLoader, get_group_ids
@@ -37,7 +37,7 @@ from torch import Tensor
 import torchvision.transforms.transforms as T
 
 from .common import D
-from .splitter import RandomSplitter
+from .splitter import DataSplitter
 from .utils import group_id_to_label
 
 if TYPE_CHECKING:
@@ -62,7 +62,7 @@ class DataModuleConf:
     seed: int = 47
 
 
-@attr.define(kw_only=True)
+@attrs.define(kw_only=True, repr=False, eq=False)
 class DataModule(Generic[D]):
     train: D
     deployment: D
@@ -396,7 +396,7 @@ class DataModule(Generic[D]):
         *,
         config: DataModuleConf,
         ds: D,
-        splitter: RandomSplitter,
+        splitter: DataSplitter,
         labeller: "Labeller",
     ) -> Self:
         splits = splitter(ds)

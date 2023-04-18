@@ -1,6 +1,5 @@
 from abc import abstractmethod
 from collections import defaultdict
-from dataclasses import dataclass, field
 from typing import (
     Any,
     ClassVar,
@@ -12,16 +11,16 @@ from typing import (
     Tuple,
     TypeVar,
     Union,
+    Literal,
 )
 from typing_extensions import Self, TypeAlias
 
+import attrs
 from conduit.data.structures import NamedSample, TernarySample
 from conduit.metrics import accuracy
 from conduit.models.utils import prefix_keys
 from loguru import logger
-from pandas.core.frame import Literal
-from ranzen import implements
-from ranzen.torch import DcModule, cross_entropy_loss
+from ranzen.torch import cross_entropy_loss
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -47,12 +46,15 @@ IterTr: TypeAlias = Iterator[TernarySample[Tensor]]
 IterDep: TypeAlias = Iterator[NamedSample[Tensor]]
 
 
-@dataclass(eq=False)
-class Components(DcModule, Generic[D]):
+@attrs.define(kw_only=True, repr=False, eq=False)
+class Components(nn.Module, Generic[D]):
     ae: SplitLatentAe
     disc: D
     pred_y: Optional[Classifier]
     pred_s: Optional[Classifier]
+
+    def __attrs_pre_init__(self):
+        super().__init__()  # call nn.Module.__init__
 
     @torch.no_grad()
     def train_ae(self) -> None:
@@ -75,7 +77,7 @@ class Components(DcModule, Generic[D]):
             self.disc.train()
 
 
-@dataclass(eq=False)
+@attrs.define(kw_only=True, repr=False, eq=False)
 class AdvSemiSupervisedAlg(Algorithm):
     """Base class for adversarial semi-supervsied methods."""
 
@@ -102,18 +104,18 @@ class AdvSemiSupervisedAlg(Algorithm):
     s_pred_with_bias: bool = False
     s_as_zs: bool = False
 
-    predictor_y: Optional[Classifier] = field(init=False)
-    predictor_s: Optional[Classifier] = field(init=False)
+    # predictor_y: Optional[Classifier] = attrs.field(init=False)
+    # predictor_s: Optional[Classifier] = attrs.field(init=False)
 
     # Misc
     validate: bool = True
     val_freq: Union[int, float] = 0.1  # how often to do validation
     log_freq: int = 150
 
-    def __post_init__(self) -> None:
+    def __attr_post_init__(self) -> None:
+        super().__attrs_post_init__()
         if isinstance(self.val_freq, float) and (not (0 <= self.val_freq <= 1)):
             raise AttributeError("If 'val_freq' is a float, it must be in the range [0, 1].")
-        super().__post_init__()
 
     def _sample_dep(self, iterator_dep: Iterator[NamedSample[Tensor]]) -> Tensor:
         return next(iterator_dep).x.to(self.device, non_blocking=True)
@@ -348,7 +350,6 @@ class AdvSemiSupervisedAlg(Algorithm):
         logger.info("Finished training")
         return self
 
-    @implements(Algorithm)
     def run(
         self, dm: DataModule, *, ae: SplitLatentAe, disc: Any, evaluator: Evaluator, **kwargs: Any
     ) -> Any:

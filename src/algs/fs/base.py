@@ -1,10 +1,9 @@
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Optional, Dict
+from typing_extensions import override
 
 from loguru import logger
-from omegaconf import DictConfig
-from ranzen import implements
 from torch import Tensor
 import torch.nn as nn
 
@@ -36,7 +35,7 @@ class FsAlg(Algorithm):
     def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:
         ...
 
-    @implements(Algorithm)
+    @override
     def run(self, dm: DataModule, *, model: nn.Module) -> Optional[float]:
         if dm.deployment_ids is not None:
             dm = dm.merge_deployment_into_train()

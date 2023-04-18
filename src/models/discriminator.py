@@ -1,10 +1,10 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
 from typing import List, Protocol
+from typing_extensions import override
+import attrs
 
-from ranzen import implements
-from ranzen.torch import DcModule
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -12,13 +12,14 @@ import torch.nn.functional as F
 
 from src.mmd import MMDKernel, mmd2
 
-from .base import Model
+from .base import Model, ModelConf
 
 __all__ = [
     "BinaryDiscriminator",
     "GanLoss",
     "MmdDiscriminator",
     "NeuralDiscriminator",
+    "NeuralDiscriminatorConf",
 ]
 
 
@@ -30,18 +31,21 @@ class BinaryDiscriminator(Protocol):
         ...
 
 
-@dataclass(eq=False)
-class MmdDiscriminator(BinaryDiscriminator, DcModule):
+@attrs.define(kw_only=True, eq=False, repr=False)
+class MmdDiscriminator(BinaryDiscriminator, nn.Module):
     mmd_kernel: MMDKernel = MMDKernel.rq
-    mmd_scales: List[float] = field(default_factory=list)
-    mmd_wts: List[float] = field(default_factory=list)
+    mmd_scales: List[float] = attrs.field(default=list)
+    mmd_wts: List[float] = attrs.field(default=list)
     mmd_add_dot: float = 0.0
 
-    @implements(BinaryDiscriminator)
+    def __attrs_pre_init__(self) -> None:
+        super().__init__()  # call nn.Module.__init__
+
+    @override
     def discriminator_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
         return torch.zeros((), device=fake.device)
 
-    @implements(BinaryDiscriminator)
+    @override
     def encoder_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
         return mmd2(
             x=fake,
@@ -67,16 +71,19 @@ def _maybe_spectral_norm(module: nn.Module, *, name: str = "weight"):
         torch.nn.utils.parametrizations.spectral_norm(module, name=name)
 
 
-@dataclass(eq=False)
-class NeuralDiscriminator(BinaryDiscriminator, Model):
+@dataclass
+class NeuralDiscriminatorConf(ModelConf):
     criterion: GanLoss = GanLoss.LOGISTIC_NS
 
-    def __post_init__(self) -> None:
+
+class NeuralDiscriminator(BinaryDiscriminator, Model):
+    def __init__(self, cfg: NeuralDiscriminatorConf, model: nn.Module) -> None:
+        super().__init__(cfg, model)
+        self.criterion = cfg.criterion
         if self.criterion is GanLoss.WASSERSTEIN:
             self.model.apply(_maybe_spectral_norm)
-        super().__post_init__()
 
-    @implements(BinaryDiscriminator)
+    @override
     def discriminator_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
         real_scores = self.model(real)
         fake_scores = self.model(fake)
@@ -92,7 +99,7 @@ class NeuralDiscriminator(BinaryDiscriminator, Model):
             return 0.5 * ((real_scores - 1).pow(2).mean() + (fake_scores).pow(2).mean())
         return real_scores.mean() - fake_scores.mean()
 
-    @implements(BinaryDiscriminator)
+    @override
     def encoder_loss(self, fake: Tensor, *, real: Tensor | None) -> Tensor:
         fake_scores = self.model(fake)
         real_scores: Tensor | None = None

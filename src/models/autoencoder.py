@@ -1,10 +1,9 @@
 from __future__ import annotations
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, replace
 from enum import Enum, auto
 from typing import Callable, Dict, List, Optional, Tuple, Union, cast
-from typing_extensions import Literal, Self
+from typing_extensions import Literal, Self, override
 
-from ranzen import implements
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -13,16 +12,10 @@ import torch.nn.functional as F
 from src.arch.autoencoder import AePair
 from src.discrete import discretize, round_ste, sample_concrete
 from src.loss import MixedLoss
-from src.models.base import Model
+from src.models.base import Model, ModelConf
 from src.utils import to_item
 
-__all__ = [
-    "SplitLatentAe",
-    "EncodingSize",
-    "Model",
-    "Reconstructions",
-    "SplitEncoding",
-]
+__all__ = ["SplitLatentAe", "EncodingSize", "Model", "Reconstructions", "SplitEncoding"]
 
 
 @dataclass
@@ -49,6 +42,7 @@ class SplitEncoding:
 
     def mask(self, random: bool = False, *, detach: bool = False) -> Tuple[Self, Self]:
         """Mask out zs and zy. This is a cheap function.
+
         :param random: whether to replace the masked out part with random noise
         :param detach: whether to detach from the computational graph before masking
         """
@@ -100,32 +94,40 @@ class ZsTransform(Enum):
     round_ste = auto()
 
 
-@dataclass(eq=False)
-class SplitLatentAe(Model):
-    model: AePair
+@dataclass
+class SplitLatentAeConf(ModelConf):
     zs_dim: Union[int, float] = 1
     zs_transform: ZsTransform = ZsTransform.none
-    feature_group_slices: Optional[Dict[str, List[slice]]] = None
     recon_loss: ReconstructionLoss = ReconstructionLoss.l2
-    recon_loss_fn: Callable[[Tensor, Tensor], Tensor] = field(init=False)
-    latent_dim: int = field(init=False)
 
-    def __post_init__(self) -> None:
-        zs_dim_t = self.zs_dim
+
+class SplitLatentAe(Model):
+    model: AePair
+    recon_loss_fn: Callable[[Tensor, Tensor], Tensor]
+    latent_dim: int
+
+    def __init__(
+        self,
+        cfg: SplitLatentAeConf,
+        model: AePair,
+        feature_group_slices: Optional[Dict[str, List[slice]]] = None,
+    ) -> None:
+        super().__init__(cfg=cfg, model=model)
+        self.feature_group_slices = feature_group_slices
+        zs_dim_t = cfg.zs_dim
         self.latent_dim = self.model.latent_dim
         if isinstance(zs_dim_t, float):
-            zs_dim_t = round(self.zs_dim * self.latent_dim)
+            zs_dim_t = round(cfg.zs_dim * self.latent_dim)
         self.encoding_size = EncodingSize(zs=zs_dim_t, zy=self.latent_dim - zs_dim_t)
 
-        if self.recon_loss is ReconstructionLoss.mixed:
+        if cfg.recon_loss is ReconstructionLoss.mixed:
             if self.feature_group_slices is None:
                 raise ValueError("'MixedLoss' requires 'feature_group_slices' to be specified.")
-            self.recon_loss_fn = self.recon_loss.value(
+            self.recon_loss_fn = cfg.recon_loss.value(
                 reduction="sum", feature_group_slices=self.feature_group_slices
             )
         else:
-            self.recon_loss_fn = self.recon_loss.value(reduction="sum")
-        super().__post_init__()
+            self.recon_loss_fn = cfg.recon_loss.value(reduction="sum")
 
     def encode(self, inputs: Tensor, *, transform_zs: bool = True) -> SplitEncoding:
         enc = self._split_encoding(self.model.encoder(inputs))
@@ -208,6 +210,6 @@ class SplitLatentAe(Model):
             loss += prior_loss
         return encoding, loss, logging_dict
 
-    @implements(Model)
+    @override
     def forward(self, inputs: Tensor) -> SplitEncoding:
         return self.encode(inputs)

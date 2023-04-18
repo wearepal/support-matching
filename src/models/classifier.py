@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterator, Optional, Tuple, TypeVar, Union, overload
-from typing_extensions import Literal
+from typing_extensions import Literal, override
 
 from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import BinarySample, NamedSample, TernarySample
@@ -10,12 +10,11 @@ from conduit.metrics import hard_prediction
 from conduit.models.utils import prefix_keys
 from conduit.types import Loss
 from loguru import logger
-from ranzen import implements
 from ranzen.torch.data import StratifiedBatchSampler
 from ranzen.torch.loss import cross_entropy_loss
 from ranzen.torch.utils import inf_generator
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 from torch.cuda.amp.grad_scaler import GradScaler
 from tqdm import tqdm, trange
 import wandb
@@ -26,12 +25,9 @@ from src.data.utils import resolve_device
 from src.evaluation.metrics import EmEvalPair, compute_metrics
 from src.utils import cat, hard_prediction, soft_prediction, to_item
 
-from .base import Model
+from .base import Model, ModelConf
 
-__all__ = [
-    "Classifier",
-    "SetClassifier",
-]
+__all__ = ["Classifier", "SetClassifier"]
 
 
 @torch.no_grad()
@@ -40,11 +36,14 @@ def cat_cpu_flatten(*ls: list[Tensor], dim: int = 0) -> Iterator[Tensor]:
         yield torch.cat(ls_, dim=dim).cpu().flatten()
 
 
-@dataclass(eq=False)
 class Classifier(Model):
     """Wrapper for classifier models equipped witht training/inference routines."""
 
-    criterion: Optional[Loss] = None
+    def __init__(
+        self, cfg: ModelConf, model: nn.Module, criterion: Optional[Loss] = None
+    ) -> None:
+        super().__init__(cfg, model)
+        self.criterion = criterion
 
     @overload
     def predict(
@@ -178,12 +177,16 @@ class _ScSample(BinarySample[Tensor]):
 S = TypeVar("S", bound=NamedSample[Tensor])
 
 
-@dataclass(eq=False)
 class SetClassifier(Model):
     """Wrapper for set classifier models equipped witht training/inference routines."""
 
-    criterion: Optional[Loss] = None
     model: SetPredictor
+
+    def __init__(
+        self, cfg: ModelConf, model: SetPredictor, criterion: Optional[Loss] = None
+    ) -> None:
+        super().__init__(cfg, model)
+        self.criterion = criterion
 
     @torch.no_grad()
     def _fetch_train_data(
@@ -273,6 +276,6 @@ class SetClassifier(Model):
         y_pred, y_true = cat_cpu_flatten(y_pred_ls, y_true_ls, dim=0)
         return EvalTuple(y_pred=y_pred, y_true=y_true)
 
-    @implements(Model)
+    @override
     def forward(self, inputs: Tensor, batch_size: Optional[int] = None) -> Tensor:
         return self.model(inputs, batch_size=batch_size)
