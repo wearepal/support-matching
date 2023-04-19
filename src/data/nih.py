@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Optional, Union, cast
@@ -57,7 +56,6 @@ class NiHTargetAttr(Enum):
     no_finding = "No Finding"
 
 
-@dataclass(repr=False, eq=False)
 class NIHChestXRayDataset(CdtVisionDataset):
     """ "
     National Institutes of Health Chest X-Ray Dataset
@@ -79,7 +77,7 @@ class NIHChestXRayDataset(CdtVisionDataset):
         sens_attr: NiHSensAttr = NiHSensAttr.gender,
         target_attr: Optional[NiHTargetAttr] = NiHTargetAttr.cardiomegaly,
         transform: Optional[ImageTform] = None,
-    ):
+    ) -> None:
         self.root = Path(root)
         self.sens_attr = sens_attr
         self.target_attr = target_attr
