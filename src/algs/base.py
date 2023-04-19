@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from typing import Any, Iterator, Optional
 
-import attrs
+from attrs import define
 from loguru import logger
 import torch
 from torch.cuda.amp.grad_scaler import GradScaler
@@ -13,7 +13,7 @@ from src.data import DataModule, resolve_device
 __all__ = ["Algorithm"]
 
 
-@attrs.define(kw_only=True, repr=False, eq=False)
+@define(kw_only=True, repr=False, eq=False)
 class Algorithm(nn.Module):
     """Base class for adversarial algorithms."""
 
@@ -21,10 +21,10 @@ class Algorithm(nn.Module):
     gpu: int = 0  # which GPU to use (if available)
     max_grad_norm: Optional[float] = None
 
-    def __attrs_pre_init__(self):
-        super().__init__()
+    def __attrs_pre_init__(self) -> None:
+        super().__init__()  # call nn.Module.__init__
 
-    def __attrs_post_init__(self):
+    def __attrs_post_init__(self) -> None:
         self.use_gpu: bool = torch.cuda.is_available() and self.gpu >= 0
         self.device: torch.device = resolve_device(self.gpu)
         self.use_amp = self.use_amp and self.use_gpu

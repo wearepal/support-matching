@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, Final, Optional, Protocol, Tuple, Union
 from typing_extensions import override
 

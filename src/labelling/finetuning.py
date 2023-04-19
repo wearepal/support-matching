@@ -36,7 +36,7 @@ class FineTuner(nn.Module):
     _LOG_PREFIX: ClassVar[str] = "fine-tuning"
 
     def __attrs_pre_init__(self) -> None:
-        super().__init__()
+        super().__init__()  # call nn.Module.__init__
 
     def __attrs_post_init__(self) -> None:
         if isinstance(self.val_freq, float) and (not (0 <= self.val_freq <= 1)):

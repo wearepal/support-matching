@@ -85,6 +85,11 @@ class DataModule(Generic[D]):
         self._batch_size_te = value
 
     @property
+    def batch_size_tr(self) -> int:
+        """The batch_size_tr property."""
+        return self.cfg.batch_size_tr
+
+    @property
     def num_train_samples(self) -> int:
         return len(self.train)
 

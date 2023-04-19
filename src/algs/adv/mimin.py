@@ -1,7 +1,7 @@
-from dataclasses import dataclass
 from typing import Dict, Tuple
 from typing_extensions import Self, override
 
+from attrs import define
 from conduit.data.structures import TernarySample
 from ranzen.torch import cross_entropy_loss
 import torch
@@ -18,7 +18,7 @@ from .evaluator import Evaluator
 __all__ = ["MiMin"]
 
 
-@dataclass(eq=False)
+@define(kw_only=True, repr=False, eq=False)
 class MiMin(AdvSemiSupervisedAlg):
     label_smoothing: float = 0.0
 

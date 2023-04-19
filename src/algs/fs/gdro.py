@@ -13,6 +13,7 @@ import torch.nn as nn
 
 from src.data import DataModule, EvalTuple
 from src.models import Classifier
+from src.models.base import ModelConf
 
 from .base import FsAlg
 
@@ -234,18 +235,19 @@ class LossComputer(nn.Module):
         self.avg_acc = group_frac @ self.avg_group_acc
 
 
-@dataclass
-class _LcMixin:
-    loss_computer: LossComputer
-
-
-@dataclass(eq=False)
-class GdroClassifier(Classifier, _LcMixin):
-    def __post_init__(self) -> None:
+class GdroClassifier(Classifier):
+    def __init__(
+        self,
+        cfg: ModelConf,
+        model: nn.Module,
+        loss_computer: LossComputer,
+        criterion: Optional[Loss] = None,
+    ) -> None:
+        super().__init__(cfg=cfg, model=model, criterion=criterion)
+        self.loss_computer = loss_computer
         # LossComputer requires that the criterion return per-sample (unreduced) losses.
         if self.criterion is not None:
             self.criterion.reduction = ReductionType.none
-        super().__post_init__()
 
     @override
     def training_step(self, batch: TernarySample[Tensor], *, pred_s: bool = False) -> Tensor:
@@ -294,14 +296,16 @@ class Gdro(FsAlg):
 
         classifier = GdroClassifier(
             model=model,
-            lr=self.lr,
-            weight_decay=self.weight_decay,
-            optimizer_cls=self.optimizer_cls,
-            optimizer_kwargs=self.optimizer_kwargs,
-            scheduler_cls=self.scheduler_cls,
-            scheduler_kwargs=self.scheduler_kwargs,
-            criterion=self.criterion,
+            cfg=ModelConf(
+                lr=self.lr,
+                weight_decay=self.weight_decay,
+                optimizer_cls=self.optimizer_cls,
+                optimizer_kwargs=self.optimizer_kwargs,
+                scheduler_cls=self.scheduler_cls,
+                scheduler_kwargs=self.scheduler_kwargs,
+            ),
             loss_computer=loss_computer,
+            criterion=self.criterion,
         )
         classifier.fit(
             train_data=dm.train_dataloader(),

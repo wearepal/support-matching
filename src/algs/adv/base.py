@@ -310,7 +310,12 @@ class AdvSemiSupervisedAlg(Algorithm):
         return iter(dl_tr), iter(dl_dep)
 
     def _evaluate(
-        self, dm: DataModule, *, ae: SplitLatentAe, evaluator: Evaluator, step: Optional[int] = None
+        self,
+        dm: DataModule,
+        *,
+        ae: SplitLatentAe,
+        evaluator: Optional[Evaluator],
+        step: Optional[int] = None,
     ) -> None:
         if evaluator is not None:
             evaluator(dm=dm, encoder=ae, step=step, device=self.device)

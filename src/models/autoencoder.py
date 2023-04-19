@@ -15,7 +15,14 @@ from src.loss import MixedLoss
 from src.models.base import Model, ModelConf
 from src.utils import to_item
 
-__all__ = ["SplitLatentAe", "EncodingSize", "Model", "Reconstructions", "SplitEncoding"]
+__all__ = [
+    "SplitLatentAe",
+    "SplitLatentAeConf",
+    "EncodingSize",
+    "Model",
+    "Reconstructions",
+    "SplitEncoding",
+]
 
 
 @dataclass
@@ -104,7 +111,6 @@ class SplitLatentAeConf(ModelConf):
 class SplitLatentAe(Model):
     model: AePair
     recon_loss_fn: Callable[[Tensor, Tensor], Tensor]
-    latent_dim: int
 
     def __init__(
         self,
@@ -115,7 +121,8 @@ class SplitLatentAe(Model):
         super().__init__(cfg=cfg, model=model)
         self.feature_group_slices = feature_group_slices
         zs_dim_t = cfg.zs_dim
-        self.latent_dim = self.model.latent_dim
+        self.zs_transform = cfg.zs_transform
+        self.latent_dim: int = self.model.latent_dim
         if isinstance(zs_dim_t, float):
             zs_dim_t = round(cfg.zs_dim * self.latent_dim)
         self.encoding_size = EncodingSize(zs=zs_dim_t, zy=self.latent_dim - zs_dim_t)

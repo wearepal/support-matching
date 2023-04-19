@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Any, Dict, Final, Generic, Optional, Sequence, TypeVar, overload
 from typing_extensions import Literal

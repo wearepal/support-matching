@@ -13,7 +13,7 @@ import torch.nn as nn
 
 from .utils import exclude_from_weight_decay
 
-__all__ = ["Model", "Optimizer"]
+__all__ = ["Model", "ModelConf", "Optimizer"]
 
 
 class Optimizer(Enum):
@@ -35,12 +35,11 @@ class Model(nn.Module):
     _PBAR_COL: ClassVar[str] = "#ffe252"
 
     optimizer: torch.optim.Optimizer
-    scheduler: Optional[LRScheduler]
 
     def __init__(self, cfg: ModelConf, model: nn.Module) -> None:
         super().__init__()
         self.model = model
-        optimizer_config = DictConfig({"weight_decay": self.weight_decay, "lr": self.lr})
+        optimizer_config = DictConfig({"weight_decay": cfg.weight_decay, "lr": cfg.lr})
         if cfg.optimizer_kwargs is not None:
             optimizer_config.update(cfg.optimizer_kwargs)
 
@@ -48,8 +47,9 @@ class Model(nn.Module):
             self.named_parameters(), weight_decay=optimizer_config["weight_decay"]
         )
         self.optimizer = cfg.optimizer_cls.value(**optimizer_config, params=params)
+        self.scheduler: Optional[LRScheduler] = None
         if cfg.scheduler_cls is not None:
-            scheduler_config = DictConfig({"_target_": self.scheduler_cls})
+            scheduler_config = DictConfig({"_target_": cfg.scheduler_cls})
             if cfg.scheduler_kwargs is not None:
                 scheduler_config.update(cfg.scheduler_kwargs)
             self.scheduler = instantiate(scheduler_config, optimizer=self.optimizer)

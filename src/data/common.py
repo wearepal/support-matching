@@ -25,6 +25,7 @@ DATA_DIRS: Final[dict[str, str]] = {
     "hydra": "/srv/galene0/shared/data",
     "goedel": "/srv/galene0/shared/data",
     "kyiv": "/srv/galene0/shared/data",
+    "ada": "/srv/galene0/shared/data",
 }
 
 

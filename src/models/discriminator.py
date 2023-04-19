@@ -32,7 +32,7 @@ class BinaryDiscriminator(Protocol):
 
 
 @attrs.define(kw_only=True, eq=False, repr=False)
-class MmdDiscriminator(BinaryDiscriminator, nn.Module):
+class MmdDiscriminator(nn.Module, BinaryDiscriminator):
     mmd_kernel: MMDKernel = MMDKernel.rq
     mmd_scales: List[float] = attrs.field(default=list)
     mmd_wts: List[float] = attrs.field(default=list)
@@ -76,7 +76,7 @@ class NeuralDiscriminatorConf(ModelConf):
     criterion: GanLoss = GanLoss.LOGISTIC_NS
 
 
-class NeuralDiscriminator(BinaryDiscriminator, Model):
+class NeuralDiscriminator(Model, BinaryDiscriminator):
     def __init__(self, cfg: NeuralDiscriminatorConf, model: nn.Module) -> None:
         super().__init__(cfg, model)
         self.criterion = cfg.criterion
