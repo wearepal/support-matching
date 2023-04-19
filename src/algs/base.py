@@ -21,18 +21,14 @@ class Algorithm(nn.Module):
     gpu: int = 0  # which GPU to use (if available)
     max_grad_norm: Optional[float] = None
 
-    # use_gpu: bool = attrs.field(init=False)
-    # device: torch.device = attrs.field(init=False)
-    # grad_scaler: Optional[GradScaler] = attrs.field(init=False)
-
     def __attrs_pre_init__(self):
         super().__init__()
 
     def __attrs_post_init__(self):
-        self.use_gpu = torch.cuda.is_available() and self.gpu >= 0
-        self.device = resolve_device(self.gpu)
+        self.use_gpu: bool = torch.cuda.is_available() and self.gpu >= 0
+        self.device: torch.device = resolve_device(self.gpu)
         self.use_amp = self.use_amp and self.use_gpu
-        self.grad_scaler = GradScaler() if self.use_amp else None
+        self.grad_scaler: Optional[GradScaler] = GradScaler() if self.use_amp else None
         logger.info(f"{torch.cuda.device_count()} GPU(s) available - using device '{self.device}'")
 
     def _clip_gradients(self, parameters: Iterator[Parameter]) -> None:

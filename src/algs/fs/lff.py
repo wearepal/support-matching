@@ -1,11 +1,11 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Generic, Iterator, Type, TypeVar, Union
-from typing_extensions import Self
+from typing_extensions import Self, override
 
+from attrs import define
 from conduit.data.datasets.base import CdtDataset
 from conduit.data.structures import XI, LoadedData, SizedDataset, TernarySample, X
 from conduit.types import Indexable, IndexType
-from ranzen import implements
 from ranzen.misc import gcopy
 from ranzen.torch import CrossEntropyLoss
 import torch
@@ -15,6 +15,7 @@ import torch.nn as nn
 from src.data import DataModule, EvalTuple
 from src.loss import GeneralizedCELoss
 from src.models import Classifier
+from src.models.base import ModelConf
 
 from .base import FsAlg
 
@@ -50,7 +51,7 @@ class LabelEma(nn.Module, Indexable):
         label_index = self.labels == label
         return self.parameter[label_index].max()
 
-    @implements(Indexable)
+    @override
     @torch.no_grad()
     def __getitem__(self, index: IndexType) -> Tensor:
         return self.parameter[index].clone()
@@ -69,17 +70,17 @@ class IndexedSample(TernarySample[X], _IndexedSampleMixin[Tensor]):
     def add_field(self, *args: Any, **kwargs: Any) -> Self:
         return self
 
-    @implements(TernarySample)
+    @override
     def __iter__(self) -> Iterator[LoadedData]:
         yield from (self.x, self.y, self.s, self.idx)
 
-    @implements(TernarySample)
+    @override
     def __add__(self, other: Self) -> Self:
         copy = super().__add__(other)
         copy.idx = torch.cat([copy.idx, other.idx], dim=0)
         return copy
 
-    @implements(TernarySample)
+    @override
     def __getitem__(self: "IndexedSample[XI]", index: IndexType) -> "IndexedSample[XI]":  # type: ignore
         return gcopy(
             self, deep=False, x=self.x[index], y=self.y[index], s=self.s[index], idx=self.idx[index]
@@ -97,35 +98,40 @@ class IndexedDataset(SizedDataset):
     ) -> None:
         self.dataset = dataset
 
-    @implements(SizedDataset)
+    @override
     def __getitem__(self, index: int) -> IndexedSample:
         sample = self.dataset[index]
         idx = torch.as_tensor(index, dtype=torch.long)
         return IndexedSample.from_ts(sample=sample, idx=idx)
 
-    @implements(SizedDataset)
+    @override
     def __len__(self) -> int:
         return len(self.dataset)
 
 
 @dataclass
-class _LabelEmaMixin:
-    sample_loss_ema_b: LabelEma
-    sample_loss_ema_d: LabelEma
-
-
-@dataclass(eq=False)
-class LfFClassifier(Classifier, _LabelEmaMixin):
+class LfFClassifierConf(ModelConf):
     q: float = 0.7
-    biased_model: nn.Module = field(init=False)
-    biased_criterion: GeneralizedCELoss = field(init=False)
-    criterion: CrossEntropyLoss = field(init=False)
 
-    def __post_init__(self) -> None:
+
+class LfFClassifier(Classifier):
+    biased_model: nn.Module
+    biased_criterion: GeneralizedCELoss
+    criterion: CrossEntropyLoss
+
+    def __init__(
+        self,
+        cfg: LfFClassifierConf,
+        model: nn.Module,
+        sample_loss_ema_b: LabelEma,
+        sample_loss_ema_d: LabelEma,
+    ) -> None:
+        super().__init__(cfg=cfg, model=model)
+        self.sample_loss_ema_b = sample_loss_ema_b
+        self.sample_loss_ema_d = sample_loss_ema_d
         self.biased_model = gcopy(self.model, deep=True)
-        self.biased_criterion = GeneralizedCELoss(q=self.q, reduction="mean")
+        self.biased_criterion = GeneralizedCELoss(q=cfg.q, reduction="mean")
         self.criterion = CrossEntropyLoss(reduction="mean")
-        super().__post_init__()
 
     def training_step(self, batch: IndexedSample[Tensor], *, pred_s: bool = False) -> Tensor:  # type: ignore
         logit_b = self.biased_model(batch.x)
@@ -157,27 +163,29 @@ class LfFClassifier(Classifier, _LabelEmaMixin):
         return loss_b_update + loss_d_update
 
 
-@dataclass(eq=False)
+@define(kw_only=True, repr=False, eq=False)
 class LfF(FsAlg):
     alpha: float = 0.7
     q: float = 0.7
 
-    @implements(FsAlg)
+    @override
     def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:
         sample_loss_ema_b = LabelEma(dm.train.y, alpha=self.alpha).to(self.device)
         sample_loss_ema_d = LabelEma(dm.train.y, alpha=self.alpha).to(self.device)
         dm.train = IndexedDataset(dm.train)
         classifier = LfFClassifier(
             model=model,
-            lr=self.lr,
-            weight_decay=self.weight_decay,
-            optimizer_cls=self.optimizer_cls,
-            optimizer_kwargs=self.optimizer_kwargs,
-            scheduler_cls=self.scheduler_cls,
-            scheduler_kwargs=self.scheduler_kwargs,
+            cfg=LfFClassifierConf(
+                lr=self.lr,
+                weight_decay=self.weight_decay,
+                optimizer_cls=self.optimizer_cls,
+                optimizer_kwargs=self.optimizer_kwargs,
+                scheduler_cls=self.scheduler_cls,
+                scheduler_kwargs=self.scheduler_kwargs,
+                q=self.q,
+            ),
             sample_loss_ema_b=sample_loss_ema_b,
             sample_loss_ema_d=sample_loss_ema_d,
-            q=self.q,
         )
         classifier.sample_loss_ema_b = sample_loss_ema_b
         classifier.sample_loss_ema_d = sample_loss_ema_d

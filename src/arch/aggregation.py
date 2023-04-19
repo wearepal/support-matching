@@ -1,10 +1,10 @@
 """Modules that aggregate over a batch."""
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
+from typing_extensions import override
 
 from einops import rearrange
-from ranzen import implements
 from ranzen.torch import DcModule
 import torch
 from torch import Tensor, nn
@@ -44,7 +44,7 @@ class BatchAggregator(DcModule):
 
 @dataclass(eq=False)
 class BagMean(BatchAggregator):
-    @implements(BatchAggregator)
+    @override
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
         inputs_batched = self.batch_to_bags(inputs)
         return inputs_batched.mean(1)
@@ -62,7 +62,7 @@ class FeedForward(nn.Module):
             nn.Dropout(dropout),
         )
 
-    @implements(nn.Module)
+    @override
     def forward(self, x) -> Tensor:  # type: ignore
         return self.net(x)
 
@@ -130,7 +130,6 @@ class KvqAggregator(BatchAggregator):
     mean_query: bool = True
     num_heads: int = 8
     head_dim: Optional[int] = 64
-    blocks: nn.Sequential = field(init=False)
 
     def __post_init__(self) -> None:
         blocks = []
@@ -157,9 +156,9 @@ class KvqAggregator(BatchAggregator):
         else:
             agg_block = BagMean(batch_size=self.batch_size)
         blocks.append(agg_block)
-        self.blocks = nn.Sequential(*blocks)
+        self.blocks: nn.Sequential = nn.Sequential(*blocks)
 
-    @implements(BatchAggregator)
+    @override
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
         return self.blocks(inputs)
 
@@ -167,21 +166,17 @@ class KvqAggregator(BatchAggregator):
 @dataclass(eq=False)
 class GatedAggregator(BatchAggregator):
     dim: int
-    v: Parameter = field(init=False)
-    u: Parameter = field(init=False)
-    w: Parameter = field(init=False)
 
-    attention_weights: Optional[Tensor] = field(init=False, default=None)
-
-    def __post_init__(self):
-        self.v = Parameter(torch.empty(self.dim, self.dim), requires_grad=True)
-        self.u = Parameter(torch.empty(self.dim, self.dim), requires_grad=True)
-        self.w = Parameter(torch.empty(1, self.dim), requires_grad=True)
+    def __post_init__(self) -> None:
+        self.attention_weights: Optional[Tensor] = None
+        self.v: Parameter = Parameter(torch.empty(self.dim, self.dim), requires_grad=True)
+        self.u: Parameter = Parameter(torch.empty(self.dim, self.dim), requires_grad=True)
+        self.w: Parameter = Parameter(torch.empty(1, self.dim), requires_grad=True)
         nn.init.xavier_normal_(self.v)
         nn.init.xavier_normal_(self.u)
         nn.init.xavier_normal_(self.w)
 
-    @implements(BatchAggregator)
+    @override
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
         inputs = inputs.flatten(start_dim=1)
         logits = torch.tanh(inputs @ self.v.t()) * torch.sigmoid(inputs @ self.u.t()) @ self.w.t()

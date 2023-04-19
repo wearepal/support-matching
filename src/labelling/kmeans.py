@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Iterable, Optional, Union
 
 from loguru import logger
@@ -87,7 +87,9 @@ class KMeans:
     supervised_cluster_init: bool = False
     spherical: bool = True
     device: Union[int, str, torch.device] = 0
-    _fitted_model: Optional[SklKMeans] = field(init=False, default=None)
+
+    def __post_init__(self) -> None:
+        self._fitted_model: Optional[SklKMeans] = None
 
     def fit(self, dm: DataModule, *, encodings: Encodings) -> None:
         device = resolve_device(self.device)

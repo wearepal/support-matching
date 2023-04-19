@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Protocol, Union, cast
 from typing_extensions import override
@@ -145,8 +145,10 @@ class ClipClassifier(Labeller):
     artifact_name: Optional[str] = None
 
     cache_encoder: bool = False
-    encoder: Optional[ClipVisualEncoder] = field(init=False, default=None)
-    _fitted_kmeans: Optional[KMeans] = field(init=False, default=None)
+
+    def __post_init__(self) -> None:
+        self.encoder: Optional[ClipVisualEncoder] = None
+        self._fitted_kmeans: Optional[KMeans] = None
 
     @torch.no_grad()
     def evaluate(
