@@ -4,7 +4,6 @@ defaults:
   - _self_
 
 seed: 0
-artifact_name: null
 transductive: false
 dep_prop: 0.4
 test_prop: 0.2
@@ -34,4 +33,3 @@ test_transforms:
         - _target_: torchvision.transforms.Normalize
           mean: [ 0.485, 0.456, 0.406 ]
           std: [ 0.229, 0.224, 0.225 ]
-dep_transforms: null

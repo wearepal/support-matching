@@ -1,11 +1,11 @@
 from abc import abstractmethod
-from dataclasses import dataclass
 from pathlib import Path
 import platform
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Final, List, Optional, TypedDict, Union, cast
 from typing_extensions import override
 
+from attrs import define
 from conduit.data.constants import IMAGENET_STATS
 from conduit.data.datasets.utils import stratified_split
 from conduit.data.datasets.vision import CdtVisionDataset, ImageTform, PillowTform
@@ -28,12 +28,16 @@ __all__ = [
 ]
 
 
-@dataclass(eq=False)
+@define(kw_only=True, eq=False)
 class DataSplitter:
-    transductive: bool = False  # whether to include the test data in the pool of unlabelled data
-    train_transforms: Any = None
-    test_transforms: Any = None
-    dep_transforms: Any = None
+    """How to split the data  into train/test/dep."""
+
+    transductive: bool = False
+    """Whether to include the test data in the pool of unlabelled data."""
+
+    train_transforms: Any = None  # T.Compose
+    test_transforms: Any = None  # T.Compose
+    dep_transforms: Any = None  # T.Compose
 
     @classmethod
     def _default_train_transforms(cls) -> ImageTform:
@@ -127,7 +131,7 @@ def save_split_inds_as_artifact(
     return versioned_name
 
 
-@dataclass(eq=False)
+@define(kw_only=True, eq=False)
 class RandomSplitter(DataSplitter):
     seed: int = 42
     dep_prop: float = 0.4
@@ -255,14 +259,11 @@ def load_split_inds_from_artifact(
     return split_inds
 
 
-@dataclass(eq=False)
-class _ArtifactLoaderMixin:
+@define(kw_only=True, eq=False)
+class SplitFromArtifact(DataSplitter):
     artifact_name: str
     version: Optional[int] = None
 
-
-@dataclass(eq=False)
-class SplitFromArtifact(DataSplitter, _ArtifactLoaderMixin):
     @override
     def split(self, dataset: D) -> TrainDepTestSplit[D]:
         splits = load_split_inds_from_artifact(
