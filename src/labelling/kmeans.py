@@ -16,10 +16,7 @@ from src.data import DataModule, resolve_device
 from .encode import Encodings
 from .metrics import evaluate
 
-__all__ = [
-    "KMeans",
-    "fft_init",
-]
+__all__ = ["KMeans", "fft_init"]
 
 
 def fft_init(

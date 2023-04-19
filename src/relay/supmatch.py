@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Dict, Optional
+from typing import Any, ClassVar, Dict, Optional, cast
 
 from attrs import define, field
 from loguru import logger
@@ -91,8 +91,8 @@ class SupMatchRelay(BaseRelay):
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Optional[float]:
         assert isinstance(self.ae_arch, AeFactory)
         assert isinstance(self.disc_arch, PredictorFactory)
-        assert isinstance(self.labeller, Labeller)
-        assert isinstance(self.scorer, Scorer)
+        self.labeller = cast(Labeller, self.labeller)  # just a Protocol
+        self.scorer = cast(Scorer, self.scorer)  # just a Protocol
 
         run = self.wandb.init(raw_config, (self.labeller, self.ae_arch, self.disc_arch))
         dm = self.init_dm(self.ds, self.labeller)

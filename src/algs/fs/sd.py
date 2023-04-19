@@ -1,11 +1,10 @@
-from dataclasses import dataclass, field
 from typing import List, Optional, Tuple, Union
 from typing_extensions import override
 
 from attrs import define
 from conduit.types import Loss
 from omegaconf.listconfig import ListConfig
-from ranzen.torch.loss import CrossEntropyLoss, ReductionType, reduce  # type: ignore
+from ranzen.torch.loss import CrossEntropyLoss, ReductionType, reduce
 import torch
 from torch import Tensor
 import torch.nn as nn

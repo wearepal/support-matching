@@ -5,10 +5,8 @@ from typing_extensions import TypeAlias
 
 import torch.nn as nn
 
-__all__ = [
-    "PredictorFactory",
-    "PredictorFactoryOut",
-]
+__all__ = ["PredictorFactory", "PredictorFactoryOut"]
+
 M = TypeVar("M", bound=nn.Module)
 PredictorFactoryOut: TypeAlias = Tuple[M, int]
 

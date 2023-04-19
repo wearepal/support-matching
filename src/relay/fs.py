@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar, Optional, cast
 
 from attrs import define, field
 import torch.nn as nn
@@ -67,7 +67,7 @@ class FsRelay(BaseRelay):
     def run(self, raw_config: Optional[dict[str, Any]] = None) -> Optional[float]:
         assert isinstance(self.alg, FsAlg)
         assert isinstance(self.backbone, BackboneFactory)
-        assert isinstance(self.labeller, Labeller)
+        self.labeller = cast(Labeller, self.labeller)  # just a Protocol
 
         run = self.wandb.init(raw_config, (self.labeller, self.backbone, self.predictor))
         dm = self.init_dm(self.ds, self.labeller)
@@ -76,5 +76,5 @@ class FsRelay(BaseRelay):
         model = nn.Sequential(backbone, predictor)
         result = self.alg.run(dm=dm, model=model)
         if run is not None:
-            run.finish()  # type: ignore
+            run.finish()
         return result

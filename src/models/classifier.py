@@ -128,7 +128,7 @@ class Classifier(Model):
                 log_dict = {"train/loss": to_item(loss)}
 
             if use_amp:  # Apply scaling for mixed-precision training
-                loss = grad_scaler.scale(loss)  # type: ignore
+                loss = grad_scaler.scale(loss)
             loss.backward()  # type: ignore
             self.step(grad_scaler=grad_scaler)
             self.optimizer.zero_grad()
@@ -237,7 +237,7 @@ class SetClassifier(Model):
                     wandb.log(prefix_keys(log_dict, prefix="test", sep="/"))
 
             if use_amp:  # Apply scaling for mixed-precision training
-                loss = grad_scaler.scale(loss)  # type: ignore
+                loss = grad_scaler.scale(loss)
             loss.backward()  # type: ignore
             self.step(grad_scaler=grad_scaler)
             self.optimizer.zero_grad()
