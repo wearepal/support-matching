@@ -1,10 +1,10 @@
 from enum import Enum
 import math
 from typing import Dict, List, Optional, Union
+from typing_extensions import override
 
 from conduit.types import Loss
 from ranzen import str_to_enum
-from ranzen.decorators import implements
 from ranzen.torch.loss import ReductionType, cross_entropy_loss, reduce
 import torch
 from torch import Tensor
@@ -36,7 +36,7 @@ class MixedLoss(nn.Module):
         self.cont_start = self.disc_feature_slices[-1].stop
         self.disc_loss_factor = disc_loss_factor
 
-    @implements(nn.Module)
+    @override
     def forward(self, input: Tensor, target: Tensor) -> Tensor:  # type: ignore
         disc_loss = input.new_zeros(())
         # for the discrete features do cross entropy loss
@@ -69,7 +69,7 @@ class GeneralizedCELoss(nn.Module):
         self.reduction = str_to_enum(str_=reduction, enum=ReductionType)
         self.q = q
 
-    @implements(nn.Module)
+    @override
     def forward(self, input: Tensor, *, target: Tensor) -> Tensor:  # type: ignore
         p = input.softmax(dim=1)
         p_correct = torch.gather(p, 1, torch.unsqueeze(target, 1))
@@ -137,7 +137,7 @@ class PolynomialLoss(nn.Module, Loss):
             scores = linear_part * indicator + inv_part * (~indicator) / (self.alpha - 1)
         return scores
 
-    @implements(nn.Module)
+    @override
     def forward(self, input: Tensor, *, target: Tensor, instance_weight: Optional[Tensor] = None) -> Tensor:  # type: ignore
         dim = input.size(1)
         if dim > 2:

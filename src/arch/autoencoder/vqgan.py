@@ -1,9 +1,9 @@
 # Code derived from https://github.com/CompVis/taming-transformers/tree/master/taming/models
 from dataclasses import dataclass
 from typing import List, Optional, Sequence, Tuple
+from typing_extensions import override
 
 import numpy as np
-from ranzen import implements
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -332,7 +332,7 @@ class VqGanAe(AeFactory):
     num_res_blocks: int
     dropout: float = 0.0
 
-    @implements(AeFactory)
+    @override
     def __call__(self, input_shape: Tuple[int, int, int]) -> AePair[Encoder, Decoder]:
         c, h, w = input_shape
         if h != w:

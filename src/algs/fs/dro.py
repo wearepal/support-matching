@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 from typing import Optional, Union
+from typing_extensions import override
 
 from conduit.types import Loss
-from ranzen import implements, str_to_enum
-from ranzen.torch.loss import CrossEntropyLoss, ReductionType, reduce  # type: ignore
+from ranzen import str_to_enum
+from ranzen.torch.loss import CrossEntropyLoss, ReductionType, reduce
 from torch import Tensor
 import torch.nn as nn
 
@@ -35,7 +36,7 @@ class DroLoss(nn.Module, Loss):
         self.loss_fn = loss_fn
         self.eta = eta
 
-    @implements(nn.Module)
+    @override
     def forward(self, input: Tensor, *, target: Tensor) -> Tensor:  # type: ignore
         sample_losses = (self.loss_fn(input, target=target) - self.eta).relu().pow(2)
         return reduce(sample_losses, reduction_type=self.reduction)

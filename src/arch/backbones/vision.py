@@ -2,8 +2,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Optional
+from typing_extensions import override
 
-from ranzen.decorators import implements
 import timm  # type: ignore
 import timm.models as tm  # type: ignore
 import torch.nn as nn
@@ -38,7 +38,7 @@ class ResNet(BackboneFactory):
     pretrained: bool = False
     version: ResNetVersion = ResNetVersion.RN18
 
-    @implements(BackboneFactory)
+    @override
     def __call__(self, input_dim: int) -> BackboneFactoryOut[tvm.ResNet]:
         fn_name = f"resnet{self.version.value}"
         if self.pretrained:
@@ -64,7 +64,7 @@ class DenseNet(BackboneFactory):
     pretrained: bool = False
     version: DenseNetVersion = DenseNetVersion.DN121
 
-    @implements(BackboneFactory)
+    @override
     def __call__(self, input_dim: int) -> BackboneFactoryOut[tvm.DenseNet]:
         fn_name = f"densenet{self.version.value}"
         if self.pretrained:
@@ -95,7 +95,7 @@ class ConvNeXt(BackboneFactory):
     checkpoint_path: str = ""
     p: float = 3
 
-    @implements(BackboneFactory)
+    @override
     def __call__(self, input_dim: int) -> BackboneFactoryOut[nn.Sequential]:
         classifier: tm.ConvNeXt = timm.create_model(
             self.version.value, pretrained=self.pretrained, checkpoint_path=self.checkpoint_path
@@ -143,7 +143,7 @@ class ViT(BackboneFactory):
     version: ViTVersion = ViTVersion.BASE_P16_224_21K
     checkpoint_path: str = ""
 
-    @implements(BackboneFactory)
+    @override
     def __call__(self, input_dim: int) -> BackboneFactoryOut[tm.VisionTransformer]:
         model: tm.VisionTransformer = timm.create_model(
             self.version.value, pretrained=self.pretrained, checkpoint_path=self.checkpoint_path
@@ -165,7 +165,7 @@ class Swin(BackboneFactory):
     version: SwinVersion = SwinVersion.BASE_P4_W7_224_21K
     checkpoint_path: str = ""
 
-    @implements(BackboneFactory)
+    @override
     def __call__(self, input_dim: int) -> BackboneFactoryOut[tm.SwinTransformer]:
         model: tm.SwinTransformer = timm.create_model(
             self.version.value, pretrained=self.pretrained, checkpoint_path=self.checkpoint_path
@@ -202,7 +202,7 @@ class SwinV2(BackboneFactory):
     freeze_patch_embedder: bool = True
     out_dim: int = 0
 
-    @implements(BackboneFactory)
+    @override
     def __call__(
         self, input_dim: int
     ) -> BackboneFactoryOut[tm.SwinTransformerV2 | tm.SwinTransformerV2Cr]:
@@ -233,7 +233,7 @@ class Beit(BackboneFactory):
     checkpoint_path: str = ""
     out_dim: int = 0
 
-    @implements(BackboneFactory)
+    @override
     def __call__(self, input_dim: int) -> BackboneFactoryOut[tm.Beit]:
         model: tm.Beit = timm.create_model(
             self.version.value, pretrained=self.pretrained, checkpoint_path=self.checkpoint_path
@@ -268,7 +268,7 @@ class NfNet(BackboneFactory):
     checkpoint_path: str = ""
     out_dim: int = 0
 
-    @implements(BackboneFactory)
+    @override
     def __call__(self, input_dim: int) -> BackboneFactoryOut[tm.NormFreeNet]:
         model: tm.NormFreeNet = timm.create_model(
             self.version.value, pretrained=self.pretrained, checkpoint_path=self.checkpoint_path

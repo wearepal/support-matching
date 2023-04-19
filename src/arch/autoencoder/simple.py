@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from typing_extensions import override
 
-from ranzen import implements
 import torch.nn as nn
 
 from .base import AeFactory, AePair
@@ -50,7 +50,7 @@ class SimpleConvAE(AeFactory):
     levels: int = 4
     init_chans: int = 32
 
-    @implements(AeFactory)
+    @override
     def __call__(self, input_shape: tuple[int, int, int]) -> AePair[nn.Sequential, nn.Sequential]:
         encoder_ls: list[nn.Module] = []
         decoder_ls: list[nn.Module] = []

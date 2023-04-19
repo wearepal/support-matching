@@ -1,8 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
+from typing_extensions import override
 
-from ranzen import implements
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
@@ -431,7 +431,7 @@ class ResNetAE(AeFactory):
     first_conv: bool = False
     maxpool1: bool = False
 
-    @implements(AeFactory)
+    @override
     def __call__(self, input_shape: tuple[int, int, int]) -> AePair[ResNetEncoder, ResNetDecoder]:
         if self.version is ResNetVersion.RN18:
             enc_fn = resnet18_encoder
