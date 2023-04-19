@@ -8,7 +8,6 @@ from src.algs.adv import Evaluator
 from src.arch.autoencoder import (
     AeFactory,
     AeFromArtifact,
-    AePair,
     ResNetAE,
     SimpleConvAE,
     VqGanAe,
@@ -23,6 +22,7 @@ from src.labelling.pipeline import (
     GroundTruthLabeller,
     KmeansOnClipEncodings,
     LabelFromArtifact,
+    Labeller,
     NullLabeller,
     UniformLabelNoiser,
 )
@@ -72,10 +72,12 @@ class MiMinRelay(BaseRelay):
     }
 
     def run(self, raw_config: Optional[dict[str, Any]] = None) -> None:
+        assert isinstance(self.ae_arch, AeFactory)
+        assert isinstance(self.labeller, Labeller)
+
         run = self.wandb.init(raw_config, (self.labeller, self.ae_arch, self.disc_arch))
         dm = self.init_dm(self.ds, self.labeller)
-        assert isinstance(self.ae_arch, AeFactory)
-        ae_pair: AePair = self.ae_arch(input_shape=dm.dim_x)
+        ae_pair = self.ae_arch(input_shape=dm.dim_x)
         ae = SplitLatentAe(cfg=self.ae, model=ae_pair, feature_group_slices=dm.feature_group_slices)
         logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
         card_s = dm.card_s

@@ -20,7 +20,7 @@ __all__ = ["Erm"]
 class Erm(FsAlg):
     criterion: Any = None  # Optional[Loss]
 
-    def __attrs_post_init__(self):
+    def __attrs_post_init__(self) -> None:
         assert self.criterion is None or isinstance(self.criterion, Loss)
         return super().__attrs_post_init__()
 

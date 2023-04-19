@@ -1,7 +1,7 @@
-from dataclasses import dataclass
 from typing import Optional, Union
 from typing_extensions import override
 
+from attrs import define
 from conduit.types import Loss
 from ranzen import str_to_enum
 from ranzen.torch.loss import CrossEntropyLoss, ReductionType, reduce
@@ -42,10 +42,10 @@ class DroLoss(nn.Module, Loss):
         return reduce(sample_losses, reduction_type=self.reduction)
 
 
-@dataclass(eq=False)
+@define(kw_only=True, repr=False, eq=False)
 class Dro(Erm):
     eta: float = 0.5
 
-    def __post_init__(self) -> None:
+    def __attrs_post_init__(self) -> None:
         self.criterion = DroLoss(self.criterion, eta=self.eta, reduction=ReductionType.mean)
-        super().__post_init__()
+        super().__attrs_post_init__()

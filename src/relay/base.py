@@ -27,12 +27,11 @@ class BaseRelay:
     }
 
     def init_dm(self, ds: CdtVisionDataset, labeller: Labeller) -> DataModule:
+        assert isinstance(self.split, DataSplitter)
+
         logger.info(f"Current working directory: '{os.getcwd()}'")
         random_seed(self.seed, use_cuda=True)
         torch.multiprocessing.set_sharing_strategy("file_system")
-        splitter: DataSplitter = self.split
-        # ds = instantiate(self.ds, root=process_data_dir(self.ds.root))
-        # labeller: Labeller = instantiate(self.labeller)
-        dm = DataModule.from_ds(config=self.dm, ds=ds, splitter=splitter, labeller=labeller)
+        dm = DataModule.from_ds(config=self.dm, ds=ds, splitter=self.split, labeller=labeller)
         logger.info(str(dm))
         return dm

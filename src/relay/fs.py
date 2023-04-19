@@ -1,11 +1,11 @@
 from __future__ import annotations
-from typing import Any, ClassVar, Dict, Optional
+from typing import Any, ClassVar, Optional
 
 from attrs import define, field
 import torch.nn as nn
 
 from src.algs.fs import Dro, Erm, FsAlg, Gdro, Jtt, LfF, SdErm
-from src.arch import BackboneFactory, PredictorFactory
+from src.arch import BackboneFactory
 from src.arch.backbones.vision import DenseNet, ResNet, SimpleCNN
 from src.arch.predictors.fcn import Fcn
 from src.hydra_confs.camelyon17.conf import Camelyon17Conf
@@ -17,6 +17,7 @@ from src.labelling.pipeline import (
     GroundTruthLabeller,
     KmeansOnClipEncodings,
     LabelFromArtifact,
+    Labeller,
     NullLabeller,
     UniformLabelNoiser,
 )
@@ -28,6 +29,16 @@ __all__ = ["FsRelay"]
 
 @define(eq=False, kw_only=True)
 class FsRelay(BaseRelay):
+    defaults: list[Any] = field(
+        default=[
+            {"alg": "erm"},
+            {"ds": "cmnist"},
+            {"backbone": "simple"},
+            {"labeller": "none"},
+            {"split": "random"},
+        ]
+    )
+
     alg: Any
     ds: Any
     backbone: Any
@@ -41,11 +52,7 @@ class FsRelay(BaseRelay):
             "camelyon17": Camelyon17Conf,
             "nih": NIHChestXRayDatasetConf,
         },
-        "backbone": {
-            "densenet": DenseNet,
-            "resnet": ResNet,
-            "simple": SimpleCNN,
-        },
+        "backbone": {"densenet": DenseNet, "resnet": ResNet, "simple": SimpleCNN},
         "labeller": {
             "centroidal_noise": CentroidalLabelNoiser,
             "gt": GroundTruthLabeller,
@@ -54,26 +61,20 @@ class FsRelay(BaseRelay):
             "none": NullLabeller,
             "uniform_noise": UniformLabelNoiser,
         },
-        "alg": {
-            "dro": Dro,
-            "erm": Erm,
-            "gdro": Gdro,
-            "jtt": Jtt,
-            "lff": LfF,
-            "sd": SdErm,
-        },
+        "alg": {"dro": Dro, "erm": Erm, "gdro": Gdro, "jtt": Jtt, "lff": LfF, "sd": SdErm},
     }
 
-    def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Any:
+    def run(self, raw_config: Optional[dict[str, Any]] = None) -> Optional[float]:
+        assert isinstance(self.alg, FsAlg)
+        assert isinstance(self.backbone, BackboneFactory)
+        assert isinstance(self.labeller, Labeller)
+
         run = self.wandb.init(raw_config, (self.labeller, self.backbone, self.predictor))
         dm = self.init_dm(self.ds, self.labeller)
-        alg: FsAlg = self.alg
-        backbone_fn: BackboneFactory = self.backbone
-        predictor_fn: PredictorFactory = self.predictor
-        backbone, out_dim = backbone_fn(input_dim=dm.dim_x[0])
-        predictor, _ = predictor_fn(input_dim=out_dim, target_dim=dm.card_y)
+        backbone, out_dim = self.backbone(input_dim=dm.dim_x[0])
+        predictor, _ = self.predictor(input_dim=out_dim, target_dim=dm.card_y)
         model = nn.Sequential(backbone, predictor)
-        result = alg.run(dm=dm, model=model)
+        result = self.alg.run(dm=dm, model=model)
         if run is not None:
             run.finish()  # type: ignore
         return result

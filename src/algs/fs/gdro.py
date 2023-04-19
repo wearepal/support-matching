@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Optional, Tuple
 from typing_extensions import override
 
+from attrs import define
 from conduit.data.structures import TernarySample
 from conduit.types import Loss
 import numpy as np
@@ -261,7 +262,7 @@ class GdroClassifier(Classifier):
         )
 
 
-@dataclass(eq=False)
+@define(kw_only=True, repr=False, eq=False)
 class Gdro(FsAlg):
     alpha: Optional[float] = 1.0
     normalize_loss: bool = False

@@ -8,7 +8,6 @@ from src.algs.adv import Evaluator, NeuralScorer, NullScorer, Scorer
 from src.arch.autoencoder import (
     AeFactory,
     AeFromArtifact,
-    AePair,
     ResNetAE,
     SimpleConvAE,
     VqGanAe,
@@ -25,6 +24,7 @@ from src.labelling.pipeline import (
     GroundTruthLabeller,
     KmeansOnClipEncodings,
     LabelFromArtifact,
+    Labeller,
     NullLabeller,
     UniformLabelNoiser,
 )
@@ -89,19 +89,21 @@ class SupMatchRelay(BaseRelay):
     }
 
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Optional[float]:
+        assert isinstance(self.ae_arch, AeFactory)
+        assert isinstance(self.disc_arch, PredictorFactory)
+        assert isinstance(self.labeller, Labeller)
+        assert isinstance(self.scorer, Scorer)
+
         run = self.wandb.init(raw_config, (self.labeller, self.ae_arch, self.disc_arch))
         dm = self.init_dm(self.ds, self.labeller)
-        assert isinstance(self.ae_arch, AeFactory)
-        ae_pair: AePair = self.ae_arch(input_shape=dm.dim_x)
+        ae_pair = self.ae_arch(input_shape=dm.dim_x)
         ae = SplitLatentAe(cfg=self.ae, model=ae_pair, feature_group_slices=dm.feature_group_slices)
         logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
-        assert isinstance(self.disc_arch, PredictorFactory)
         disc_net, _ = self.disc_arch(
             input_dim=ae.encoding_size.zy, target_dim=1, batch_size=dm.cfg.batch_size_tr
         )
         disc = NeuralDiscriminator(cfg=self.disc, model=disc_net)
-        scorer: Scorer = self.scorer
-        score = self.alg.run(dm=dm, ae=ae, disc=disc, evaluator=self.eval, scorer=scorer)
+        score = self.alg.run(dm=dm, ae=ae, disc=disc, evaluator=self.eval, scorer=self.scorer)
         if run is not None:
             # Bar the saving of AeFromArtifact instances to prevent infinite recursion.
             if (self.artifact_name is not None) and (not isinstance(self.ae_arch, AeFromArtifact)):

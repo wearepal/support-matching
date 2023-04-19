@@ -1,6 +1,6 @@
 from typing import Any, ClassVar, Dict, Optional
 
-from attrs import define
+from attrs import define, field
 
 from src.hydra_confs.camelyon17.conf import Camelyon17Conf
 from src.hydra_confs.celeba.conf import CelebAConf
@@ -10,6 +10,7 @@ from src.labelling.pipeline import (
     CentroidalLabelNoiser,
     ClipClassifier,
     KmeansOnClipEncodings,
+    Labeller,
     UniformLabelNoiser,
 )
 
@@ -20,6 +21,10 @@ __all__ = ["LabelRelay"]
 
 @define(eq=False, kw_only=True)
 class LabelRelay(BaseRelay):
+    defaults: list[Any] = field(
+        default=[{"ds": "cmnist"}, {"labeller": "uniform_noise"}, {"split": "random"}]
+    )
+
     ds: Any  # CdtDataset
     labeller: Any  # Labeller
 
@@ -39,7 +44,9 @@ class LabelRelay(BaseRelay):
     }
 
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Optional[float]:
-        run = self.wandb.init(raw_config, ("labeller",))
+        assert isinstance(self.labeller, Labeller)
+
+        run = self.wandb.init(raw_config, (self.labeller,))
         self.init_dm(self.ds, self.labeller)
         if run is not None:
             run.finish()
