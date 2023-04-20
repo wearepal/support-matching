@@ -3,13 +3,12 @@
 # usage: +experiment=celeba/fs_base
 
 defaults:
+    - /dm: celeba/base
     - override /ds: celeba/gender_smiling
-    - override /dm: celeba/base
     - override /labeller: none
     - override /split: celeba/artifact/base
-    - override /wandb: base
     - override /backbone: resnet
-    - override /predictor: fcn
+    # - override /predictor: fcn
     - _self_
 
 backbone:

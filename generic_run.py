@@ -46,7 +46,10 @@ def run(relay_cls: type[Experiment]) -> None:
     cs.store(node=relay_cls, name="config_schema")
     for group, entries in relay_cls.options.items():
         for name, node in entries.items():
-            cs.store(node=node, name=name, group=group)
+            try:
+                cs.store(node=node, name=name, group=group)
+            except Exception as exc:
+                raise RuntimeError(f"{relay_cls=}, {node=}, {name=}, {group=}") from exc
 
     @hydra.main(config_path="external_confs", config_name="config", version_base=None)
     def main(hydra_config: DictConfig) -> None:

@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Generic, Iterator, Type, TypeVar, Union
+from typing import Any, Generic, Iterator, TypeVar, Union
 from typing_extensions import Self, override
 
 from conduit.data.datasets.base import CdtDataset

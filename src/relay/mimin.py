@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Optional, cast
+from typing import Any, ClassVar, Optional
 
 from attrs import define, field
 from loguru import logger
@@ -73,7 +73,7 @@ class MiMinRelay(BaseRelay):
 
     def run(self, raw_config: Optional[dict[str, Any]] = None) -> None:
         assert isinstance(self.ae_arch, AeFactory)
-        self.labeller = cast(Labeller, self.labeller)  # just a Protocol
+        assert isinstance(self.labeller, Labeller)
 
         run = self.wandb.init(raw_config, (self.labeller, self.ae_arch, self.disc_arch))
         dm = self.init_dm(self.ds, self.labeller)

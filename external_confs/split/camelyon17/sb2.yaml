@@ -1,6 +1,5 @@
 ---
 defaults:
-  - /split/base@_here_
   - defaults
   - _self_
 seed: 42

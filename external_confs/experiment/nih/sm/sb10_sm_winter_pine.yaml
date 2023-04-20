@@ -1,20 +1,16 @@
 # @package _global_
 
-# usage: +experiment=nih/sb10_sm_winter_pine
+# usage: +experiment=nih/sm/sb10_sm_winter_pine
 
 defaults:
+    - /dm: nih/base
     - override /ds: nih/gender_infiltration
-    - override /dm: nih/base
-    - override /alg: base
     - override /labeller: gt
     - override /split: nih/sb10_gender_infiltration_art
-    - override /ae: base
     # - override /ae_arch: in_vqgan
     - override /ae_arch: artifact/nih/gender_infiltration_sb10_0_vqgan
-    - override /disc: base
     - override /disc_arch: set
     - override /scorer: nih/sm
-    - override /wandb: base
     - _self_
 
 seed: 0
@@ -41,7 +37,6 @@ ae:
     recon_loss: l1
     lr: 0.0000018348295456200725
     zs_transform: none
-    feature_group_slices: null
     optimizer_cls: ADAM
     weight_decay: 0
     zs_dim: 1

@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Dict, Optional, cast
+from typing import Any, ClassVar, Dict, Optional
 
 from attrs import define, field
 
@@ -44,7 +44,7 @@ class LabelRelay(BaseRelay):
     }
 
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Optional[float]:
-        self.labeller = cast(Labeller, self.labeller)  # just a Protocol
+        assert isinstance(self.labeller, Labeller)
 
         run = self.wandb.init(raw_config, (self.labeller,))
         self.init_dm(self.ds, self.labeller)

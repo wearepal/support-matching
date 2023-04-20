@@ -1,5 +1,5 @@
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import reduce
 from math import gcd
 from typing import (
@@ -65,9 +65,9 @@ class DataModule(Generic[D]):
     cfg: DataModuleConf
     train: D
     deployment: D
+    deployment_ids: Optional[Tensor] = field(init=False, default=None)
     test: D
     split_seed: Optional[int]
-    deployment_ids: Optional[Tensor] = None
     _batch_size_te: Optional[int] = None
 
     @property

@@ -293,7 +293,7 @@ class NormType(Enum):
 
 
 @dataclass
-class SimpleCNN(BackboneFactory[nn.Sequential]):
+class SimpleCNN(BackboneFactory):
     norm: Optional[NormType] = NormType.BN
     activation: Activation = Activation.GELU
     levels: int = 4

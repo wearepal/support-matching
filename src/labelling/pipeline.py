@@ -1,8 +1,8 @@
 from __future__ import annotations
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Protocol, Union, cast
+from typing import Optional, Union, cast
 from typing_extensions import override
 
 import conduit.metrics as cdtm
@@ -45,9 +45,10 @@ __all__ = [
 ]
 
 
-class Labeller(Protocol):
+class Labeller(ABC):
+    @abstractmethod
     def run(self, dm: DataModule) -> Tensor | None:
-        ...
+        raise NotImplementedError()
 
     def __call__(self, dm: DataModule) -> Tensor | None:
         return self.run(dm=dm)

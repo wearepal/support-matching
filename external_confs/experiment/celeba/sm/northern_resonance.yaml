@@ -1,19 +1,15 @@
 # @package _global_
 
-# usage: +experiment=celeba/winter_pine
+# usage: +experiment=celeba/sm/northern_resonance
 
 defaults:
-    - /ae_arch/artifact@_here_
+    - /dm: celeba/base
+    - override /ae_arch: artifact
     - override /ds: celeba/gender_smiling
-    - override /dm: celeba/base
-    - override /alg: base
     - override /labeller: gt
     - override /split: celeba/artifact/base
-    - override /ae: base
-    - override /disc: base
     - override /disc_arch: set
     - override /scorer: celeba/sm
-    - override /wandb: base
     - _self_
 
 seed: 0
@@ -44,7 +40,6 @@ ae:
     recon_loss: l1
     lr: 0.0000018348295456200725
     zs_transform: none
-    feature_group_slices: null
     optimizer_cls: ADAM
     weight_decay: 0
     zs_dim: 1

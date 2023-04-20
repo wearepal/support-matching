@@ -1,6 +1,5 @@
 ---
 defaults:
-  - /dm/base@_here_
   - defaults
   - _self_
 batch_size_tr: 1

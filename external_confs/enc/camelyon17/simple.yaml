@@ -7,7 +7,6 @@ input_shape:
 latent_dim: 128
 zs_dim: 5
 zs_transform: none
-feature_group_slices: null
 lr: 0.0005
 optimizer_cls: 'torch.optim.AdamW'
 optimizer_kwargs: null

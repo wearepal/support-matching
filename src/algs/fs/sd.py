@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional, Tuple, Union
 from typing_extensions import override
 
@@ -73,8 +73,8 @@ class SdErm(Erm):
         https://arxiv.org/abs/2011.09468
     """
 
-    lambda_: Union[float, Tuple[float, ...]] = 1.0
-    gamma: Union[float, Tuple[float, ...]] = 0.0
+    lambda_: List[float] = field(default_factory=lambda: [1.0])
+    gamma: List[float] = field(default_factory=lambda: [0.0])
 
     def __post_init__(self) -> None:
         self.criterion: SdCrossEntropyLoss = SdCrossEntropyLoss(
