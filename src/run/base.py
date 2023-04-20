@@ -9,7 +9,7 @@ from omegaconf import DictConfig, OmegaConf
 from src.data.common import process_data_dir
 from src.relay.supmatch import SupMatchRelay
 
-__all__ = ["Experiment", "run"]
+__all__ = ["Experiment", "launch"]
 
 
 class Experiment(Protocol):
@@ -19,7 +19,7 @@ class Experiment(Protocol):
         ...
 
 
-def run(relay_cls: type[Experiment]) -> None:
+def launch(relay_cls: type[Experiment]) -> None:
     # verify some aspects of the configs
     configs: tuple[Attribute, ...] = fields(relay_cls)
     for config in configs:
@@ -51,7 +51,7 @@ def run(relay_cls: type[Experiment]) -> None:
             except Exception as exc:
                 raise RuntimeError(f"{relay_cls=}, {node=}, {name=}, {group=}") from exc
 
-    @hydra.main(config_path="external_confs", config_name="config", version_base=None)
+    @hydra.main(config_path="../../external_confs", config_name="config", version_base=None)
     def main(hydra_config: DictConfig) -> None:
         # TODO: this should probably be done somewhere else
         # Deal with missing `root`
@@ -74,4 +74,4 @@ def run(relay_cls: type[Experiment]) -> None:
 
 
 if __name__ == "__main__":
-    run(SupMatchRelay)
+    launch(SupMatchRelay)

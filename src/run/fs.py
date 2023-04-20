@@ -1,5 +1,5 @@
 from src.relay import FsRelay
-from generic_run import run
+from src.run.base import launch
 
 if __name__ == "__main__":
-    run(FsRelay)
+    launch(FsRelay)
