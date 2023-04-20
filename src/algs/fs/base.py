@@ -16,7 +16,7 @@ from src.models import Optimizer
 __all__ = ["FsAlg"]
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class FsAlg(Algorithm):
     steps: int = 10_000
     lr: float = 5.0e-4
@@ -34,7 +34,7 @@ class FsAlg(Algorithm):
 
     @abstractmethod
     def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:
-        ...
+        raise NotImplementedError()
 
     @override
     def run(self, dm: DataModule, *, model: nn.Module) -> Optional[float]:

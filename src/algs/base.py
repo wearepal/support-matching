@@ -14,7 +14,7 @@ from src.data import DataModule, resolve_device
 __all__ = ["Algorithm"]
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class Algorithm(DcModule):
     """Base class for adversarial algorithms."""
 
@@ -39,4 +39,4 @@ class Algorithm(DcModule):
 
     @abstractmethod
     def run(self, dm: DataModule, **kwargs: Any) -> Any:
-        ...
+        raise NotImplementedError()

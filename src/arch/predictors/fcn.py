@@ -65,7 +65,7 @@ class Fcn(PredictorFactory):
 A = TypeVar("A", bound=BatchAggregator)
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class SetPredictor(DcModule, Generic[A]):
     pre: nn.Module
     agg: A

@@ -18,7 +18,7 @@ from .evaluator import Evaluator
 __all__ = ["MiMin"]
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class MiMin(AdvSemiSupervisedAlg):
     label_smoothing: float = 0.0
 

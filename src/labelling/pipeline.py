@@ -1,5 +1,5 @@
 from __future__ import annotations
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Protocol, Union, cast
@@ -44,15 +44,16 @@ __all__ = [
 ]
 
 
-class Labeller(Protocol):
+class Labeller(ABC):
+    @abstractmethod
     def run(self, dm: DataModule) -> Tensor | None:
-        ...
+        raise NotImplementedError()
 
     def __call__(self, dm: DataModule) -> Tensor | None:
         return self.run(dm=dm)
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class KmeansOnClipEncodings(DcModule, Labeller):
     clip_version: ClipVersion = ClipVersion.RN50
     download_root: Optional[str] = None

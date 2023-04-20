@@ -1,4 +1,5 @@
 from __future__ import annotations
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 from typing_extensions import override
@@ -15,7 +16,7 @@ E = TypeVar("E", bound=nn.Module)
 D = TypeVar("D", bound=nn.Module)
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class AePair(DcModule, Generic[E, D]):
     encoder: E
     decoder: D
@@ -35,10 +36,7 @@ class AePair(DcModule, Generic[E, D]):
         return self.encode(self.decoder(x))
 
 
-@dataclass
-class AeFactory:
-    def __call__(
-        self,
-        input_shape: tuple[int, int, int],
-    ) -> AePair:
-        ...
+class AeFactory(ABC):
+    @abstractmethod
+    def __call__(self, input_shape: tuple[int, int, int]) -> AePair:
+        raise NotImplementedError()

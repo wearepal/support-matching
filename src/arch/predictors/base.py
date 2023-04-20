@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from abc import ABC, abstractmethod
 from typing import Any, Tuple, TypeVar
 from typing_extensions import TypeAlias
 
@@ -13,7 +13,7 @@ M = TypeVar("M", bound=nn.Module)
 PredictorFactoryOut: TypeAlias = Tuple[M, int]
 
 
-@dataclass
-class PredictorFactory:
+class PredictorFactory(ABC):
+    @abstractmethod
     def __call__(self, input_dim: int, *, target_dim: int, **kwargs: Any) -> PredictorFactoryOut:
         ...

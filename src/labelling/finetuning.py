@@ -21,7 +21,7 @@ from src.data import DataModule, labels_to_group_id, resolve_device
 __all__ = ["FineTuner"]
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class FineTuner(DcModule):
     _PBAR_COL: ClassVar[str] = "#ffe252"
 

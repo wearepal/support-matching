@@ -46,7 +46,7 @@ IterTr: TypeAlias = Iterator[TernarySample[Tensor]]
 IterDep: TypeAlias = Iterator[NamedSample[Tensor]]
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class Components(DcModule, Generic[D]):
     ae: SplitLatentAe
     disc: D
@@ -74,7 +74,7 @@ class Components(DcModule, Generic[D]):
             self.disc.train()
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class AdvSemiSupervisedAlg(Algorithm):
     """Base class for adversarial semi-supervsied methods."""
 
@@ -100,9 +100,6 @@ class AdvSemiSupervisedAlg(Algorithm):
     pred_s_loss_w: float = 0
     s_pred_with_bias: bool = False
     s_as_zs: bool = False
-
-    predictor_y: Optional[Classifier] = field(init=False)
-    predictor_s: Optional[Classifier] = field(init=False)
 
     # Misc
     validate: bool = True
@@ -147,7 +144,7 @@ class AdvSemiSupervisedAlg(Algorithm):
     def discriminator_step(
         self, comp: Components, *, iterator_tr: IterTr, iterator_dep: IterDep
     ) -> None:
-        ...
+        raise NotImplementedError()
 
     def encoder_step(
         self,
@@ -283,7 +280,7 @@ class AdvSemiSupervisedAlg(Algorithm):
     def _encoder_loss(
         self, comp: Components, *, x_dep: Tensor, batch_tr: TernarySample, warmup: bool
     ) -> Tuple[Tensor, Dict[str, float]]:
-        ...
+        raise NotImplementedError()
 
     def _update_encoder(self, comp: Components) -> None:
         # Clip the norm of the gradients if max_grad_norm is not None

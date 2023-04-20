@@ -20,7 +20,7 @@ from .scorer import Scorer
 __all__ = ["SupportMatching"]
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class SupportMatching(AdvSemiSupervisedAlg):
     @override
     def _get_data_iterators(self, dm: DataModule) -> Tuple[IterTr, IterDep]:

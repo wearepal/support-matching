@@ -53,7 +53,7 @@ def evaluate(
     y_pred: npt.NDArray[np.int32],
     use_wandb: bool = True,
     prefix: str | None = None,
-) -> None:
+) -> dict[str, float]:
     metrics = {
         "ARI": adjusted_rand_score(y_true, y_pred),
         "AMI": adjusted_mutual_info_score(y_true, y_pred),

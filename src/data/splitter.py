@@ -51,7 +51,7 @@ class DataSplitter:
 
     @abstractmethod
     def split(self, dataset: D) -> TrainDepTestSplit[D]:
-        ...
+        raise NotImplementedError()
 
     def __call__(self, dataset: D) -> TrainDepTestSplit[D]:
         splits = self.split(dataset)

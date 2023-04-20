@@ -1,9 +1,8 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 from typing_extensions import override
 
 from conduit.types import Loss
-from ranzen.torch import CrossEntropyLoss, ReductionType
 from torch import Tensor
 import torch.nn as nn
 
@@ -16,7 +15,7 @@ from .base import FsAlg
 __all__ = ["Erm"]
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class Erm(FsAlg):
     criterion: Optional[Loss] = None
 
