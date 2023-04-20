@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable, Generic, Optional, Type, TypeVar
+from typing_extensions import override
 
-from ranzen import implements
 from ranzen.torch import DcModule
 from torch import Tensor
 import torch.nn as nn
@@ -43,7 +43,7 @@ class Fcn(PredictorFactory):
             block.append(nn.Dropout(p=self.dropout_prob))
         return block
 
-    @implements(PredictorFactory)
+    @override
     def __call__(
         self, input_dim: int, *, target_dim: int, **kwargs: Any
     ) -> PredictorFactoryOut[nn.Sequential]:
@@ -152,7 +152,7 @@ class SetFcn(PredictorFactory):
             input_dim,
         )
 
-    @implements(PredictorFactory)
+    @override
     def __call__(
         self,
         input_dim: int,

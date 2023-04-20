@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple, Union
+from typing_extensions import override
 
 from conduit.types import Loss
 from omegaconf.listconfig import ListConfig
-from ranzen import implements
 from ranzen.torch.loss import CrossEntropyLoss, ReductionType, reduce  # type: ignore
 import torch
 from torch import Tensor
@@ -55,7 +55,7 @@ class SdCrossEntropyLoss(nn.Module, Loss):
     def reduction(self, value: Union[ReductionType, str]) -> None:
         self.loss_fn.reduction = value
 
-    @implements(nn.Module)
+    @override
     def forward(self, input: Tensor, *, target: Tensor) -> Tensor:  # type: ignore
         lambda_ = self.lambda_[target] if isinstance(self.lambda_, Tensor) else self.lambda_
         loss = self.loss_fn(input, target=target)

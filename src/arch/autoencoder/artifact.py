@@ -2,11 +2,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Final, Optional, Tuple, Union, cast
+from typing_extensions import override
 
 from hydra.utils import instantiate
 from loguru import logger
 from omegaconf import DictConfig, OmegaConf
-from ranzen.decorators import implements
 import torch
 import wandb
 from wandb.sdk.lib.disabled import RunDisabled
@@ -114,7 +114,7 @@ class AeFromArtifact(AeFactory):
     version: Optional[int] = None
     bitfit: bool = False
 
-    @implements(AeFactory)
+    @override
     def __call__(
         self,
         input_shape: Tuple[int, int, int],

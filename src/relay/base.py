@@ -2,12 +2,11 @@ from dataclasses import dataclass
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
-from typing_extensions import TypeAlias
+from typing_extensions import TypeAlias, override
 
 from hydra.utils import instantiate
 from loguru import logger
 from omegaconf import DictConfig, MISSING
-from ranzen.decorators import implements
 from ranzen.hydra import Option, Relay
 from ranzen.torch import random_seed
 import torch
@@ -38,7 +37,7 @@ class BaseRelay(Relay):
     seed: int = 0
 
     @classmethod
-    @implements(Relay)
+    @override
     def with_hydra(
         cls,
         root: Union[Path, str],

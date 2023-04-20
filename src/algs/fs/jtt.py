@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from typing import Optional, Union
+from typing_extensions import override
 
 from conduit.types import Loss
-from ranzen import gcopy, implements
+from ranzen import gcopy
 from ranzen.torch import WeightedBatchSampler
 from torch import Tensor
 import torch.nn as nn
@@ -26,7 +27,7 @@ class Jtt(FsAlg):
             if not (0 <= self.id_steps <= 1):
                 raise AttributeError("If 'id_steps' is a float, it must be in the range [0, 1].")
 
-    @implements(FsAlg)
+    @override
     def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:
         model_id = gcopy(model, deep=True)
         # Stage one: identification

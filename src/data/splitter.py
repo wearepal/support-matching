@@ -4,12 +4,12 @@ from pathlib import Path
 import platform
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Final, List, Optional, TypedDict, Union, cast
+from typing_extensions import override
 
 from conduit.data.constants import IMAGENET_STATS
-from conduit.data.datasets.vision import ImageTform, PillowTform, CdtVisionDataset
 from conduit.data.datasets.utils import stratified_split
+from conduit.data.datasets.vision import CdtVisionDataset, ImageTform, PillowTform
 from loguru import logger
-from ranzen import implements
 import torch
 from torch import Tensor
 import torchvision.transforms as T
@@ -151,7 +151,7 @@ class RandomSplitter(DataSplitter):
         if not (0 < self.dep_prop < 1):
             raise AttributeError("'dep_prop' must be in the range (0, 1).")
 
-    @implements(DataSplitter)
+    @override
     def split(self, dataset: D) -> TrainDepTestSplit[D]:
         if self.data_prop < 1:
             dataset = stratified_split(dataset, default_train_prop=self.data_prop).train
@@ -263,7 +263,7 @@ class _ArtifactLoaderMixin:
 
 @dataclass(eq=False)
 class SplitFromArtifact(DataSplitter, _ArtifactLoaderMixin):
-    @implements(DataSplitter)
+    @override
     def split(self, dataset: D) -> TrainDepTestSplit[D]:
         splits = load_split_inds_from_artifact(
             run=wandb.run, name=self.artifact_name, version=self.version

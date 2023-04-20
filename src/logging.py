@@ -3,7 +3,7 @@ from collections.abc import MutableMapping, Sequence
 from dataclasses import asdict, dataclass
 from enum import Enum
 import shlex
-from typing import Any, List, Optional, Sequence
+from typing import Any, List, Optional, Sequence, TYPE_CHECKING
 
 from conduit.data.datasets.vision.base import CdtVisionDataset
 from hydra.core.hydra_config import HydraConfig
@@ -15,6 +15,9 @@ import torchvision.transforms.functional as TF
 import wandb
 
 from src.data.data_module import DataModule
+
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
 
 __all__ = [
     "WandbConf",
@@ -142,7 +145,7 @@ def _clean_up_dict(obj: Any) -> Any:
     return obj
 
 
-def as_pretty_dict(data_class: object) -> dict:
+def as_pretty_dict(data_class: DataclassInstance) -> dict:
     """Convert dataclass to a pretty dictionary."""
     return _clean_up_dict(asdict(data_class))
 

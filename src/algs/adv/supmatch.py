@@ -1,10 +1,9 @@
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple, cast
-from typing_extensions import Self
+from typing_extensions import Self, override
 
 from conduit.data.structures import TernarySample
 from loguru import logger
-from ranzen import gcopy, implements
 import torch
 from torch import Tensor
 
@@ -23,7 +22,7 @@ __all__ = ["SupportMatching"]
 
 @dataclass(eq=False)
 class SupportMatching(AdvSemiSupervisedAlg):
-    @implements(AdvSemiSupervisedAlg)
+    @override
     def _get_data_iterators(self, dm: DataModule) -> Tuple[IterTr, IterDep]:
         if (self.disc_loss_w > 0) or (self.num_disc_updates > 0):
             if dm.deployment_ids is None:
@@ -37,7 +36,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         dl_dep = dm.deployment_dataloader(batch_size=dm.batch_size_tr)
         return iter(dl_tr), iter(dl_dep)
 
-    @implements(AdvSemiSupervisedAlg)
+    @override
     def _encoder_loss(
         self,
         comp: Components[BinaryDiscriminator],
@@ -137,7 +136,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
             if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
                 self.grad_scaler.update()
 
-    @implements(AdvSemiSupervisedAlg)
+    @override
     def discriminator_step(
         self,
         comp: Components[BinaryDiscriminator],
@@ -155,7 +154,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
                     self.backward(loss / self.ga_steps)
                 self._update_discriminator(comp.disc)
 
-    @implements(AdvSemiSupervisedAlg)
+    @override
     def fit(
         self, dm: DataModule, *, ae: SplitLatentAe, disc: BinaryDiscriminator, evaluator: Evaluator
     ) -> Self:
@@ -164,7 +163,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
         return super().fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
 
-    @implements(AdvSemiSupervisedAlg)
+    @override
     def run(
         self,
         dm: DataModule,

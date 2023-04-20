@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from typing import Optional, Tuple
+from typing_extensions import override
 
 from conduit.data.structures import TernarySample
 from conduit.types import Loss
 import numpy as np
-from ranzen import implements
 from ranzen.torch import cross_entropy_loss
 from ranzen.torch.loss import ReductionType
 import torch
@@ -247,7 +247,7 @@ class GdroClassifier(Classifier, _LcMixin):
             self.criterion.reduction = ReductionType.none
         super().__post_init__()
 
-    @implements(Classifier)
+    @override
     def training_step(self, batch: TernarySample[Tensor], *, pred_s: bool = False) -> Tensor:
         target = batch.s if pred_s else batch.y
         logits = self.forward(batch.x)
@@ -269,7 +269,7 @@ class Gdro(FsAlg):
     adjustments: Optional[Tuple[float]] = None
     criterion: Optional[Loss] = None
 
-    @implements(FsAlg)
+    @override
     def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:
         s_count = dm.card_s
         s_all = dm.train.s

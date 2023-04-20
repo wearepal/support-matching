@@ -2,10 +2,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+from typing_extensions import override
 
 from hydra.utils import instantiate
 from omegaconf import DictConfig, MISSING
-from ranzen.decorators import implements
 from ranzen.hydra import Option
 import torch.nn as nn
 
@@ -24,7 +24,7 @@ class FsRelay(BaseRelay):
     predictor: DictConfig = MISSING
 
     @classmethod
-    @implements(BaseRelay)
+    @override
     def with_hydra(
         cls,
         root: Union[Path, str],
@@ -51,7 +51,7 @@ class FsRelay(BaseRelay):
             **configs,
         )
 
-    @implements(BaseRelay)
+    @override
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Any:
         run = self.init_wandb(raw_config, self.labeller, self.backbone, self.predictor)
         dm = self.init_dm()

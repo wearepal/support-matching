@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 from typing import Dict, Tuple
-from typing_extensions import Self
+from typing_extensions import Self, override
 
 from conduit.data.structures import TernarySample
-from ranzen import implements
 from ranzen.torch import cross_entropy_loss
 import torch
 from torch import Tensor
@@ -23,7 +22,7 @@ __all__ = ["MiMin"]
 class MiMin(AdvSemiSupervisedAlg):
     label_smoothing: float = 0.0
 
-    @implements(AdvSemiSupervisedAlg)
+    @override
     def _encoder_loss(
         self,
         comp: Components[Model],
@@ -106,7 +105,7 @@ class MiMin(AdvSemiSupervisedAlg):
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
             self.grad_scaler.update()
 
-    @implements(AdvSemiSupervisedAlg)
+    @override
     def discriminator_step(
         self,
         comp: Components[Model],
@@ -121,7 +120,7 @@ class MiMin(AdvSemiSupervisedAlg):
                 self.backward(loss / self.ga_steps)
             self._update_discriminator(comp.disc)
 
-    @implements(AdvSemiSupervisedAlg)
+    @override
     def fit(self, dm: DataModule, *, ae: SplitLatentAe, disc: Model, evaluator: Evaluator) -> Self:
         if self.s_as_zs and self.zs_dim != dm.card_s:
             raise ValueError(f"zs_dim has to be equal to s_dim ({dm.card_s}) if `s_as_zs` is True.")

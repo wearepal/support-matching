@@ -2,9 +2,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from enum import Enum, auto
 from typing import Callable, Dict, List, Optional, Tuple, Union, cast
-from typing_extensions import Literal, Self
+from typing_extensions import Literal, Self, override
 
-from ranzen import implements
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -208,6 +207,6 @@ class SplitLatentAe(Model):
             loss += prior_loss
         return encoding, loss, logging_dict
 
-    @implements(Model)
+    @override
     def forward(self, inputs: Tensor) -> SplitEncoding:
         return self.encode(inputs)
