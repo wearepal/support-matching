@@ -51,7 +51,7 @@ class Encodings:
         return torch.cat([self.train, self.dep], dim=0).numpy()
 
     @classmethod
-    def from_npz(cls: type[Self], fpath: Path | str) -> Self:
+    def from_npz(cls, fpath: Path | str) -> Self:
         logger.info("Loading encodings from file...")
         with Path(fpath).open("rb") as f:
             loaded: NpzContent = np.load(f)

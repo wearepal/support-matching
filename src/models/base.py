@@ -22,7 +22,7 @@ class Optimizer(Enum):
     RADAM = torch.optim.RAdam
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class Model(DcModule):
     _PBAR_COL: ClassVar[str] = "#ffe252"
 

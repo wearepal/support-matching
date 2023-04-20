@@ -1,5 +1,5 @@
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import reduce
 from math import gcd
 from typing import (
@@ -11,13 +11,11 @@ from typing import (
     List,
     Optional,
     Set,
-    Type,
     TYPE_CHECKING,
 )
 from typing_extensions import Self
 
 import albumentations as A
-import attr
 from conduit.data.constants import IMAGENET_STATS
 from conduit.data.datasets.utils import CdtDataLoader, get_group_ids
 from conduit.data.datasets.vision import CdtVisionDataset, ImageTform, PillowTform
@@ -37,7 +35,7 @@ from torch import Tensor
 import torchvision.transforms.transforms as T
 
 from .common import D
-from .splitter import RandomSplitter
+from .splitter import DataSplitter
 from .utils import group_id_to_label
 
 if TYPE_CHECKING:
@@ -62,11 +60,11 @@ class DataModuleConf:
     seed: int = 47
 
 
-@attr.define(kw_only=True)
+@dataclass(eq=False)
 class DataModule(Generic[D]):
     train: D
     deployment: D
-    deployment_ids: Optional[Tensor] = None
+    deployment_ids: Optional[Tensor] = field(init=False, default=None)
     test: D
     split_seed: Optional[int]
 
@@ -392,12 +390,7 @@ class DataModule(Generic[D]):
 
     @classmethod
     def from_ds(
-        cls: Type[Self],
-        *,
-        config: DataModuleConf,
-        ds: D,
-        splitter: RandomSplitter,
-        labeller: "Labeller",
+        cls, *, config: DataModuleConf, ds: D, splitter: DataSplitter, labeller: "Labeller"
     ) -> Self:
         splits = splitter(ds)
         dm = cls(

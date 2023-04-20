@@ -4,7 +4,7 @@ from typing_extensions import override
 
 from conduit.types import Loss
 from omegaconf.listconfig import ListConfig
-from ranzen.torch.loss import CrossEntropyLoss, ReductionType, reduce  # type: ignore
+from ranzen.torch.loss import CrossEntropyLoss, ReductionType, reduce
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -66,7 +66,7 @@ class SdCrossEntropyLoss(nn.Module, Loss):
         return loss + reg
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class SdErm(Erm):
     """ERM with spectral decoupling applied to the logits, as proposed in `Gradient Starvation`_
     .. _Gradient Starvation:

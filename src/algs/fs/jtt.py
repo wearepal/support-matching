@@ -16,7 +16,7 @@ from .base import FsAlg
 __all__ = ["Jtt"]
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class Jtt(FsAlg):
     id_steps: Union[float, int] = 0.02
     lambda_uw: Optional[float] = None

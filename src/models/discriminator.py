@@ -30,7 +30,7 @@ class BinaryDiscriminator(Protocol):
         ...
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class MmdDiscriminator(BinaryDiscriminator, DcModule):
     mmd_kernel: MMDKernel = MMDKernel.rq
     mmd_scales: List[float] = field(default_factory=list)
@@ -67,7 +67,7 @@ def _maybe_spectral_norm(module: nn.Module, *, name: str = "weight"):
         torch.nn.utils.parametrizations.spectral_norm(module, name=name)
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class NeuralDiscriminator(BinaryDiscriminator, Model):
     criterion: GanLoss = GanLoss.LOGISTIC_NS
 

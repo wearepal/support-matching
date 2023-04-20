@@ -29,7 +29,7 @@ def bags_to_batch(batch: Tensor) -> Tensor:
     return batch.movedim(0, -1).reshape(-1, *batch.shape[2:])
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class BatchAggregator(DcModule):
     batch_size: int
 
@@ -42,7 +42,7 @@ class BatchAggregator(DcModule):
         return batch_to_bags(batch=batch, batch_size=self.batch_size)
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class BagMean(BatchAggregator):
     @override
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
@@ -122,7 +122,7 @@ class AttentionBlock(nn.Module):
         return self.ffw(outputs) + outputs
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class KvqAggregator(BatchAggregator):
     dim: int
     num_blocks: int = 1
@@ -164,7 +164,7 @@ class KvqAggregator(BatchAggregator):
         return self.blocks(inputs)
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class GatedAggregator(BatchAggregator):
     dim: int
     v: Parameter = field(init=False)

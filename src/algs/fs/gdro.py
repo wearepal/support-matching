@@ -239,7 +239,7 @@ class _LcMixin:
     loss_computer: LossComputer
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class GdroClassifier(Classifier, _LcMixin):
     def __post_init__(self) -> None:
         # LossComputer requires that the criterion return per-sample (unreduced) losses.
@@ -259,7 +259,7 @@ class GdroClassifier(Classifier, _LcMixin):
         )
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class Gdro(FsAlg):
     alpha: Optional[float] = 1.0
     normalize_loss: bool = False

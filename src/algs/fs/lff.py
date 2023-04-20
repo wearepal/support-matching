@@ -113,7 +113,7 @@ class _LabelEmaMixin:
     sample_loss_ema_d: LabelEma
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class LfFClassifier(Classifier, _LabelEmaMixin):
     q: float = 0.7
     biased_model: nn.Module = field(init=False)
@@ -156,7 +156,7 @@ class LfFClassifier(Classifier, _LabelEmaMixin):
         return loss_b_update + loss_d_update
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class LfF(FsAlg):
     alpha: float = 0.7
     q: float = 0.7

@@ -39,7 +39,7 @@ def cat_cpu_flatten(*ls: list[Tensor], dim: int = 0) -> Iterator[Tensor]:
         yield torch.cat(ls_, dim=dim).cpu().flatten()
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class Classifier(Model):
     """Wrapper for classifier models equipped witht training/inference routines."""
 
@@ -130,7 +130,7 @@ class Classifier(Model):
                 log_dict = {"train/loss": to_item(loss)}
 
             if use_amp:  # Apply scaling for mixed-precision training
-                loss = grad_scaler.scale(loss)  # type: ignore
+                loss = grad_scaler.scale(loss)
             loss.backward()  # type: ignore
             self.step(grad_scaler=grad_scaler)
             self.optimizer.zero_grad()
@@ -177,7 +177,7 @@ class _ScSample(BinarySample[Tensor]):
 S = TypeVar("S", bound=NamedSample[Tensor])
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class SetClassifier(Model):
     """Wrapper for set classifier models equipped witht training/inference routines."""
 
@@ -235,7 +235,7 @@ class SetClassifier(Model):
                     wandb.log(prefix_keys(log_dict, prefix="test", sep="/"))
 
             if use_amp:  # Apply scaling for mixed-precision training
-                loss = grad_scaler.scale(loss)  # type: ignore
+                loss = grad_scaler.scale(loss)
             loss.backward()  # type: ignore
             self.step(grad_scaler=grad_scaler)
             self.optimizer.zero_grad()

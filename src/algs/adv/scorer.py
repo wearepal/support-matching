@@ -1,5 +1,6 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Final, Optional, Protocol, Tuple, Union
+from typing import Any, Final, Optional, Tuple, Union
 from typing_extensions import override
 
 from conduit.data import TernarySample
@@ -65,9 +66,10 @@ def balanced_accuracy(y_pred: Tensor, *, y_true: Tensor) -> Tensor:
     return cdtm.subclass_balanced_accuracy(y_pred=y_pred, y_true=y_true, s=y_true)
 
 
-class Scorer(Protocol):
+class Scorer(ABC):
+    @abstractmethod
     def run(self, dm: DataModule[CdtDataset], *, device: torch.device, **kwargs: Any) -> float:
-        ...
+        raise NotImplementedError()
 
 
 @dataclass(eq=False)

@@ -99,7 +99,7 @@ class ZsTransform(Enum):
     round_ste = auto()
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class SplitLatentAe(Model):
     model: AePair
     zs_dim: Union[int, float] = 1

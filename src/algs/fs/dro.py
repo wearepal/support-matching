@@ -4,7 +4,7 @@ from typing_extensions import override
 
 from conduit.types import Loss
 from ranzen import str_to_enum
-from ranzen.torch.loss import CrossEntropyLoss, ReductionType, reduce  # type: ignore
+from ranzen.torch.loss import CrossEntropyLoss, ReductionType, reduce
 from torch import Tensor
 import torch.nn as nn
 
@@ -42,7 +42,7 @@ class DroLoss(nn.Module, Loss):
         return reduce(sample_losses, reduction_type=self.reduction)
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class Dro(Erm):
     eta: float = 0.5
 
