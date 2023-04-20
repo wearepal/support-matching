@@ -16,7 +16,7 @@ from wandb.wandb_run import Run
 
 from src.data import DataModule, resolve_device
 from src.evaluation.metrics import print_metrics
-from src.labelling.encode import encode_with_group_ids
+from src.labelling.encode import Encodings, encode_with_group_ids
 from src.models import Classifier
 from src.utils import to_item
 
@@ -73,39 +73,40 @@ class KmeansOnClipEncodings(DcModule, Labeller):
     artifact_name: Optional[str] = None
 
     cache_encoder: bool = False
+    encodings_path: Optional[Path] = None
     encoder: Optional[ClipVisualEncoder] = field(init=False, default=None)
     _fitted_kmeans: Optional[KMeans] = field(init=False, default=None)
 
     @implements(Labeller)
     def run(self, dm: DataModule, *, use_cached_encoder: bool = False) -> Tensor:
         device = resolve_device(self.gpu)
-        if self.encoder is None or not use_cached_encoder:
-            encoder = ClipVisualEncoder(
-                version=self.clip_version,
-                download_root=self.download_root,
-            )
-            if self.ft_steps > 0:
-                encoder.finetune(
-                    dm=dm,
-                    steps=self.ft_steps,
-                    batch_size=self.ft_batch_size,
-                    lr=self.ft_lr,
-                    val_freq=self.ft_val_freq,
-                    val_batches=self.ft_val_batches,
-                    device=device,
+        if self.encodings_path is not None and self.encodings_path.exists():
+            encodings = Encodings.from_npz(self.encodings_path)
+        else:
+            if self.encoder is None or not use_cached_encoder:
+                encoder = ClipVisualEncoder(
+                    version=self.clip_version, download_root=self.download_root
                 )
-        else:
-            encoder = self.encoder
-        encodings = encoder.encode(
-            dm=dm,
-            batch_size_tr=self.enc_batch_size,
-            device=device,
-        )
-        if self.cache_encoder:
-            self.encoder = encoder
-        else:
-            del encoder
-            torch.cuda.empty_cache()
+                if self.ft_steps > 0:
+                    encoder.finetune(
+                        dm=dm,
+                        steps=self.ft_steps,
+                        batch_size=self.ft_batch_size,
+                        lr=self.ft_lr,
+                        val_freq=self.ft_val_freq,
+                        val_batches=self.ft_val_batches,
+                        device=device,
+                    )
+            else:
+                encoder = self.encoder
+            encodings = encoder.encode(dm=dm, batch_size_tr=self.enc_batch_size, device=device)
+            if self.encodings_path is not None:
+                encodings.save(self.encodings_path)
+            if self.cache_encoder:
+                self.encoder = encoder
+            else:
+                del encoder
+                torch.cuda.empty_cache()
 
         kmeans = KMeans(
             spherical=self.spherical,
