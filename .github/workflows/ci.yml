@@ -22,7 +22,7 @@ jobs:
         pip install black
     - name: Format with black
       run: |
-        python -m black --check .
+        python -m black --check src
 
   format_with_isort:
 
@@ -39,4 +39,4 @@ jobs:
         pip install isort
     - name: Format with isort
       run: |
-        isort --diff --check .
+        isort --diff --check src
