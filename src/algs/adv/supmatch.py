@@ -20,7 +20,7 @@ from .scorer import Scorer
 __all__ = ["SupportMatching"]
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class SupportMatching(AdvSemiSupervisedAlg):
     @override
     def _get_data_iterators(self, dm: DataModule) -> Tuple[IterTr, IterDep]:
@@ -33,7 +33,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         dl_tr = dm.train_dataloader(balance=True)
         # The batch size needs to be consistent for the aggregation layer in the setwise neural
         # discriminator
-        dl_dep = dm.deployment_dataloader(batch_size=dm.batch_size_tr)
+        dl_dep = dm.deployment_dataloader(batch_size=dm.cfg.batch_size_tr)
         return iter(dl_tr), iter(dl_dep)
 
     @override

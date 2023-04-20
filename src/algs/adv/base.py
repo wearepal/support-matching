@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import (
     Any,
     ClassVar,
@@ -32,6 +32,7 @@ from src.arch.predictors.fcn import Fcn
 from src.data import DataModule
 from src.logging import log_images
 from src.models.autoencoder import SplitLatentAe
+from src.models.base import ModelConf
 from src.models.classifier import Classifier
 from src.utils import to_item
 
@@ -46,7 +47,7 @@ IterTr: TypeAlias = Iterator[TernarySample[Tensor]]
 IterDep: TypeAlias = Iterator[NamedSample[Tensor]]
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class Components(DcModule, Generic[D]):
     ae: SplitLatentAe
     disc: D
@@ -74,7 +75,7 @@ class Components(DcModule, Generic[D]):
             self.disc.train()
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class AdvSemiSupervisedAlg(Algorithm):
     """Base class for adversarial semi-supervsied methods."""
 
@@ -100,9 +101,6 @@ class AdvSemiSupervisedAlg(Algorithm):
     pred_s_loss_w: float = 0
     s_pred_with_bias: bool = False
     s_as_zs: bool = False
-
-    predictor_y: Optional[Classifier] = field(init=False)
-    predictor_s: Optional[Classifier] = field(init=False)
 
     # Misc
     validate: bool = True
@@ -132,14 +130,14 @@ class AdvSemiSupervisedAlg(Algorithm):
                 hidden_dim=self.pred_y_hidden_dim,
                 num_hidden=self.pred_y_num_hidden,
             )(input_dim=ae.encoding_size.zy, target_dim=y_dim)
-            pred_y = Classifier(model=model, lr=self.lr).to(self.device)
+            pred_y = Classifier(model=model, cfg=ModelConf(lr=self.lr)).to(self.device)
         pred_s = None
         if self.pred_s_loss_w > 0:
             model, _ = Fcn(
                 hidden_dim=None,  # no hidden layers
                 final_bias=self.s_pred_with_bias,
             )(input_dim=ae.encoding_size.zs, target_dim=s_dim)
-            pred_s = Classifier(model=model, lr=self.lr).to(self.device)
+            pred_s = Classifier(model=model, cfg=ModelConf(lr=self.lr)).to(self.device)
 
         return pred_y, pred_s
 
@@ -147,7 +145,7 @@ class AdvSemiSupervisedAlg(Algorithm):
     def discriminator_step(
         self, comp: Components, *, iterator_tr: IterTr, iterator_dep: IterDep
     ) -> None:
-        ...
+        raise NotImplementedError()
 
     def encoder_step(
         self,
@@ -283,7 +281,7 @@ class AdvSemiSupervisedAlg(Algorithm):
     def _encoder_loss(
         self, comp: Components, *, x_dep: Tensor, batch_tr: TernarySample, warmup: bool
     ) -> Tuple[Tensor, Dict[str, float]]:
-        ...
+        raise NotImplementedError()
 
     def _update_encoder(self, comp: Components) -> None:
         # Clip the norm of the gradients if max_grad_norm is not None
@@ -306,7 +304,12 @@ class AdvSemiSupervisedAlg(Algorithm):
         return iter(dl_tr), iter(dl_dep)
 
     def _evaluate(
-        self, dm: DataModule, *, ae: SplitLatentAe, evaluator: Evaluator, step: Optional[int] = None
+        self,
+        dm: DataModule,
+        *,
+        ae: SplitLatentAe,
+        evaluator: Optional[Evaluator],
+        step: Optional[int] = None,
     ) -> None:
         if evaluator is not None:
             evaluator(dm=dm, encoder=ae, step=step, device=self.device)

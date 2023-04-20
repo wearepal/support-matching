@@ -1,93 +1,117 @@
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
-from typing_extensions import override
+from typing import Any, ClassVar, Dict, Optional, cast
 
-from hydra.utils import instantiate
+from attrs import define, field
 from loguru import logger
-from omegaconf import DictConfig, MISSING
-from ranzen.hydra import Option
 
 from src.algs import SupportMatching
 from src.algs.adv import Evaluator, NeuralScorer, NullScorer, Scorer
-from src.arch.autoencoder import AeFactory, AeFromArtifact, AePair, save_ae_artifact
+from src.arch.autoencoder import (
+    AeFactory,
+    AeFromArtifact,
+    ResNetAE,
+    SimpleConvAE,
+    VqGanAe,
+    save_ae_artifact,
+)
+from src.arch.predictors.base import PredictorFactory
+from src.arch.predictors.fcn import Fcn, SetFcn
+from src.hydra_confs.camelyon17.conf import Camelyon17Conf
+from src.hydra_confs.celeba.conf import CelebAConf
+from src.hydra_confs.cmnist.conf import ColoredMNISTConf
+from src.hydra_confs.nih.conf import NIHChestXRayDatasetConf
+from src.labelling.pipeline import (
+    CentroidalLabelNoiser,
+    GroundTruthLabeller,
+    KmeansOnClipEncodings,
+    LabelFromArtifact,
+    Labeller,
+    NullLabeller,
+    UniformLabelNoiser,
+)
 from src.models import SplitLatentAe
-from src.models.discriminator import NeuralDiscriminator
+from src.models.autoencoder import SplitLatentAeConf
+from src.models.discriminator import NeuralDiscriminator, NeuralDiscriminatorConf
 
 from .base import BaseRelay
 
 __all__ = ["SupMatchRelay"]
 
 
-@dataclass(eq=False)
+@define(eq=False, kw_only=True)
 class SupMatchRelay(BaseRelay):
-    alg: DictConfig = MISSING
-    ae: DictConfig = MISSING
-    ae_arch: DictConfig = MISSING
-    disc_arch: DictConfig = MISSING
-    disc: DictConfig = MISSING
-    eval: DictConfig = MISSING
-    scorer: DictConfig = MISSING
+    defaults: list[Any] = field(
+        default=[
+            {"ae_arch": "simple"},
+            {"ds": "cmnist"},
+            {"disc_arch": "set"},
+            {"labeller": "none"},
+            {"scorer": "none"},
+            {"split": "random"},
+        ]
+    )
+    alg: SupportMatching = field(default=SupportMatching)
+    ae: SplitLatentAeConf = field(default=SplitLatentAeConf)
+    ae_arch: Any  # AeFactory
+    ds: Any  # CdtDataset
+    disc_arch: Any  # PredictorFactory
+    disc: NeuralDiscriminatorConf = field(default=NeuralDiscriminatorConf)
+    eval: Evaluator = field(default=Evaluator)
+    labeller: Any  # Labeller
+    scorer: Any  # Scorer
     artifact_name: Optional[str] = None
 
-    @classmethod
-    @override
-    def with_hydra(
-        cls,
-        root: Union[Path, str],
-        *,
-        ds: List[Option],
-        ae_arch: List[Option],
-        disc: List[Option],
-        disc_arch: List[Option],
-        labeller: List[Option],
-        clear_cache: bool = False,
-        instantiate_recursively: bool = False,
-    ) -> None:
-        configs = dict(
-            ae=[Option(SplitLatentAe, name="base")],
-            ae_arch=ae_arch,
-            alg=[Option(SupportMatching, name="base")],
-            disc=disc,
-            disc_arch=disc_arch,
-            ds=ds,
-            eval=[Option(Evaluator, name="base")],
-            labeller=labeller,
-            scorer=[Option(NeuralScorer, name="neural"), Option(NullScorer, name="none")],
-        )
-        super().with_hydra(
-            root=root,
-            instantiate_recursively=instantiate_recursively,
-            clear_cache=clear_cache,
-            **configs,
-        )
+    options: ClassVar[Dict[str, Dict[str, type]]] = BaseRelay.options | {
+        "scorer": {"neural": NeuralScorer, "none": NullScorer},
+        "ds": {
+            "cmnist": ColoredMNISTConf,
+            "celeba": CelebAConf,
+            "camelyon17": Camelyon17Conf,
+            "nih": NIHChestXRayDatasetConf,
+        },
+        "ae_arch": {
+            "artifact": AeFromArtifact,
+            "resnet": ResNetAE,
+            "simple": SimpleConvAE,
+            "vqgan": VqGanAe,
+        },
+        "disc_arch": {
+            "sample": Fcn,
+            "set": SetFcn,
+        },
+        "labeller": {
+            "centroidal_noise": CentroidalLabelNoiser,
+            "gt": GroundTruthLabeller,
+            "kmeans": KmeansOnClipEncodings,
+            "artifact": LabelFromArtifact,
+            "none": NullLabeller,
+            "uniform_noise": UniformLabelNoiser,
+        },
+    }
 
-    @override
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Optional[float]:
-        run = self.init_wandb(raw_config, self.labeller, self.ae_arch, self.disc_arch)
-        dm = self.init_dm()
-        alg: SupportMatching = instantiate(self.alg)
-        ae_factory: AeFactory = instantiate(self.ae_arch)
-        ae_pair: AePair = ae_factory(input_shape=dm.dim_x)
-        ae: SplitLatentAe = instantiate(self.ae, _partial_=True)(
-            model=ae_pair,
-            feature_group_slices=dm.feature_group_slices,
-        )
+        assert isinstance(self.ae_arch, AeFactory)
+        assert isinstance(self.disc_arch, PredictorFactory)
+        self.labeller = cast(Labeller, self.labeller)  # just a Protocol
+        self.scorer = cast(Scorer, self.scorer)  # just a Protocol
+
+        run = self.wandb.init(raw_config, (self.labeller, self.ae_arch, self.disc_arch))
+        dm = self.init_dm(self.ds, self.labeller)
+        ae_pair = self.ae_arch(input_shape=dm.dim_x)
+        ae = SplitLatentAe(cfg=self.ae, model=ae_pair, feature_group_slices=dm.feature_group_slices)
         logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
-        disc_net, _ = instantiate(self.disc_arch)(
-            input_dim=ae.encoding_size.zy,
-            target_dim=1,
-            batch_size=dm.batch_size_tr,
+        disc_net, _ = self.disc_arch(
+            input_dim=ae.encoding_size.zy, target_dim=1, batch_size=dm.cfg.batch_size_tr
         )
-        disc: NeuralDiscriminator = instantiate(self.disc, _partial_=True)(model=disc_net)
-        evaluator: Evaluator = instantiate(self.eval)
-        scorer: Scorer = instantiate(self.scorer)
-        score = alg.run(dm=dm, ae=ae, disc=disc, evaluator=evaluator, scorer=scorer)
+        disc = NeuralDiscriminator(model=disc_net, cfg=self.disc)
+        score = self.alg.run(dm=dm, ae=ae, disc=disc, evaluator=self.eval, scorer=self.scorer)
         if run is not None:
             # Bar the saving of AeFromArtifact instances to prevent infinite recursion.
-            if (self.artifact_name is not None) and (not isinstance(ae_factory, AeFromArtifact)):
+            if (self.artifact_name is not None) and (not isinstance(self.ae_arch, AeFromArtifact)):
                 save_ae_artifact(
-                    run=run, model=ae_pair, config=self.ae_arch, name=self.artifact_name
+                    run=run,
+                    model=ae_pair,
+                    config=raw_config["ae_arch"] if raw_config is not None else {},
+                    name=self.artifact_name,
                 )
             run.finish()
         return score

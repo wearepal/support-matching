@@ -12,11 +12,12 @@ import torch.nn.functional as F
 from src.arch.autoencoder import AePair
 from src.discrete import discretize, round_ste, sample_concrete
 from src.loss import MixedLoss
-from src.models.base import Model
+from src.models.base import Model, ModelConf
 from src.utils import to_item
 
 __all__ = [
     "SplitLatentAe",
+    "SplitLatentAeConf",
     "EncodingSize",
     "Model",
     "Reconstructions",
@@ -48,6 +49,7 @@ class SplitEncoding:
 
     def mask(self, random: bool = False, *, detach: bool = False) -> Tuple[Self, Self]:
         """Mask out zs and zy. This is a cheap function.
+
         :param random: whether to replace the masked out part with random noise
         :param detach: whether to detach from the computational graph before masking
         """
@@ -99,36 +101,41 @@ class ZsTransform(Enum):
     round_ste = auto()
 
 
-@dataclass(eq=False)
-class SplitLatentAe(Model):
-    model: AePair
+@dataclass
+class SplitLatentAeConf(ModelConf):
+    """These are the parameters to `SplitLatentAe` which are configurable by hydra."""
+
     zs_dim: Union[int, float] = 1
     zs_transform: ZsTransform = ZsTransform.none
-    feature_group_slices: Optional[Dict[str, List[slice]]] = None
     recon_loss: ReconstructionLoss = ReconstructionLoss.l2
+
+
+@dataclass(repr=False, eq=False)
+class SplitLatentAe(Model):
+    model: AePair  # overriding the definition in `Model`
+    cfg: SplitLatentAeConf  # overriding the definition in `Model`
+    feature_group_slices: Optional[Dict[str, List[slice]]] = None
     recon_loss_fn: Callable[[Tensor, Tensor], Tensor] = field(init=False)
-    latent_dim: int = field(init=False)
 
     def __post_init__(self) -> None:
-        zs_dim_t = self.zs_dim
-        self.latent_dim = self.model.latent_dim
+        zs_dim_t = self.cfg.zs_dim
+        self.latent_dim: int = self.model.latent_dim
         if isinstance(zs_dim_t, float):
-            zs_dim_t = round(self.zs_dim * self.latent_dim)
+            zs_dim_t = round(zs_dim_t * self.latent_dim)
         self.encoding_size = EncodingSize(zs=zs_dim_t, zy=self.latent_dim - zs_dim_t)
 
-        if self.recon_loss is ReconstructionLoss.mixed:
+        if self.cfg.recon_loss is ReconstructionLoss.mixed:
             if self.feature_group_slices is None:
                 raise ValueError("'MixedLoss' requires 'feature_group_slices' to be specified.")
-            self.recon_loss_fn = self.recon_loss.value(
+            self.recon_loss_fn = self.cfg.recon_loss.value(
                 reduction="sum", feature_group_slices=self.feature_group_slices
             )
         else:
-            self.recon_loss_fn = self.recon_loss.value(reduction="sum")
-        super().__post_init__()
+            self.recon_loss_fn = self.cfg.recon_loss.value(reduction="sum")
 
     def encode(self, inputs: Tensor, *, transform_zs: bool = True) -> SplitEncoding:
         enc = self._split_encoding(self.model.encoder(inputs))
-        if transform_zs and self.zs_transform is ZsTransform.round_ste:
+        if transform_zs and self.cfg.zs_transform is ZsTransform.round_ste:
             rounded_zs = round_ste(torch.sigmoid(enc.zs))
         else:
             rounded_zs = enc.zs

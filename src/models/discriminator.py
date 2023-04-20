@@ -12,13 +12,14 @@ import torch.nn.functional as F
 
 from src.mmd import MMDKernel, mmd2
 
-from .base import Model
+from .base import Model, ModelConf
 
 __all__ = [
     "BinaryDiscriminator",
     "GanLoss",
     "MmdDiscriminator",
     "NeuralDiscriminator",
+    "NeuralDiscriminatorConf",
 ]
 
 
@@ -30,7 +31,7 @@ class BinaryDiscriminator(Protocol):
         ...
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class MmdDiscriminator(BinaryDiscriminator, DcModule):
     mmd_kernel: MMDKernel = MMDKernel.rq
     mmd_scales: List[float] = field(default_factory=list)
@@ -67,12 +68,19 @@ def _maybe_spectral_norm(module: nn.Module, *, name: str = "weight"):
         torch.nn.utils.parametrizations.spectral_norm(module, name=name)
 
 
-@dataclass(eq=False)
-class NeuralDiscriminator(BinaryDiscriminator, Model):
+@dataclass
+class NeuralDiscriminatorConf(ModelConf):
+    """These are the parameters to `NeuralDiscriminator` which are configurable by hydra."""
+
     criterion: GanLoss = GanLoss.LOGISTIC_NS
 
+
+@dataclass(repr=False, eq=False)
+class NeuralDiscriminator(BinaryDiscriminator, Model):
+    cfg: NeuralDiscriminatorConf  # overriding the definition in `Model`
+
     def __post_init__(self) -> None:
-        if self.criterion is GanLoss.WASSERSTEIN:
+        if self.cfg.criterion is GanLoss.WASSERSTEIN:
             self.model.apply(_maybe_spectral_norm)
         super().__post_init__()
 
@@ -80,15 +88,15 @@ class NeuralDiscriminator(BinaryDiscriminator, Model):
     def discriminator_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
         real_scores = self.model(real)
         fake_scores = self.model(fake)
-        if self.criterion is GanLoss.LOGISTIC_S:
+        if self.cfg.criterion is GanLoss.LOGISTIC_S:
             loss_real = -F.softplus(real_scores)
             loss_fake = F.softplus(fake_scores)
             return loss_real.mean() + loss_fake.mean()
-        elif self.criterion is GanLoss.LOGISTIC_NS:
+        elif self.cfg.criterion is GanLoss.LOGISTIC_NS:
             loss_real = F.softplus(-real_scores)
             loss_fake = F.softplus(fake_scores)
             return loss_real.mean() + loss_fake.mean()
-        elif self.criterion is GanLoss.LS:
+        elif self.cfg.criterion is GanLoss.LS:
             return 0.5 * ((real_scores - 1).pow(2).mean() + (fake_scores).pow(2).mean())
         return real_scores.mean() - fake_scores.mean()
 
@@ -99,15 +107,15 @@ class NeuralDiscriminator(BinaryDiscriminator, Model):
         if real is not None:
             real_scores = self.model(real)
         loss = fake.new_zeros(())
-        if self.criterion is GanLoss.LOGISTIC_S:
+        if self.cfg.criterion is GanLoss.LOGISTIC_S:
             loss -= F.softplus(fake_scores).mean()
             if real_scores is not None:
                 loss += F.softplus(real_scores).mean()
-        elif self.criterion is GanLoss.LOGISTIC_NS:
+        elif self.cfg.criterion is GanLoss.LOGISTIC_NS:
             loss += F.softplus(-fake_scores).mean()
             if real_scores is not None:
                 loss -= F.softplus(-real_scores).mean()
-        elif self.criterion is GanLoss.LS:
+        elif self.cfg.criterion is GanLoss.LS:
             loss += 0.5 * (fake_scores - 1).square().mean()
             if real_scores is not None:
                 loss += 0.5 * real_scores.square().mean()

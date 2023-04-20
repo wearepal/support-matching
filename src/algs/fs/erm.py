@@ -1,35 +1,36 @@
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
+from typing import Any
 from typing_extensions import override
 
-from conduit.types import Loss
-from ranzen.torch import CrossEntropyLoss, ReductionType
 from torch import Tensor
 import torch.nn as nn
 
 from src.data import DataModule
 from src.data.utils import EvalTuple
 from src.models import Classifier
+from src.models.base import ModelConf
 
 from .base import FsAlg
 
 __all__ = ["Erm"]
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class Erm(FsAlg):
-    criterion: Optional[Loss] = None
+    criterion: Any = None  # Optional[Loss]
 
     @override
     def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:
         classifier = Classifier(
             model=model,
-            lr=self.lr,
-            weight_decay=self.weight_decay,
-            optimizer_cls=self.optimizer_cls,
-            optimizer_kwargs=self.optimizer_kwargs,
-            scheduler_cls=self.scheduler_cls,
-            scheduler_kwargs=self.scheduler_kwargs,
+            cfg=ModelConf(
+                lr=self.lr,
+                weight_decay=self.weight_decay,
+                optimizer_cls=self.optimizer_cls,
+                optimizer_kwargs=self.optimizer_kwargs,
+                scheduler_cls=self.scheduler_cls,
+                scheduler_kwargs=self.scheduler_kwargs,
+            ),
             criterion=self.criterion,
         )
         classifier.fit(

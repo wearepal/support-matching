@@ -1,10 +1,10 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 from typing_extensions import override
 
 from conduit.types import Loss
 from omegaconf.listconfig import ListConfig
-from ranzen.torch.loss import CrossEntropyLoss, ReductionType, reduce  # type: ignore
+from ranzen.torch.loss import CrossEntropyLoss, ReductionType, reduce
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -66,20 +66,18 @@ class SdCrossEntropyLoss(nn.Module, Loss):
         return loss + reg
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class SdErm(Erm):
     """ERM with spectral decoupling applied to the logits, as proposed in `Gradient Starvation`_
     .. _Gradient Starvation:
         https://arxiv.org/abs/2011.09468
     """
 
-    criterion: SdCrossEntropyLoss = field(init=False)
     lambda_: Union[float, Tuple[float, ...]] = 1.0
     gamma: Union[float, Tuple[float, ...]] = 0.0
 
     def __post_init__(self) -> None:
-        self.criterion = SdCrossEntropyLoss(
-            lambda_=self.lambda_,
-            gamma=self.gamma,
+        self.criterion: SdCrossEntropyLoss = SdCrossEntropyLoss(
+            lambda_=self.lambda_, gamma=self.gamma
         )
         super().__post_init__()

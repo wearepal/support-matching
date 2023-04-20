@@ -21,7 +21,7 @@ from src.data import DataModule, labels_to_group_id, resolve_device
 __all__ = ["FineTuner"]
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class FineTuner(DcModule):
     _PBAR_COL: ClassVar[str] = "#ffe252"
 
@@ -43,7 +43,7 @@ class FineTuner(DcModule):
 
     def run(self, dm: DataModule, *, backbone: nn.Module, out_dim: int) -> nn.Sequential:
         dm = gcopy(dm, deep=False)
-        dm.batch_size_tr = self.batch_size
+        dm.cfg.batch_size_tr = self.batch_size
         device = resolve_device(self.device)
 
         logger.info(f"Initialising predictor for fine-tuning.")

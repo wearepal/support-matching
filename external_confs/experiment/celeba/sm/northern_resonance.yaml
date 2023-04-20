@@ -3,7 +3,7 @@
 # usage: +experiment=celeba/winter_pine
 
 defaults:
-    - /schema/ae_arch: artifact
+    - /ae_arch/artifact@_here_
     - override /ds: celeba/gender_smiling
     - override /dm: celeba/base
     - override /alg: base

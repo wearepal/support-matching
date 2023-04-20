@@ -4,7 +4,6 @@ from typing import Optional
 from typing_extensions import override
 
 from loguru import logger
-from omegaconf import DictConfig
 from torch import Tensor
 import torch.nn as nn
 
@@ -16,15 +15,15 @@ from src.models import Optimizer
 __all__ = ["FsAlg"]
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class FsAlg(Algorithm):
     steps: int = 10_000
     lr: float = 5.0e-4
     weight_decay: float = 0
     optimizer_cls: Optimizer = Optimizer.ADAM
-    optimizer_kwargs: Optional[DictConfig] = None
+    optimizer_kwargs: Optional[dict] = None
     scheduler_cls: Optional[str] = None
-    scheduler_kwargs: Optional[DictConfig] = None
+    scheduler_kwargs: Optional[dict] = None
     val_interval: float = 0.1
     monitor: SummaryMetric = SummaryMetric.ROB_ACC
 
@@ -34,7 +33,7 @@ class FsAlg(Algorithm):
 
     @abstractmethod
     def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:
-        ...
+        raise NotImplementedError()
 
     @override
     def run(self, dm: DataModule, *, model: nn.Module) -> Optional[float]:

@@ -1,9 +1,9 @@
 ---
 defaults:
-  - /schema/enc: resnet
+  - /enc/resnet@_here_
   - defaults
   - _self_
-input_shape: 
+input_shape:
 latent_dim: 128
 zs_dim: 1
 zs_transform: none

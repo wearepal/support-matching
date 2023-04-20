@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Final, Optional, Protocol, Tuple, Union
 from typing_extensions import override
 
@@ -7,7 +7,6 @@ from conduit.data.datasets import CdtDataLoader, CdtDataset
 import conduit.metrics as cdtm
 from conduit.models.utils import prefix_keys
 from loguru import logger
-from omegaconf import DictConfig
 from ranzen.misc import gcopy
 from ranzen.torch.loss import CrossEntropyLoss, ReductionType
 import torch
@@ -18,6 +17,7 @@ import wandb
 from src.arch.predictors import SetPredictor
 from src.data import DataModule, resolve_device
 from src.models import Optimizer, SetClassifier, SplitLatentAe
+from src.models.base import ModelConf
 from src.utils import cat, to_item
 
 __all__ = ["NeuralScorer", "NullScorer", "Scorer"]
@@ -87,10 +87,9 @@ class NeuralScorer(Scorer):
     optimizer_cls: Optimizer = Optimizer.ADAM
     lr: float = 1.0e-4
     weight_decay: float = 0
-    optimizer_kwargs: Optional[DictConfig] = None
-    optimizer: torch.optim.Optimizer = field(init=False)
+    optimizer_kwargs: Optional[dict] = None
     scheduler_cls: Optional[str] = None
-    scheduler_kwargs: Optional[DictConfig] = None
+    scheduler_kwargs: Optional[dict] = None
     eval_batches: int = 1000
     inv_score_w: float = 1
     recon_score_w: float = 1
@@ -132,12 +131,14 @@ class NeuralScorer(Scorer):
 
         classifier = SetClassifier(
             model=disc,
-            lr=self.lr,
-            weight_decay=self.weight_decay,
-            optimizer_cls=self.optimizer_cls,
-            optimizer_kwargs=self.optimizer_kwargs,
-            scheduler_cls=self.scheduler_cls,
-            scheduler_kwargs=self.scheduler_kwargs,
+            cfg=ModelConf(
+                lr=self.lr,
+                weight_decay=self.weight_decay,
+                optimizer_cls=self.optimizer_cls,
+                optimizer_kwargs=self.optimizer_kwargs,
+                scheduler_cls=self.scheduler_cls,
+                scheduler_kwargs=self.scheduler_kwargs,
+            ),
             criterion=CrossEntropyLoss(reduction=ReductionType.mean),
         )
         logger.info("Training invariance-scorer")

@@ -13,6 +13,7 @@ import torch.nn as nn
 
 from src.data import DataModule, EvalTuple
 from src.models import Classifier
+from src.models.base import ModelConf
 
 from .base import FsAlg
 
@@ -239,7 +240,7 @@ class _LcMixin:
     loss_computer: LossComputer
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class GdroClassifier(Classifier, _LcMixin):
     def __post_init__(self) -> None:
         # LossComputer requires that the criterion return per-sample (unreduced) losses.
@@ -259,7 +260,7 @@ class GdroClassifier(Classifier, _LcMixin):
         )
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class Gdro(FsAlg):
     alpha: Optional[float] = 1.0
     normalize_loss: bool = False
@@ -294,12 +295,14 @@ class Gdro(FsAlg):
 
         classifier = GdroClassifier(
             model=model,
-            lr=self.lr,
-            weight_decay=self.weight_decay,
-            optimizer_cls=self.optimizer_cls,
-            optimizer_kwargs=self.optimizer_kwargs,
-            scheduler_cls=self.scheduler_cls,
-            scheduler_kwargs=self.scheduler_kwargs,
+            cfg=ModelConf(
+                lr=self.lr,
+                weight_decay=self.weight_decay,
+                optimizer_cls=self.optimizer_cls,
+                optimizer_kwargs=self.optimizer_kwargs,
+                scheduler_cls=self.scheduler_cls,
+                scheduler_kwargs=self.scheduler_kwargs,
+            ),
             criterion=self.criterion,
             loss_computer=loss_computer,
         )

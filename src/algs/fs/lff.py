@@ -14,6 +14,7 @@ import torch.nn as nn
 from src.data import DataModule, EvalTuple
 from src.loss import GeneralizedCELoss
 from src.models import Classifier
+from src.models.base import ModelConf
 
 from .base import FsAlg
 
@@ -85,7 +86,7 @@ class IndexedSample(TernarySample[X], _IndexedSampleMixin[Tensor]):
         )
 
     @classmethod
-    def from_ts(cls: Type[Self], sample: TernarySample, *, idx: Tensor) -> Self:
+    def from_ts(cls, sample: TernarySample, *, idx: Tensor) -> Self:
         return cls(x=sample.x, y=sample.y, s=sample.s, idx=idx)
 
 
@@ -108,21 +109,28 @@ class IndexedDataset(SizedDataset):
 
 
 @dataclass
+class LfFClassifierConf(ModelConf):
+    """These are the parameters to `LfFClassifier` which are configurable by hydra."""
+
+    q: float = 0.7
+
+
+@dataclass
 class _LabelEmaMixin:
     sample_loss_ema_b: LabelEma
     sample_loss_ema_d: LabelEma
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class LfFClassifier(Classifier, _LabelEmaMixin):
-    q: float = 0.7
+    cfg: LfFClassifierConf  # overriding the definition in `Model`
     biased_model: nn.Module = field(init=False)
     biased_criterion: GeneralizedCELoss = field(init=False)
     criterion: CrossEntropyLoss = field(init=False)
 
     def __post_init__(self) -> None:
         self.biased_model = gcopy(self.model, deep=True)
-        self.biased_criterion = GeneralizedCELoss(q=self.q, reduction="mean")
+        self.biased_criterion = GeneralizedCELoss(q=self.cfg.q, reduction="mean")
         self.criterion = CrossEntropyLoss(reduction="mean")
         super().__post_init__()
 
@@ -156,7 +164,7 @@ class LfFClassifier(Classifier, _LabelEmaMixin):
         return loss_b_update + loss_d_update
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class LfF(FsAlg):
     alpha: float = 0.7
     q: float = 0.7
@@ -168,15 +176,17 @@ class LfF(FsAlg):
         dm.train = IndexedDataset(dm.train)
         classifier = LfFClassifier(
             model=model,
-            lr=self.lr,
-            weight_decay=self.weight_decay,
-            optimizer_cls=self.optimizer_cls,
-            optimizer_kwargs=self.optimizer_kwargs,
-            scheduler_cls=self.scheduler_cls,
-            scheduler_kwargs=self.scheduler_kwargs,
+            cfg=LfFClassifierConf(
+                lr=self.lr,
+                weight_decay=self.weight_decay,
+                optimizer_cls=self.optimizer_cls,
+                optimizer_kwargs=self.optimizer_kwargs,
+                scheduler_cls=self.scheduler_cls,
+                scheduler_kwargs=self.scheduler_kwargs,
+                q=self.q,
+            ),
             sample_loss_ema_b=sample_loss_ema_b,
             sample_loss_ema_d=sample_loss_ema_d,
-            q=self.q,
         )
         classifier.sample_loss_ema_b = sample_loss_ema_b
         classifier.sample_loss_ema_d = sample_loss_ema_d

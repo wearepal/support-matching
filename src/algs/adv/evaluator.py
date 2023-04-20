@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Any, Final, Generic, Optional, Sequence, TypeVar, overload
 from typing_extensions import Literal
@@ -11,7 +11,6 @@ from loguru import logger
 from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
 import numpy as np
-from omegaconf import DictConfig
 from ranzen.misc import gcopy
 import seaborn as sns
 import torch
@@ -32,6 +31,7 @@ from src.data import (
 from src.evaluation.metrics import EmEvalPair, compute_metrics
 from src.logging import log_images
 from src.models import Classifier, Optimizer, SplitEncoding, SplitLatentAe
+from src.models.base import ModelConf
 
 __all__ = [
     "Evaluator",
@@ -263,18 +263,11 @@ class Evaluator:
     optimizer_cls: Optimizer = Optimizer.ADAM
     lr: float = 1.0e-4
     weight_decay: float = 0
-    optimizer_kwargs: Optional[DictConfig] = None
-    optimizer: torch.optim.Optimizer = field(init=False)
+    optimizer_kwargs: Optional[dict] = None
     scheduler_cls: Optional[str] = None
-    scheduler_kwargs: Optional[DictConfig] = None
+    scheduler_kwargs: Optional[dict] = None
 
-    def _fit_classifier(
-        self,
-        dm: DataModule,
-        *,
-        pred_s: bool,
-        device: torch.device,
-    ) -> Classifier:
+    def _fit_classifier(self, dm: DataModule, *, pred_s: bool, device: torch.device) -> Classifier:
         input_dim = dm.dim_x[0]
         model_fn = Fcn(
             hidden_dim=self.hidden_dim, num_hidden=self.num_hidden, activation=self.activation
@@ -284,12 +277,14 @@ class Evaluator:
 
         clf = Classifier(
             model,
-            lr=self.lr,
-            weight_decay=self.weight_decay,
-            optimizer_cls=self.optimizer_cls,
-            optimizer_kwargs=self.optimizer_kwargs,
-            scheduler_cls=self.scheduler_cls,
-            scheduler_kwargs=self.scheduler_kwargs,
+            cfg=ModelConf(
+                lr=self.lr,
+                weight_decay=self.weight_decay,
+                optimizer_cls=self.optimizer_cls,
+                optimizer_kwargs=self.optimizer_kwargs,
+                scheduler_cls=self.scheduler_cls,
+                scheduler_kwargs=self.scheduler_kwargs,
+            ),
         )
 
         train_dl = dm.train_dataloader(batch_size=self.batch_size, balance=self.balanced_sampling)

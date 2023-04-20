@@ -1,6 +1,6 @@
 """Modules that aggregate over a batch."""
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 from typing_extensions import override
 
@@ -130,7 +130,6 @@ class KvqAggregator(BatchAggregator):
     mean_query: bool = True
     num_heads: int = 8
     head_dim: Optional[int] = 64
-    blocks: nn.Sequential = field(init=False)
 
     def __post_init__(self) -> None:
         blocks = []
@@ -157,7 +156,7 @@ class KvqAggregator(BatchAggregator):
         else:
             agg_block = BagMean(batch_size=self.batch_size)
         blocks.append(agg_block)
-        self.blocks = nn.Sequential(*blocks)
+        self.blocks: nn.Sequential = nn.Sequential(*blocks)
 
     @override
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
@@ -167,16 +166,12 @@ class KvqAggregator(BatchAggregator):
 @dataclass(eq=False)
 class GatedAggregator(BatchAggregator):
     dim: int
-    v: Parameter = field(init=False)
-    u: Parameter = field(init=False)
-    w: Parameter = field(init=False)
 
-    attention_weights: Optional[Tensor] = field(init=False, default=None)
-
-    def __post_init__(self):
-        self.v = Parameter(torch.empty(self.dim, self.dim), requires_grad=True)
-        self.u = Parameter(torch.empty(self.dim, self.dim), requires_grad=True)
-        self.w = Parameter(torch.empty(1, self.dim), requires_grad=True)
+    def __post_init__(self) -> None:
+        self.attention_weights: Optional[Tensor] = None
+        self.v: Parameter = Parameter(torch.empty(self.dim, self.dim), requires_grad=True)
+        self.u: Parameter = Parameter(torch.empty(self.dim, self.dim), requires_grad=True)
+        self.w: Parameter = Parameter(torch.empty(1, self.dim), requires_grad=True)
         nn.init.xavier_normal_(self.v)
         nn.init.xavier_normal_(self.u)
         nn.init.xavier_normal_(self.w)

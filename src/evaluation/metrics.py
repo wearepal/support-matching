@@ -108,8 +108,8 @@ def compute_metrics(
     metrics = emm.run_metrics(
         predictions=predictions,
         actual=actual,
-        metrics=[emm.Accuracy(), emm.TPR(), emm.TNR(), emm.RenyiCorrelation()],  # type: ignore
-        per_sens_metrics=[emm.Accuracy(), emm.ProbPos(), emm.TPR(), emm.TNR()],  # type: ignore
+        metrics=[emm.Accuracy(), emm.TPR(), emm.TNR(), emm.RenyiCorrelation()],
+        per_sens_metrics=[emm.Accuracy(), emm.ProbPos(), emm.TPR(), emm.TNR()],
     )
     # Convert to tensor for compatibility with conduit-derived metrics.
     y_pred_t = torch.as_tensor(torch.as_tensor(predictions.hard, dtype=torch.long))
@@ -172,7 +172,7 @@ def write_results_to_csv(results: Mapping[str, int | float | str], csv_dir: Path
         # load previous results and append new results
         previous_results = pd.read_csv(results_path)
         results_df = pd.concat(
-            [previous_results, results_df], sort=False, ignore_index=True, axis="index"  # type: ignore
+            [previous_results, results_df], sort=False, ignore_index=True, axis="index"
         )
     results_df.reset_index(drop=True).to_csv(results_path, index=False)
     logger.info(f"Results have been written to {results_path.resolve()}")

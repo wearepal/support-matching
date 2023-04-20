@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Iterator, Optional
 
 from loguru import logger
@@ -14,7 +14,7 @@ from src.data import DataModule, resolve_device
 __all__ = ["Algorithm"]
 
 
-@dataclass(eq=False)
+@dataclass(repr=False, eq=False)
 class Algorithm(DcModule):
     """Base class for adversarial algorithms."""
 
@@ -22,15 +22,11 @@ class Algorithm(DcModule):
     gpu: int = 0  # which GPU to use (if available)
     max_grad_norm: Optional[float] = None
 
-    use_gpu: bool = field(init=False)
-    device: torch.device = field(init=False)
-    grad_scaler: Optional[GradScaler] = field(init=False)
-
     def __post_init__(self) -> None:
-        self.use_gpu = torch.cuda.is_available() and self.gpu >= 0
-        self.device = resolve_device(self.gpu)
+        self.use_gpu: bool = torch.cuda.is_available() and self.gpu >= 0
+        self.device: torch.device = resolve_device(self.gpu)
         self.use_amp = self.use_amp and self.use_gpu
-        self.grad_scaler = GradScaler() if self.use_amp else None
+        self.grad_scaler: Optional[GradScaler] = GradScaler() if self.use_amp else None
         logger.info(f"{torch.cuda.device_count()} GPU(s) available - using device '{self.device}'")
 
     def _clip_gradients(self, parameters: Iterator[Parameter]) -> None:
@@ -39,4 +35,4 @@ class Algorithm(DcModule):
 
     @abstractmethod
     def run(self, dm: DataModule, **kwargs: Any) -> Any:
-        ...
+        raise NotImplementedError()

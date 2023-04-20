@@ -1,9 +1,9 @@
 ---
 defaults:
-  - /schema/ds: camelyon17
+  - /ds/camelyon17@_here_
   - defaults
   - _self_
-root: 
+root:
 download: true
 transform: null
 split: null

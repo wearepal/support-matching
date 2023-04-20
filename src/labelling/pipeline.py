@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Protocol, Union, cast
 from typing_extensions import override
@@ -16,8 +16,9 @@ from wandb.wandb_run import Run
 
 from src.data import DataModule, resolve_device
 from src.evaluation.metrics import print_metrics
-from src.labelling.encode import encode_with_group_ids
+from src.labelling.encode import Encodings, encode_with_group_ids
 from src.models import Classifier
+from src.models.base import ModelConf
 from src.utils import to_item
 
 from .artifact import load_labels_from_artifact, save_labels_as_artifact
@@ -73,39 +74,47 @@ class KmeansOnClipEncodings(DcModule, Labeller):
     artifact_name: Optional[str] = None
 
     cache_encoder: bool = False
-    encoder: Optional[ClipVisualEncoder] = field(init=False, default=None)
-    _fitted_kmeans: Optional[KMeans] = field(init=False, default=None)
+    encodings_path: Optional[Path] = None
+
+    def __post_init__(self) -> None:
+        self.encoder: Optional[ClipVisualEncoder] = None
+        self._fitted_kmeans: Optional[KMeans] = None
 
     @override
     def run(self, dm: DataModule, *, use_cached_encoder: bool = False) -> Tensor:
         device = resolve_device(self.gpu)
-        if self.encoder is None or not use_cached_encoder:
-            encoder = ClipVisualEncoder(
-                version=self.clip_version,
-                download_root=self.download_root,
-            )
-            if self.ft_steps > 0:
-                encoder.finetune(
-                    dm=dm,
-                    steps=self.ft_steps,
-                    batch_size=self.ft_batch_size,
-                    lr=self.ft_lr,
-                    val_freq=self.ft_val_freq,
-                    val_batches=self.ft_val_batches,
-                    device=device,
+        if self.encodings_path is not None and self.encodings_path.exists():
+            encodings = Encodings.from_npz(self.encodings_path)
+        else:
+            if self.encoder is None or not use_cached_encoder:
+                encoder = ClipVisualEncoder(
+                    version=self.clip_version,
+                    download_root=self.download_root,
                 )
-        else:
-            encoder = self.encoder
-        encodings = encoder.encode(
-            dm=dm,
-            batch_size_tr=self.enc_batch_size,
-            device=device,
-        )
-        if self.cache_encoder:
-            self.encoder = encoder
-        else:
-            del encoder
-            torch.cuda.empty_cache()
+                if self.ft_steps > 0:
+                    encoder.finetune(
+                        dm=dm,
+                        steps=self.ft_steps,
+                        batch_size=self.ft_batch_size,
+                        lr=self.ft_lr,
+                        val_freq=self.ft_val_freq,
+                        val_batches=self.ft_val_batches,
+                        device=device,
+                    )
+            else:
+                encoder = self.encoder
+            encodings = encoder.encode(
+                dm=dm,
+                batch_size_tr=self.enc_batch_size,
+                device=device,
+            )
+            if self.encodings_path is not None:
+                encodings.save(self.encodings_path)
+            if self.cache_encoder:
+                self.encoder = encoder
+            else:
+                del encoder
+                torch.cuda.empty_cache()
 
         kmeans = KMeans(
             spherical=self.spherical,
@@ -142,8 +151,10 @@ class ClipClassifier(Labeller):
     artifact_name: Optional[str] = None
 
     cache_encoder: bool = False
-    encoder: Optional[ClipVisualEncoder] = field(init=False, default=None)
-    _fitted_kmeans: Optional[KMeans] = field(init=False, default=None)
+
+    def __post_init__(self) -> None:
+        self.encoder: Optional[ClipVisualEncoder] = None
+        self._fitted_kmeans: Optional[KMeans] = None
 
     @torch.no_grad()
     def evaluate(
@@ -181,7 +192,7 @@ class ClipClassifier(Labeller):
             val_batches=self.val_batches,
             device=device,
         )
-        classifier = Classifier(model=ft_model)
+        classifier = Classifier(model=ft_model, cfg=ModelConf())
         preds = classifier.predict(
             dm.deployment_dataloader(eval=True, batch_size=self.batch_size_te),
             device=device,
@@ -256,7 +267,7 @@ class LabelNoiser(Labeller):
 
     @abstractmethod
     def _noise(self, dep_ids: Tensor, *, flip_inds: Tensor, dm: DataModule) -> Tensor:
-        ...
+        raise NotImplementedError()
 
     @override
     def run(self, dm: DataModule) -> Tensor:

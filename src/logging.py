@@ -3,10 +3,12 @@ from collections.abc import MutableMapping, Sequence
 from dataclasses import asdict, dataclass
 from enum import Enum
 import shlex
-from typing import Any, List, Optional, Sequence, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING, Union
+from typing_extensions import TypeAlias
 
 from conduit.data.datasets.vision.base import CdtVisionDataset
 from hydra.core.hydra_config import HydraConfig
+from loguru import logger
 from omegaconf import OmegaConf
 import torch
 from torch import Tensor
@@ -28,10 +30,15 @@ __all__ = [
     "reconstruct_cmd",
 ]
 
+Run: TypeAlias = Union[
+    wandb.sdk.wandb_run.Run,  # type: ignore
+    wandb.sdk.lib.disabled.RunDisabled,  # type: ignore
+    None,
+]
+
 
 @dataclass
 class WandbConf:
-    _target_: str = "wandb.init"
     name: Optional[str] = None
     mode: str = "online"
     id: Optional[str] = None
@@ -45,6 +52,26 @@ class WandbConf:
     resume: Optional[str] = None
     dir: Optional[str] = "local_logging"
     notes: Optional[str] = None
+
+    def init(
+        self,
+        raw_config: Optional[Dict[str, Any]] = None,
+        cfgs_for_group: Tuple[object, ...] = (),
+        suffix: Optional[str] = None,
+    ) -> Run:
+        if raw_config is not None and self.group is None:
+            default_group = f"{raw_config['ds']['_target_'].lower()}_"
+            if suffix is not None:
+                default_group += suffix
+            default_group += "_".join(
+                cfg_obj.__class__.__name__.lower() for cfg_obj in cfgs_for_group
+            )
+            logger.info(f"No wandb group set - using {default_group} as the inferred default.")
+            self.group = default_group
+            raw_config["wandb"]["group"] = self.group
+        # TODO: not sure whether `reinit` really should be hardcoded
+        self.reinit = True
+        return wandb.init(**asdict(self), config=raw_config)
 
 
 def log_images(
