@@ -2,9 +2,9 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
+from typing_extensions import override
 
 from einops import rearrange
-from ranzen import implements
 from ranzen.torch import DcModule
 import torch
 from torch import Tensor, nn
@@ -44,7 +44,7 @@ class BatchAggregator(DcModule):
 
 @dataclass(eq=False)
 class BagMean(BatchAggregator):
-    @implements(BatchAggregator)
+    @override
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
         inputs_batched = self.batch_to_bags(inputs)
         return inputs_batched.mean(1)
@@ -62,7 +62,7 @@ class FeedForward(nn.Module):
             nn.Dropout(dropout),
         )
 
-    @implements(nn.Module)
+    @override
     def forward(self, x) -> Tensor:  # type: ignore
         return self.net(x)
 
@@ -124,7 +124,6 @@ class AttentionBlock(nn.Module):
 
 @dataclass(eq=False)
 class KvqAggregator(BatchAggregator):
-
     dim: int
     num_blocks: int = 1
     dropout: float = 0.0
@@ -160,14 +159,13 @@ class KvqAggregator(BatchAggregator):
         blocks.append(agg_block)
         self.blocks = nn.Sequential(*blocks)
 
-    @implements(BatchAggregator)
+    @override
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
         return self.blocks(inputs)
 
 
 @dataclass(eq=False)
 class GatedAggregator(BatchAggregator):
-
     dim: int
     v: Parameter = field(init=False)
     u: Parameter = field(init=False)
@@ -183,7 +181,7 @@ class GatedAggregator(BatchAggregator):
         nn.init.xavier_normal_(self.u)
         nn.init.xavier_normal_(self.w)
 
-    @implements(BatchAggregator)
+    @override
     def forward(self, inputs: Tensor) -> Tensor:  # type: ignore
         inputs = inputs.flatten(start_dim=1)
         logits = torch.tanh(inputs @ self.v.t()) * torch.sigmoid(inputs @ self.u.t()) @ self.w.t()

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterator, Optional, Tuple, TypeVar, Union, overload
-from typing_extensions import Literal
+from typing_extensions import Literal, override
 
 from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import BinarySample, NamedSample, TernarySample
@@ -10,7 +10,6 @@ from conduit.metrics import hard_prediction
 from conduit.models.utils import prefix_keys
 from conduit.types import Loss
 from loguru import logger
-from ranzen import implements
 from ranzen.torch.data import StratifiedBatchSampler
 from ranzen.torch.loss import cross_entropy_loss
 from ranzen.torch.utils import inf_generator
@@ -273,6 +272,6 @@ class SetClassifier(Model):
         y_pred, y_true = cat_cpu_flatten(y_pred_ls, y_true_ls, dim=0)
         return EvalTuple(y_pred=y_pred, y_true=y_true)
 
-    @implements(Model)
+    @override
     def forward(self, inputs: Tensor, batch_size: Optional[int] = None) -> Tensor:
         return self.model(inputs, batch_size=batch_size)

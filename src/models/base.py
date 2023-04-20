@@ -1,11 +1,11 @@
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, ClassVar, Optional
+from typing_extensions import override
 
 from conduit.types import LRScheduler
 from hydra.utils import instantiate
 from omegaconf.dictconfig import DictConfig
-from ranzen.decorators import implements
 from ranzen.torch import DcModule
 import torch
 from torch import Tensor
@@ -60,6 +60,6 @@ class Model(DcModule):
         if self.scheduler is not None:
             self.scheduler.step()
 
-    @implements(DcModule)
+    @override
     def forward(self, inputs: Tensor) -> Any:  # type: ignore
         return self.model(inputs)

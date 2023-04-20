@@ -8,19 +8,18 @@ from typing import (
     Dict,
     Generic,
     Iterator,
+    Literal,
     Optional,
     Tuple,
     TypeVar,
     Union,
 )
-from typing_extensions import Self, TypeAlias
+from typing_extensions import Self, TypeAlias, override
 
 from conduit.data.structures import NamedSample, TernarySample
 from conduit.metrics import accuracy
 from conduit.models.utils import prefix_keys
 from loguru import logger
-from pandas.core.frame import Literal
-from ranzen import implements
 from ranzen.torch import DcModule, cross_entropy_loss
 import torch
 from torch import Tensor
@@ -348,7 +347,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         logger.info("Finished training")
         return self
 
-    @implements(Algorithm)
+    @override
     def run(
         self, dm: DataModule, *, ae: SplitLatentAe, disc: Any, evaluator: Evaluator, **kwargs: Any
     ) -> Any:

@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+from typing_extensions import override
 
 from hydra.utils import instantiate
 from loguru import logger
 from omegaconf import DictConfig, MISSING
-from ranzen.decorators import implements
 from ranzen.hydra import Option
 
 from src.algs import MiMin
@@ -28,7 +28,7 @@ class MiMinRelay(BaseRelay):
     ae: DictConfig = MISSING
 
     @classmethod
-    @implements(BaseRelay)
+    @override
     def with_hydra(
         cls,
         root: Union[Path, str],
@@ -57,7 +57,7 @@ class MiMinRelay(BaseRelay):
             **configs,
         )
 
-    @implements(BaseRelay)
+    @override
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> None:
         run = self.init_wandb(raw_config, self.labeller, self.ae_arch, self.disc_arch)
         dm = self.init_dm()

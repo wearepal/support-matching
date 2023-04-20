@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+from typing_extensions import override
 
-from ranzen.decorators import implements
 from ranzen.hydra import Option
 
 from .base import BaseRelay
@@ -13,7 +13,7 @@ __all__ = ["LabelRelay"]
 @dataclass(eq=False)
 class LabelRelay(BaseRelay):
     @classmethod
-    @implements(BaseRelay)
+    @override
     def with_hydra(
         cls,
         root: Union[Path, str],
@@ -31,7 +31,7 @@ class LabelRelay(BaseRelay):
             labeller=labeller,
         )
 
-    @implements(BaseRelay)
+    @override
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Optional[float]:
         run = self.init_wandb(raw_config, self.labeller)
         self.init_dm()

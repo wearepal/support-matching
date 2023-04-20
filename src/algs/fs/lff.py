@@ -1,11 +1,10 @@
 from dataclasses import dataclass, field
 from typing import Any, Generic, Iterator, Type, TypeVar, Union
-from typing_extensions import Self
+from typing_extensions import Self, override
 
 from conduit.data.datasets.base import CdtDataset
 from conduit.data.structures import XI, LoadedData, SizedDataset, TernarySample, X
 from conduit.types import Indexable, IndexType
-from ranzen import implements
 from ranzen.misc import gcopy
 from ranzen.torch import CrossEntropyLoss
 import torch
@@ -50,7 +49,7 @@ class LabelEma(nn.Module, Indexable):
         label_index = self.labels == label
         return self.parameter[label_index].max()
 
-    @implements(Indexable)
+    @override
     @torch.no_grad()
     def __getitem__(self, index: IndexType) -> Tensor:
         return self.parameter[index].clone()
@@ -69,17 +68,17 @@ class IndexedSample(TernarySample[X], _IndexedSampleMixin[Tensor]):
     def add_field(self, *args: Any, **kwargs: Any) -> Self:
         return self
 
-    @implements(TernarySample)
+    @override
     def __iter__(self) -> Iterator[LoadedData]:
         yield from (self.x, self.y, self.s, self.idx)
 
-    @implements(TernarySample)
+    @override
     def __add__(self, other: Self) -> Self:
         copy = super().__add__(other)
         copy.idx = torch.cat([copy.idx, other.idx], dim=0)
         return copy
 
-    @implements(TernarySample)
+    @override
     def __getitem__(self: "IndexedSample[XI]", index: IndexType) -> "IndexedSample[XI]":  # type: ignore
         return gcopy(
             self, deep=False, x=self.x[index], y=self.y[index], s=self.s[index], idx=self.idx[index]
@@ -97,13 +96,13 @@ class IndexedDataset(SizedDataset):
     ) -> None:
         self.dataset = dataset
 
-    @implements(SizedDataset)
+    @override
     def __getitem__(self, index: int) -> IndexedSample:
         sample = self.dataset[index]
         idx = torch.as_tensor(index, dtype=torch.long)
         return IndexedSample.from_ts(sample=sample, idx=idx)
 
-    @implements(SizedDataset)
+    @override
     def __len__(self) -> int:
         return len(self.dataset)
 
@@ -162,7 +161,7 @@ class LfF(FsAlg):
     alpha: float = 0.7
     q: float = 0.7
 
-    @implements(FsAlg)
+    @override
     def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:
         sample_loss_ema_b = LabelEma(dm.train.y, alpha=self.alpha).to(self.device)
         sample_loss_ema_d = LabelEma(dm.train.y, alpha=self.alpha).to(self.device)

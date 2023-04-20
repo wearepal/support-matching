@@ -4,9 +4,9 @@ from enum import Enum, auto
 from typing import Any, Final, Generic, Optional, Sequence, TypeVar, overload
 from typing_extensions import Literal
 
+from conduit.data import TernarySample
 from conduit.data.datasets import CdtDataLoader, CdtDataset
 from conduit.data.datasets.vision import CdtVisionDataset
-from conduit.data import TernarySample
 from loguru import logger
 from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
@@ -134,7 +134,6 @@ def encode_dataset(
     zy_ls, zs_ls, s_ls, y_ls = [], [], [], []
     with torch.no_grad():
         for batch in tqdm(dl, desc="Encoding dataset", colour=_PBAR_COL):
-
             x = batch.x.to(device, non_blocking=True)
             s_ls.append(batch.s)
             y_ls.append(batch.y)

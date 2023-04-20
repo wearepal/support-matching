@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import TypedDict
 from typing_extensions import Self
 
-from conduit.data.datasets.vision import ImageTform
-from conduit.data.datasets import CdtDataLoader
 from conduit.data import TernarySample
+from conduit.data.datasets import CdtDataLoader
+from conduit.data.datasets.vision import ImageTform
 from loguru import logger
 import numpy as np
 import numpy.typing as npt

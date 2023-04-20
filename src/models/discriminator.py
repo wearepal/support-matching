@@ -2,8 +2,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import List, Protocol
+from typing_extensions import override
 
-from ranzen import implements
 from ranzen.torch import DcModule
 import torch
 from torch import Tensor
@@ -37,11 +37,11 @@ class MmdDiscriminator(BinaryDiscriminator, DcModule):
     mmd_wts: List[float] = field(default_factory=list)
     mmd_add_dot: float = 0.0
 
-    @implements(BinaryDiscriminator)
+    @override
     def discriminator_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
         return torch.zeros((), device=fake.device)
 
-    @implements(BinaryDiscriminator)
+    @override
     def encoder_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
         return mmd2(
             x=fake,
@@ -76,7 +76,7 @@ class NeuralDiscriminator(BinaryDiscriminator, Model):
             self.model.apply(_maybe_spectral_norm)
         super().__post_init__()
 
-    @implements(BinaryDiscriminator)
+    @override
     def discriminator_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
         real_scores = self.model(real)
         fake_scores = self.model(fake)
@@ -92,7 +92,7 @@ class NeuralDiscriminator(BinaryDiscriminator, Model):
             return 0.5 * ((real_scores - 1).pow(2).mean() + (fake_scores).pow(2).mean())
         return real_scores.mean() - fake_scores.mean()
 
-    @implements(BinaryDiscriminator)
+    @override
     def encoder_loss(self, fake: Tensor, *, real: Tensor | None) -> Tensor:
         fake_scores = self.model(fake)
         real_scores: Tensor | None = None

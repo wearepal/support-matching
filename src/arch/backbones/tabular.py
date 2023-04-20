@@ -1,6 +1,6 @@
 from typing import Callable, Optional
+from typing_extensions import override
 
-from ranzen import implements
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -86,7 +86,7 @@ class LinearResNet(nn.Module):
         )
         self.final_layer = nn.Linear(planes, planes)
 
-    @implements(nn.Module)
+    @override
     def forward(self, inputs: Tensor, *, context: Optional[Tensor]) -> Tensor:  # type: ignore
         if context is not None:
             inputs = torch.cat((inputs, context), dim=1)

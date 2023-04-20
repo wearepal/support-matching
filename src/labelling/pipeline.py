@@ -3,11 +3,11 @@ from abc import abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Protocol, Union, cast
+from typing_extensions import override
 
 import conduit.metrics as cdtm
 from conduit.models.utils import prefix_keys
 from loguru import logger
-from ranzen import implements
 from ranzen.torch.module import DcModule
 import torch
 from torch import Tensor
@@ -76,7 +76,7 @@ class KmeansOnClipEncodings(DcModule, Labeller):
     encoder: Optional[ClipVisualEncoder] = field(init=False, default=None)
     _fitted_kmeans: Optional[KMeans] = field(init=False, default=None)
 
-    @implements(Labeller)
+    @override
     def run(self, dm: DataModule, *, use_cached_encoder: bool = False) -> Tensor:
         device = resolve_device(self.gpu)
         if self.encoder is None or not use_cached_encoder:
@@ -165,7 +165,7 @@ class ClipClassifier(Labeller):
 
         return metrics
 
-    @implements(Labeller)
+    @override
     def run(self, dm: DataModule, *, use_cached_encoder: bool = False) -> Tensor:
         device = resolve_device(self.gpu)
         encoder = ClipVisualEncoder(
@@ -209,7 +209,7 @@ class LabelFromArtifact(Labeller):
     artifact_name: Optional[str] = None
     root: Optional[Path] = None  # artifacts/clustering by default
 
-    @implements(Labeller)
+    @override
     def run(self, dm: DataModule) -> Tensor:
         return load_labels_from_artifact(
             run=wandb.run,
@@ -222,7 +222,7 @@ class LabelFromArtifact(Labeller):
 
 @dataclass(eq=False)
 class NullLabeller(Labeller):
-    @implements(Labeller)
+    @override
     def run(self, dm: DataModule) -> None:
         return None
 
@@ -235,7 +235,7 @@ class GroundTruthLabeller(Labeller):
     def generator(self) -> torch.Generator:
         return torch.Generator().manual_seed(self.seed)
 
-    @implements(Labeller)
+    @override
     def run(self, dm: DataModule) -> Tensor:
         return dm.group_ids_dep
 
@@ -258,7 +258,7 @@ class LabelNoiser(Labeller):
     def _noise(self, dep_ids: Tensor, *, flip_inds: Tensor, dm: DataModule) -> Tensor:
         ...
 
-    @implements(Labeller)
+    @override
     def run(self, dm: DataModule) -> Tensor:
         group_ids = dm.group_ids_dep
         logger.info(
@@ -279,7 +279,7 @@ class LabelNoiser(Labeller):
 
 @dataclass(eq=False)
 class UniformLabelNoiser(LabelNoiser):
-    @implements(LabelNoiser)
+    @override
     def _noise(self, dep_ids: Tensor, *, flip_inds: Tensor, dm: DataModule) -> Tensor:
         return uniform_label_noise(
             labels=dep_ids,
@@ -297,7 +297,7 @@ class CentroidalLabelNoiser(LabelNoiser):
     enc_batch_size: int = 64
     gpu: int = 0
 
-    @implements(LabelNoiser)
+    @override
     def _noise(self, dep_ids: Tensor, *, flip_inds: Tensor, dm: DataModule) -> Tensor:
         device = resolve_device(self.gpu)
         encoder = ClipVisualEncoder(

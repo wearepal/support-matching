@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Optional
+from typing_extensions import override
 
 from conduit.types import Loss
-from ranzen import implements
 from ranzen.torch import CrossEntropyLoss, ReductionType
 from torch import Tensor
 import torch.nn as nn
@@ -20,7 +20,7 @@ __all__ = ["Erm"]
 class Erm(FsAlg):
     criterion: Optional[Loss] = None
 
-    @implements(FsAlg)
+    @override
     def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:
         classifier = Classifier(
             model=model,

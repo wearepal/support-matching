@@ -1,8 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Generic, TypeVar
+from typing_extensions import override
 
-from ranzen import implements
 from ranzen.torch import DcModule
 import torch.nn as nn
 
@@ -21,7 +21,7 @@ class AePair(DcModule, Generic[E, D]):
     decoder: D
     latent_dim: int
 
-    @implements(DcModule)
+    @override
     def forward(self, x: Tensor) -> Tensor:  # type: ignore
         return self.encoder(x)
 

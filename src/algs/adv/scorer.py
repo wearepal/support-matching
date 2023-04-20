@@ -1,13 +1,13 @@
 from dataclasses import dataclass, field
 from typing import Any, Final, Optional, Protocol, Tuple, Union
+from typing_extensions import override
 
-from conduit.data.datasets import CdtDataLoader, CdtDataset
 from conduit.data import TernarySample
+from conduit.data.datasets import CdtDataLoader, CdtDataset
 import conduit.metrics as cdtm
 from conduit.models.utils import prefix_keys
 from loguru import logger
 from omegaconf import DictConfig
-from ranzen import implements
 from ranzen.misc import gcopy
 from ranzen.torch.loss import CrossEntropyLoss, ReductionType
 import torch
@@ -72,7 +72,7 @@ class Scorer(Protocol):
 
 @dataclass(eq=False)
 class NullScorer(Scorer):
-    @implements(Scorer)
+    @override
     def run(self, dm: DataModule[CdtDataset], *, device: torch.device, **kwargs: Any) -> float:
         return 0.0
 
@@ -96,7 +96,7 @@ class NeuralScorer(Scorer):
     recon_score_w: float = 1
     minimize: bool = False
 
-    @implements(Scorer)
+    @override
     def run(
         self,
         dm: DataModule[CdtDataset],
