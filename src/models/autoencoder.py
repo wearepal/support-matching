@@ -132,6 +132,7 @@ class SplitLatentAe(Model):
             )
         else:
             self.recon_loss_fn = self.cfg.recon_loss.value(reduction="sum")
+        super().__post_init__()
 
     def encode(self, inputs: Tensor, *, transform_zs: bool = True) -> SplitEncoding:
         enc = self._split_encoding(self.model.encoder(inputs))
