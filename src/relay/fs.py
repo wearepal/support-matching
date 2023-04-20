@@ -1,4 +1,3 @@
-from __future__ import annotations
 from typing import Any, ClassVar, Optional, cast
 
 from attrs import define, field

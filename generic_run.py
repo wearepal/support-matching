@@ -23,7 +23,7 @@ def run(relay_cls: type[Experiment]) -> None:
     # verify some aspects of the configs
     configs: tuple[Attribute, ...] = fields(relay_cls)
     for config in configs:
-        if config.type == Any:
+        if config.type == Any or (isinstance(typ := config.type, str) and typ == "Any"):
             if config.name not in relay_cls.options:
                 raise ValueError(
                     f"if an entry has type Any, there should be variants: {config.name}"
