@@ -2,7 +2,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Protocol, Union, cast
+from typing import Optional, Union, cast
 from typing_extensions import override
 
 import conduit.metrics as cdtm
@@ -115,6 +115,7 @@ class KmeansOnClipEncodings(DcModule, Labeller):
             device=device,
         )
         kmeans.fit(dm=dm, encodings=encodings)
+        self._fitted_kmeans = kmeans
         preds = torch.as_tensor(kmeans.predict(encodings.dep.numpy()), dtype=torch.long)
         if self.save_as_artifact:
             run = cast(Optional[Run], wandb.run)
@@ -136,15 +137,12 @@ class ClipClassifier(Labeller):
     val_freq: Union[int, float] = 0.1
     val_batches: Union[int, float] = 1.0
     lr: float = 1.0e-5
-    enc_batch_size: int = 64
 
     gpu: int = 0
     save_as_artifact: bool = True
     artifact_name: Optional[str] = None
 
     cache_encoder: bool = False
-    encoder: Optional[ClipVisualEncoder] = field(init=False, default=None)
-    _fitted_kmeans: Optional[KMeans] = field(init=False, default=None)
 
     @torch.no_grad()
     def evaluate(
