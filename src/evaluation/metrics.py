@@ -161,9 +161,7 @@ def write_results_to_csv(results: Mapping[str, int | float | str], csv_dir: Path
     to_log = {}
     # to_log.update(flatten_dict(as_pretty_dict(cfg)))
     to_log.update(results)
-    # I don't know why it has to be done in 2 steps, but it that's how it is
-    results_df = pd.DataFrame(columns=list(to_log))
-    results_df = results_df.append(to_log, ignore_index=True, sort=False)
+    results_df = pd.DataFrame(to_log, index=[0])
 
     csv_dir.mkdir(exist_ok=True, parents=True)
 

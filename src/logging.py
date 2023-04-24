@@ -1,13 +1,9 @@
 from __future__ import annotations
-from collections.abc import MutableMapping, Sequence
-from dataclasses import asdict, dataclass
-from enum import Enum
-import shlex
-from typing import Any, List, Optional, Sequence, TYPE_CHECKING
+from collections.abc import Sequence
+from dataclasses import dataclass
+from typing import List, Optional, Sequence
 
 from conduit.data.datasets.vision.base import CdtVisionDataset
-from hydra.core.hydra_config import HydraConfig
-from omegaconf import OmegaConf
 import torch
 from torch import Tensor
 import torchvision
@@ -16,17 +12,7 @@ import wandb
 
 from src.data.data_module import DataModule
 
-if TYPE_CHECKING:
-    from _typeshed import DataclassInstance
-
-__all__ = [
-    "WandbConf",
-    "as_pretty_dict",
-    "flatten_dict",
-    "log_attention",
-    "log_images",
-    "reconstruct_cmd",
-]
+__all__ = ["WandbConf", "log_attention", "log_images"]
 
 
 @dataclass
@@ -120,44 +106,3 @@ def log_attention(
     ]
     shw = [wandb.Image(TF.to_pil_image(image), caption=f"bag_{i}") for i, image in enumerate(shw)]
     wandb.log({prefix + name: shw}, step=step)
-
-
-def flatten_dict(d: MutableMapping, parent_key: str = "", sep: str = ".") -> dict:
-    """Flatten a nested dictionary by separating the keys with `sep`."""
-    items = []
-    for k, v in d.items():
-        new_key = parent_key + sep + str(k) if parent_key else k
-        if isinstance(v, MutableMapping):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
-
-
-def _clean_up_dict(obj: Any) -> Any:
-    """Convert enums to strings and filter out _target_."""
-    if isinstance(obj, MutableMapping):
-        return {key: _clean_up_dict(value) for key, value in obj.items() if key != "_target_"}
-    elif isinstance(obj, Enum):
-        return str(f"{obj.name}")
-    elif OmegaConf.is_config(obj):  # hydra stores lists as omegaconf.ListConfig, so we convert here
-        return OmegaConf.to_container(obj, resolve=True, enum_to_str=True)
-    return obj
-
-
-def as_pretty_dict(data_class: DataclassInstance) -> dict:
-    """Convert dataclass to a pretty dictionary."""
-    return _clean_up_dict(asdict(data_class))
-
-
-def reconstruct_cmd() -> str:
-    """Reconstruct the python command that was used to start this program."""
-    internal_config = HydraConfig.get()
-    program = internal_config.job.name + ".py"
-    args = internal_config.overrides.task
-    return _join([program] + OmegaConf.to_container(args))  # type: ignore[operator]
-
-
-def _join(split_command: List[str]) -> str:
-    """Concatenate the tokens of the list split_command and return a string."""
-    return " ".join(shlex.quote(arg) for arg in split_command)
