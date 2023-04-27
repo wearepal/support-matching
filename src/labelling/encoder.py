@@ -3,7 +3,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional, cast
 
-import clip
 from loguru import logger
 from ranzen.misc import gcopy
 from ranzen.torch import CrossEntropyLoss
@@ -36,6 +35,8 @@ class ClipVisualEncoder(nn.Module):
     ) -> None:
         super().__init__()
         logger.info("Loading CLIP model (downloading if needed)...")
+        import clip
+
         model, self.transforms = clip.load(
             name=version.value, device="cpu", download_root=download_root  # type: ignore
         )

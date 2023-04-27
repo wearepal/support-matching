@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Generic, Iterator, Type, TypeVar, Union
+from typing import Any, Generic, Iterator, TypeVar, Union
 from typing_extensions import Self, override
 
 from conduit.data.datasets.base import CdtDataset
@@ -85,7 +85,7 @@ class IndexedSample(TernarySample[X], _IndexedSampleMixin[Tensor]):
         )
 
     @classmethod
-    def from_ts(cls: Type[Self], sample: TernarySample, *, idx: Tensor) -> Self:
+    def from_ts(cls, sample: TernarySample, *, idx: Tensor) -> Self:
         return cls(x=sample.x, y=sample.y, s=sample.s, idx=idx)
 
 

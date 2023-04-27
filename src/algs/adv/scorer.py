@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Final, Optional, Tuple, Union
 from typing_extensions import override
 
@@ -90,7 +90,6 @@ class NeuralScorer(Scorer):
     lr: float = 1.0e-4
     weight_decay: float = 0
     optimizer_kwargs: Optional[DictConfig] = None
-    optimizer: torch.optim.Optimizer = field(init=False)
     scheduler_cls: Optional[str] = None
     scheduler_kwargs: Optional[DictConfig] = None
     eval_batches: int = 1000

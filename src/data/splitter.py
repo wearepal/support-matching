@@ -30,10 +30,14 @@ __all__ = [
 
 @dataclass(eq=False)
 class DataSplitter:
-    transductive: bool = False  # whether to include the test data in the pool of unlabelled data
-    train_transforms: Any = None
-    test_transforms: Any = None
-    dep_transforms: Any = None
+    """How to split the data into train/test/dep."""
+
+    transductive: bool = False
+    """Whether to include the test data in the pool of unlabelled data."""
+
+    train_transforms: Any = None  # T.Compose
+    test_transforms: Any = None  # T.Compose
+    dep_transforms: Any = None  # T.Compose
 
     @classmethod
     def _default_train_transforms(cls) -> ImageTform:

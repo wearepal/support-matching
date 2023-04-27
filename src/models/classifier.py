@@ -27,10 +27,7 @@ from src.utils import cat, hard_prediction, soft_prediction, to_item
 
 from .base import Model
 
-__all__ = [
-    "Classifier",
-    "SetClassifier",
-]
+__all__ = ["Classifier", "SetClassifier"]
 
 
 @torch.no_grad()

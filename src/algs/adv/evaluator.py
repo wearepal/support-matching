@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Any, Final, Generic, Optional, Sequence, TypeVar, overload
 from typing_extensions import Literal
@@ -264,17 +264,10 @@ class Evaluator:
     lr: float = 1.0e-4
     weight_decay: float = 0
     optimizer_kwargs: Optional[DictConfig] = None
-    optimizer: torch.optim.Optimizer = field(init=False)
     scheduler_cls: Optional[str] = None
     scheduler_kwargs: Optional[DictConfig] = None
 
-    def _fit_classifier(
-        self,
-        dm: DataModule,
-        *,
-        pred_s: bool,
-        device: torch.device,
-    ) -> Classifier:
+    def _fit_classifier(self, dm: DataModule, *, pred_s: bool, device: torch.device) -> Classifier:
         input_dim = dm.dim_x[0]
         model_fn = Fcn(
             hidden_dim=self.hidden_dim, num_hidden=self.num_hidden, activation=self.activation

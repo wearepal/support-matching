@@ -36,6 +36,7 @@ class AePair(DcModule, Generic[E, D]):
         return self.encode(self.decoder(x))
 
 
+@dataclass
 class AeFactory(ABC):
     @abstractmethod
     def __call__(self, input_shape: tuple[int, int, int]) -> AePair:

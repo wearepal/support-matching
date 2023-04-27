@@ -48,6 +48,7 @@ class SplitEncoding:
 
     def mask(self, random: bool = False, *, detach: bool = False) -> Tuple[Self, Self]:
         """Mask out zs and zy. This is a cheap function.
+
         :param random: whether to replace the masked out part with random noise
         :param detach: whether to detach from the computational graph before masking
         """

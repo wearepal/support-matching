@@ -255,7 +255,7 @@ class LabelNoiser(Labeller):
 
     @abstractmethod
     def _noise(self, dep_ids: Tensor, *, flip_inds: Tensor, dm: DataModule) -> Tensor:
-        ...
+        raise NotImplementedError()
 
     @override
     def run(self, dm: DataModule) -> Tensor:
