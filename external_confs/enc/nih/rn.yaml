@@ -5,7 +5,6 @@ defaults:
 latent_dim: 128
 zs_dim: 1
 zs_transform: none
-feature_group_slices: null
 optimizer_cls: ADAM
 optimizer_kwargs: null
 recon_loss: l2

@@ -9,6 +9,7 @@ import torch.nn as nn
 from src.data import DataModule
 from src.data.utils import EvalTuple
 from src.models import Classifier
+from src.models.base import ModelCfg
 
 from .base import FsAlg
 
@@ -23,12 +24,14 @@ class Erm(FsAlg):
     def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:
         classifier = Classifier(
             model=model,
-            lr=self.lr,
-            weight_decay=self.weight_decay,
-            optimizer_cls=self.optimizer_cls,
-            optimizer_kwargs=self.optimizer_kwargs,
-            scheduler_cls=self.scheduler_cls,
-            scheduler_kwargs=self.scheduler_kwargs,
+            cfg=ModelCfg(
+                lr=self.lr,
+                weight_decay=self.weight_decay,
+                optimizer_cls=self.optimizer_cls,
+                optimizer_kwargs=self.optimizer_kwargs,
+                scheduler_cls=self.scheduler_cls,
+                scheduler_kwargs=self.scheduler_kwargs,
+            ),
             criterion=self.criterion,
         )
         classifier.fit(

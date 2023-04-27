@@ -12,7 +12,7 @@ from src.labelling.pipeline import (
     NullLabeller,
     UniformLabelNoiser,
 )
-from src.models.discriminator import NeuralDiscriminator
+from src.models.discriminator import NeuralDiscriminatorCfg
 from src.relay import SupMatchRelay
 
 
@@ -44,7 +44,7 @@ def main() -> None:
 
     SupMatchRelay.with_hydra(
         ae_arch=ae_arch_ops,
-        disc=[Option(NeuralDiscriminator, name="base")],
+        disc=[Option(NeuralDiscriminatorCfg, name="base")],
         disc_arch=disc_arch_ops,
         ds=ds_ops,
         labeller=labeller_ops,

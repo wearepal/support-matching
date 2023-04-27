@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Final, Optional, Tuple, Union
 from typing_extensions import override
 
@@ -19,6 +19,7 @@ import wandb
 from src.arch.predictors import SetPredictor
 from src.data import DataModule, resolve_device
 from src.models import Optimizer, SetClassifier, SplitLatentAe
+from src.models.base import ModelCfg
 from src.utils import cat, to_item
 
 __all__ = ["NeuralScorer", "NullScorer", "Scorer"]
@@ -90,7 +91,6 @@ class NeuralScorer(Scorer):
     lr: float = 1.0e-4
     weight_decay: float = 0
     optimizer_kwargs: Optional[DictConfig] = None
-    optimizer: torch.optim.Optimizer = field(init=False)
     scheduler_cls: Optional[str] = None
     scheduler_kwargs: Optional[DictConfig] = None
     eval_batches: int = 1000
@@ -134,12 +134,14 @@ class NeuralScorer(Scorer):
 
         classifier = SetClassifier(
             model=disc,
-            lr=self.lr,
-            weight_decay=self.weight_decay,
-            optimizer_cls=self.optimizer_cls,
-            optimizer_kwargs=self.optimizer_kwargs,
-            scheduler_cls=self.scheduler_cls,
-            scheduler_kwargs=self.scheduler_kwargs,
+            cfg=ModelCfg(
+                lr=self.lr,
+                weight_decay=self.weight_decay,
+                optimizer_cls=self.optimizer_cls,
+                optimizer_kwargs=self.optimizer_kwargs,
+                scheduler_cls=self.scheduler_cls,
+                scheduler_kwargs=self.scheduler_kwargs,
+            ),
             criterion=CrossEntropyLoss(reduction=ReductionType.mean),
         )
         logger.info("Training invariance-scorer")

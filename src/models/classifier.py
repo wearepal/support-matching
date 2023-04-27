@@ -27,10 +27,7 @@ from src.utils import cat, hard_prediction, soft_prediction, to_item
 
 from .base import Model
 
-__all__ = [
-    "Classifier",
-    "SetClassifier",
-]
+__all__ = ["Classifier", "SetClassifier"]
 
 
 @torch.no_grad()
@@ -181,8 +178,8 @@ S = TypeVar("S", bound=NamedSample[Tensor])
 class SetClassifier(Model):
     """Wrapper for set classifier models equipped witht training/inference routines."""
 
+    model: SetPredictor  # overriding the definition in `Model`
     criterion: Optional[Loss] = None
-    model: SetPredictor
 
     @torch.no_grad()
     def _fetch_train_data(

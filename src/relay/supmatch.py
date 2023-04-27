@@ -12,7 +12,8 @@ from src.algs import SupportMatching
 from src.algs.adv import Evaluator, NeuralScorer, NullScorer, Scorer
 from src.arch.autoencoder import AeFactory, AeFromArtifact, AePair, save_ae_artifact
 from src.models import SplitLatentAe
-from src.models.discriminator import NeuralDiscriminator
+from src.models.autoencoder import SplitLatentAeCfg
+from src.models.discriminator import NeuralDiscriminator, NeuralDiscriminatorCfg
 
 from .base import BaseRelay
 
@@ -45,7 +46,7 @@ class SupMatchRelay(BaseRelay):
         instantiate_recursively: bool = False,
     ) -> None:
         configs = dict(
-            ae=[Option(SplitLatentAe, name="base")],
+            ae=[Option(SplitLatentAeCfg, name="base")],
             ae_arch=ae_arch,
             alg=[Option(SupportMatching, name="base")],
             disc=disc,
@@ -69,17 +70,16 @@ class SupMatchRelay(BaseRelay):
         alg: SupportMatching = instantiate(self.alg)
         ae_factory: AeFactory = instantiate(self.ae_arch)
         ae_pair: AePair = ae_factory(input_shape=dm.dim_x)
-        ae: SplitLatentAe = instantiate(self.ae, _partial_=True)(
-            model=ae_pair,
-            feature_group_slices=dm.feature_group_slices,
-        )
+        ae_conf: SplitLatentAeCfg = instantiate(self.ae)
+        ae = SplitLatentAe(model=ae_pair, cfg=ae_conf, feature_group_slices=dm.feature_group_slices)
         logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
         disc_net, _ = instantiate(self.disc_arch)(
             input_dim=ae.encoding_size.zy,
             target_dim=1,
             batch_size=dm.batch_size_tr,
         )
-        disc: NeuralDiscriminator = instantiate(self.disc, _partial_=True)(model=disc_net)
+        disc_conf: NeuralDiscriminatorCfg = instantiate(self.disc)
+        disc = NeuralDiscriminator(model=disc_net, cfg=disc_conf)
         evaluator: Evaluator = instantiate(self.eval)
         scorer: Scorer = instantiate(self.scorer)
         score = alg.run(dm=dm, ae=ae, disc=disc, evaluator=evaluator, scorer=scorer)

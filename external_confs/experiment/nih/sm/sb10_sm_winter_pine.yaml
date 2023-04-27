@@ -41,7 +41,6 @@ ae:
     recon_loss: l1
     lr: 0.0000018348295456200725
     zs_transform: none
-    feature_group_slices: null
     optimizer_cls: ADAM
     weight_decay: 0
     zs_dim: 1
