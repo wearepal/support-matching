@@ -19,6 +19,7 @@ import wandb
 from src.arch.predictors import SetPredictor
 from src.data import DataModule, resolve_device
 from src.models import Optimizer, SetClassifier, SplitLatentAe
+from src.models.base import ModelCfg
 from src.utils import cat, to_item
 
 __all__ = ["NeuralScorer", "NullScorer", "Scorer"]
@@ -133,12 +134,14 @@ class NeuralScorer(Scorer):
 
         classifier = SetClassifier(
             model=disc,
-            lr=self.lr,
-            weight_decay=self.weight_decay,
-            optimizer_cls=self.optimizer_cls,
-            optimizer_kwargs=self.optimizer_kwargs,
-            scheduler_cls=self.scheduler_cls,
-            scheduler_kwargs=self.scheduler_kwargs,
+            cfg=ModelCfg(
+                lr=self.lr,
+                weight_decay=self.weight_decay,
+                optimizer_cls=self.optimizer_cls,
+                optimizer_kwargs=self.optimizer_kwargs,
+                scheduler_cls=self.scheduler_cls,
+                scheduler_kwargs=self.scheduler_kwargs,
+            ),
             criterion=CrossEntropyLoss(reduction=ReductionType.mean),
         )
         logger.info("Training invariance-scorer")

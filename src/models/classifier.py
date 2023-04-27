@@ -178,8 +178,8 @@ S = TypeVar("S", bound=NamedSample[Tensor])
 class SetClassifier(Model):
     """Wrapper for set classifier models equipped witht training/inference routines."""
 
+    model: SetPredictor  # overriding the definition in `Model`
     criterion: Optional[Loss] = None
-    model: SetPredictor
 
     @torch.no_grad()
     def _fetch_train_data(

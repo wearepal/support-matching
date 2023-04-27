@@ -10,6 +10,7 @@ import torch.nn as nn
 
 from src.data import DataModule, EvalTuple
 from src.models import Classifier
+from src.models.base import ModelCfg
 
 from .base import FsAlg
 
@@ -33,12 +34,14 @@ class Jtt(FsAlg):
         # Stage one: identification
         classifier = Classifier(
             model=model_id,
-            lr=self.lr,
-            weight_decay=self.weight_decay,
-            optimizer_cls=self.optimizer_cls,
-            optimizer_kwargs=self.optimizer_kwargs,
-            scheduler_cls=self.scheduler_cls,
-            scheduler_kwargs=self.scheduler_kwargs,
+            cfg=ModelCfg(
+                lr=self.lr,
+                weight_decay=self.weight_decay,
+                optimizer_cls=self.optimizer_cls,
+                optimizer_kwargs=self.optimizer_kwargs,
+                scheduler_cls=self.scheduler_cls,
+                scheduler_kwargs=self.scheduler_kwargs,
+            ),
             criterion=self.criterion,
         )
         id_steps = (

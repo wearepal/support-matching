@@ -32,6 +32,7 @@ from src.data import (
 from src.evaluation.metrics import EmEvalPair, compute_metrics
 from src.logging import log_images
 from src.models import Classifier, Optimizer, SplitEncoding, SplitLatentAe
+from src.models.base import ModelCfg
 
 __all__ = [
     "Evaluator",
@@ -277,12 +278,14 @@ class Evaluator:
 
         clf = Classifier(
             model,
-            lr=self.lr,
-            weight_decay=self.weight_decay,
-            optimizer_cls=self.optimizer_cls,
-            optimizer_kwargs=self.optimizer_kwargs,
-            scheduler_cls=self.scheduler_cls,
-            scheduler_kwargs=self.scheduler_kwargs,
+            cfg=ModelCfg(
+                lr=self.lr,
+                weight_decay=self.weight_decay,
+                optimizer_cls=self.optimizer_cls,
+                optimizer_kwargs=self.optimizer_kwargs,
+                scheduler_cls=self.scheduler_cls,
+                scheduler_kwargs=self.scheduler_kwargs,
+            ),
         )
 
         train_dl = dm.train_dataloader(batch_size=self.batch_size, balance=self.balanced_sampling)
