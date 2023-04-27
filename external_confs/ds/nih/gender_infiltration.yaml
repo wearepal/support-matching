@@ -1,6 +1,6 @@
 ---
 defaults:
-  - /schema/ds: nih
+  - /ds/nih@_here_
   - _self_
 root: /srv/galene0/shared/data/nih_chest_xray/
 transform: null

@@ -1,6 +1,5 @@
 ---
 defaults:
-  - /schema/dm: base
   - _self_
 batch_size_tr: 1
 batch_size_te: null

@@ -1,39 +1,52 @@
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
-from typing_extensions import override
+from typing import Any, ClassVar, Dict, Optional
 
-from ranzen.hydra import Option
+from attrs import define, field
+
+from src.hydra_confs.camelyon17.conf import Camelyon17Conf
+from src.hydra_confs.celeba.conf import CelebAConf
+from src.hydra_confs.cmnist.conf import ColoredMNISTConf
+from src.hydra_confs.nih.conf import NIHChestXRayDatasetConf
+from src.labelling.pipeline import (
+    CentroidalLabelNoiser,
+    ClipClassifier,
+    KmeansOnClipEncodings,
+    Labeller,
+    UniformLabelNoiser,
+)
 
 from .base import BaseRelay
 
 __all__ = ["LabelRelay"]
 
 
-@dataclass(eq=False)
+@define(eq=False, kw_only=True)
 class LabelRelay(BaseRelay):
-    @classmethod
-    @override
-    def with_hydra(
-        cls,
-        root: Union[Path, str],
-        *,
-        ds: List[Option],
-        labeller: List[Option],
-        clear_cache: bool = False,
-        instantiate_recursively: bool = False,
-    ) -> None:
-        super().with_hydra(
-            root=root,
-            instantiate_recursively=instantiate_recursively,
-            clear_cache=clear_cache,
-            ds=ds,
-            labeller=labeller,
-        )
+    defaults: list[Any] = field(
+        default=[{"ds": "cmnist"}, {"labeller": "uniform_noise"}, {"split": "random"}]
+    )
 
-    @override
+    ds: Any  # CdtDataset
+    labeller: Any  # Labeller
+
+    options: ClassVar[Dict[str, Dict[str, type]]] = BaseRelay.options | {
+        "ds": {
+            "cmnist": ColoredMNISTConf,
+            "celeba": CelebAConf,
+            "camelyon17": Camelyon17Conf,
+            "nih": NIHChestXRayDatasetConf,
+        },
+        "labeller": {
+            "centroidal_noise": CentroidalLabelNoiser,
+            "classifier": ClipClassifier,
+            "kmeans": KmeansOnClipEncodings,
+            "uniform_noise": UniformLabelNoiser,
+        },
+    }
+
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Optional[float]:
-        run = self.init_wandb(raw_config, self.labeller)
-        self.init_dm()
+        assert isinstance(self.labeller, Labeller)
+
+        run = self.wandb.init(raw_config, (self.labeller,))
+        self.init_dm(self.ds, self.labeller)
         if run is not None:
             run.finish()

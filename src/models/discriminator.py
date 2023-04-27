@@ -70,6 +70,8 @@ def _maybe_spectral_norm(module: nn.Module, *, name: str = "weight"):
 
 @dataclass
 class NeuralDiscriminatorCfg(ModelCfg):
+    """These are the parameters to `NeuralDiscriminator` which are configurable by hydra."""
+
     criterion: GanLoss = GanLoss.LOGISTIC_NS
 
 
