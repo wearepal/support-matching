@@ -2,6 +2,7 @@ from dataclasses import asdict
 from typing import Any, ClassVar, Dict, Optional
 
 from attrs import define, field
+from conduit.data.datasets.vision import CdtVisionDataset
 from loguru import logger
 
 from src.algs import SupportMatching
@@ -92,10 +93,11 @@ class SupMatchRelay(BaseRelay):
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Optional[float]:
         assert isinstance(self.ae_arch, AeFactory)
         assert isinstance(self.disc_arch, PredictorFactory)
+        assert isinstance(self.ds, CdtVisionDataset)
         assert isinstance(self.labeller, Labeller)
         assert isinstance(self.scorer, Scorer)
 
-        run = self.wandb.init(raw_config, (self.labeller, self.ae_arch, self.disc_arch))
+        run = self.wandb.init(raw_config, (self.ds, self.labeller, self.ae_arch, self.disc_arch))
         dm = self.init_dm(self.ds, self.labeller)
         ae_pair = self.ae_arch(input_shape=dm.dim_x)
         ae = SplitLatentAe(cfg=self.ae, model=ae_pair, feature_group_slices=dm.feature_group_slices)

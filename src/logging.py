@@ -46,15 +46,13 @@ class WandbConf:
         suffix: Optional[str] = None,
     ) -> Run:
         if raw_config is not None and self.group is None:
-            default_group = f"{raw_config['ds']['_target_'].lower()}_"
-            if suffix is not None:
-                default_group += suffix
-            default_group += "_".join(
+            default_group = "_".join(
                 cfg_obj.__class__.__name__.lower() for cfg_obj in cfgs_for_group
             )
+            if suffix is not None:
+                default_group += f"_{suffix}"
             logger.info(f"No wandb group set - using {default_group} as the inferred default.")
             self.group = default_group
-            raw_config["wandb"]["group"] = self.group
         # TODO: not sure whether `reinit` really should be hardcoded
         self.reinit = True
         return wandb.init(**asdict(self), config=raw_config)

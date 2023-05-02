@@ -1,6 +1,7 @@
 from typing import Any, ClassVar, Dict, Optional
 
 from attrs import define, field
+from conduit.data.datasets.vision import CdtVisionDataset
 
 from src.hydra_confs.datasets import (
     Camelyon17Conf,
@@ -46,9 +47,10 @@ class LabelRelay(BaseRelay):
     }
 
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Optional[float]:
+        assert isinstance(self.ds, CdtVisionDataset)
         assert isinstance(self.labeller, Labeller)
 
-        run = self.wandb.init(raw_config, (self.labeller,))
+        run = self.wandb.init(raw_config, (self.ds, self.labeller))
         self.init_dm(self.ds, self.labeller)
         if run is not None:
             run.finish()

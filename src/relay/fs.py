@@ -1,6 +1,7 @@
-from typing import Any, ClassVar, Optional, cast
+from typing import Any, ClassVar, Optional
 
 from attrs import define, field
+from conduit.data.datasets.vision import CdtVisionDataset
 import torch.nn as nn
 
 from src.algs.fs import Dro, Erm, FsAlg, Gdro, Jtt, LfF, SdErm
@@ -68,9 +69,10 @@ class FsRelay(BaseRelay):
     def run(self, raw_config: Optional[dict[str, Any]] = None) -> Optional[float]:
         assert isinstance(self.alg, FsAlg)
         assert isinstance(self.backbone, BackboneFactory)
-        self.labeller = cast(Labeller, self.labeller)  # just a Protocol
+        assert isinstance(self.ds, CdtVisionDataset)
+        assert isinstance(self.labeller, Labeller)
 
-        run = self.wandb.init(raw_config, (self.labeller, self.backbone, self.predictor))
+        run = self.wandb.init(raw_config, (self.ds, self.labeller, self.backbone, self.predictor))
         dm = self.init_dm(self.ds, self.labeller)
         backbone, out_dim = self.backbone(input_dim=dm.dim_x[0])
         predictor, _ = self.predictor(input_dim=out_dim, target_dim=dm.card_y)
