@@ -1,7 +1,6 @@
 from typing import Any, ClassVar, Optional
 
 from attrs import define, field
-from conduit.data.datasets.vision import CdtVisionDataset
 from loguru import logger
 
 from src.algs import MiMin
@@ -73,9 +72,8 @@ class MiMinRelay(BaseRelay):
 
     def run(self, raw_config: Optional[dict[str, Any]] = None) -> None:
         assert isinstance(self.ae_arch, AeFactory)
-        assert isinstance(self.ds, CdtVisionDataset)
-        assert isinstance(self.labeller, Labeller)
         assert isinstance(self.ds, DatasetFactory)
+        assert isinstance(self.labeller, Labeller)
 
         ds = self.ds()
         run = self.wandb.init(raw_config, (ds, self.labeller, self.ae_arch, self.disc_arch))

@@ -2,7 +2,6 @@ from dataclasses import asdict
 from typing import Any, ClassVar, Dict, Optional
 
 from attrs import define, field
-from conduit.data.datasets.vision import CdtVisionDataset
 from loguru import logger
 
 from src.algs import SupportMatching
@@ -92,10 +91,9 @@ class SupMatchRelay(BaseRelay):
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Optional[float]:
         assert isinstance(self.ae_arch, AeFactory)
         assert isinstance(self.disc_arch, PredictorFactory)
-        assert isinstance(self.ds, CdtVisionDataset)
+        assert isinstance(self.ds, DatasetFactory)
         assert isinstance(self.labeller, Labeller)
         assert isinstance(self.scorer, Scorer)
-        assert isinstance(self.ds, DatasetFactory)
 
         ds = self.ds()
         run = self.wandb.init(raw_config, (ds, self.labeller, self.ae_arch, self.disc_arch))

@@ -1,7 +1,6 @@
 from typing import Any, ClassVar, Optional
 
 from attrs import define, field
-from conduit.data.datasets.vision import CdtVisionDataset
 import torch.nn as nn
 
 from src.algs.fs import Dro, Erm, FsAlg, Gdro, Jtt, LfF, SdErm

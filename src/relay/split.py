@@ -1,7 +1,6 @@
 from typing import Any, ClassVar, Dict, Optional
 
 from attrs import define, field
-from conduit.data.datasets.vision import CdtVisionDataset
 
 from src.data import RandomSplitter
 from src.data.common import DatasetFactory

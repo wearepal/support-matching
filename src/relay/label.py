@@ -1,7 +1,6 @@
 from typing import Any, ClassVar, Dict, Optional
 
 from attrs import define, field
-from conduit.data.datasets.vision import CdtVisionDataset
 
 from src.data.common import DatasetFactory
 from src.data.nih import NIHChestXRayDatasetCfg
@@ -44,9 +43,8 @@ class LabelRelay(BaseRelay):
     }
 
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Optional[float]:
-        assert isinstance(self.ds, CdtVisionDataset)
-        assert isinstance(self.labeller, Labeller)
         assert isinstance(self.ds, DatasetFactory)
+        assert isinstance(self.labeller, Labeller)
 
         ds = self.ds()
         run = self.wandb.init(raw_config, (ds, self.labeller))
