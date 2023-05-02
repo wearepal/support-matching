@@ -88,4 +88,4 @@ class MiMinRelay(BaseRelay):
         disc = Model(cfg=self.disc, model=disc_net)
         self.alg.run(dm=dm, ae=ae, disc=disc, evaluator=self.eval)
         if run is not None:
-            run.finish()  # type: ignore
+            run.finish()

@@ -80,7 +80,7 @@ class IndexedSample(TernarySample[X], _IndexedSampleMixin[Tensor]):
         return copy
 
     @override
-    def __getitem__(self: "IndexedSample[XI]", index: IndexType) -> "IndexedSample[XI]":  # type: ignore
+    def __getitem__(self: "IndexedSample[XI]", index: IndexType) -> "IndexedSample[XI]":
         return gcopy(
             self, deep=False, x=self.x[index], y=self.y[index], s=self.s[index], idx=self.idx[index]
         )

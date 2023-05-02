@@ -1,13 +1,13 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Optional
+from typing import Callable, Optional, cast
 from typing_extensions import override
 
-import timm  # type: ignore
-import timm.models as tm  # type: ignore
+import timm
+import timm.models as tm
 import torch.nn as nn
-import torchvision.models as tvm  # type: ignore
+import torchvision.models as tvm
 
 from src.arch.common import Activation, BiaslessLayerNorm
 
@@ -48,7 +48,7 @@ class ResNet(BackboneFactory):
             weights = None
         model: tvm.ResNet = getattr(tvm, fn_name)(weights=weights)
         out_dim = model.fc.in_features
-        model.fc = nn.Identity()  # type: ignore
+        model.fc = cast(nn.Linear, nn.Identity())
         return model, out_dim
 
 
@@ -74,7 +74,7 @@ class DenseNet(BackboneFactory):
             weights = None
         model: tvm.DenseNet = getattr(tvm, fn_name)(weights=weights)
         out_dim = model.classifier.in_features
-        model.classifier = nn.Identity()  # type: ignore
+        model.classifier = cast(nn.Linear, nn.Identity())
         return model, out_dim
 
 

@@ -194,7 +194,7 @@ class AdvSemiSupervisedAlg(Algorithm):
             x_dep=x_dep,
             warmup=warmup,
         )
-        logging_dict = prefix_keys(logging_dict, prefix="train", sep="/")  # type: ignore
+        logging_dict = prefix_keys(logging_dict, prefix="train", sep="/")
         wandb.log(logging_dict, step=itr)
 
         # Log images

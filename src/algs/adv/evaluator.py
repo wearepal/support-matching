@@ -217,7 +217,7 @@ def visualize_clusters(
     sc = ax.scatter(x[:, 0], x[:, 1], lw=0, s=40, c=labels_ls, cmap=cmap)
     ax.set_xticks([])
     ax.set_yticks([])
-    sns.despine(left=True, bottom=True, right=True)  # type: ignore
+    sns.despine(left=True, bottom=True, right=True)
 
     if legend:
 

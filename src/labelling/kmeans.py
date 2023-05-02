@@ -128,7 +128,7 @@ class KMeans:
                 logger.info("Done.")
             else:
                 centroids_np = centroids.numpy()
-            kmeans = SklKMeans(n_clusters=n_clusters, init=centroids_np, n_init=1)  # type: ignore
+            kmeans = SklKMeans(n_clusters=n_clusters, init=centroids_np, n_init=1)
         else:
             logger.info("Using kmeans++")
             kmeans = SklKMeans(n_clusters=n_clusters, init="k-means++", n_init=self.n_init)

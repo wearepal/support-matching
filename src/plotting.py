@@ -25,7 +25,7 @@ def plot_histogram(
     fig, plots = plt.subplots(figsize=(8, 12), ncols=cols, nrows=rows)
     for j in range(rows):
         for i in range(cols):
-            _ = plots[j][i].hist(  # type: ignore
+            _ = plots[j][i].hist(
                 vector_np[:, j * cols + i],
                 bins=np.linspace(-15, 15, bins),
             )
