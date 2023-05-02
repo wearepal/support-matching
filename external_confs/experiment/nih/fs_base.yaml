@@ -3,7 +3,6 @@
 # usage: +experiment=nih/fs_base
 
 defaults:
-    - /dm: nih/base
     - override /ds: nih/gender_infiltration
     - override /labeller: none
     - override /split: nih/sb10_gender_infiltration_art
