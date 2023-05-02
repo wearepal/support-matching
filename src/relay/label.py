@@ -5,7 +5,7 @@ from conduit.data.datasets.vision import CdtVisionDataset
 
 from src.data.common import DatasetFactory
 from src.data.nih import NIHChestXRayDatasetCfg
-from src.hydra_confs.datasets import Camelyon17, CelebA, ColoredMNIST
+from src.hydra_confs.datasets import Camelyon17Cfg, CelebACfg, ColoredMNISTCfg
 from src.labelling.pipeline import (
     CentroidalLabelNoiser,
     ClipClassifier,
@@ -30,9 +30,9 @@ class LabelRelay(BaseRelay):
 
     options: ClassVar[Dict[str, Dict[str, type]]] = BaseRelay.options | {
         "ds": {
-            "cmnist": ColoredMNIST,
-            "celeba": CelebA,
-            "camelyon17": Camelyon17,
+            "cmnist": ColoredMNISTCfg,
+            "celeba": CelebACfg,
+            "camelyon17": Camelyon17Cfg,
             "nih": NIHChestXRayDatasetCfg,
         },
         "labeller": {
@@ -48,7 +48,8 @@ class LabelRelay(BaseRelay):
         assert isinstance(self.labeller, Labeller)
         assert isinstance(self.ds, DatasetFactory)
 
-        run = self.wandb.init(raw_config, (self.ds, self.labeller))
-        self.init_dm(self.ds, self.labeller)
+        ds = self.ds()
+        run = self.wandb.init(raw_config, (ds, self.labeller))
+        self.init_dm(ds, self.labeller)
         if run is not None:
             run.finish()

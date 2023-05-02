@@ -20,7 +20,7 @@ from src.arch.predictors.fcn import Fcn, SetFcn
 from src.data.common import DatasetFactory
 from src.data.nico_plus_plus import NICOPPCfg
 from src.data.nih import NIHChestXRayDatasetCfg
-from src.hydra_confs.datasets import Camelyon17, CelebA, ColoredMNIST
+from src.hydra_confs.datasets import Camelyon17Cfg, CelebACfg, ColoredMNISTCfg
 from src.labelling.pipeline import (
     CentroidalLabelNoiser,
     GroundTruthLabeller,
@@ -66,9 +66,9 @@ class SupMatchRelay(BaseRelay):
     options: ClassVar[Dict[str, Dict[str, type]]] = BaseRelay.options | {
         "scorer": {"neural": NeuralScorer, "none": NullScorer},
         "ds": {
-            "cmnist": ColoredMNIST,
-            "celeba": CelebA,
-            "camelyon17": Camelyon17,
+            "cmnist": ColoredMNISTCfg,
+            "celeba": CelebACfg,
+            "camelyon17": Camelyon17Cfg,
             "nih": NIHChestXRayDatasetCfg,
             "nicopp": NICOPPCfg,
         },
@@ -97,8 +97,9 @@ class SupMatchRelay(BaseRelay):
         assert isinstance(self.scorer, Scorer)
         assert isinstance(self.ds, DatasetFactory)
 
-        run = self.wandb.init(raw_config, (self.ds, self.labeller, self.ae_arch, self.disc_arch))
-        dm = self.init_dm(self.ds, self.labeller)
+        ds = self.ds()
+        run = self.wandb.init(raw_config, (ds, self.labeller, self.ae_arch, self.disc_arch))
+        dm = self.init_dm(ds, self.labeller)
         ae_pair = self.ae_arch(input_shape=dm.dim_x)
         ae = SplitLatentAe(cfg=self.ae, model=ae_pair, feature_group_slices=dm.feature_group_slices)
         logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")

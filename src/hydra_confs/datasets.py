@@ -4,22 +4,26 @@ from typing import Any, Dict, List, Optional, Union
 from typing_extensions import override
 
 from conduit.data import TernarySample
-import conduit.data.datasets.vision as cdt_vision
-from conduit.data.datasets.vision import CdtVisionDataset, CelebASplit, CelebAttr
-from conduit.data.datasets.vision.camelyon17 import (
-    Camelyon17Attr,
+from conduit.data.datasets.vision import (
+    Camelyon17,
     Camelyon17Split,
     Camelyon17SplitScheme,
+    CdtVisionDataset,
+    CelebA,
+    CelebASplit,
+    CelebAttr,
+    ColoredMNIST,
 )
+from conduit.data.datasets.vision.camelyon17 import Camelyon17Attr
 from torch import Tensor
 
 from src.data.common import DatasetFactory
 
-__all__ = ["Camelyon17", "CelebA", "ColoredMNIST"]
+__all__ = ["Camelyon17Cfg", "CelebACfg", "ColoredMNISTCfg"]
 
 
 @dataclass
-class Camelyon17(DatasetFactory):
+class Camelyon17Cfg(DatasetFactory):
     root: Union[str, Path]
     download: bool = True
     transform: Any = None  # Optional[Union[Compose, BasicTransform, Callable[[Image], Any]]]
@@ -30,11 +34,11 @@ class Camelyon17(DatasetFactory):
 
     @override
     def __call__(self) -> CdtVisionDataset[TernarySample, Tensor, Tensor]:
-        return cdt_vision.Camelyon17(**asdict(self))
+        return Camelyon17(**asdict(self))
 
 
 @dataclass
-class CelebA(DatasetFactory):
+class CelebACfg(DatasetFactory):
     root: Union[str, Path]
     download: bool = True
     superclass: CelebAttr = CelebAttr.SMILING
@@ -44,11 +48,11 @@ class CelebA(DatasetFactory):
 
     @override
     def __call__(self) -> CdtVisionDataset[TernarySample, Tensor, Tensor]:
-        return cdt_vision.CelebA(**asdict(self))
+        return CelebA(**asdict(self))
 
 
 @dataclass
-class ColoredMNIST(DatasetFactory):
+class ColoredMNISTCfg(DatasetFactory):
     root: Union[str, Path]
     download: bool = True
     transform: Any = None  # Optional[Union[Compose, BasicTransform, Callable[[Image], Any]]]
@@ -66,4 +70,4 @@ class ColoredMNIST(DatasetFactory):
 
     @override
     def __call__(self) -> CdtVisionDataset[TernarySample, Tensor, Tensor]:
-        return cdt_vision.ColoredMNIST(**asdict(self))
+        return ColoredMNIST(**asdict(self))

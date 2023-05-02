@@ -10,7 +10,6 @@ import torch
 from torch import Tensor
 
 from src.data import DataModule, DataModuleConf, RandomSplitter, SplitFromArtifact
-from src.data.common import DatasetFactory
 from src.data.splitter import DataSplitter
 from src.labelling import Labeller
 from src.logging import WandbConf
@@ -30,10 +29,9 @@ class BaseRelay:
     }
 
     def init_dm(
-        self, ds_factory: DatasetFactory, labeller: Labeller
+        self, ds: CdtVisionDataset[TernarySample, Tensor, Tensor], labeller: Labeller
     ) -> DataModule[CdtVisionDataset[TernarySample, Tensor, Tensor]]:
         assert isinstance(self.split, DataSplitter)
-        ds = ds_factory()
 
         logger.info(f"Current working directory: '{os.getcwd()}'")
         random_seed(self.seed, use_cuda=True)

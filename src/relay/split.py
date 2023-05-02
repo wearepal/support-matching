@@ -8,7 +8,7 @@ from src.data.common import DatasetFactory
 from src.data.nico_plus_plus import NICOPPCfg
 from src.data.nih import NIHChestXRayDatasetCfg
 from src.data.splitter import RandomSplitter
-from src.hydra_confs.datasets import Camelyon17, CelebA
+from src.hydra_confs.datasets import Camelyon17Cfg, CelebACfg
 from src.logging import WandbConf
 
 __all__ = ["SplitRelay"]
@@ -24,20 +24,20 @@ class SplitRelay:
 
     options: ClassVar[Dict[str, Dict[str, type]]] = {
         "ds": {
-            "celeba": CelebA,
-            "camelyon17": Camelyon17,
+            "celeba": CelebACfg,
+            "camelyon17": Camelyon17Cfg,
             "nih": NIHChestXRayDatasetCfg,
             "nicopp": NICOPPCfg,
         },
-        "split": {"random": RandomSplitter},
+        "split": {"random": RandomSplitter},  # for compatibility we define a one-option variant
     }
 
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> None:
         assert isinstance(self.ds, DatasetFactory)
         assert isinstance(self.split, RandomSplitter)
 
-        run = self.wandb.init(raw_config, (self.ds,), suffix="artgen")
         ds = self.ds()
+        run = self.wandb.init(raw_config, (ds,), suffix="artgen")
         self.split.save_as_artifact = True
         self.split(ds)
         if run is not None:

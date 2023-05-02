@@ -10,7 +10,7 @@ from src.arch.backbones.vision import DenseNet, ResNet, SimpleCNN
 from src.arch.predictors.fcn import Fcn
 from src.data.common import DatasetFactory
 from src.data.nih import NIHChestXRayDatasetCfg
-from src.hydra_confs.datasets import Camelyon17, CelebA, ColoredMNIST
+from src.hydra_confs.datasets import Camelyon17Cfg, CelebACfg, ColoredMNISTCfg
 from src.labelling.pipeline import (
     CentroidalLabelNoiser,
     GroundTruthLabeller,
@@ -46,9 +46,9 @@ class FsRelay(BaseRelay):
 
     options: ClassVar[dict[str, dict[str, type]]] = BaseRelay.options | {
         "ds": {
-            "cmnist": ColoredMNIST,
-            "celeba": CelebA,
-            "camelyon17": Camelyon17,
+            "cmnist": ColoredMNISTCfg,
+            "celeba": CelebACfg,
+            "camelyon17": Camelyon17Cfg,
             "nih": NIHChestXRayDatasetCfg,
         },
         "backbone": {"densenet": DenseNet, "resnet": ResNet, "simple": SimpleCNN},
@@ -69,8 +69,9 @@ class FsRelay(BaseRelay):
         assert isinstance(self.ds, DatasetFactory)
         assert isinstance(self.labeller, Labeller)
 
-        run = self.wandb.init(raw_config, (self.ds, self.labeller, self.backbone, self.predictor))
-        dm = self.init_dm(self.ds, self.labeller)
+        ds = self.ds()
+        run = self.wandb.init(raw_config, (ds, self.labeller, self.backbone, self.predictor))
+        dm = self.init_dm(ds, self.labeller)
         backbone, out_dim = self.backbone(input_dim=dm.dim_x[0])
         predictor, _ = self.predictor(input_dim=out_dim, target_dim=dm.card_y)
         model = nn.Sequential(backbone, predictor)
