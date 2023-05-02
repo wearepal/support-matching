@@ -8,5 +8,3 @@ num_workers: 8
 persist_workers: false
 pin_memory: true
 seed: 47
-gt_deployment: false
-label_noise: 0.0
