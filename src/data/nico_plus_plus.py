@@ -16,7 +16,7 @@ from torch import Tensor
 
 from src.data.common import DatasetFactory
 
-__all__ = ["NICOPP", "NicoPPTarget", "NicoPPAttr"]
+__all__ = ["NICOPP", "NICOPPCfg", "NicoPPTarget", "NicoPPAttr"]
 
 
 class NicoPPTarget(StrEnum):

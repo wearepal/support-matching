@@ -1,7 +1,7 @@
 ---
 defaults:
   - /split/artifact@_here_
-  - base
+  - nicopp/base@_here_
   - _self_
 
 artifact_name: split_nicopp_ada_0
