@@ -29,9 +29,9 @@ class ModelCfg:
     optimizer_cls: Optimizer = Optimizer.ADAM
     lr: float = 5.0e-4
     weight_decay: float = 0
-    optimizer_kwargs: Optional[DictConfig] = None
+    optimizer_kwargs: Optional[dict] = None
     scheduler_cls: Optional[str] = None
-    scheduler_kwargs: Optional[DictConfig] = None
+    scheduler_kwargs: Optional[dict] = None
 
 
 @dataclass(repr=False, eq=False)

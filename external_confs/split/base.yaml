@@ -1,7 +1,6 @@
 ---
 defaults:
-  - /schema/split: base
-  - defaults
+  - random
   - _self_
 log_dataset: ''
 seed: 42

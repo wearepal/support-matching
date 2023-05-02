@@ -1,67 +1,81 @@
-from __future__ import annotations
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
-from typing_extensions import override
+from typing import Any, ClassVar, Optional, cast
 
-from hydra.utils import instantiate
-from omegaconf import DictConfig, MISSING
-from ranzen.hydra import Option
+from attrs import define, field
 import torch.nn as nn
 
-from src.algs.fs.base import FsAlg
-from src.arch import BackboneFactory, PredictorFactory
+from src.algs.fs import Dro, Erm, FsAlg, Gdro, Jtt, LfF, SdErm
+from src.arch import BackboneFactory
+from src.arch.backbones.vision import DenseNet, ResNet, SimpleCNN
+from src.arch.predictors.fcn import Fcn
+from src.hydra_confs.datasets import (
+    Camelyon17Conf,
+    CelebAConf,
+    ColoredMNISTConf,
+    NIHChestXRayDatasetConf,
+)
+from src.labelling.pipeline import (
+    CentroidalLabelNoiser,
+    GroundTruthLabeller,
+    KmeansOnClipEncodings,
+    LabelFromArtifact,
+    Labeller,
+    NullLabeller,
+    UniformLabelNoiser,
+)
 
 from .base import BaseRelay
 
 __all__ = ["FsRelay"]
 
 
-@dataclass(eq=False)
+@define(eq=False, kw_only=True)
 class FsRelay(BaseRelay):
-    alg: DictConfig = MISSING
-    backbone: DictConfig = MISSING
-    predictor: DictConfig = MISSING
+    defaults: list[Any] = field(
+        default=[
+            {"alg": "erm"},
+            {"ds": "cmnist"},
+            {"backbone": "simple"},
+            {"labeller": "none"},
+            {"split": "random"},
+        ]
+    )
 
-    @classmethod
-    @override
-    def with_hydra(
-        cls,
-        root: Union[Path, str],
-        *,
-        alg: List[Option],
-        ds: List[Option],
-        backbone: List[Option],
-        predictor: List[Option],
-        labeller: List[Option],
-        clear_cache: bool = False,
-        instantiate_recursively: bool = False,
-    ) -> None:
-        configs = dict(
-            alg=alg,
-            ds=ds,
-            labeller=labeller,
-            backbone=backbone,
-            predictor=predictor,
-        )
-        super().with_hydra(
-            root=root,
-            instantiate_recursively=instantiate_recursively,
-            clear_cache=clear_cache,
-            **configs,
-        )
+    alg: Any
+    ds: Any
+    backbone: Any
+    predictor: Fcn = field(default=Fcn)
+    labeller: Any
 
-    @override
-    def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Any:
-        run = self.init_wandb(raw_config, self.labeller, self.backbone, self.predictor)
-        dm = self.init_dm()
-        alg: FsAlg = instantiate(self.alg)
-        backbone_fn: BackboneFactory = instantiate(self.backbone)
-        predictor_fn: PredictorFactory = instantiate(self.predictor)
-        backbone, out_dim = backbone_fn(input_dim=dm.dim_x[0])
-        predictor, _ = predictor_fn(input_dim=out_dim, target_dim=dm.card_y)
+    options: ClassVar[dict[str, dict[str, type]]] = BaseRelay.options | {
+        "ds": {
+            "cmnist": ColoredMNISTConf,
+            "celeba": CelebAConf,
+            "camelyon17": Camelyon17Conf,
+            "nih": NIHChestXRayDatasetConf,
+        },
+        "backbone": {"densenet": DenseNet, "resnet": ResNet, "simple": SimpleCNN},
+        "labeller": {
+            "centroidal_noise": CentroidalLabelNoiser,
+            "gt": GroundTruthLabeller,
+            "kmeans": KmeansOnClipEncodings,
+            "artifact": LabelFromArtifact,
+            "none": NullLabeller,
+            "uniform_noise": UniformLabelNoiser,
+        },
+        "alg": {"dro": Dro, "erm": Erm, "gdro": Gdro, "jtt": Jtt, "lff": LfF, "sd": SdErm},
+    }
+
+    def run(self, raw_config: Optional[dict[str, Any]] = None) -> Optional[float]:
+        assert isinstance(self.alg, FsAlg)
+        assert isinstance(self.backbone, BackboneFactory)
+        self.labeller = cast(Labeller, self.labeller)  # just a Protocol
+
+        run = self.wandb.init(raw_config, (self.labeller, self.backbone, self.predictor))
+        dm = self.init_dm(self.ds, self.labeller)
+        backbone, out_dim = self.backbone(input_dim=dm.dim_x[0])
+        predictor, _ = self.predictor(input_dim=out_dim, target_dim=dm.card_y)
         model = nn.Sequential(backbone, predictor)
-        result = alg.run(dm=dm, model=model)
+        result = self.alg.run(dm=dm, model=model)
         if run is not None:
-            run.finish()  # type: ignore
+            run.finish()
         return result

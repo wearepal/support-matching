@@ -1,8 +1,8 @@
 ---
 defaults:
-  - /schema/ds: celeba
+  - /ds/celeba@_here_
   - _self_
-root: /srv/galene0/shared/data
+# root: /srv/galene0/shared/data
 download: false
 superclass: Smiling
 subclass: Male

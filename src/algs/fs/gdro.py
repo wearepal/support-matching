@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 from typing_extensions import override
 
 from conduit.data.structures import TernarySample
@@ -268,7 +268,7 @@ class Gdro(FsAlg):
     step_size: float = 0.01
     btl: bool = False
     adjustments: Optional[Tuple[float]] = None
-    criterion: Optional[Loss] = None
+    criterion: Any = None  # Optional[Loss]
 
     @override
     def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:
