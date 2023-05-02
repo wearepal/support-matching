@@ -51,9 +51,13 @@ def lcm(denominators: Iterable[int]) -> int:
 
 @dataclass
 class DataModuleConf:
+    """DataModule settings that are configurable by hydra."""
+
     batch_size_tr: int = 1
     batch_size_te: Optional[int] = None
     num_samples_per_group_per_bag: int = 1
+
+    # DataLoader settings
     num_workers: int = 0
     persist_workers: bool = False
     pin_memory: bool = True
@@ -62,25 +66,22 @@ class DataModuleConf:
 
 @dataclass(eq=False)
 class DataModule(Generic[D]):
+    cfg: DataModuleConf
     train: D
     deployment: D
     deployment_ids: Optional[Tensor] = field(init=False, default=None)
     test: D
     split_seed: Optional[int]
 
-    # DataLoader settings
-    batch_size_tr: int
     _batch_size_te: Optional[int] = None
-    num_samples_per_group_per_bag: int = 1
 
-    num_workers: int = 4
-    persist_workers: bool = False
-    pin_memory: bool = True
-    seed: int = 47
+    def __post_init__(self) -> None:
+        # we have to store `batch_size_tr` in `self` because `gcopy` may want to overwrite it
+        self.batch_size_tr: int = self.cfg.batch_size_tr
 
     @property
     def generator(self) -> torch.Generator:
-        return torch.Generator().manual_seed(self.seed)
+        return torch.Generator().manual_seed(self.cfg.seed)
 
     @property
     def batch_size_te(self) -> int:
@@ -176,7 +177,7 @@ class DataModule(Generic[D]):
 
     @property
     def bag_size(self) -> int:
-        return self.card_y * self.card_s * self.num_samples_per_group_per_bag
+        return self.card_y * self.card_s * self.cfg.num_samples_per_group_per_bag
 
     @property
     def group_ids_tr(self) -> Tensor:
@@ -223,10 +224,10 @@ class DataModule(Generic[D]):
             ds,
             batch_size=batch_size if batch_sampler is None else 1,
             shuffle=shuffle,
-            num_workers=self.num_workers if num_workers is None else num_workers,
-            pin_memory=self.pin_memory,
+            num_workers=self.cfg.num_workers if num_workers is None else num_workers,
+            pin_memory=self.cfg.pin_memory,
             drop_last=drop_last,
-            persistent_workers=self.persist_workers,
+            persistent_workers=self.cfg.persist_workers,
             generator=self.generator,
             batch_sampler=batch_sampler,
         )
@@ -259,7 +260,7 @@ class DataModule(Generic[D]):
         self, group_ids: Tensor, *, batch_size: int
     ) -> StratifiedBatchSampler:
         multipliers = self.get_group_multipliers(group_ids, card_s=self.test.card_s)
-        num_samples_per_group = self.num_samples_per_group_per_bag * batch_size
+        num_samples_per_group = self.cfg.num_samples_per_group_per_bag * batch_size
         return StratifiedBatchSampler(
             group_ids=group_ids.squeeze().tolist(),
             num_samples_per_group=num_samples_per_group,
@@ -394,11 +395,11 @@ class DataModule(Generic[D]):
     ) -> Self:
         splits = splitter(ds)
         dm = cls(
+            cfg=config,
             train=splits.train,
             deployment=splits.deployment,
             test=splits.test,
             split_seed=getattr(splitter, "seed", None),
-            **config,  # type: ignore
         )
         deployment_ids = labeller.run(dm=dm)
         dm.deployment_ids = deployment_ids
