@@ -2,10 +2,12 @@ from typing import Any, ClassVar, Dict, Optional
 
 from attrs import define, field
 
-from src.hydra_confs.camelyon17.conf import Camelyon17Conf
-from src.hydra_confs.celeba.conf import CelebAConf
-from src.hydra_confs.cmnist.conf import ColoredMNISTConf
-from src.hydra_confs.nih.conf import NIHChestXRayDatasetConf
+from src.hydra_confs.datasets import (
+    Camelyon17Conf,
+    CelebAConf,
+    ColoredMNISTConf,
+    NIHChestXRayDatasetConf,
+)
 from src.labelling.pipeline import (
     CentroidalLabelNoiser,
     ClipClassifier,

@@ -4,9 +4,7 @@ from attrs import define, field
 
 from src.data import RandomSplitter
 from src.data.splitter import RandomSplitter
-from src.hydra_confs.camelyon17.conf import Camelyon17Conf
-from src.hydra_confs.celeba.conf import CelebAConf
-from src.hydra_confs.nih.conf import NIHChestXRayDatasetConf
+from src.hydra_confs.datasets import Camelyon17Conf, CelebAConf, NIHChestXRayDatasetConf
 from src.logging import WandbConf
 
 __all__ = ["SplitRelay"]

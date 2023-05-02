@@ -7,10 +7,12 @@ from src.algs.fs import Dro, Erm, FsAlg, Gdro, Jtt, LfF, SdErm
 from src.arch import BackboneFactory
 from src.arch.backbones.vision import DenseNet, ResNet, SimpleCNN
 from src.arch.predictors.fcn import Fcn
-from src.hydra_confs.camelyon17.conf import Camelyon17Conf
-from src.hydra_confs.celeba.conf import CelebAConf
-from src.hydra_confs.cmnist.conf import ColoredMNISTConf
-from src.hydra_confs.nih.conf import NIHChestXRayDatasetConf
+from src.hydra_confs.datasets import (
+    Camelyon17Conf,
+    CelebAConf,
+    ColoredMNISTConf,
+    NIHChestXRayDatasetConf,
+)
 from src.labelling.pipeline import (
     CentroidalLabelNoiser,
     GroundTruthLabeller,
