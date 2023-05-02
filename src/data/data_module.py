@@ -10,10 +10,12 @@ from typing import (
     Iterator,
     List,
     Optional,
+    Sequence,
     Set,
     TYPE_CHECKING,
+    Union,
 )
-from typing_extensions import Self
+from typing_extensions import Self, override
 
 import albumentations as A
 from conduit.data.constants import IMAGENET_STATS
@@ -29,6 +31,7 @@ from ranzen.torch.data import (
     SequentialBatchSampler,
     StratifiedBatchSampler,
     TrainingMode,
+    num_batches_per_epoch,
 )
 import torch
 from torch import Tensor
@@ -260,7 +263,7 @@ class DataModule(Generic[D]):
     ) -> StratifiedBatchSampler:
         multipliers = self.get_group_multipliers(group_ids, card_s=self.test.card_s)
         num_samples_per_group = self.cfg.num_samples_per_group_per_bag * batch_size
-        return StratifiedBatchSampler(
+        sam = StratifiedBatchSampler(
             group_ids=group_ids.squeeze().tolist(),
             num_samples_per_group=num_samples_per_group,
             shuffle=True,
@@ -270,6 +273,10 @@ class DataModule(Generic[D]):
             drop_last=False,
             generator=self.generator,
         )
+        logger.info(
+            f"{sam.num_groups_effective=}, {len(sam.groupwise_idxs)=}, {sam.num_samples_per_group=}"
+        )
+        return sam
 
     def train_dataloader(
         self,
@@ -437,3 +444,72 @@ class DataModule(Generic[D]):
                 if (stats := _get_stats(tform)) is not None:
                     return denormalize(x, mean=stats.mean, std=stats.std, inplace=inplace)
         return x
+
+
+class ApproxStratBatchSampler(BatchSamplerBase):
+    """Approximate Stratified Batch Sampler.
+
+    For each class, we just sample n=card_s samples and hope that this covers all subgroups.
+    """
+
+    def __init__(
+        self,
+        class_ids: Sequence[int],
+        num_samples_per_group: int,
+        card_s: int,
+        trainig_mode: TrainingMode = TrainingMode.step,
+        drop_last: bool = False,
+        generator: Union[torch.Generator, None] = None,
+    ) -> None:
+        class_ids_t = torch.as_tensor(class_ids, dtype=torch.int64)
+        classes: list[int] = class_ids_t.unique().tolist()
+
+        classwise_idxs: list[Tensor] = []
+        for class_ in classes:
+            idxs = (class_ids_t == class_).nonzero(as_tuple=False).view(-1)
+            classwise_idxs.append(idxs)
+
+            if len(idxs) < num_samples_per_group * card_s:
+                raise ValueError(
+                    f"Not enough samples in class {class_} to sample {num_samples_per_group}"
+                )
+
+        self.classwise_idxs = classwise_idxs
+        self.card_s = card_s
+        self.num_samples_per_group = num_samples_per_group
+        self.training_mode = trainig_mode
+        self.generator = generator
+
+        if self.training_mode is TrainingMode.epoch:
+            # some classes have fewer samples than others
+            # we want to know how many batches to sample to cover the biggest class
+            classwise_epoch_lengths = [
+                num_batches_per_epoch(
+                    num_samples=len(idxs),
+                    batch_size=card_s * num_samples_per_group,
+                    drop_last=drop_last,
+                )
+                for idxs in self.classwise_idxs
+            ]
+            max_epoch_length = max(classwise_epoch_lengths)
+        else:
+            max_epoch_length = None
+
+        super().__init__(epoch_length=max_epoch_length)
+
+    @override
+    def __iter__(self) -> Iterator[list[int]]:
+        generator = self.generator
+        if generator is None:
+            generator = torch.Generator()
+            generator = generator.manual_seed(
+                int(torch.empty((), dtype=torch.int64).random_().item())
+            )
+
+        while True:
+            sampled_idxs: list[Tensor] = []
+            for class_idxs in self.classwise_idxs:
+                # first shuffle the indexes and then take as many as we need
+                shuffled_idx = class_idxs[torch.randperm(len(class_idxs), generator=generator)]
+                sampled_idxs.append(shuffled_idx[: self.num_samples_per_group * self.card_s])
+            yield torch.cat(sampled_idxs, dim=0).tolist()
