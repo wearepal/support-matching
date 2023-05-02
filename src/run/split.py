@@ -1,9 +1,5 @@
 from src.relay import SplitRelay
-
-
-def main() -> None:
-    SplitRelay.with_hydra(instantiate_recursively=False, clear_cache=True, root="conf")
-
+from src.run.base import launch
 
 if __name__ == "__main__":
-    main()
+    launch(SplitRelay)

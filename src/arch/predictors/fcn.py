@@ -95,8 +95,8 @@ class BatchAggregatorEnum(Enum):
 
 @dataclass(eq=False)
 class SetFcn(PredictorFactory):
-    hidden_dim_pre: Optional[int]
-    hidden_dim_post: Optional[int]
+    hidden_dim_pre: Optional[int] = None
+    hidden_dim_post: Optional[int] = None
     num_hidden_pre: int = 1
     num_hidden_post: int = 1
     agg_input_dim: Optional[int] = None

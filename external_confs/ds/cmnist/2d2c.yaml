@@ -1,6 +1,6 @@
 ---
 defaults:
-  - /schema/ds: cmnist
+  - /ds/cmnist@_here_
   - defaults
   - _self_
 root: null

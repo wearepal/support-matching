@@ -1,6 +1,6 @@
 ---
 defaults:
-  - /schema/ae_arch: artifact
+  - /ae_arch/artifact@_here_
   - _self_
 artifact_name: nih_gender_infiltration_sb10_0_vqgan_ae
 version: 1

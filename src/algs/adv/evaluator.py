@@ -11,7 +11,6 @@ from loguru import logger
 from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
 import numpy as np
-from omegaconf import DictConfig
 from ranzen.misc import gcopy
 import seaborn as sns
 import torch
@@ -264,9 +263,9 @@ class Evaluator:
     optimizer_cls: Optimizer = Optimizer.ADAM
     lr: float = 1.0e-4
     weight_decay: float = 0
-    optimizer_kwargs: Optional[DictConfig] = None
+    optimizer_kwargs: Optional[dict] = None
     scheduler_cls: Optional[str] = None
-    scheduler_kwargs: Optional[DictConfig] = None
+    scheduler_kwargs: Optional[dict] = None
 
     def _fit_classifier(self, dm: DataModule, *, pred_s: bool, device: torch.device) -> Classifier:
         input_dim = dm.dim_x[0]

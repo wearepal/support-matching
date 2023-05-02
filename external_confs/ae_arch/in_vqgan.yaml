@@ -1,6 +1,6 @@
 ---
 defaults:
-  - /schema/ae_arch: vqgan
+  - vqgan
   - _self_
 # Config taken from:
 # https://github.com/CompVis/taming-transformers/blob/master/configs/imagenet_vqgan.yaml

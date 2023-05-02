@@ -84,7 +84,9 @@ class KMeans:
     supervised_cluster_init: bool = False
     spherical: bool = True
     device: Union[int, str, torch.device] = 0
-    _fitted_model: Optional[SklKMeans] = field(init=False, default=None)
+    _fitted_model: Optional[SklKMeans] = field(
+        default=None, init=False, metadata={"omegaconf_ignore": True}
+    )
 
     def fit(self, dm: DataModule, *, encodings: Encodings) -> None:
         device = resolve_device(self.device)

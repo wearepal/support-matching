@@ -1,8 +1,7 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any
 from typing_extensions import override
 
-from conduit.types import Loss
 from torch import Tensor
 import torch.nn as nn
 
@@ -18,7 +17,7 @@ __all__ = ["Erm"]
 
 @dataclass(repr=False, eq=False)
 class Erm(FsAlg):
-    criterion: Optional[Loss] = None
+    criterion: Any = None  # Optional[Loss]
 
     @override
     def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:

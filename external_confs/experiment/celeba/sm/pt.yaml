@@ -3,17 +3,13 @@
 # usage: +experiment=celeba/sm/pt
 
 defaults:
+    - /dm: celeba/base
     - override /ds: celeba/gender_smiling
-    - override /dm: celeba/base
-    - override /alg: base
     - override /labeller: gt
     - override /split: celeba/artifact/base
-    - override /ae: base
     - override /ae_arch: in_vqgan
-    - override /disc: base
     - override /disc_arch: set
     - override /scorer: none
-    - override /wandb: base
 
 artifact_name: ${split.artifact_name}_in_vqgan_pt
 seed: 0

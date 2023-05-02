@@ -73,13 +73,11 @@ class SdErm(Erm):
         https://arxiv.org/abs/2011.09468
     """
 
-    criterion: SdCrossEntropyLoss = field(init=False)
-    lambda_: Union[float, Tuple[float, ...]] = 1.0
-    gamma: Union[float, Tuple[float, ...]] = 0.0
+    lambda_: List[float] = field(default_factory=lambda: [1.0])
+    gamma: List[float] = field(default_factory=lambda: [0.0])
 
     def __post_init__(self) -> None:
-        self.criterion = SdCrossEntropyLoss(
-            lambda_=self.lambda_,
-            gamma=self.gamma,
+        self.criterion: SdCrossEntropyLoss = SdCrossEntropyLoss(
+            lambda_=self.lambda_, gamma=self.gamma
         )
         super().__post_init__()

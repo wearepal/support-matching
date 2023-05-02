@@ -1,8 +1,7 @@
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Any, Optional, Union
 from typing_extensions import override
 
-from conduit.types import Loss
 from ranzen import gcopy
 from ranzen.torch import WeightedBatchSampler
 from torch import Tensor
@@ -21,12 +20,13 @@ __all__ = ["Jtt"]
 class Jtt(FsAlg):
     id_steps: Union[float, int] = 0.02
     lambda_uw: Optional[float] = None
-    criterion: Optional[Loss] = None
+    criterion: Any = None  # Optional[Loss]
 
     def __post_init__(self) -> None:
         if isinstance(self.id_steps, float):
             if not (0 <= self.id_steps <= 1):
                 raise AttributeError("If 'id_steps' is a float, it must be in the range [0, 1].")
+        super().__post_init__()
 
     @override
     def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:

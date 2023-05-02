@@ -12,6 +12,7 @@ __all__ = [
     "soft_prediction",
     "to_item",
     "to_numpy",
+    "full_class_path",
 ]
 
 
@@ -55,3 +56,8 @@ def hard_prediction(logits: Tensor) -> Tensor:
 def soft_prediction(logits: Tensor) -> Tensor:
     logits = torch.atleast_1d(logits.squeeze())
     return logits.sigmoid() if logits.ndim == 1 else logits.softmax(dim=1)
+
+
+def full_class_path(obj: object) -> str:
+    class_ = obj.__class__
+    return f"{class_.__module__}.{class_.__qualname__}"

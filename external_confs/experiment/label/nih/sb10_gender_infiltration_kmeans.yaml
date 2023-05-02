@@ -3,9 +3,8 @@
 # usage: +experiment=label/nih/sb10_gender_infiltration_kmeans
 
 defaults:
+    - /dm: nih/base
     - override /ds: nih/gender_infiltration
-    - override /dm: nih/base
     - override /labeller: nih/kmeans
     - override /split: nih/sb10_gender_infiltration_art
-    - override /wandb: base
     - _self_
