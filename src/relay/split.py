@@ -4,8 +4,11 @@ from attrs import define, field
 from conduit.data.datasets.vision import CdtVisionDataset
 
 from src.data import RandomSplitter
+from src.data.common import DatasetFactory
+from src.data.nico_plus_plus import NICOPPCfg
+from src.data.nih import NIHChestXRayDatasetCfg
 from src.data.splitter import RandomSplitter
-from src.hydra_confs.datasets import Camelyon17Conf, CelebAConf, NIHChestXRayDatasetConf
+from src.hydra_confs.datasets import Camelyon17, CelebA
 from src.logging import WandbConf
 
 __all__ = ["SplitRelay"]
@@ -21,19 +24,21 @@ class SplitRelay:
 
     options: ClassVar[Dict[str, Dict[str, type]]] = {
         "ds": {
-            "celeba": CelebAConf,
-            "camelyon17": Camelyon17Conf,
-            "nih": NIHChestXRayDatasetConf,
+            "celeba": CelebA,
+            "camelyon17": Camelyon17,
+            "nih": NIHChestXRayDatasetCfg,
+            "nicopp": NICOPPCfg,
         },
         "split": {"random": RandomSplitter},
     }
 
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> None:
-        assert isinstance(self.ds, CdtVisionDataset)
+        assert isinstance(self.ds, DatasetFactory)
         assert isinstance(self.split, RandomSplitter)
 
         run = self.wandb.init(raw_config, (self.ds,), suffix="artgen")
+        ds = self.ds()
         self.split.save_as_artifact = True
-        self.split(self.ds)
+        self.split(ds)
         if run is not None:
             run.finish()

@@ -2,12 +2,15 @@ import os
 from typing import Any, ClassVar, Dict
 
 from attrs import define, field
+from conduit.data import TernarySample
 from conduit.data.datasets.vision import CdtVisionDataset
 from loguru import logger
 from ranzen.torch import random_seed
 import torch
+from torch import Tensor
 
 from src.data import DataModule, DataModuleConf, RandomSplitter, SplitFromArtifact
+from src.data.common import DatasetFactory
 from src.data.splitter import DataSplitter
 from src.labelling import Labeller
 from src.logging import WandbConf
@@ -26,8 +29,11 @@ class BaseRelay:
         "split": {"random": RandomSplitter, "artifact": SplitFromArtifact}
     }
 
-    def init_dm(self, ds: CdtVisionDataset, labeller: Labeller) -> DataModule:
+    def init_dm(
+        self, ds_factory: DatasetFactory, labeller: Labeller
+    ) -> DataModule[CdtVisionDataset[TernarySample, Tensor, Tensor]]:
         assert isinstance(self.split, DataSplitter)
+        ds = ds_factory()
 
         logger.info(f"Current working directory: '{os.getcwd()}'")
         random_seed(self.seed, use_cuda=True)

@@ -8,12 +8,9 @@ from src.algs.fs import Dro, Erm, FsAlg, Gdro, Jtt, LfF, SdErm
 from src.arch import BackboneFactory
 from src.arch.backbones.vision import DenseNet, ResNet, SimpleCNN
 from src.arch.predictors.fcn import Fcn
-from src.hydra_confs.datasets import (
-    Camelyon17Conf,
-    CelebAConf,
-    ColoredMNISTConf,
-    NIHChestXRayDatasetConf,
-)
+from src.data.common import DatasetFactory
+from src.data.nih import NIHChestXRayDatasetCfg
+from src.hydra_confs.datasets import Camelyon17, CelebA, ColoredMNIST
 from src.labelling.pipeline import (
     CentroidalLabelNoiser,
     GroundTruthLabeller,
@@ -49,10 +46,10 @@ class FsRelay(BaseRelay):
 
     options: ClassVar[dict[str, dict[str, type]]] = BaseRelay.options | {
         "ds": {
-            "cmnist": ColoredMNISTConf,
-            "celeba": CelebAConf,
-            "camelyon17": Camelyon17Conf,
-            "nih": NIHChestXRayDatasetConf,
+            "cmnist": ColoredMNIST,
+            "celeba": CelebA,
+            "camelyon17": Camelyon17,
+            "nih": NIHChestXRayDatasetCfg,
         },
         "backbone": {"densenet": DenseNet, "resnet": ResNet, "simple": SimpleCNN},
         "labeller": {
@@ -69,7 +66,7 @@ class FsRelay(BaseRelay):
     def run(self, raw_config: Optional[dict[str, Any]] = None) -> Optional[float]:
         assert isinstance(self.alg, FsAlg)
         assert isinstance(self.backbone, BackboneFactory)
-        assert isinstance(self.ds, CdtVisionDataset)
+        assert isinstance(self.ds, DatasetFactory)
         assert isinstance(self.labeller, Labeller)
 
         run = self.wandb.init(raw_config, (self.ds, self.labeller, self.backbone, self.predictor))

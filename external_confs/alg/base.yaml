@@ -1,6 +1,5 @@
 ---
 defaults:
-  - defaults
   - _self_
 iters: 50000
 early_stopping: 30

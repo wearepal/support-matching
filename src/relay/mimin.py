@@ -14,12 +14,9 @@ from src.arch.autoencoder import (
     VqGanAe,
 )
 from src.arch.predictors.fcn import Fcn
-from src.hydra_confs.datasets import (
-    Camelyon17Conf,
-    CelebAConf,
-    ColoredMNISTConf,
-    NIHChestXRayDatasetConf,
-)
+from src.data.common import DatasetFactory
+from src.data.nih import NIHChestXRayDatasetCfg
+from src.hydra_confs.datasets import Camelyon17, CelebA, ColoredMNIST
 from src.labelling.pipeline import (
     CentroidalLabelNoiser,
     GroundTruthLabeller,
@@ -53,10 +50,10 @@ class MiMinRelay(BaseRelay):
 
     options: ClassVar[dict[str, dict[str, type]]] = BaseRelay.options | {
         "ds": {
-            "cmnist": ColoredMNISTConf,
-            "celeba": CelebAConf,
-            "camelyon17": Camelyon17Conf,
-            "nih": NIHChestXRayDatasetConf,
+            "cmnist": ColoredMNIST,
+            "celeba": CelebA,
+            "camelyon17": Camelyon17,
+            "nih": NIHChestXRayDatasetCfg,
         },
         "ae_arch": {
             "artifact": AeFromArtifact,
@@ -78,6 +75,7 @@ class MiMinRelay(BaseRelay):
         assert isinstance(self.ae_arch, AeFactory)
         assert isinstance(self.ds, CdtVisionDataset)
         assert isinstance(self.labeller, Labeller)
+        assert isinstance(self.ds, DatasetFactory)
 
         run = self.wandb.init(raw_config, (self.ds, self.labeller, self.ae_arch, self.disc_arch))
         dm = self.init_dm(self.ds, self.labeller)

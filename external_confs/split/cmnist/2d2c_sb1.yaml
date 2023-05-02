@@ -1,7 +1,6 @@
 ---
 defaults:
   - /split/random@_here_
-  - defaults
   - _self_
 log_dataset: ''
 seed: 42

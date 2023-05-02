@@ -1,7 +1,6 @@
 ---
 defaults:
   - /ds/cmnist@_here_
-  - defaults
   - _self_
 root: null
 download: true

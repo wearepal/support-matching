@@ -3,12 +3,9 @@ from typing import Any, ClassVar, Dict, Optional
 from attrs import define, field
 from conduit.data.datasets.vision import CdtVisionDataset
 
-from src.hydra_confs.datasets import (
-    Camelyon17Conf,
-    CelebAConf,
-    ColoredMNISTConf,
-    NIHChestXRayDatasetConf,
-)
+from src.data.common import DatasetFactory
+from src.data.nih import NIHChestXRayDatasetCfg
+from src.hydra_confs.datasets import Camelyon17, CelebA, ColoredMNIST
 from src.labelling.pipeline import (
     CentroidalLabelNoiser,
     ClipClassifier,
@@ -33,10 +30,10 @@ class LabelRelay(BaseRelay):
 
     options: ClassVar[Dict[str, Dict[str, type]]] = BaseRelay.options | {
         "ds": {
-            "cmnist": ColoredMNISTConf,
-            "celeba": CelebAConf,
-            "camelyon17": Camelyon17Conf,
-            "nih": NIHChestXRayDatasetConf,
+            "cmnist": ColoredMNIST,
+            "celeba": CelebA,
+            "camelyon17": Camelyon17,
+            "nih": NIHChestXRayDatasetCfg,
         },
         "labeller": {
             "centroidal_noise": CentroidalLabelNoiser,
@@ -49,6 +46,7 @@ class LabelRelay(BaseRelay):
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Optional[float]:
         assert isinstance(self.ds, CdtVisionDataset)
         assert isinstance(self.labeller, Labeller)
+        assert isinstance(self.ds, DatasetFactory)
 
         run = self.wandb.init(raw_config, (self.ds, self.labeller))
         self.init_dm(self.ds, self.labeller)
