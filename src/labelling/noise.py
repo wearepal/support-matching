@@ -71,7 +71,7 @@ def centroidal_label_noise(
 
     unique, inv = labels.unique(return_inverse=True)
     if metric is ClnMetric.COSINE:
-        norm = encodings.norm(dim=1, p=2, keepdim=True)
+        norm = encodings.norm(dim=1, p=2, keepdim=True)  # type: ignore
         eps = torch.finfo(encodings.dtype).eps
         norm.clamp_min_(eps)
         if not inplace:
