@@ -469,46 +469,62 @@ class DataModule(Generic[D]):
 class ApproxStratBatchSampler(BatchSamplerBase):
     """Approximate Stratified Batch Sampler.
 
-    For each class, we just sample n=card_s samples and hope that this covers all subgroups.
+    This faithfully imlements the pi function.
+
+    We iterate over every class and then, if not all subgroups are present, sample subgroups
+    and take data points from these subgroups.
     """
 
     def __init__(
         self,
-        class_ids: Sequence[int],
+        group_ids: Sequence[int],
+        *,
         num_samples_per_group: int,
         card_s: int,
-        trainig_mode: TrainingMode = TrainingMode.step,
+        training_mode: TrainingMode = TrainingMode.step,
         generator: Union[torch.Generator, None] = None,
     ) -> None:
-        class_ids_t = torch.as_tensor(class_ids, dtype=torch.int64)
-        classes: list[int] = class_ids_t.unique().tolist()
-        self.num_samples_per_class = num_samples_per_group * card_s
+        group_ids_t = torch.as_tensor(group_ids, dtype=torch.int64)
+        # find all unique IDs
+        groups: list[int] = group_ids_t.unique().tolist()
+        assert isinstance(groups, list)
 
-        classwise_idxs: list[Tensor] = []
-        for class_ in classes:
-            idxs = (class_ids_t == class_).nonzero(as_tuple=False).view(-1)
-            classwise_idxs.append(idxs)
+        # get the indexes for each group separately and store them in a hierarchical dict
+        groupwise_idxs: defaultdict[int, list[Tensor]] = defaultdict(list)
+        for group in groups:
+            # Idxs needs to be 1 dimensional
+            idxs = (group_ids_t == group).nonzero(as_tuple=False).view(-1)
+            corresponding_y = group_id_to_label(group_id=group, s_count=card_s, label="y")
+            groupwise_idxs[corresponding_y].append(idxs)
 
-            if len(idxs) < self.num_samples_per_class:
+            if len(idxs) < num_samples_per_group:
+                corresponding_s = group_id_to_label(group_id=group, s_count=card_s, label="s")
                 raise ValueError(
-                    f"Not enough samples in class {class_} to sample {num_samples_per_group}"
+                    f"Not enough samples in group (s={corresponding_s}, y={corresponding_y}) "
+                    f"to sample {num_samples_per_group} (available: {len(idxs)})."
                 )
 
-        self.classwise_idxs = classwise_idxs
-        self.training_mode = trainig_mode
-        self.generator = generator
-        self.batch_size = len(classes) * self.num_samples_per_class
+        self.classes_with_full_support = {
+            y for y, subgroup_idxs in groupwise_idxs.items() if len(subgroup_idxs) == card_s
+        }
 
-        if self.training_mode is TrainingMode.epoch:
-            # some classes have fewer samples than others
-            # we want to know how many batches to sample to cover the biggest class
+        self.groupwise_idxs = groupwise_idxs
+        self.num_samples_per_group = num_samples_per_group
+        self.card_s = card_s
+        self.generator = generator
+        self.batch_size = len(groups) * num_samples_per_group * card_s
+
+        if training_mode is TrainingMode.epoch:
+            # some groups have fewer samples than others
+            # we want to know how many batches to sample to cover even the biggest group
             classwise_epoch_lengths = [
                 num_batches_per_epoch(
                     num_samples=len(idxs),
-                    batch_size=self.num_samples_per_class,
+                    batch_size=num_samples_per_group,
                     drop_last=False,
                 )
-                for idxs in self.classwise_idxs
+                for subgroup_idxs in self.groupwise_idxs.values()
+                for idxs in subgroup_idxs
             ]
             max_epoch_length = max(classwise_epoch_lengths)
         else:
@@ -527,8 +543,25 @@ class ApproxStratBatchSampler(BatchSamplerBase):
 
         while True:
             sampled_idxs: list[Tensor] = []
-            for class_idxs in self.classwise_idxs:
-                # first shuffle the indexes and then take as many as we need
-                shuffled_idx = class_idxs[torch.randperm(len(class_idxs), generator=generator)]
-                sampled_idxs.append(shuffled_idx[: self.num_samples_per_class])
+            for y, subgroupwise_idxs in self.groupwise_idxs.items():
+                if y in self.classes_with_full_support:
+                    # just take samples from each subgroup
+                    sampled_idxs.extend(
+                        self._take_samples_per_group(idxs, generator) for idxs in subgroupwise_idxs
+                    )
+                else:
+                    # first sample (with replacement) the required number of subgroups
+                    subgroups = torch.randint(
+                        low=0, high=len(subgroupwise_idxs), size=(self.card_s,), generator=generator
+                    )
+                    # then take samples from each
+                    sampled_idxs.extend(
+                        self._take_samples_per_group(subgroupwise_idxs[i], generator)
+                        for i in subgroups.tolist()
+                    )
             yield torch.cat(sampled_idxs, dim=0).tolist()
+
+    def _take_samples_per_group(self, tensor: Tensor, generator: torch.Generator) -> Tensor:
+        # first shuffle and then take as many as we need
+        shuffled = tensor[torch.randperm(len(tensor), generator=generator)]
+        return shuffled[: self.num_samples_per_group]
