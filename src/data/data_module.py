@@ -9,6 +9,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    NewType,
     Optional,
     Sequence,
     Set,
@@ -458,6 +459,9 @@ class DataModule(Generic[D]):
         return x
 
 
+Y = NewType("Y", int)  # type meant to help with documentation
+
+
 class ApproxStratBatchSampler(BatchSamplerBase):
     """Approximate Stratified Batch Sampler.
 
@@ -482,12 +486,12 @@ class ApproxStratBatchSampler(BatchSamplerBase):
         assert isinstance(groups, list)
 
         # get the indexes for each group separately and store them in a hierarchical dict
-        groupwise_idxs: defaultdict[int, list[Tensor]] = defaultdict(list)
+        groupwise_idxs: defaultdict[Y, list[Tensor]] = defaultdict(list)
         for group in groups:
             # Idxs needs to be 1 dimensional
             idxs = (group_ids_t == group).nonzero(as_tuple=False).view(-1)
             corresponding_y = group_id_to_label(group_id=group, s_count=card_s, label="y")
-            groupwise_idxs[corresponding_y].append(idxs)
+            groupwise_idxs[Y(corresponding_y)].append(idxs)
 
             if len(idxs) < num_samples_per_group:
                 corresponding_s = group_id_to_label(group_id=group, s_count=card_s, label="s")
@@ -496,7 +500,7 @@ class ApproxStratBatchSampler(BatchSamplerBase):
                     f"to sample {num_samples_per_group} (available: {len(idxs)})."
                 )
 
-        self.classes_with_full_support = {
+        self.classes_with_full_support: set[Y] = {
             y for y, subgroup_idxs in groupwise_idxs.items() if len(subgroup_idxs) == card_s
         }
 
