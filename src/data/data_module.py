@@ -19,7 +19,6 @@ from typing_extensions import Self, override
 
 import albumentations as A
 from conduit.data.constants import IMAGENET_STATS
-from conduit.data.datasets import extract_labels_from_dataset
 from conduit.data.datasets.utils import CdtDataLoader, get_group_ids
 from conduit.data.datasets.vision import CdtVisionDataset, ImageTform, PillowTform
 from conduit.data.structures import MeanStd, TernarySample
@@ -192,13 +191,6 @@ class DataModule(Generic[D]):
         return get_group_ids(self.train)
 
     @property
-    def class_ids_tr(self) -> Tensor:
-        """The class_ids_tr property."""
-        _, y_all = extract_labels_from_dataset(self.train)
-        assert y_all is not None, "found no class labels"
-        return y_all
-
-    @property
     def group_ids_dep(self) -> Tensor:
         return get_group_ids(self.deployment)
 
@@ -309,10 +301,10 @@ class DataModule(Generic[D]):
             if balance:
                 if self.cfg.approx_balance:
                     batch_sampler = ApproxStratBatchSampler(
-                        class_ids=self.class_ids_tr.squeeze().tolist(),
+                        group_ids=self.group_ids_tr.squeeze().tolist(),
                         num_samples_per_group=self.cfg.num_samples_per_group_per_bag * batch_size,
                         card_s=self.card_s,
-                        trainig_mode=TrainingMode.step,
+                        training_mode=TrainingMode.step,
                         generator=self.generator,
                     )
                 else:
@@ -512,7 +504,7 @@ class ApproxStratBatchSampler(BatchSamplerBase):
         self.num_samples_per_group = num_samples_per_group
         self.card_s = card_s
         self.generator = generator
-        self.batch_size = len(groups) * num_samples_per_group * card_s
+        self.batch_size = len(groupwise_idxs) * num_samples_per_group * card_s
 
         if training_mode is TrainingMode.epoch:
             # some groups have fewer samples than others
