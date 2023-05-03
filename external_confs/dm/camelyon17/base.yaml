@@ -1,6 +1,4 @@
 ---
-defaults:
-  - _self_
 batch_size_tr: 16
 batch_size_te: 256
 num_samples_per_group_per_bag: 1

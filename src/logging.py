@@ -1,6 +1,7 @@
 from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
+from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 from typing_extensions import TypeAlias
 
@@ -23,10 +24,13 @@ Run: TypeAlias = Union[
 ]
 
 
+WandbMode = Enum("WandbMode", ["online", "offline", "disabled"])
+
+
 @dataclass
 class WandbConf:
     name: Optional[str] = None
-    mode: str = "online"
+    mode: WandbMode = WandbMode.online
     id: Optional[str] = None
     anonymous: Optional[bool] = None
     project: Optional[str] = "support-matching"
@@ -55,7 +59,9 @@ class WandbConf:
             self.group = default_group
         # TODO: not sure whether `reinit` really should be hardcoded
         self.reinit = True
-        return wandb.init(**asdict(self), config=raw_config)
+        kwargs = asdict(self)
+        kwargs["mode"] = self.mode.name
+        return wandb.init(**kwargs, config=raw_config)
 
 
 def log_images(

@@ -1,8 +1,4 @@
 ---
-defaults:
-  - /split/artifact@_here_
-  - _self_
-
 version: null
 transductive: false
 train_transforms:

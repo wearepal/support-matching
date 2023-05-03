@@ -1,6 +1,6 @@
 ---
 defaults:
-  - /enc/resnet@_here_
+  - resnet
   - _self_
 input_shape:
 latent_dim: 128

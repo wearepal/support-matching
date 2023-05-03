@@ -15,7 +15,7 @@ __all__ = ["SplitRelay"]
 
 @define(eq=False, kw_only=True)
 class SplitRelay:
-    defaults: list[Any] = field(default=[{"ds": "cmnist"}, {"split": "random"}])
+    defaults: list[Any] = field(default=[{"ds": "celeba"}, {"split": "random"}])
 
     ds: Any  # CdtDataset
     split: Any
