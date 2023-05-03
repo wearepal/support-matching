@@ -1,0 +1,5 @@
+---
+approx_balance: true
+num_workers: 8
+batch_size_tr: 1
+batch_size_te: 1

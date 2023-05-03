@@ -1,7 +1,7 @@
 ---
 defaults:
-  - /split/random@_here_
-  - base
+  - random
+  - nicopp/base@_here_
   - _self_
 
 seed: 0

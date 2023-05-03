@@ -49,12 +49,12 @@ def cat(
 
 @torch.no_grad()
 def hard_prediction(logits: Tensor) -> Tensor:
-    logits = torch.atleast_1d(logits.squeeze())
+    logits = logits.squeeze(1) if logits.ndim == 2 else torch.atleast_1d(logits)
     return (logits > 0).long() if logits.ndim == 1 else logits.argmax(dim=1)
 
 
 def soft_prediction(logits: Tensor) -> Tensor:
-    logits = torch.atleast_1d(logits.squeeze())
+    logits = logits.squeeze(1) if logits.ndim == 2 else torch.atleast_1d(logits)
     return logits.sigmoid() if logits.ndim == 1 else logits.softmax(dim=1)
 
 

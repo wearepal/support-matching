@@ -19,6 +19,7 @@ from typing_extensions import Self, override
 
 import albumentations as A
 from conduit.data.constants import IMAGENET_STATS
+from conduit.data.datasets import extract_labels_from_dataset
 from conduit.data.datasets.utils import CdtDataLoader, get_group_ids
 from conduit.data.datasets.vision import CdtVisionDataset, ImageTform, PillowTform
 from conduit.data.structures import MeanStd, TernarySample
@@ -59,6 +60,11 @@ class DataModuleConf:
     batch_size_tr: int = 1
     batch_size_te: Optional[int] = None
     num_samples_per_group_per_bag: int = 1
+    approx_balance: bool = False
+    """
+    If true, we only approximate the balancing of batches in the training set.
+    This makes the batch size more flexible.
+    """
 
     # DataLoader settings
     num_workers: int = 0
@@ -186,6 +192,13 @@ class DataModule(Generic[D]):
         return get_group_ids(self.train)
 
     @property
+    def class_ids_tr(self) -> Tensor:
+        """The class_ids_tr property."""
+        _, y_all = extract_labels_from_dataset(self.train)
+        assert y_all is not None, "found no class labels"
+        return y_all
+
+    @property
     def group_ids_dep(self) -> Tensor:
         return get_group_ids(self.deployment)
 
@@ -273,9 +286,6 @@ class DataModule(Generic[D]):
             drop_last=False,
             generator=self.generator,
         )
-        logger.info(
-            f"{sam.num_groups_effective=}, {len(sam.groupwise_idxs)=}, {sam.num_samples_per_group=}"
-        )
         return sam
 
     def train_dataloader(
@@ -297,9 +307,18 @@ class DataModule(Generic[D]):
         batch_size = self.batch_size_tr if batch_size is None else batch_size
         if batch_sampler is None:
             if balance:
-                batch_sampler = self._make_stratified_sampler(
-                    group_ids=self.group_ids_tr, batch_size=batch_size
-                )
+                if self.cfg.approx_balance:
+                    batch_sampler = ApproxStratBatchSampler(
+                        class_ids=self.class_ids_tr.squeeze().tolist(),
+                        num_samples_per_group=self.cfg.num_samples_per_group_per_bag * batch_size,
+                        card_s=self.card_s,
+                        trainig_mode=TrainingMode.step,
+                        generator=self.generator,
+                    )
+                else:
+                    batch_sampler = self._make_stratified_sampler(
+                        group_ids=self.group_ids_tr, batch_size=batch_size
+                    )
             else:
                 batch_sampler = SequentialBatchSampler(
                     data_source=self.train,
@@ -309,6 +328,7 @@ class DataModule(Generic[D]):
                     drop_last=False,
                     generator=self.generator,
                 )
+            logger.info(f"effective batch size: {batch_sampler.batch_size}")
         return self._make_dataloader(
             ds=self.train,
             batch_size=1,
@@ -458,27 +478,26 @@ class ApproxStratBatchSampler(BatchSamplerBase):
         num_samples_per_group: int,
         card_s: int,
         trainig_mode: TrainingMode = TrainingMode.step,
-        drop_last: bool = False,
         generator: Union[torch.Generator, None] = None,
     ) -> None:
         class_ids_t = torch.as_tensor(class_ids, dtype=torch.int64)
         classes: list[int] = class_ids_t.unique().tolist()
+        self.num_samples_per_class = num_samples_per_group * card_s
 
         classwise_idxs: list[Tensor] = []
         for class_ in classes:
             idxs = (class_ids_t == class_).nonzero(as_tuple=False).view(-1)
             classwise_idxs.append(idxs)
 
-            if len(idxs) < num_samples_per_group * card_s:
+            if len(idxs) < self.num_samples_per_class:
                 raise ValueError(
                     f"Not enough samples in class {class_} to sample {num_samples_per_group}"
                 )
 
         self.classwise_idxs = classwise_idxs
-        self.card_s = card_s
-        self.num_samples_per_group = num_samples_per_group
         self.training_mode = trainig_mode
         self.generator = generator
+        self.batch_size = len(classes) * self.num_samples_per_class
 
         if self.training_mode is TrainingMode.epoch:
             # some classes have fewer samples than others
@@ -486,8 +505,8 @@ class ApproxStratBatchSampler(BatchSamplerBase):
             classwise_epoch_lengths = [
                 num_batches_per_epoch(
                     num_samples=len(idxs),
-                    batch_size=card_s * num_samples_per_group,
-                    drop_last=drop_last,
+                    batch_size=self.num_samples_per_class,
+                    drop_last=False,
                 )
                 for idxs in self.classwise_idxs
             ]
@@ -511,5 +530,5 @@ class ApproxStratBatchSampler(BatchSamplerBase):
             for class_idxs in self.classwise_idxs:
                 # first shuffle the indexes and then take as many as we need
                 shuffled_idx = class_idxs[torch.randperm(len(class_idxs), generator=generator)]
-                sampled_idxs.append(shuffled_idx[: self.num_samples_per_group * self.card_s])
+                sampled_idxs.append(shuffled_idx[: self.num_samples_per_class])
             yield torch.cat(sampled_idxs, dim=0).tolist()

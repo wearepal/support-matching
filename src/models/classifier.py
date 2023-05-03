@@ -6,7 +6,6 @@ from typing_extensions import Literal, override
 from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import BinarySample, NamedSample, TernarySample
 import conduit.metrics as cdtm
-from conduit.metrics import hard_prediction
 from conduit.models.utils import prefix_keys
 from conduit.types import Loss
 from loguru import logger
@@ -87,7 +86,7 @@ class Classifier(Model):
         logger.info("Finished generating predictions")
 
         if with_soft:
-            (soft_preds,) = cat_cpu_flatten(soft_preds_ls)
+            soft_preds = torch.cat(soft_preds_ls, dim=0).cpu()  # don't flatten
             return EvalTuple(y_pred=hard_preds, y_true=actual, s=sens, probs=soft_preds)
         return EvalTuple(y_pred=hard_preds, y_true=actual, s=sens)
 
