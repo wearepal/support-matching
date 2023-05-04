@@ -71,6 +71,7 @@ class Classifier(Model):
     ) -> EvalTuple:
         device = resolve_device(device)
         self.to(device)
+        self.eval()
         hard_preds_ls, actual_ls, sens_ls, soft_preds_ls = [], [], [], []
         with torch.no_grad():
             for batch in tqdm(data, desc="Generating predictions", colour=self._PBAR_COL):
@@ -156,6 +157,7 @@ class Classifier(Model):
                     verbose=False,
                 )
                 log_dict.update(metrics)
+                self.model.train()
             if use_wandb:
                 wandb.log(log_dict)
             pbar.set_postfix(**log_dict)
