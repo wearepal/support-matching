@@ -73,11 +73,10 @@ class DataModule(Generic[D]):
     test: D
     split_seed: Optional[int]
 
-    _batch_size_te: Optional[int] = None
-
     def __post_init__(self) -> None:
         # we have to store `batch_size_tr` in `self` because `gcopy` may want to overwrite it
         self.batch_size_tr: int = self.cfg.batch_size_tr
+        self.batch_size_te = self.cfg.batch_size_te
 
     @property
     def generator(self) -> torch.Generator:
