@@ -500,15 +500,16 @@ class ApproxStratBatchSampler(BatchSamplerBase):
                     f"to sample {num_samples_per_group} (available: {len(idxs)})."
                 )
 
-        self.classes_with_full_support: set[Y] = {
-            y for y, subgroup_idxs in groupwise_idxs.items() if len(subgroup_idxs) == card_s
-        }
+        # self.classes_with_full_support: set[Y] = {
+        #     y for y, subgroup_idxs in groupwise_idxs.items() if len(subgroup_idxs) == card_s
+        # }
 
         self.groupwise_idxs = groupwise_idxs
         self.num_samples_per_group = num_samples_per_group
-        self.card_s = card_s
+        # self.card_s = card_s
         self.generator = generator
-        self.batch_size = len(groupwise_idxs) * num_samples_per_group * card_s
+        # self.batch_size = len(groupwise_idxs) * num_samples_per_group * card_s
+        self.batch_size = len(groupwise_idxs) * num_samples_per_group
 
         if training_mode is TrainingMode.epoch:
             # some groups have fewer samples than others
@@ -540,24 +541,29 @@ class ApproxStratBatchSampler(BatchSamplerBase):
         while True:
             sampled_idxs: list[Tensor] = []
             for y, subgroupwise_idxs in self.groupwise_idxs.items():
-                if y in self.classes_with_full_support:
-                    # just take samples from each subgroup
-                    sampled_idxs.extend(
-                        self._take_samples_per_group(idxs, generator) for idxs in subgroupwise_idxs
-                    )
-                else:
-                    # first sample (with replacement) the required number of subgroups
-                    subgroups = torch.randint(
-                        low=0, high=len(subgroupwise_idxs), size=(self.card_s,), generator=generator
-                    )
-                    # then take samples from each
-                    sampled_idxs.extend(
-                        self._take_samples_per_group(subgroupwise_idxs[i], generator)
-                        for i in subgroups.tolist()
-                    )
+                # if y in self.classes_with_full_support:
+                #     # just take samples from each subgroup
+                #     sampled_idxs.extend(
+                #         self._take_samples_per_group(idxs, generator) for idxs in subgroupwise_idxs
+                #     )
+
+                # first sample (with replacement) the required number of subgroups
+                subgroups = torch.randint(
+                    low=0,
+                    high=len(subgroupwise_idxs),
+                    # size=(self.card_s,),
+                    size=(self.num_samples_per_group,),
+                    generator=generator,
+                )
+                # then take samples from each
+                sampled_idxs.extend(
+                    self._take_samples_per_group(subgroupwise_idxs[i], generator)
+                    for i in subgroups.tolist()
+                )
             yield torch.cat(sampled_idxs, dim=0).tolist()
 
     def _take_samples_per_group(self, tensor: Tensor, generator: torch.Generator) -> Tensor:
         # first shuffle and then take as many as we need
         shuffled = tensor[torch.randperm(len(tensor), generator=generator)]
-        return shuffled[: self.num_samples_per_group]
+        # return shuffled[: self.num_samples_per_group]
+        return shuffled[:1]
