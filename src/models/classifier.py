@@ -129,7 +129,7 @@ class Classifier(Model):
             if use_amp:  # Apply scaling for mixed-precision training
                 loss = grad_scaler.scale(loss)
             loss.backward()  # type: ignore
-            self.step(grad_scaler=grad_scaler)
+            self.step(grad_scaler=grad_scaler, scaler_update=True)
             self.optimizer.zero_grad()
 
             if (test_data is not None) and (step > 0) and (step % val_interval == 0):
@@ -235,7 +235,7 @@ class SetClassifier(Model):
             if use_amp:  # Apply scaling for mixed-precision training
                 loss = grad_scaler.scale(loss)
             loss.backward()  # type: ignore
-            self.step(grad_scaler=grad_scaler)
+            self.step(grad_scaler=grad_scaler, scaler_update=True)
             self.optimizer.zero_grad()
             pbar.set_postfix(**log_dict)
             pbar.update()

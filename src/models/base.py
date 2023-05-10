@@ -58,12 +58,13 @@ class Model(DcModule):
                 scheduler_config.update(self.cfg.scheduler_kwargs)
             self.scheduler = instantiate(scheduler_config, optimizer=self.optimizer)
 
-    def step(self, grad_scaler: Optional[GradScaler] = None) -> None:
+    def step(self, grad_scaler: Optional[GradScaler] = None, scaler_update: bool = True) -> None:
         if grad_scaler is None:
             self.optimizer.step()
         else:
             grad_scaler.step(self.optimizer)
-            grad_scaler.update()
+            if scaler_update:
+                grad_scaler.update()
         if self.scheduler is not None:
             self.scheduler.step()
 
