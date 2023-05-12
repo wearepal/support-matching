@@ -7,6 +7,7 @@ from typing_extensions import TypeAlias
 
 from conduit.data.datasets.vision.base import CdtVisionDataset
 from loguru import logger
+from ranzen.hydra import reconstruct_cmd
 import torch
 from torch import Tensor
 import torchvision
@@ -61,6 +62,7 @@ class WandbConf:
         self.reinit = True
         kwargs = asdict(self)
         kwargs["mode"] = self.mode.name
+        kwargs["cmd"] = reconstruct_cmd()
         return wandb.init(**kwargs, config=raw_config)
 
 
