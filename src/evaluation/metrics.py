@@ -113,14 +113,16 @@ def compute_metrics(
 
     # compute EthicML metrics
     predictions._info = {}  # type: ignore
-    per_sens_metrics = [emm.Accuracy(), emm.ProbPos()]
-    if torch.unique(y_true_t).shape[0] * torch.unique(s_t).shape[0] < 10:
-        per_sens_metrics += [emm.TPR(), emm.TNR()]
     metrics = emm.run_metrics(
         predictions=predictions,
         actual=actual,
         metrics=[emm.Accuracy(), emm.TPR(), emm.TNR(), emm.RenyiCorrelation()],
-        per_sens_metrics=per_sens_metrics,
+        per_sens_metrics=[emm.Accuracy(), emm.ProbPos(), emm.TPR(), emm.TNR()],
+        aggregation=(
+            emm.PerSens.ALL
+            if torch.unique(y_true_t).shape[0] * torch.unique(s_t).shape[0] < 10
+            else emm.PerSens.MIN
+        ),
     )
 
     # compute conduit metrics
