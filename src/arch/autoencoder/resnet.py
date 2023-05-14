@@ -1,11 +1,13 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
+from typing import Union, cast
 from typing_extensions import override
 
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
+import torchvision.models as tvm
 
 from .base import AeFactory, AePair
 
@@ -430,28 +432,31 @@ class ResNetAE(AeFactory):
     version: ResNetVersion = ResNetVersion.RN18
     first_conv: bool = False
     maxpool1: bool = False
+    pretrained_enc: bool = False
 
     @override
-    def __call__(self, input_shape: tuple[int, int, int]) -> AePair[ResNetEncoder, ResNetDecoder]:
-        if self.version is ResNetVersion.RN18:
-            enc_fn = resnet18_encoder
-            dec_fn = resnet18_decoder
+    def __call__(
+        self, input_shape: tuple[int, int, int]
+    ) -> AePair[Union[ResNetEncoder, tvm.ResNet], ResNetDecoder]:
+        encoder: Union[ResNetEncoder, tvm.ResNet]
+        if self.pretrained_enc:
+            assert (
+                self.first_conv and self.maxpool1
+            ), "for pretrained encoder, first_conv and maxpool1 have to be true"
+            weights_enum_name = f"ResNet{self.version.value}_Weights"
+            weights = getattr(tvm, weights_enum_name).DEFAULT
+            fn_name = f"resnet{self.version.value}"
+            encoder = cast(tvm.ResNet, getattr(tvm, fn_name)(weights=weights))
+            encoder.fc = nn.Linear(in_features=encoder.fc.in_features, out_features=self.latent_dim)
         else:
-            enc_fn = resnet50_encoder
-            dec_fn = resnet50_decoder
-        encoder = enc_fn(
-            self.first_conv,
-            latent_dim=self.latent_dim,
-            maxpool1=self.maxpool1,
-        )
+            enc_fn = resnet18_encoder if self.version is ResNetVersion.RN18 else resnet50_encoder
+            encoder = enc_fn(self.first_conv, latent_dim=self.latent_dim, maxpool1=self.maxpool1)
+
+        dec_fn = resnet18_decoder if self.version is ResNetVersion.RN18 else resnet50_decoder
         decoder = dec_fn(
             self.latent_dim,
             input_height=input_shape[1],
             first_conv=self.first_conv,
             maxpool1=self.maxpool1,
         )
-        return AePair(
-            encoder=encoder,
-            decoder=decoder,
-            latent_dim=self.latent_dim,
-        )
+        return AePair(encoder=encoder, decoder=decoder, latent_dim=self.latent_dim)
