@@ -121,7 +121,7 @@ def compute_metrics(
         aggregation=(
             emm.PerSens.ALL
             if torch.unique(y_true_t).shape[0] * torch.unique(s_t).shape[0] < 10
-            else emm.PerSens.MIN
+            else set()
         ),
     )
 

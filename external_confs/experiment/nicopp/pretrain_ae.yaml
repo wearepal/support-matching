@@ -1,0 +1,50 @@
+# @package _global_
+
+# settings for pretraining an autoencoder
+# usage: +experiment=nicopp/pretrain_ae
+
+defaults:
+    - override /ae_arch: resnet
+    - override /dm: nicopp
+    - override /ds: nicopp
+    - override /labeller: gt
+    - override /split: nicopp/change_is_hard
+    - _self_
+
+alg:
+    use_amp: True
+    steps: 30000
+    ga_steps: 1
+    max_grad_norm: 5
+    # the following settings turn off the discriminator
+    num_disc_updates: 0
+    twoway_disc_loss: false
+    prior_loss_w: 0
+    pred_y_loss_w: 0
+    pred_s_loss_w: 0
+    warmup_steps: 0
+    disc_loss_w: 0
+
+ae:
+    recon_loss: l2
+    lr: 1.e-4
+    zs_transform: zero
+    optimizer_cls: ADAM
+    weight_decay: 0
+    zs_dim: 1
+
+ae_arch:
+    version: RN18
+    first_conv: True
+    maxpool1: True
+    latent_dim: 256
+    pretrained_enc: True
+
+dm:
+    batch_size_te: 10
+    num_workers: 4
+
+eval:
+    batch_size: 1
+
+artifact_name: nicopp_resnet_${ae_arch.version}_${ae_arch.latent_dim}_latent_${alg.steps}_steps
