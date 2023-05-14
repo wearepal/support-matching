@@ -2,7 +2,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import TypeAlias
 
 from conduit.data.datasets.vision.base import CdtVisionDataset

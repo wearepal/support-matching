@@ -6,7 +6,6 @@ from src.data import RandomSplitter
 from src.data.common import DatasetFactory
 from src.data.nico_plus_plus import NICOPPCfg
 from src.data.nih import NIHChestXRayDatasetCfg
-from src.data.splitter import RandomSplitter
 from src.hydra_confs.datasets import Camelyon17Cfg, CelebACfg
 from src.logging import WandbConf
 

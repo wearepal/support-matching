@@ -80,7 +80,12 @@ target-version = ['py39']
 [tool.ruff]
 # line length here only affects import sorting
 line-length = 88
-select = ["I"]
+select = ["I", "F", "E", "W"]
+ignore = [
+  "F541",  # f-string without placeholder
+  "E501",  # line too long
+  "E741",  # Ambiguous variable name
+]
 
 [tool.ruff.isort]
 known-third-party = [
@@ -108,6 +113,11 @@ extra-standard-library = ["typing_extensions"]
 force-sort-within-sections = true
 split-on-trailing-comma = false
 classes = ["MISSING", "LAFTR", "NICOPP"]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = [
+  "F403",  # star import
+]
 
 [tool.pyright]
 pythonVersion = "3.9"

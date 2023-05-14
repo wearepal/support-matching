@@ -7,7 +7,6 @@ from typing import Any, Literal, Optional, Set, Tuple, Union
 from typing_extensions import TypeAlias, override
 
 from conduit.data.datasets.vision import CdtVisionDataset
-from conduit.data.datasets.vision.base import CdtVisionDataset
 from conduit.data.structures import TernarySample
 import pandas as pd
 from ranzen import StrEnum
