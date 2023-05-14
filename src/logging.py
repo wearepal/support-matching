@@ -50,7 +50,7 @@ class WandbConf:
         cfgs_for_group: Tuple[object, ...] = (),
         suffix: Optional[str] = None,
     ) -> Run:
-        if raw_config is not None and self.group is None:
+        if self.group is None:
             default_group = "_".join(
                 cfg_obj.__class__.__name__.lower() for cfg_obj in cfgs_for_group
             )
@@ -62,7 +62,8 @@ class WandbConf:
         self.reinit = True
         kwargs = asdict(self)
         kwargs["mode"] = self.mode.name
-        kwargs["cmd"] = reconstruct_cmd()
+        if raw_config is not None:
+            raw_config["cmd"] = reconstruct_cmd()
         return wandb.init(**kwargs, config=raw_config)
 
 
