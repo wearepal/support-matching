@@ -67,6 +67,7 @@ class SummaryMetric(Enum):
     ROB_TPR_GAP = "Robust_TPR_Gap"
     ROB_TNR_GAP = "Robust_TNR_Gap"
     RENYI = "Renyi preds and s"
+    ROB_OVR_TPR = "Robust_OvR_TPR"
 
 
 robust_tpr_gap = cdtm.subclasswise_metric(
@@ -93,28 +94,36 @@ def compute_metrics(
 
     :param pair: predictions and labels in a format that is compatible with EthicML
     :param step: step of training (needed for logging to W&B)
-    :param s_dim: dimension of s
     :param exp_name: name of the experiment
     :param save_summary: if True, a summary will be saved to wandb
     :param use_wandb: whether to use wandb at all
     :param additional_entries: entries that should go with in the summary
+    :param prefix:
+    :param verbose:
 
     :returns: dictionary with the computed metrics
     """
     logger.info("Computing classification metrics")
     predictions = pair.pred
     actual = pair.actual
-    predictions._info = {}  # type: ignore
-    metrics = emm.run_metrics(
-        predictions=predictions,
-        actual=actual,
-        metrics=[emm.Accuracy(), emm.TPR(), emm.TNR(), emm.RenyiCorrelation()],
-        per_sens_metrics=[emm.Accuracy(), emm.ProbPos(), emm.TPR(), emm.TNR()],
-    )
     # Convert to tensor for compatibility with conduit-derived metrics.
     y_pred_t = torch.as_tensor(torch.as_tensor(predictions.hard, dtype=torch.long))
     y_true_t = torch.as_tensor(torch.as_tensor(actual.y, dtype=torch.long))
     s_t = torch.as_tensor(torch.as_tensor(actual.s, dtype=torch.long))
+
+    # compute EthicML metrics
+    predictions._info = {}  # type: ignore
+    per_sens_metrics = [emm.Accuracy(), emm.ProbPos()]
+    if torch.unique(y_true_t).shape[0] * torch.unique(s_t).shape[0] < 10:
+        per_sens_metrics += [emm.TPR(), emm.TNR()]
+    metrics = emm.run_metrics(
+        predictions=predictions,
+        actual=actual,
+        metrics=[emm.Accuracy(), emm.TPR(), emm.TNR(), emm.RenyiCorrelation()],
+        per_sens_metrics=per_sens_metrics,
+    )
+
+    # compute conduit metrics
     cdt_metrics = {
         SummaryMetric.ROB_ACC.value: cdtm.robust_accuracy,
         SummaryMetric.BAL_ACC.value: cdtm.subclass_balanced_accuracy,
@@ -123,6 +132,7 @@ def compute_metrics(
         SummaryMetric.ROB_TNR_GAP.value: robust_tnr_gap,
         SummaryMetric.ROB_TPR.value: cdtm.robust_tpr,
         SummaryMetric.ROB_TNR.value: cdtm.robust_tnr,
+        SummaryMetric.ROB_OVR_TPR.value: cdtm.robust_ovr_tpr,
     }
     for name, fn in cdt_metrics.items():
         metrics[name] = fn(y_pred=y_pred_t, y_true=y_true_t, s=s_t).item()
