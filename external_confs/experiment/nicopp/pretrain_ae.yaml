@@ -30,7 +30,6 @@ ae_arch:
     first_conv: True
     maxpool1: True
     latent_dim: 256
-    pretrained_enc: True
 
 dm:
     batch_size_te: 10

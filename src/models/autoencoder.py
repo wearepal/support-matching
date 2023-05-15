@@ -116,13 +116,13 @@ class SplitLatentAe(Model):
     cfg: SplitLatentAeCfg  # overriding the definition in `Model`
     feature_group_slices: Optional[Dict[str, List[slice]]] = None
     recon_loss_fn: Callable[[Tensor, Tensor], Tensor] = field(init=False)
+    zs_dim: int = field(init=False)
 
     def __post_init__(self) -> None:
         zs_dim_t = self.cfg.zs_dim
         self.latent_dim: int = self.model.latent_dim
-        if isinstance(zs_dim_t, float):
-            zs_dim_t = round(zs_dim_t * self.latent_dim)
-        self.encoding_size = EncodingSize(zs=zs_dim_t, zy=self.latent_dim - zs_dim_t)
+        self.zs_dim = round(zs_dim_t * self.latent_dim) if isinstance(zs_dim_t, float) else zs_dim_t
+        self.encoding_size = EncodingSize(zs=self.zs_dim, zy=self.latent_dim - self.zs_dim)
 
         if self.cfg.recon_loss is ReconstructionLoss.mixed:
             if self.feature_group_slices is None:
@@ -150,12 +150,12 @@ class SplitLatentAe(Model):
         mode: Literal["soft", "hard", "relaxed"] = "soft",
     ) -> Tensor:
         if s is not None:  # we've been given the ground-truth labels for reconstruction
-            card_s = split_encoding.zy.size(1)
+            card_s = split_encoding.zs.size(1)
             if card_s > 1:
-                s = cast(Tensor, F.one_hot(s.long(), num_classes=card_s))
+                s_ = cast(Tensor, F.one_hot(s.long(), num_classes=card_s))
             else:
-                s = s.view(-1, 1)
-            split_encoding = replace(split_encoding, zs=s.float())
+                s_ = s.view(-1, 1)
+            split_encoding = replace(split_encoding, zs=s_.float())
 
         decoding = self.model.decoder(split_encoding.join())
         if mode in ("hard", "relaxed") and self.feature_group_slices:
