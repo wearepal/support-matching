@@ -27,24 +27,24 @@ Select `ae_arch=artifact` and then set `ae_arch.artifact_name` to whatever you c
 ## Saving pre-defined dataset splits
 
 ```python
+>>> import numpy as np
+>>> import torch
 >>> from conduit.data.datasets.vision import NICOPP
 >>> from src.data.splitter import save_split_inds_as_artifact
 >>> import wandb
 >>> run = wandb.init(project="support-matching", entity= "predictive-analytics-lab", dir="local_logging")
 >>> ds = NICOPP(root="/srv/galene0/shared/data")
->>> import numpy as np
->>> import torch
 >>> train_inds = torch.as_tensor(np.nonzero(ds.metadata["split"] == NICOPP.Split.TRAIN.value)[0])
 >>> test_inds = torch.as_tensor(np.nonzero(ds.metadata["split"] == NICOPP.Split.TEST.value)[0])
 >>> dep_inds = torch.as_tensor(np.nonzero(ds.metadata["split"] == NICOPP.Split.VAL.value)[0])
 >>> save_split_inds_as_artifact(
-... run=run,
-... train_inds=train_inds,
-... test_inds=test_inds,
-... dep_inds=dep_inds,
-... ds=ds,
-... seed=0,
-... artifact_name="nicopp_change_is_hard_split",
+...   run=run,
+...   train_inds=train_inds,
+...   test_inds=test_inds,
+...   dep_inds=dep_inds,
+...   ds=ds,
+...   seed=0,
+...   artifact_name="nicopp_change_is_hard_split",
 ... )
 >>> run.finish()
 ```
