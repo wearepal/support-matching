@@ -6,6 +6,7 @@ from typing_extensions import Literal, override
 from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import BinarySample, NamedSample, TernarySample
 import conduit.metrics as cdtm
+from conduit.metrics import hard_prediction
 from conduit.models.utils import prefix_keys
 from conduit.types import Loss
 from loguru import logger
@@ -22,7 +23,7 @@ from src.arch.predictors import SetPredictor
 from src.data import EvalTuple
 from src.data.utils import resolve_device
 from src.evaluation.metrics import EmEvalPair, compute_metrics
-from src.utils import cat, hard_prediction, soft_prediction, to_item
+from src.utils import cat, soft_prediction, to_item
 
 from .base import Model
 

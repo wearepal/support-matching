@@ -8,7 +8,6 @@ from torch.types import Number
 
 __all__ = [
     "cat",
-    "hard_prediction",
     "soft_prediction",
     "to_item",
     "to_numpy",
@@ -47,14 +46,8 @@ def cat(
         yield torch.cat(ls_, dim=dim).to(device=device)
 
 
-@torch.no_grad()
-def hard_prediction(logits: Tensor) -> Tensor:
-    logits = torch.atleast_1d(logits.squeeze())
-    return (logits > 0).long() if logits.ndim == 1 else logits.argmax(dim=1)
-
-
 def soft_prediction(logits: Tensor) -> Tensor:
-    logits = torch.atleast_1d(logits.squeeze())
+    logits = logits.squeeze(1) if logits.ndim == 2 else torch.atleast_1d(logits)
     return logits.sigmoid() if logits.ndim == 1 else logits.softmax(dim=1)
 
 
