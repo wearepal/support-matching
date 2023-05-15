@@ -1,8 +1,4 @@
 ---
-defaults:
-  - /split/random@_here_
-  - _self_
-
 seed: 0
 transductive: false
 dep_prop: 0.4

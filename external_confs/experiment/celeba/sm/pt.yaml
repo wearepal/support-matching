@@ -3,7 +3,6 @@
 # usage: +experiment=celeba/sm/pt
 
 defaults:
-    - /dm: celeba/base
     - override /ds: celeba/gender_smiling
     - override /labeller: gt
     - override /split: celeba/artifact/base

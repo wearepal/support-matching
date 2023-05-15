@@ -1,9 +1,7 @@
 ---
 defaults:
-  - /ds/cmnist@_here_
-  - defaults
+  - cmnist
   - _self_
-root: null
 download: true
 transform: null
 label_map:

@@ -1,6 +1,6 @@
 ---
 defaults:
-  - /labeller/kmeans@_here_
+  - kmeans
   - _self_
 clip_version: RN50
 download_root: null

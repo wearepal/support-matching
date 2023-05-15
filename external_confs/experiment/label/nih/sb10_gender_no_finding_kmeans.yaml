@@ -3,7 +3,6 @@
 # usage: +experiment=label/nih/sb10_gender_no_finding_kmeans
 
 defaults:
-    - /dm: nih/base
     - override /ds: nih/gender_no_finding
     - override /labeller: nih/kmeans
     - override /split: nih/sb10_gender_no_finding_art

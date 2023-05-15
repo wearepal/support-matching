@@ -1,6 +1,7 @@
 ---
 defaults:
-  - celeba/random/base@_here_
+  - random
+  - /split/celeba/random/base@_here_
   - _self_
 
 artifact_name: split_celeba_no_unsmiling_males_${oc.env:SLURM_NODELIST}_${.seed}

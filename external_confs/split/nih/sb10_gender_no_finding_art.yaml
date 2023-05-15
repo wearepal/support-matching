@@ -1,6 +1,6 @@
 ---
 defaults:
-  - /split/artifact@_here_
+  - artifact
   - _self_
 artifact_name: split_nihchestxraydataset_kyiv_0
 version: 0

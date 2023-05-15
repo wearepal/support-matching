@@ -1,7 +1,6 @@
 ---
 defaults:
-  - /split/random@_here_
-  - defaults
+  - random
   - _self_
 seed: 42
 transductive: false

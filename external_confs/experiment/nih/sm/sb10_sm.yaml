@@ -1,9 +1,8 @@
 # @package _global_
 
-# usage: +experiment=nih/sb10_sm
+# usage: +experiment=nih/sm/sb10_sm
 
 defaults:
-    - /dm: nih/base
     - override /ds: nih/gender_infiltration
     - override /labeller: gt
     - override /split: nih/sb10_gender_infiltration_art
