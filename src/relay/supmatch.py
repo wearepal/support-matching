@@ -2,7 +2,6 @@ from dataclasses import asdict
 from typing import Any, ClassVar, Dict, Optional
 
 from attrs import define, field
-from conduit.data.datasets.vision import CdtVisionDataset
 from loguru import logger
 
 from src.algs import SupportMatching
@@ -17,12 +16,9 @@ from src.arch.autoencoder import (
 )
 from src.arch.predictors.base import PredictorFactory
 from src.arch.predictors.fcn import Fcn, SetFcn
-from src.hydra_confs.datasets import (
-    Camelyon17Conf,
-    CelebAConf,
-    ColoredMNISTConf,
-    NIHChestXRayDatasetConf,
-)
+from src.data.common import DatasetFactory
+from src.data.nih import NIHChestXRayDatasetCfg
+from src.hydra_confs.datasets import Camelyon17Cfg, CelebACfg, ColoredMNISTCfg
 from src.labelling.pipeline import (
     CentroidalLabelNoiser,
     GroundTruthLabeller,
@@ -57,7 +53,7 @@ class SupMatchRelay(BaseRelay):
     alg: SupportMatching = field(default=SupportMatching)
     ae: SplitLatentAeCfg = field(default=SplitLatentAeCfg)
     ae_arch: Any  # AeFactory
-    ds: Any  # CdtDataset
+    ds: Any  # DatasetFactory
     disc_arch: Any  # PredictorFactory
     disc: NeuralDiscriminatorCfg = field(default=NeuralDiscriminatorCfg)
     eval: Evaluator = field(default=Evaluator)
@@ -68,10 +64,10 @@ class SupMatchRelay(BaseRelay):
     options: ClassVar[Dict[str, Dict[str, type]]] = BaseRelay.options | {
         "scorer": {"neural": NeuralScorer, "none": NullScorer},
         "ds": {
-            "cmnist": ColoredMNISTConf,
-            "celeba": CelebAConf,
-            "camelyon17": Camelyon17Conf,
-            "nih": NIHChestXRayDatasetConf,
+            "cmnist": ColoredMNISTCfg,
+            "celeba": CelebACfg,
+            "camelyon17": Camelyon17Cfg,
+            "nih": NIHChestXRayDatasetCfg,
         },
         "ae_arch": {
             "artifact": AeFromArtifact,
@@ -93,12 +89,13 @@ class SupMatchRelay(BaseRelay):
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Optional[float]:
         assert isinstance(self.ae_arch, AeFactory)
         assert isinstance(self.disc_arch, PredictorFactory)
-        assert isinstance(self.ds, CdtVisionDataset)
+        assert isinstance(self.ds, DatasetFactory)
         assert isinstance(self.labeller, Labeller)
         assert isinstance(self.scorer, Scorer)
 
-        run = self.wandb.init(raw_config, (self.ds, self.labeller, self.ae_arch, self.disc_arch))
-        dm = self.init_dm(self.ds, self.labeller)
+        ds = self.ds()
+        run = self.wandb.init(raw_config, (ds, self.labeller, self.ae_arch, self.disc_arch))
+        dm = self.init_dm(ds, self.labeller)
         ae_pair = self.ae_arch(input_shape=dm.dim_x)
         ae = SplitLatentAe(cfg=self.ae, model=ae_pair, feature_group_slices=dm.feature_group_slices)
         logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
