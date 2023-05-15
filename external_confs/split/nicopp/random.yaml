@@ -1,0 +1,25 @@
+---
+defaults:
+  - random
+  - /split/nicopp/base@_here_
+  - _self_
+
+seed: 0
+train_subsampling_props:
+    6: {0: 0.0}  # cactus: autumn
+    11: {4: 0.0}  # corn: rock
+    13: {0: 0.0}  # crab: autumn
+    14: {0: 0.0}  # crocodile: autumn
+    16: {0: 0.0}  # dolphin: autumn
+    20: {4: 0.0}  # football: rock
+    26: {4: 0.0}  # hat: rock
+    31: {0: 0.0}  # lifeboat: autumn
+    33: {1: 0.0}  # lizard: dim
+    37: {0: 0.0}  # ostrich: autumn
+    39: {0: 0.0, 1: 0.0, 4: 0.0}  # pineapple: (autumn, dim, rock)
+    42: {0: 0.0, 4: 0.0}  # racket: (autumn, rock)
+    45: {0: 0.0}  # seal: autumn
+    48: {0: 0.0, 1: 0.0, 3: 0.0, 4: 0.0}  # shrimp: (autumn, dim, outdoor, rock)
+    49: {0: 0.0}  # spider: autumn
+    51: {0: 0.0}  # sunflower: autumn
+    58: {4: 0.0}  # wheat: rock

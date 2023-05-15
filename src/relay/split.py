@@ -4,6 +4,7 @@ from attrs import define, field
 
 from src.data import RandomSplitter
 from src.data.common import DatasetFactory
+from src.data.nico_plus_plus import NICOPPCfg
 from src.data.nih import NIHChestXRayDatasetCfg
 from src.hydra_confs.datasets import Camelyon17Cfg, CelebACfg
 from src.logging import WandbConf
@@ -24,6 +25,7 @@ class SplitRelay:
             "celeba": CelebACfg,
             "camelyon17": Camelyon17Cfg,
             "nih": NIHChestXRayDatasetCfg,
+            "nicopp": NICOPPCfg,
         },
         "split": {"random": RandomSplitter},  # for compatibility we define a one-option variant
     }

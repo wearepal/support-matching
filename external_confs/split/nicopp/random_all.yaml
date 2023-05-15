@@ -1,0 +1,7 @@
+---
+defaults:
+  - random
+  - /split/nicopp/base@_here_
+  - _self_
+
+seed: 0
