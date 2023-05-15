@@ -131,10 +131,8 @@ class SupportMatching(AdvSemiSupervisedAlg):
     def _update_discriminator(self, disc: BinaryDiscriminator) -> None:
         if isinstance(disc, NeuralDiscriminator):
             self._clip_gradients(disc.parameters())
-            disc.step(grad_scaler=self.grad_scaler)
+            disc.step(grad_scaler=self.grad_scaler, scaler_update=True)
             disc.zero_grad()
-            if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
-                self.grad_scaler.update()
 
     @override
     def discriminator_step(

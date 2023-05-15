@@ -287,13 +287,13 @@ class AdvSemiSupervisedAlg(Algorithm):
         # Clip the norm of the gradients if max_grad_norm is not None
         self._clip_gradients(comp.parameters())
         # Update the encoder's parameters
-        comp.ae.step(grad_scaler=self.grad_scaler)
+        comp.ae.step(grad_scaler=self.grad_scaler, scaler_update=False)
         comp.ae.zero_grad()
         if comp.pred_y is not None:
-            comp.pred_y.step(grad_scaler=self.grad_scaler)
+            comp.pred_y.step(grad_scaler=self.grad_scaler, scaler_update=False)
             comp.pred_y.zero_grad()
         if comp.pred_s is not None:
-            comp.pred_s.step(grad_scaler=self.grad_scaler)
+            comp.pred_s.step(grad_scaler=self.grad_scaler, scaler_update=False)
             comp.pred_s.zero_grad()
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
             self.grad_scaler.update()

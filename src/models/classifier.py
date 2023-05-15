@@ -71,6 +71,7 @@ class Classifier(Model):
     ) -> EvalTuple:
         device = resolve_device(device)
         self.to(device)
+        self.eval()
         hard_preds_ls, actual_ls, sens_ls, soft_preds_ls = [], [], [], []
         with torch.no_grad():
             for batch in tqdm(data, desc="Generating predictions", colour=self._PBAR_COL):
@@ -86,7 +87,7 @@ class Classifier(Model):
         logger.info("Finished generating predictions")
 
         if with_soft:
-            (soft_preds,) = cat_cpu_flatten(soft_preds_ls)
+            soft_preds = torch.cat(soft_preds_ls, dim=0).cpu()  # don't flatten
             return EvalTuple(y_pred=hard_preds, y_true=actual, s=sens, probs=soft_preds)
         return EvalTuple(y_pred=hard_preds, y_true=actual, s=sens)
 
@@ -128,7 +129,7 @@ class Classifier(Model):
             if use_amp:  # Apply scaling for mixed-precision training
                 loss = grad_scaler.scale(loss)
             loss.backward()  # type: ignore
-            self.step(grad_scaler=grad_scaler)
+            self.step(grad_scaler=grad_scaler, scaler_update=True)
             self.optimizer.zero_grad()
 
             if (test_data is not None) and (step > 0) and (step % val_interval == 0):
@@ -156,6 +157,7 @@ class Classifier(Model):
                     verbose=False,
                 )
                 log_dict.update(metrics)
+                self.model.train()
             if use_wandb:
                 wandb.log(log_dict)
             pbar.set_postfix(**log_dict)
@@ -233,7 +235,7 @@ class SetClassifier(Model):
             if use_amp:  # Apply scaling for mixed-precision training
                 loss = grad_scaler.scale(loss)
             loss.backward()  # type: ignore
-            self.step(grad_scaler=grad_scaler)
+            self.step(grad_scaler=grad_scaler, scaler_update=True)
             self.optimizer.zero_grad()
             pbar.set_postfix(**log_dict)
             pbar.update()
