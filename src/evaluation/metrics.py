@@ -119,7 +119,7 @@ def compute_metrics(
         metrics=[emm.Accuracy(), emm.TPR(), emm.TNR(), emm.RenyiCorrelation()],
         per_sens_metrics=[emm.Accuracy(), emm.ProbPos(), emm.TPR(), emm.TNR()],
         aggregation=(
-            emm.PerSens.ALL
+            emm.PerSens.DIFFS_RATIOS
             if torch.unique(y_true_t).shape[0] * torch.unique(s_t).shape[0] < 10
             else set()
         ),
