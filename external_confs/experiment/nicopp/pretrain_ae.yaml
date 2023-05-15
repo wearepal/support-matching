@@ -4,6 +4,7 @@
 # usage: +experiment=nicopp/pretrain_ae
 
 defaults:
+    - /alg: supmatch_no_disc
     - override /ae_arch: resnet
     - override /dm: nicopp
     - override /ds: nicopp
@@ -15,15 +16,7 @@ alg:
     use_amp: True
     steps: 30000
     ga_steps: 1
-    max_grad_norm: 5
-    # the following settings turn off the discriminator
-    num_disc_updates: 0
-    twoway_disc_loss: false
-    prior_loss_w: 0
-    pred_y_loss_w: 0
-    pred_s_loss_w: 0
-    warmup_steps: 0
-    disc_loss_w: 0
+    max_grad_norm: null
 
 ae:
     recon_loss: l2
