@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Dict, Optional, Tuple, cast
 from typing_extensions import Self, override
 
+from conduit.data.datasets.vision import CdtVisionDataset
 from conduit.data.structures import TernarySample
 from loguru import logger
 import torch
@@ -166,7 +167,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
     @override
     def run(
         self,
-        dm: DataModule,
+        dm: DataModule[CdtVisionDataset],
         *,
         ae: SplitLatentAe,
         disc: BinaryDiscriminator,
