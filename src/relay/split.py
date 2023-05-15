@@ -4,7 +4,6 @@ from attrs import define, field
 from conduit.data.datasets.vision import CdtVisionDataset
 
 from src.data import RandomSplitter
-from src.data.splitter import RandomSplitter
 from src.hydra_confs.datasets import Camelyon17Conf, CelebAConf, NIHChestXRayDatasetConf
 from src.logging import WandbConf
 

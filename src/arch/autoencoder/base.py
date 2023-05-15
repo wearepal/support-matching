@@ -5,6 +5,7 @@ from typing import Generic, TypeVar
 from typing_extensions import override
 
 from ranzen.torch import DcModule
+from torch import Tensor
 import torch.nn as nn
 
 __all__ = [

@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from functools import reduce
 from math import gcd
 from typing import (
+    TYPE_CHECKING,
     DefaultDict,
     Dict,
     Generic,
@@ -11,7 +12,6 @@ from typing import (
     List,
     Optional,
     Set,
-    TYPE_CHECKING,
 )
 from typing_extensions import Self
 

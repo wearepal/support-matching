@@ -11,7 +11,7 @@ from loguru import logger
 from ranzen import gcopy
 from ranzen.torch import CrossEntropyLoss, DcModule
 import torch
-from torch import Tensor, nn, optim
+from torch import Tensor, optim
 import torch.nn as nn
 from tqdm import tqdm
 import wandb
