@@ -1,11 +1,13 @@
 from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
+from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import TypeAlias
 
 from conduit.data.datasets.vision.base import CdtVisionDataset
 from loguru import logger
+from ranzen.hydra import reconstruct_cmd
 import torch
 from torch import Tensor
 import torchvision
@@ -23,10 +25,13 @@ Run: TypeAlias = Union[
 ]
 
 
+WandbMode = Enum("WandbMode", ["online", "offline", "disabled"])
+
+
 @dataclass
 class WandbConf:
     name: Optional[str] = None
-    mode: str = "online"
+    mode: WandbMode = WandbMode.online
     id: Optional[str] = None
     anonymous: Optional[bool] = None
     project: Optional[str] = "support-matching"
@@ -45,7 +50,7 @@ class WandbConf:
         cfgs_for_group: Tuple[object, ...] = (),
         suffix: Optional[str] = None,
     ) -> Run:
-        if raw_config is not None and self.group is None:
+        if self.group is None:
             default_group = "_".join(
                 cfg_obj.__class__.__name__.lower() for cfg_obj in cfgs_for_group
             )
@@ -55,7 +60,11 @@ class WandbConf:
             self.group = default_group
         # TODO: not sure whether `reinit` really should be hardcoded
         self.reinit = True
-        return wandb.init(**asdict(self), config=raw_config)
+        kwargs = asdict(self)
+        kwargs["mode"] = self.mode.name
+        if raw_config is not None:
+            raw_config["cmd"] = reconstruct_cmd()
+        return wandb.init(**kwargs, config=raw_config)
 
 
 def log_images(
