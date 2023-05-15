@@ -61,6 +61,7 @@ class SupMatchRelay(BaseRelay):
     labeller: Any  # Labeller
     scorer: Any  # Scorer
     artifact_name: Optional[str] = None
+    """Save model weights under this name."""
 
     options: ClassVar[Dict[str, Dict[str, type]]] = BaseRelay.options | {
         "scorer": {"neural": NeuralScorer, "none": NullScorer},

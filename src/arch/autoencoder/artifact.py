@@ -91,7 +91,7 @@ def load_ae_from_artifact(
     factory: AeFactory = instantiate(state_dict["config"])
     if isinstance(factory, AeFromArtifact):
         raise RuntimeError(
-            "Cannot load in AeFactory as an artifact as this would result in infinite " "recursion."
+            "Cannot load in AeFactory as an artifact as this would result in infinite recursion."
         )
     ae_pair = factory(input_shape=input_shape)
     ae_pair.load_state_dict(state_dict["state"])
