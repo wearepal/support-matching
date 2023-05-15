@@ -1,0 +1,8 @@
+---
+num_disc_updates: 0
+twoway_disc_loss: false
+prior_loss_w: 0
+pred_y_loss_w: 0
+pred_s_loss_w: 0
+warmup_steps: 0
+disc_loss_w: 0

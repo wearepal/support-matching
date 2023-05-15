@@ -1,0 +1,7 @@
+---
+defaults:
+  - artifact
+  - /split/nicopp/base@_here_
+  - _self_
+
+artifact_name: nicopp_change_is_hard_split
