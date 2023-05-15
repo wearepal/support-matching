@@ -16,6 +16,7 @@ from typing import (
 )
 from typing_extensions import Self, TypeAlias, override
 
+from conduit.data.datasets.vision import CdtVisionDataset
 from conduit.data.structures import NamedSample, TernarySample
 from conduit.metrics import accuracy
 from conduit.models.utils import prefix_keys
@@ -352,7 +353,13 @@ class AdvSemiSupervisedAlg(Algorithm):
 
     @override
     def run(
-        self, dm: DataModule, *, ae: SplitLatentAe, disc: Any, evaluator: Evaluator, **kwargs: Any
+        self,
+        dm: DataModule[CdtVisionDataset],
+        *,
+        ae: SplitLatentAe,
+        disc: Any,
+        evaluator: Evaluator,
+        **kwargs: Any,
     ) -> Any:
         try:
             self.fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)

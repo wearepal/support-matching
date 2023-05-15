@@ -5,6 +5,7 @@ from typing_extensions import override
 
 from conduit.data import TernarySample
 from conduit.data.datasets import CdtDataLoader, CdtDataset
+from conduit.data.datasets.vision import CdtVisionDataset
 import conduit.metrics as cdtm
 from conduit.models.utils import prefix_keys
 from loguru import logger
@@ -68,14 +69,18 @@ def balanced_accuracy(y_pred: Tensor, *, y_true: Tensor) -> Tensor:
 
 class Scorer(ABC):
     @abstractmethod
-    def run(self, dm: DataModule[CdtDataset], *, device: torch.device, **kwargs: Any) -> float:
+    def run(
+        self, dm: DataModule[CdtVisionDataset], *, device: torch.device, **kwargs: Any
+    ) -> float:
         raise NotImplementedError()
 
 
 @dataclass(eq=False)
 class NullScorer(Scorer):
     @override
-    def run(self, dm: DataModule[CdtDataset], *, device: torch.device, **kwargs: Any) -> float:
+    def run(
+        self, dm: DataModule[CdtVisionDataset], *, device: torch.device, **kwargs: Any
+    ) -> float:
         return 0.0
 
 
@@ -100,7 +105,7 @@ class NeuralScorer(Scorer):
     @override
     def run(
         self,
-        dm: DataModule[CdtDataset],
+        dm: DataModule[CdtVisionDataset],
         *,
         ae: SplitLatentAe,
         disc: SetPredictor,
