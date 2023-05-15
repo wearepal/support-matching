@@ -1,4 +1,5 @@
 from __future__ import annotations
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 import platform
@@ -7,12 +8,14 @@ from typing_extensions import TypeAlias
 
 from conduit.data import LoadedData, TernarySample
 from conduit.data.datasets import CdtDataset
+from conduit.data.datasets.vision import CdtVisionDataset
 from hydra.utils import to_absolute_path
 from torch import Tensor
 
 __all__ = [
     "D",
     "Dataset",
+    "DatasetFactory",
     "TrainDepTestSplit",
     "find_data_dir",
     "process_data_dir",
@@ -68,3 +71,9 @@ class TrainDepTestSplit(Generic[D]):
     @property
     def num_samples_te(self) -> int:
         return len(self.test)
+
+
+class DatasetFactory(ABC):
+    @abstractmethod
+    def __call__(self) -> CdtVisionDataset[TernarySample, Tensor, Tensor]:
+        raise NotImplementedError()

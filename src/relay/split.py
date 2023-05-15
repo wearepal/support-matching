@@ -1,10 +1,11 @@
 from typing import Any, ClassVar, Dict, Optional
 
 from attrs import define, field
-from conduit.data.datasets.vision import CdtVisionDataset
 
 from src.data import RandomSplitter
-from src.hydra_confs.datasets import Camelyon17Conf, CelebAConf, NIHChestXRayDatasetConf
+from src.data.common import DatasetFactory
+from src.data.nih import NIHChestXRayDatasetCfg
+from src.hydra_confs.datasets import Camelyon17Cfg, CelebACfg
 from src.logging import WandbConf
 
 __all__ = ["SplitRelay"]
@@ -12,7 +13,7 @@ __all__ = ["SplitRelay"]
 
 @define(eq=False, kw_only=True)
 class SplitRelay:
-    defaults: list[Any] = field(default=[{"ds": "cmnist"}, {"split": "random"}])
+    defaults: list[Any] = field(default=[{"ds": "celeba"}, {"split": "random"}])
 
     ds: Any  # CdtDataset
     split: Any
@@ -20,19 +21,20 @@ class SplitRelay:
 
     options: ClassVar[Dict[str, Dict[str, type]]] = {
         "ds": {
-            "celeba": CelebAConf,
-            "camelyon17": Camelyon17Conf,
-            "nih": NIHChestXRayDatasetConf,
+            "celeba": CelebACfg,
+            "camelyon17": Camelyon17Cfg,
+            "nih": NIHChestXRayDatasetCfg,
         },
-        "split": {"random": RandomSplitter},
+        "split": {"random": RandomSplitter},  # for compatibility we define a one-option variant
     }
 
     def run(self, raw_config: Optional[Dict[str, Any]] = None) -> None:
-        assert isinstance(self.ds, CdtVisionDataset)
+        assert isinstance(self.ds, DatasetFactory)
         assert isinstance(self.split, RandomSplitter)
 
-        run = self.wandb.init(raw_config, (self.ds,), suffix="artgen")
+        ds = self.ds()
+        run = self.wandb.init(raw_config, (ds,), suffix="artgen")
         self.split.save_as_artifact = True
-        self.split(self.ds)
+        self.split(ds)
         if run is not None:
             run.finish()

@@ -1,13 +1,17 @@
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Union, cast
+from typing import Any, Optional, Union
+from typing_extensions import override
 
-from conduit.data.datasets.vision import CdtVisionDataset, ImageTform
+from conduit.data.datasets.vision import CdtVisionDataset
 import pandas as pd
 from sklearn.preprocessing import MultiLabelBinarizer
 import torch
 
-__all__ = ["NIHChestXRayDataset"]
+from src.data.common import DatasetFactory
+
+__all__ = ["NIHChestXRayDataset", "NIHChestXRayDatasetCfg"]
 
 
 class NiHSensAttr(Enum):
@@ -56,6 +60,18 @@ class NiHTargetAttr(Enum):
     no_finding = "No Finding"
 
 
+@dataclass
+class NIHChestXRayDatasetCfg(DatasetFactory):
+    root: Union[Path, str]
+    sens_attr: NiHSensAttr = NiHSensAttr.gender
+    target_attr: Optional[NiHTargetAttr] = NiHTargetAttr.cardiomegaly
+    transform: Any = None  # Optional[Union[Compose, BasicTransform, Callable[[Image], Any]]]
+
+    @override
+    def __call__(self) -> CdtVisionDataset:
+        return NIHChestXRayDataset(cfg=self)
+
+
 class NIHChestXRayDataset(CdtVisionDataset):
     """ "
     National Institutes of Health Chest X-Ray Dataset
@@ -71,17 +87,11 @@ class NIHChestXRayDataset(CdtVisionDataset):
     The dataset can be downloaded by following the above link or from `kaggle <https://www.kaggle.com/datasets/nih-chest-xrays/data>`__
     """
 
-    def __init__(
-        self,
-        root: Union[Path, str],
-        sens_attr: NiHSensAttr = NiHSensAttr.gender,
-        target_attr: Optional[NiHTargetAttr] = NiHTargetAttr.cardiomegaly,
-        transform: Optional[ImageTform] = None,
-    ) -> None:
-        self.root = Path(root)
-        self.sens_attr = sens_attr
-        self.target_attr = target_attr
-        self.metadata = cast(pd.DataFrame, pd.read_csv(self.root / "Data_Entry_2017.csv"))
+    def __init__(self, cfg: NIHChestXRayDatasetCfg) -> None:
+        self.root = Path(cfg.root)
+        self.sens_attr = cfg.sens_attr
+        self.target_attr = cfg.target_attr
+        self.metadata = pd.read_csv(self.root / "Data_Entry_2017.csv")
         # In the case of Patient Gender, factorize yields the mapping: M -> 0, F -> 1
         s = torch.as_tensor(self.metadata[self.sens_attr.value].factorize()[0], dtype=torch.long)
         findings_str = self.metadata["Finding Labels"].str.split("|")
@@ -100,4 +110,4 @@ class NIHChestXRayDataset(CdtVisionDataset):
         image_index_flat = self.root.glob("*/*/*")
         self.metadata["Image Index"] = sorted(list(image_index_flat))
         x = self.metadata["Image Index"].to_numpy()
-        super().__init__(image_dir=self.root, x=x, s=s, y=y, transform=transform)
+        super().__init__(image_dir=self.root, x=x, s=s, y=y, transform=cfg.transform)
