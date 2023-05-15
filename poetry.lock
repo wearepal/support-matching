@@ -405,7 +405,7 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 name = "clip"
 version = "1.0"
 description = ""
-category = "main"
+category = "dev"
 optional = false
 python-versions = "*"
 files = []
@@ -461,7 +461,7 @@ cmawm = ["scipy"]
 name = "cmake"
 version = "3.26.3"
 description = "CMake is an open-source, cross-platform family of tools designed to build, test and package software"
-category = "main"
+category = "dev"
 optional = false
 python-versions = "*"
 files = [
@@ -678,7 +678,7 @@ test = ["pytest (>=6)"]
 name = "filelock"
 version = "3.12.0"
 description = "A platform independent file lock."
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
@@ -1348,7 +1348,7 @@ typing = ["mypy (>=1.0.0)"]
 name = "lit"
 version = "16.0.3"
 description = "A Software Testing Tool"
-category = "main"
+category = "dev"
 optional = false
 python-versions = "*"
 files = [
@@ -1574,7 +1574,7 @@ python-dateutil = ">=2.7"
 name = "mpmath"
 version = "1.3.0"
 description = "Python library for arbitrary-precision floating-point arithmetic"
-category = "main"
+category = "dev"
 optional = false
 python-versions = "*"
 files = [
@@ -3077,7 +3077,7 @@ dev = ["black (==22.3.0)", "coverage[toml] (>=5.1)", "flit (>=3.5.1)", "isort (=
 name = "sympy"
 version = "1.12"
 description = "Computer algebra system (CAS) in Python"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.8"
 files = [
@@ -3168,7 +3168,7 @@ files = [
 name = "torch"
 version = "2.0.1+cu118"
 description = "Tensors and Dynamic neural networks in Python with strong GPU acceleration"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.8.0"
 files = [
@@ -3259,7 +3259,7 @@ text = ["nltk (>=3.6)", "regex (>=2021.9.24)", "tqdm (>=4.41.0)"]
 name = "torchvision"
 version = "0.15.2+cu118"
 description = "image and video datasets and models for torch deep learning"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.8"
 files = [
@@ -3312,7 +3312,7 @@ telegram = ["requests"]
 name = "triton"
 version = "2.0.0"
 description = "A language and compiler for custom Deep Learning operations"
-category = "main"
+category = "dev"
 optional = false
 python-versions = "*"
 files = [
@@ -3626,4 +3626,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9.11,<3.12"
-content-hash = "e0d25a3f716e6fe408274975431a06af4d4ea25210d101cb41846f3d4873aae8"
+content-hash = "06ab29813b9662c176834f53b880d9aa24d17fc060d9f2dee7ffe85279b87105"
