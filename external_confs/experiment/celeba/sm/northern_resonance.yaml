@@ -3,7 +3,6 @@
 # usage: +experiment=celeba/sm/northern_resonance
 
 defaults:
-    - /dm: celeba/base
     - override /ae_arch: artifact
     - override /ds: celeba/gender_smiling
     - override /labeller: gt

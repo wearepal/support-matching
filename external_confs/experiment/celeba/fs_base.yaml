@@ -3,7 +3,6 @@
 # usage: +experiment=celeba/fs_base
 
 defaults:
-    - /dm: celeba/base
     - override /ds: celeba/gender_smiling
     - override /labeller: none
     - override /split: celeba/artifact/base

@@ -1,6 +1,6 @@
 ---
 defaults:
-  - /split/artifact@_here_
+  - artifact
   - _self_
 artifact_name: nih_gender_infiltration_sb10_kyiv_1
 version: 0

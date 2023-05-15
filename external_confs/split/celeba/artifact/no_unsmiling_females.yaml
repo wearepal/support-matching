@@ -1,6 +1,7 @@
 ---
 defaults:
-  - celeba/artifact/base@_here_
+  - artifact
+  - /split/celeba/artifact/base@_here_
   - _self_
 
 artifact_name: split_celeba_no_unsmiling_females_goedel_0

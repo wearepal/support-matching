@@ -1,6 +1,6 @@
 ---
 defaults:
-  - /scorer/neural@_here_
+  - neural
   - _self_
 
 steps: 5000

@@ -1,10 +1,9 @@
 ---
 defaults:
-  - /ds/celeba@_here_
+  - celeba
   - _self_
-# root: /srv/galene0/shared/data
 download: false
-superclass: Smiling
-subclass: Male
+superclass: SMILING
+subclass: MALE
 transform: null
 split: null

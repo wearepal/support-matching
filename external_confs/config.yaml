@@ -1,3 +1,6 @@
 defaults:
   - config_schema
+  # the following lines are a bit of a hack
+  # they ensure that we can specify `dm=nicopp` on the cmdline without `+`
+  - dm:
   - _self_
