@@ -6,7 +6,6 @@ from typing_extensions import Literal, override
 from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import BinarySample, NamedSample, TernarySample
 import conduit.metrics as cdtm
-from conduit.metrics import hard_prediction
 from conduit.models.utils import prefix_keys
 from conduit.types import Loss
 from loguru import logger
