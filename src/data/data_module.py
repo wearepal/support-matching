@@ -1,6 +1,7 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
-from functools import reduce
+from enum import Enum, auto
+from functools import partial, reduce
 from math import gcd
 from typing import (
     TYPE_CHECKING,
@@ -16,14 +17,19 @@ from typing import (
 from typing_extensions import Self
 
 import albumentations as A
-from conduit.data.constants import IMAGENET_STATS
-from conduit.data.datasets.utils import CdtDataLoader, get_group_ids
+from conduit.data import IMAGENET_STATS
+from conduit.data.datasets import (
+    CdtDataLoader,
+    extract_labels_from_dataset,
+    get_group_ids,
+)
 from conduit.data.datasets.vision import CdtVisionDataset, ImageTform, PillowTform
 from conduit.data.structures import MeanStd, TernarySample
 from conduit.transforms.image import denormalize
 from loguru import logger
 from ranzen import gcopy
 from ranzen.torch.data import (
+    ApproxStratBatchSampler,
     BaseSampler,
     BatchSamplerBase,
     SequentialBatchSampler,
@@ -49,6 +55,17 @@ def lcm(denominators: Iterable[int]) -> int:
     return reduce(lambda a, b: a * b // gcd(a, b), denominators)
 
 
+class StratSamplerType(Enum):
+    """How is stratified batch sampling realized?"""
+
+    exact = auto()
+    """Each bag contains all groups."""
+    approx_group = auto()
+    """For each class, sample as many subgroups as there are subgroups in total."""
+    approx_class = auto()
+    """Only sample one subgroup per class."""
+
+
 @dataclass
 class DataModuleConf:
     """DataModule settings that are configurable by hydra."""
@@ -56,6 +73,7 @@ class DataModuleConf:
     batch_size_tr: int = 1
     batch_size_te: Optional[int] = None
     num_samples_per_group_per_bag: int = 1
+    stratified_sampler: StratSamplerType = StratSamplerType.exact
 
     # DataLoader settings
     num_workers: int = 0
@@ -290,9 +308,34 @@ class DataModule(Generic[D]):
         batch_size = self.batch_size_tr if batch_size is None else batch_size
         if batch_sampler is None:
             if balance:
-                batch_sampler = self._make_stratified_sampler(
-                    group_ids=self.group_ids_tr, batch_size=batch_size
-                )
+                if self.cfg.stratified_sampler is StratSamplerType.exact:
+                    batch_sampler = self._make_stratified_sampler(
+                        group_ids=self.group_ids_tr, batch_size=batch_size
+                    )
+                else:
+                    if self.cfg.stratified_sampler is StratSamplerType.approx_group:
+                        batch_sampler_fn = partial(
+                            ApproxStratBatchSampler,
+                            num_samples_per_group=(
+                                self.cfg.num_samples_per_group_per_bag * batch_size
+                            ),
+                        )
+                    else:
+                        batch_sampler_fn = partial(
+                            ApproxStratBatchSampler,
+                            num_samples_per_class=(
+                                self.cfg.num_samples_per_group_per_bag * batch_size
+                            ),
+                        )
+                    s_all, y_all = extract_labels_from_dataset(self.train)
+                    if s_all is None or y_all is None:
+                        raise ValueError("need s and y label for stratified sampler")
+                    batch_sampler = batch_sampler_fn(
+                        class_labels=y_all.squeeze().tolist(),
+                        subgroup_labels=s_all.squeeze().tolist(),
+                        training_mode=TrainingMode.step,
+                        generator=self.generator,
+                    )
             else:
                 batch_sampler = SequentialBatchSampler(
                     data_source=self.train,
@@ -302,6 +345,7 @@ class DataModule(Generic[D]):
                     drop_last=False,
                     generator=self.generator,
                 )
+            logger.info(f"effective batch size: {batch_sampler.batch_size}")
         return self._make_dataloader(
             ds=self.train,
             batch_size=1,
