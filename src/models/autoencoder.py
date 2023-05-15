@@ -99,6 +99,7 @@ class ZsTransform(Enum):
 
     none = auto()
     round_ste = auto()
+    zero = auto()
 
 
 @dataclass
@@ -136,10 +137,12 @@ class SplitLatentAe(Model):
 
     def encode(self, inputs: Tensor, *, transform_zs: bool = True) -> SplitEncoding:
         enc = self._split_encoding(self.model.encoder(inputs))
-        if transform_zs and self.cfg.zs_transform is ZsTransform.round_ste:
-            rounded_zs = round_ste(torch.sigmoid(enc.zs))
-        else:
-            rounded_zs = enc.zs
+        rounded_zs = enc.zs
+        if transform_zs:
+            if self.cfg.zs_transform is ZsTransform.round_ste:
+                rounded_zs = round_ste(torch.sigmoid(rounded_zs))
+            elif self.cfg.zs_transform is ZsTransform.zero:
+                rounded_zs = rounded_zs.new_zeros(*rounded_zs.shape)
         return SplitEncoding(zs=rounded_zs, zy=enc.zy)
 
     def decode(
