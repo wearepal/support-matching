@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from itertools import islice
 from pathlib import Path
-from typing import ClassVar, List, Optional, Tuple, Union
+from typing import ClassVar, Optional, Union
 
 from conduit import metrics as cdtm
 from conduit.data.datasets.utils import CdtDataLoader
@@ -113,7 +113,7 @@ class FineTuner(DcModule):
         inputs: Tensor,
         targets: Tensor,
         optimizer: optim.Optimizer,
-    ) -> Tuple[Tensor, float]:
+    ) -> tuple[Tensor, float]:
         output = model(inputs)
         loss = self.loss_fn(input=output, target=targets)
         optimizer.zero_grad()
@@ -128,11 +128,11 @@ class FineTuner(DcModule):
         *,
         val_loader: CdtDataLoader[TernarySample[Tensor]],
         device: torch.device,
-    ) -> Tuple[Tensor, Tensor, Tensor]:
+    ) -> tuple[Tensor, Tensor, Tensor]:
         model.eval()
-        all_preds: List[Tensor] = []
-        all_s: List[Tensor] = []
-        all_y: List[Tensor] = []
+        all_preds: list[Tensor] = []
+        all_s: list[Tensor] = []
+        all_y: list[Tensor] = []
         with torch.no_grad():
             val_batches = (
                 self.val_batches

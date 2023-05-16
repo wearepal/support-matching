@@ -1,8 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from enum import Enum, auto
-from typing import Callable, Dict, List, Optional, Tuple, Union, cast
-from typing_extensions import Literal, Self, override
+from typing import Callable, Literal, Optional, Union, cast
+from typing_extensions import Self, override
 
 import torch
 from torch import Tensor
@@ -47,7 +47,7 @@ class SplitEncoding:
     def card_s(self) -> int:
         return self.zs.size(1)
 
-    def mask(self, random: bool = False, *, detach: bool = False) -> Tuple[Self, Self]:
+    def mask(self, random: bool = False, *, detach: bool = False) -> tuple[Self, Self]:
         """Mask out zs and zy. This is a cheap function.
 
         :param random: whether to replace the masked out part with random noise
@@ -114,7 +114,7 @@ class SplitLatentAeCfg(ModelCfg):
 class SplitLatentAe(Model):
     model: AePair  # overriding the definition in `Model`
     cfg: SplitLatentAeCfg  # overriding the definition in `Model`
-    feature_group_slices: Optional[Dict[str, List[slice]]] = None
+    feature_group_slices: Optional[dict[str, list[slice]]] = None
     recon_loss_fn: Callable[[Tensor, Tensor], Tensor] = field(init=False)
     zs_dim: int = field(init=False)
 

@@ -78,13 +78,15 @@ line-length = 100
 target-version = ['py39']
 
 [tool.ruff]
+target-version = "py39"
 # line length here only affects import sorting
 line-length = 88
-select = ["I", "F", "E", "W"]
+select = ["I", "F", "E", "W", "UP"]
 ignore = [
   "F541",  # f-string without placeholder
   "E501",  # line too long
   "E741",  # Ambiguous variable name
+  "UP007",  # new-style unions
 ]
 
 [tool.ruff.isort]

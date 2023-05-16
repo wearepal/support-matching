@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple, cast
+from typing import Optional, cast
 from typing_extensions import Self, override
 
 from conduit.data.structures import TernarySample
@@ -23,7 +23,7 @@ __all__ = ["SupportMatching"]
 @dataclass(repr=False, eq=False)
 class SupportMatching(AdvSemiSupervisedAlg):
     @override
-    def _get_data_iterators(self, dm: DataModule) -> Tuple[IterTr, IterDep]:
+    def _get_data_iterators(self, dm: DataModule) -> tuple[IterTr, IterDep]:
         if (self.disc_loss_w > 0) or (self.num_disc_updates > 0):
             if dm.deployment_ids is None:
                 logger.warning(
@@ -44,7 +44,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         x_dep: Tensor,
         batch_tr: TernarySample[Tensor],
         warmup: bool,
-    ) -> Tuple[Tensor, Dict[str, float]]:
+    ) -> tuple[Tensor, dict[str, float]]:
         """Compute the losses for the encoder."""
         # Compute losses for the encoder.
         logging_dict = {}
@@ -109,7 +109,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         *,
         iterator_tr: IterTr,
         iterator_dep: IterDep,
-    ) -> Tuple[Tensor, Dict[str, float]]:
+    ) -> tuple[Tensor, dict[str, float]]:
         """Train the discriminator while keeping the encoder fixed."""
         if isinstance(comp.disc, NeuralDiscriminator):
             x_tr = self._sample_tr(iterator_tr).x

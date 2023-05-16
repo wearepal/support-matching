@@ -1,6 +1,7 @@
 from __future__ import annotations
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Iterable, Optional, Union
+from typing import Optional, Union
 
 from loguru import logger
 import numpy as np

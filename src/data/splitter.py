@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import platform
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, Final, List, Optional, TypedDict, Union, cast
+from typing import Any, Final, Optional, TypedDict, Union, cast
 from typing_extensions import override
 
 from conduit.data.constants import IMAGENET_STATS
@@ -48,7 +48,7 @@ class DataSplitter:
 
     @classmethod
     def _default_test_transforms(cls) -> ImageTform:
-        transform_ls: List[PillowTform] = []
+        transform_ls: list[PillowTform] = []
         transform_ls.append(T.ToTensor())
         transform_ls.append(T.Normalize(mean=IMAGENET_STATS.mean, std=IMAGENET_STATS.std))
         return T.Compose(transform_ls)
@@ -140,8 +140,8 @@ class RandomSplitter(DataSplitter):
     data_prop: float = 1.0
 
     # Dataset manipulation
-    dep_subsampling_props: Optional[Dict[int, Any]] = None
-    train_subsampling_props: Optional[Dict[int, Any]] = None
+    dep_subsampling_props: Optional[dict[int, Any]] = None
+    train_subsampling_props: Optional[dict[int, Any]] = None
     artifact_name: Optional[str] = None
     save_as_artifact: bool = False
 

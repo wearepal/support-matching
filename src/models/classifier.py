@@ -1,7 +1,8 @@
 from __future__ import annotations
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Iterator, Optional, Tuple, TypeVar, Union, overload
-from typing_extensions import Literal, override
+from typing import Literal, Optional, TypeVar, Union, overload
+from typing_extensions import override
 
 from conduit.data.datasets.utils import CdtDataLoader
 from conduit.data.structures import BinarySample, NamedSample, TernarySample
@@ -186,7 +187,7 @@ class SetClassifier(Model):
     @torch.no_grad()
     def _fetch_train_data(
         self,
-        *args: Tuple[Iterator[S], int],
+        *args: tuple[Iterator[S], int],
         device: torch.device,
     ) -> Iterator[_ScSample]:
         for i, (dl_iter, bs) in enumerate(args):
@@ -194,7 +195,7 @@ class SetClassifier(Model):
             y = torch.full(size=(bs,), fill_value=i, dtype=torch.long)
             yield _ScSample(x=batch.x, y=y, b=bs).to(device=device, non_blocking=True)
 
-    def training_step(self, *batches: _ScSample) -> Tuple[Tensor, Tensor]:
+    def training_step(self, *batches: _ScSample) -> tuple[Tensor, Tensor]:
         logits_ls, target_ls = [], []
         for batch in batches:
             logits_ls.append(self.forward(batch.x, batch_size=batch.b))

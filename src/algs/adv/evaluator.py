@@ -1,8 +1,8 @@
 from __future__ import annotations
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any, Final, Generic, Optional, Sequence, TypeVar, overload
-from typing_extensions import Literal
+from typing import Any, Final, Generic, Literal, Optional, TypeVar, overload
 
 from conduit.data import TernarySample
 from conduit.data.datasets import CdtDataLoader, CdtDataset

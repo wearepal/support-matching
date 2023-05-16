@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import List, Protocol
+from typing import Protocol
 from typing_extensions import override
 
 from ranzen.torch import DcModule
@@ -34,8 +34,8 @@ class BinaryDiscriminator(Protocol):
 @dataclass(repr=False, eq=False)
 class MmdDiscriminator(BinaryDiscriminator, DcModule):
     mmd_kernel: MMDKernel = MMDKernel.rq
-    mmd_scales: List[float] = field(default_factory=list)
-    mmd_wts: List[float] = field(default_factory=list)
+    mmd_scales: list[float] = field(default_factory=list)
+    mmd_wts: list[float] = field(default_factory=list)
     mmd_add_dot: float = 0.0
 
     @override

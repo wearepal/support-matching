@@ -1,19 +1,8 @@
 from abc import abstractmethod
 from collections import defaultdict
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import (
-    Any,
-    ClassVar,
-    DefaultDict,
-    Dict,
-    Generic,
-    Iterator,
-    Literal,
-    Optional,
-    Tuple,
-    TypeVar,
-    Union,
-)
+from typing import Any, ClassVar, Generic, Literal, Optional, TypeVar, Union
 from typing_extensions import Self, TypeAlias
 
 from conduit.data.structures import NamedSample, TernarySample
@@ -123,7 +112,7 @@ class AdvSemiSupervisedAlg(Algorithm):
 
     def _build_predictors(
         self, ae: SplitLatentAe, *, y_dim: int, s_dim: int
-    ) -> Tuple[Optional[Classifier], Optional[Classifier]]:
+    ) -> tuple[Optional[Classifier], Optional[Classifier]]:
         pred_y = None
         if self.pred_y_loss_w > 0:
             model, _ = Fcn(
@@ -149,8 +138,8 @@ class AdvSemiSupervisedAlg(Algorithm):
 
     def encoder_step(
         self, comp: Components, *, batch_tr: TernarySample, x_dep: Tensor, warmup: bool
-    ) -> DefaultDict[str, float]:
-        logging_dict: DefaultDict[str, float] = defaultdict(float)
+    ) -> defaultdict[str, float]:
+        logging_dict: defaultdict[str, float] = defaultdict(float)
         for _ in range(self.ga_steps):
             loss, logging_dict_s = self._encoder_loss(
                 comp=comp, x_dep=x_dep, batch_tr=batch_tr, warmup=warmup
@@ -170,7 +159,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         iterator_tr: IterTr,
         iterator_dep: IterDep,
         itr: int,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         warmup = itr < self.warmup_steps
         if (not warmup) and (self.disc_loss_w > 0):
             comp.train_disc()
@@ -249,7 +238,7 @@ class AdvSemiSupervisedAlg(Algorithm):
 
     def _predictor_loss(
         self, comp: Components, *, zy: Tensor, zs: Tensor, y: Tensor, s: Tensor
-    ) -> Tuple[Tensor, Dict[str, float]]:
+    ) -> tuple[Tensor, dict[str, float]]:
         loss = torch.zeros((), device=self.device)
         logging_dict = {}
         if comp.pred_y is not None:
@@ -275,7 +264,7 @@ class AdvSemiSupervisedAlg(Algorithm):
     @abstractmethod
     def _encoder_loss(
         self, comp: Components, *, x_dep: Tensor, batch_tr: TernarySample, warmup: bool
-    ) -> Tuple[Tensor, Dict[str, float]]:
+    ) -> tuple[Tensor, dict[str, float]]:
         raise NotImplementedError()
 
     def _update_encoder(self, comp: Components) -> None:
@@ -293,7 +282,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         if self.grad_scaler is not None:  # Apply scaling for mixed-precision training
             self.grad_scaler.update()
 
-    def _get_data_iterators(self, dm: DataModule) -> Tuple[IterTr, IterDep]:
+    def _get_data_iterators(self, dm: DataModule) -> tuple[IterTr, IterDep]:
         dl_tr = dm.train_dataloader()
         dl_dep = dm.deployment_dataloader()
         return iter(dl_tr), iter(dl_dep)

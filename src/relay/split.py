@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Dict, Optional
+from typing import Any, ClassVar, Optional
 
 from attrs import define, field
 
@@ -20,7 +20,7 @@ class SplitRelay:
     split: Any
     wandb: WandbConf = field(default=WandbConf)
 
-    options: ClassVar[Dict[str, Dict[str, type]]] = {
+    options: ClassVar[dict[str, dict[str, type]]] = {
         "ds": {
             "celeba": CelebACfg,
             "camelyon17": Camelyon17Cfg,
@@ -30,7 +30,7 @@ class SplitRelay:
         "split": {"random": RandomSplitter},  # for compatibility we define a one-option variant
     }
 
-    def run(self, raw_config: Optional[Dict[str, Any]] = None) -> None:
+    def run(self, raw_config: Optional[dict[str, Any]] = None) -> None:
         assert isinstance(self.ds, DatasetFactory)
         assert isinstance(self.split, RandomSplitter)
 

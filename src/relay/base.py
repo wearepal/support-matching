@@ -1,5 +1,5 @@
 import os
-from typing import Any, ClassVar, Dict
+from typing import Any, ClassVar
 
 from attrs import define, field
 from conduit.data import TernarySample
@@ -24,7 +24,7 @@ class BaseRelay:
     wandb: WandbConf = field(default=WandbConf)
     seed: int = 0
 
-    options: ClassVar[Dict[str, Dict[str, type]]] = {
+    options: ClassVar[dict[str, dict[str, type]]] = {
         "split": {"random": RandomSplitter, "artifact": SplitFromArtifact}
     }
 

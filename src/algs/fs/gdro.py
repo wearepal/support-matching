@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 from typing_extensions import override
 
 from conduit.data.structures import TernarySample
@@ -129,7 +129,7 @@ class LossComputer(nn.Module):
 
         return actual_loss
 
-    def compute_robust_loss(self, group_loss: Tensor) -> Tuple[Tensor, Tensor]:
+    def compute_robust_loss(self, group_loss: Tensor) -> tuple[Tensor, Tensor]:
         adjusted_loss = group_loss
         if torch.all(self.adj > 0):
             adjusted_loss += self.adj / torch.sqrt(self.group_counts)
@@ -141,13 +141,13 @@ class LossComputer(nn.Module):
         robust_loss = group_loss @ self.adv_probs
         return robust_loss, self.adv_probs
 
-    def compute_robust_loss_btl(self, group_loss: Tensor) -> Tuple[Tensor, Tensor]:
+    def compute_robust_loss_btl(self, group_loss: Tensor) -> tuple[Tensor, Tensor]:
         adjusted_loss = self.exp_avg_loss + self.adj / torch.sqrt(self.group_counts)
         return self.compute_robust_loss_greedy(group_loss, adjusted_loss)
 
     def compute_robust_loss_greedy(
         self, group_loss: Tensor, ref_loss: Tensor
-    ) -> Tuple[Tensor, Tensor]:
+    ) -> tuple[Tensor, Tensor]:
         sorted_idx = ref_loss.sort(descending=True)[1]
         sorted_loss = group_loss[sorted_idx]
         sorted_frac = self.group_frac[sorted_idx]
@@ -165,7 +165,7 @@ class LossComputer(nn.Module):
         unsorted_weights = weights[unsort_idx]
         return robust_loss, unsorted_weights
 
-    def compute_group_avg(self, losses: Tensor, group_idx: Tensor) -> Tuple[Tensor, Tensor]:
+    def compute_group_avg(self, losses: Tensor, group_idx: Tensor) -> tuple[Tensor, Tensor]:
         # compute observed counts and mean loss for each group
         group_map = (
             group_idx == torch.arange(self.n_groups, device=group_idx.device).unsqueeze(1).long()
@@ -267,7 +267,7 @@ class Gdro(FsAlg):
     gamma: float = 0.1
     step_size: float = 0.01
     btl: bool = False
-    adjustments: Optional[Tuple[float]] = None
+    adjustments: Optional[tuple[float]] = None
     criterion: Any = None  # Optional[Loss]
 
     @override

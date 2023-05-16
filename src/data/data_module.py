@@ -1,18 +1,10 @@
 from collections import defaultdict
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from functools import partial, reduce
 from math import gcd
-from typing import (
-    TYPE_CHECKING,
-    DefaultDict,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
-    Optional,
-    Set,
-)
+from typing import TYPE_CHECKING, Optional
 from typing_extensions import Self
 
 import albumentations as A
@@ -182,7 +174,7 @@ class DataModule:
         return len(self.group_ids_te.unique())
 
     @property
-    def missing_sources(self) -> Set[int]:
+    def missing_sources(self) -> set[int]:
         sources_tr = set(self.group_ids_tr.unique().tolist())
         sources_dep = set(self.group_ids_dep.unique().tolist())
         return sources_dep - sources_tr
@@ -208,19 +200,19 @@ class DataModule:
         return get_group_ids(self.test)
 
     @property
-    def feature_group_slices(self) -> Optional[Dict[str, List[slice]]]:
+    def feature_group_slices(self) -> Optional[dict[str, list[slice]]]:
         return None
 
     @classmethod
     def _default_train_transforms(cls) -> ImageTform:
-        transform_ls: List[PillowTform] = []
+        transform_ls: list[PillowTform] = []
         transform_ls.append(T.ToTensor())
         transform_ls.append(T.Normalize(mean=IMAGENET_STATS.mean, std=IMAGENET_STATS.std))
         return T.Compose(transform_ls)
 
     @classmethod
     def _default_test_transforms(cls) -> ImageTform:
-        transform_ls: List[PillowTform] = []
+        transform_ls: list[PillowTform] = []
         transform_ls.append(T.ToTensor())
         transform_ls.append(T.Normalize(mean=IMAGENET_STATS.mean, std=IMAGENET_STATS.std))
         return T.Compose(transform_ls)
@@ -249,12 +241,12 @@ class DataModule:
         )
 
     @staticmethod
-    def get_group_multipliers(group_ids: Tensor, *, card_s: int) -> Dict[int, int]:
+    def get_group_multipliers(group_ids: Tensor, *, card_s: int) -> dict[int, int]:
         """This is a standalone function only because then we can have a unit test for it."""
         unique_ids = group_ids.unique(sorted=False).tolist()
 
         # first, count how many subgroups there are for each y
-        num_subgroups_per_y: DefaultDict[int, int] = defaultdict(int)
+        num_subgroups_per_y: defaultdict[int, int] = defaultdict(int)
         for group_id in unique_ids:
             corresponding_y = group_id_to_label(group_id=group_id, s_count=card_s, label="y")
             num_subgroups_per_y[corresponding_y] += 1

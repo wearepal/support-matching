@@ -1,4 +1,5 @@
-from typing import Iterator, List, Optional, TypeVar, Union, overload
+from collections.abc import Iterator
+from typing import Optional, TypeVar, Union, overload
 
 import numpy as np
 import numpy.typing as npt
@@ -40,7 +41,7 @@ def to_item(tensor: Tensor) -> Number:
 
 
 def cat(
-    *ls: List[Tensor], dim: int = 0, device: Optional[Union[torch.device, str]] = None
+    *ls: list[Tensor], dim: int = 0, device: Optional[Union[torch.device, str]] = None
 ) -> Iterator[Tensor]:
     for ls_ in ls:
         yield torch.cat(ls_, dim=dim).to(device=device)

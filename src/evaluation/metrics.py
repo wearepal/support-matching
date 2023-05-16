@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from enum import Enum
 from functools import partial
 from pathlib import Path
-from typing import Dict
 from typing_extensions import Self, TypeAlias
 
 from conduit import metrics as cdtm
@@ -52,7 +51,7 @@ class EmEvalPair:
         return cls(pred=pred, actual=actual)
 
 
-MetricDict: TypeAlias = Dict[str, float]
+MetricDict: TypeAlias = dict[str, float]
 
 
 class SummaryMetric(Enum):

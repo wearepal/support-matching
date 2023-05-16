@@ -1,18 +1,7 @@
 from __future__ import annotations
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Dict,
-    Generic,
-    Iterator,
-    List,
-    Optional,
-    Tuple,
-    TypeVar,
-    Union,
-    overload,
-)
-from typing_extensions import Literal
+from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload
 
 from conduit.data.datasets.utils import infer_sample_cls
 from conduit.data.structures import NamedSample
@@ -115,7 +104,7 @@ def to_device(
         yield arg.to(device, non_blocking=True)
 
 
-def sample_converter(sample: Union[Any, Tuple[Any, ...], List[Any], Dict[str, Any]]) -> NamedSample:
+def sample_converter(sample: Union[Any, tuple[Any, ...], list[Any], dict[str, Any]]) -> NamedSample:
     sample_cls = infer_sample_cls(sample)
     if isinstance(sample, (tuple, list)):
         sample_d = dict(zip(["y", "s"], sample[1:]))

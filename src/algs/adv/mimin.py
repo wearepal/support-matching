@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Dict, Tuple
 from typing_extensions import Self, override
 
 from conduit.data.structures import TernarySample
@@ -30,7 +29,7 @@ class MiMin(AdvSemiSupervisedAlg):
         x_dep: Tensor,
         batch_tr: TernarySample[Tensor],
         warmup: bool,
-    ) -> Tuple[Tensor, Dict[str, float]]:
+    ) -> tuple[Tensor, dict[str, float]]:
         """Compute the losses for the encoder and update its parameters."""
         # Compute losses for the encoder.
         logging_dict = {}
@@ -82,7 +81,7 @@ class MiMin(AdvSemiSupervisedAlg):
         comp: Components[Model],
         *,
         iterator_tr: IterTr,
-    ) -> Tuple[Tensor, Dict[str, float]]:
+    ) -> tuple[Tensor, dict[str, float]]:
         """Train the discriminator while keeping the encoder fixed."""
         batch_tr = self._sample_tr(iterator_tr)
         with torch.cuda.amp.autocast(enabled=self.use_amp):  # type: ignore

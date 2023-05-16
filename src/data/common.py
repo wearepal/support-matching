@@ -1,9 +1,10 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 import platform
-from typing import Any, Final, Generic, Iterator, TypeVar
+from typing import Any, Final, Generic, TypeVar
 from typing_extensions import TypeAlias
 
 from conduit.data import LoadedData, TernarySample
