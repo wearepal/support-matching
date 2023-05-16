@@ -1,7 +1,7 @@
 """Download logged runs from W&B."""
-from __future__ import annotations
+from collections.abc import Sequence
 from functools import lru_cache
-from typing import Sequence
+from typing import Union
 
 import pandas as pd
 from ranzen import flatten_dict
@@ -40,7 +40,7 @@ class RunsDownloader:
         return pd.concat(dfs, axis="index", sort=False, ignore_index=True)
 
     def modify_config(
-        self, group: str, config_key: str, new_value: bool | int | float | str
+        self, group: str, config_key: str, new_value: Union[bool, int, float, str]
     ) -> None:
         path = f"{self.entity}/{self.project}"
         runs = self.api.runs(path, {"group": group})
@@ -51,7 +51,7 @@ class RunsDownloader:
         print(f"Changed config for {i} runs.")
 
     @staticmethod
-    def _runs_to_df(runs: Sequence[wandb.wandb_run.Run]) -> pd.DataFrame:
+    def _runs_to_df(runs: Sequence["wandb.wandb_run.Run"]) -> pd.DataFrame:
         summary_list = []
         config_list = []
         name_list = []

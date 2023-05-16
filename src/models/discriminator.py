@@ -1,7 +1,6 @@
-from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Protocol
+from typing import Optional, Protocol
 from typing_extensions import override
 
 from ranzen.torch import DcModule
@@ -99,9 +98,9 @@ class NeuralDiscriminator(BinaryDiscriminator, Model):
         return real_scores.mean() - fake_scores.mean()
 
     @override
-    def encoder_loss(self, fake: Tensor, *, real: Tensor | None) -> Tensor:
+    def encoder_loss(self, fake: Tensor, *, real: Optional[Tensor]) -> Tensor:
         fake_scores = self.model(fake)
-        real_scores: Tensor | None = None
+        real_scores: Optional[Tensor] = None
         if real is not None:
             real_scores = self.model(real)
         loss = fake.new_zeros(())

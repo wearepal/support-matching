@@ -1,4 +1,3 @@
-from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from enum import Enum
@@ -73,11 +72,11 @@ def log_images(
     dm: DataModule,
     name: str,
     step: int,
-    nsamples: int | Sequence[int] = 64,
+    nsamples: Union[int, Sequence[int]] = 64,
     ncols: int = 8,
     monochrome: bool = False,
-    prefix: str | None = None,
-    caption: str | None = None,
+    prefix: Optional[str] = None,
+    caption: Optional[str] = None,
 ):
     """Make a grid of the given images, save them in a file and log them with W&B"""
     prefix = "train/" if prefix is None else f"{prefix}/"
@@ -116,7 +115,7 @@ def log_attention(
     nbags: int,
     border_width: int = 3,
     ncols: int = 8,
-    prefix: str | None = None,
+    prefix: Optional[str] = None,
 ):
     """Make a grid of the given images, save them in a file and log them with W&B"""
     prefix = "train_" if prefix is None else f"{prefix}_"

@@ -1,9 +1,9 @@
-from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 from functools import partial
 from pathlib import Path
+from typing import Optional, Union
 from typing_extensions import Self, TypeAlias
 
 from conduit import metrics as cdtm
@@ -81,12 +81,12 @@ robust_tnr_gap = cdtm.subclasswise_metric(
 def compute_metrics(
     pair: EmEvalPair,
     *,
-    step: int | None = None,
-    exp_name: str | None = None,
+    step: Optional[int] = None,
+    exp_name: Optional[str] = None,
     save_summary: bool = False,
     use_wandb: bool = False,
-    additional_entries: Mapping[str, float] | None = None,
-    prefix: str | None = None,
+    additional_entries: Optional[Mapping[str, float]] = None,
+    prefix: Optional[str] = None,
     verbose: bool = True,
 ) -> dict[str, float]:
     """Compute accuracy and fairness metrics and log them.
@@ -161,14 +161,16 @@ def compute_metrics(
     return metrics
 
 
-def print_metrics(metrics: Mapping[str, int | float | str]) -> None:
+def print_metrics(metrics: Mapping[str, Union[int, float, str]]) -> None:
     """Print metrics such that they don't clutter everything too much."""
     for key, value in metrics.items():
         logger.info(f"    {key}: {value:.3g}")
     logger.info("---")
 
 
-def write_results_to_csv(results: Mapping[str, int | float | str], csv_dir: Path, csv_file: str):
+def write_results_to_csv(
+    results: Mapping[str, Union[int, float, str]], csv_dir: Path, csv_file: str
+):
     to_log = {}
     # to_log.update(flatten_dict(as_pretty_dict(cfg)))
     to_log.update(results)

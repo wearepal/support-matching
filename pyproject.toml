@@ -86,6 +86,7 @@ ignore = [
   "F541",  # f-string without placeholder
   "E501",  # line too long
   "E741",  # Ambiguous variable name
+  "UP006",  # generic standard library
   "UP007",  # new-style unions
 ]
 

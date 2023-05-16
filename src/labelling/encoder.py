@@ -1,7 +1,6 @@
-from __future__ import annotations
 from enum import Enum
 from pathlib import Path
-from typing import Optional, cast
+from typing import Optional, Union, cast
 
 from loguru import logger
 from ranzen.misc import gcopy
@@ -48,7 +47,7 @@ class ClipVisualEncoder(nn.Module):
         return self.encoder(x)
 
     @torch.no_grad()
-    def load_from_path(self, fpath: Path | str) -> None:
+    def load_from_path(self, fpath: Union[Path, str]) -> None:
         fpath = Path(fpath)
         if fpath.exists():
             logger.info(f"Loading model weights from '{fpath.resolve()}'")
@@ -62,9 +61,9 @@ class ClipVisualEncoder(nn.Module):
         self,
         dm: DataModule,
         *,
-        device: str | torch.device,
+        device: Union[str, torch.device],
         batch_size_tr: int,
-        batch_size_te: int | None = None,
+        batch_size_te: Optional[int] = None,
     ) -> Encodings:
         return generate_encodings(
             dm=dm,
@@ -81,10 +80,10 @@ class ClipVisualEncoder(nn.Module):
         *,
         batch_size: int = 16,
         steps: int,
-        val_freq: int | float = 0.1,
+        val_freq: Union[int, float] = 0.1,
         lr: float = 1.0e-5,
-        device: str | torch.device | int = 0,
-        val_batches: int | float = 1.0,
+        device: Union[str, torch.device, int] = 0,
+        val_batches: Union[int, float] = 1.0,
     ) -> nn.Sequential:
         dm = gcopy(dm, deep=False)
         dm.set_transforms_all(self.transforms)

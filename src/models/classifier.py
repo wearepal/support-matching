@@ -1,4 +1,3 @@
-from __future__ import annotations
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Literal, Optional, TypeVar, Union, overload
@@ -106,8 +105,8 @@ class Classifier(Model):
         steps: int,
         device: torch.device,
         pred_s: bool = False,
-        val_interval: int | float = 0.1,
-        test_data: CdtDataLoader[TernarySample] | None = None,
+        val_interval: Union[int, float] = 0.1,
+        test_data: Optional[CdtDataLoader[TernarySample]] = None,
         grad_scaler: Optional[GradScaler] = None,
         use_wandb: bool = False,
     ) -> None:

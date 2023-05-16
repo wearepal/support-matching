@@ -1,7 +1,6 @@
-from __future__ import annotations
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import TypedDict
+from typing import Optional, TypedDict, Union
 from typing_extensions import Self
 
 from conduit.data import TernarySample
@@ -39,7 +38,7 @@ class Encodings:
         self.dep = F.normalize(self.dep, dim=1, p=p)
         self.test = F.normalize(torch.as_tensor(self.test), dim=1, p=p).numpy()
 
-    def save(self, fpath: Path | str) -> None:
+    def save(self, fpath: Union[Path, str]) -> None:
         fpath = Path(fpath)
         logger.info(f"Saving encodings to '{fpath.resolve()}'")
         data = {k: v if isinstance(v, np.ndarray) else v.numpy() for k, v in asdict(self).items()}
@@ -51,7 +50,7 @@ class Encodings:
         return torch.cat([self.train, self.dep], dim=0).numpy()
 
     @classmethod
-    def from_npz(cls, fpath: Path | str) -> Self:
+    def from_npz(cls, fpath: Union[Path, str]) -> Self:
         logger.info("Loading encodings from file...")
         with Path(fpath).open("rb") as f:
             loaded: NpzContent = np.load(f)
@@ -70,11 +69,11 @@ def generate_encodings(
     dm: DataModule,
     *,
     encoder: nn.Module,
-    device: str | torch.device,
-    batch_size_tr: int | None = None,
-    batch_size_te: int | None = None,
-    transforms: ImageTform | None = None,
-    save_path: Path | str | None = None,
+    device: Union[str, torch.device],
+    batch_size_tr: Optional[int] = None,
+    batch_size_te: Optional[int] = None,
+    transforms: Optional[ImageTform] = None,
+    save_path: Union[Path, str, None] = None,
 ) -> Encodings:
     """Generate encodings by putting the data through a pre-trained model."""
     dm = gcopy(dm, deep=False)
@@ -115,7 +114,7 @@ def encode_with_group_ids(
     model: nn.Module,
     *,
     dl: CdtDataLoader[TernarySample[Tensor]],
-    device: str | torch.device,
+    device: Union[str, torch.device],
 ) -> tuple[Tensor, Tensor]:
     model.to(device)
     encoded: list[Tensor] = []

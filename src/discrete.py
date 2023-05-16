@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from torch import Tensor
 from torch.autograd.function import Function, NestedIOFunction
 import torch.distributions as td

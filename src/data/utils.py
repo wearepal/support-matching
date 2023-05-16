@@ -1,4 +1,3 @@
-from __future__ import annotations
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload
@@ -17,6 +16,9 @@ __all__ = [
     "sample_converter",
     "to_device",
 ]
+
+
+I = TypeVar("I", Tensor, int)
 
 
 def labels_to_group_id(*, s: I, y: I, s_count: int) -> I:
@@ -42,9 +44,6 @@ class EvalTuple(Generic[S, P]):
             return self.y_true
         s_count = len(self.s.unique())
         return labels_to_group_id(s=self.s, y=self.y_true, s_count=s_count)
-
-
-I = TypeVar("I", Tensor, int)
 
 
 @dataclass(eq=False)
@@ -86,7 +85,7 @@ def group_id_to_label(
     return group_id // s_count
 
 
-def resolve_device(device: str | torch.device | int) -> torch.device:
+def resolve_device(device: Union[str, torch.device, int]) -> torch.device:
     if isinstance(device, int):
         use_gpu = torch.cuda.is_available() and device >= 0
         device = torch.device(device if use_gpu else "cpu")
@@ -97,7 +96,7 @@ def resolve_device(device: str | torch.device | int) -> torch.device:
 
 def to_device(
     *args: Tensor,
-    device: str | torch.device | int,
+    device: Union[str, torch.device, int],
 ) -> Iterator[Tensor]:
     device = resolve_device(device)
     for arg in args:

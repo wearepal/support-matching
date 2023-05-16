@@ -1,4 +1,3 @@
-from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from enum import Enum, auto
 from typing import Callable, Literal, Optional, Union, cast
@@ -146,7 +145,7 @@ class SplitLatentAe(Model):
         self,
         split_encoding: SplitEncoding,
         *,
-        s: Tensor | None = None,
+        s: Optional[Tensor] = None,
         mode: Literal["soft", "hard", "relaxed"] = "soft",
     ) -> Tensor:
         if s is not None:  # we've been given the ground-truth labels for reconstruction
@@ -199,7 +198,7 @@ class SplitLatentAe(Model):
         self,
         x: Tensor,
         *,
-        s: Tensor | None = None,
+        s: Optional[Tensor] = None,
         prior_loss_w: Optional[float] = None,
     ) -> tuple[SplitEncoding, Tensor, dict[str, float]]:
         # it only makes sense to transform zs if we're actually going to use it

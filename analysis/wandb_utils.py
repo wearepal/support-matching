@@ -1,15 +1,12 @@
-from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum, auto
 import math
 from pathlib import Path
-from typing import Callable, Dict, NamedTuple
-from typing_extensions import Final
+from typing import Callable, Final, NamedTuple, Optional, Union
 
 from matplotlib import pyplot as plt
 import pandas as pd
 import seaborn as sns
-
 from wandb_downloader import RunsDownloader
 
 __all__ = [
@@ -173,7 +170,7 @@ def simple_concat(*dfs: pd.DataFrame) -> pd.DataFrame:
 
 
 def concat_with_suffix(
-    dfs: Dict[str, pd.DataFrame], groupby: str = "misc.log_method"
+    dfs: dict[str, pd.DataFrame], groupby: str = "misc.log_method"
 ) -> pd.DataFrame:
     renamed_dfs: list[pd.DataFrame] = []
     for suffix, df in dfs.items():
@@ -194,7 +191,7 @@ class Group(NamedTuple):
     metrics_suffix: str = " (pytorch_classifier)"
 
 
-def download_groups(downloader: RunsDownloader, group_mapping: Dict[str, Group]) -> pd.DataFrame:
+def download_groups(downloader: RunsDownloader, group_mapping: dict[str, Group]) -> pd.DataFrame:
     """Download groups from W&B which do not have `misc.log_method` set.
 
     This method can also remove metric prefixes and suffixes.
@@ -226,7 +223,7 @@ def plot(
     groupby: str = "misc.log_method",
     metrics: list[Metrics] = [Metrics.acc],
     sens_attr: str = "colour",
-    output_dir: Path | str = Path("."),
+    output_dir: Union[Path, str] = Path("."),
     file_format: str = "png",
     file_prefix: str = "",
     fig_dim: tuple[float, float] = (4.0, 6.0),
@@ -235,7 +232,7 @@ def plot(
     agg: Aggregation = Aggregation.none,
     fillna: bool = False,
     hide_left_ticks: bool = False,
-    x_label: str | None = None,
+    x_label: Optional[str] = None,
     plot_style: PlotStyle = PlotStyle.boxplot,
 ) -> None:
     df = data.copy()
@@ -339,7 +336,7 @@ def _make_plot(
     x_limits: tuple[float, float],
     y_limits: tuple[float, float],
     hide_left_ticks: bool,
-    x_label: str | None,
+    x_label: Optional[str],
     plot_style: PlotStyle,
 ) -> plt.Figure:
     # sns.set_style("whitegrid")
