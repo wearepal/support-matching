@@ -6,7 +6,7 @@ defaults:
     - override /ds: nih/gender_infiltration
     - override /labeller: gt
     - override /split: nih/sb10_gender_infiltration_art
-    # - override /ae_arch: in_vqgan
+    # - override /ae_arch: vqgan/imagnet
     - override /ae_arch: artifact/nih/gender_infiltration_sb10_0_vqgan
     - override /disc_arch: set
     - override /scorer: nih/sm

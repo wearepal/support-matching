@@ -1,0 +1,10 @@
+---
+defaults:
+  - vqgan
+  - _self_
+latent_dim: 256
+init_chans: 32
+attn_resolutions: [16]
+num_res_blocks: 1
+ch_mult: [1, 1, 2, 2, 4]
+dropout: 0.0
