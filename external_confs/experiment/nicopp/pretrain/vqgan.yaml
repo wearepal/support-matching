@@ -1,0 +1,11 @@
+# @package _global_
+
+# settings for pretraining an autoencoder
+# usage: +experiment=nicopp/pretrain/vqgan
+
+defaults:
+    - /experiment/nicopp/pretrain/base
+    - override /ae_arch: vqgan/nicopp
+    - _self_
+
+artifact_name: nicopp_vqgan_${ae_arch.num_res_blocks}_${ae_arch.latent_dim}_latent_${alg.steps}_steps_${ae.zs_dim}_zsdim

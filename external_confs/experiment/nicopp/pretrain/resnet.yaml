@@ -1,0 +1,17 @@
+# @package _global_
+
+# settings for pretraining an autoencoder
+# usage: +experiment=nicopp/pretrain/resnet
+
+defaults:
+    - /experiment/nicopp/pretrain/base
+    - override /ae_arch: resnet
+    - _self_
+
+ae_arch:
+    version: RN18
+    first_conv: True
+    maxpool1: True
+    latent_dim: 256
+
+artifact_name: nicopp_resnet_${ae_arch.version}_${ae_arch.latent_dim}_latent_${alg.steps}_steps_${ae.zs_dim}_zsdim
