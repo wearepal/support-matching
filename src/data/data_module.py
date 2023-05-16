@@ -313,19 +313,14 @@ class DataModule(Generic[D]):
                         group_ids=self.group_ids_tr, batch_size=batch_size
                     )
                 else:
+                    num_samples_effective = self.cfg.num_samples_per_group_per_bag * batch_size
                     if self.cfg.stratified_sampler is StratSamplerType.approx_group:
                         batch_sampler_fn = partial(
-                            ApproxStratBatchSampler,
-                            num_samples_per_group=(
-                                self.cfg.num_samples_per_group_per_bag * batch_size
-                            ),
+                            ApproxStratBatchSampler, num_samples_per_group=num_samples_effective
                         )
                     else:
                         batch_sampler_fn = partial(
-                            ApproxStratBatchSampler,
-                            num_samples_per_class=(
-                                self.cfg.num_samples_per_group_per_bag * batch_size
-                            ),
+                            ApproxStratBatchSampler, num_samples_per_class=num_samples_effective
                         )
                     s_all, y_all = extract_labels_from_dataset(self.train)
                     if s_all is None or y_all is None:
