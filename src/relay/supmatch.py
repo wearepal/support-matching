@@ -1,4 +1,5 @@
 from dataclasses import asdict
+import math
 from typing import Any, ClassVar, Optional
 
 from attrs import define, field
@@ -6,6 +7,7 @@ from loguru import logger
 
 from src.algs import SupportMatching
 from src.algs.adv import Evaluator, NeuralScorer, NullScorer, Scorer
+from src.algs.base import NaNLossError
 from src.arch.autoencoder import (
     AeFactory,
     AeFromArtifact,
@@ -106,7 +108,10 @@ class SupMatchRelay(BaseRelay):
             input_dim=ae.encoding_size.zy, target_dim=1, batch_size=dm.batch_size_tr
         )
         disc = NeuralDiscriminator(model=disc_net, cfg=self.disc)
-        score = self.alg.run(dm=dm, ae=ae, disc=disc, evaluator=self.eval, scorer=self.scorer)
+        try:
+            score = self.alg.run(dm=dm, ae=ae, disc=disc, evaluator=self.eval, scorer=self.scorer)
+        except NaNLossError:
+            return -math.inf
         if run is not None:
             # Bar the saving of AeFromArtifact instances to prevent infinite recursion.
             if (self.artifact_name is not None) and (not isinstance(self.ae_arch, AeFromArtifact)):
