@@ -1,6 +1,5 @@
-from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Any, Iterator, Optional
+from typing import Iterator, Optional
 
 from loguru import logger
 from ranzen.torch.module import DcModule
@@ -9,7 +8,7 @@ from torch.cuda.amp.grad_scaler import GradScaler
 import torch.nn as nn
 from torch.nn.parameter import Parameter
 
-from src.data import DataModule, resolve_device
+from src.data import resolve_device
 
 __all__ = ["Algorithm"]
 
@@ -33,6 +32,3 @@ class Algorithm(DcModule):
         if (value := self.max_grad_norm) is not None:
             nn.utils.clip_grad.clip_grad_norm_(parameters, max_norm=value, norm_type=2.0)
 
-    @abstractmethod
-    def run(self, dm: DataModule, **kwargs: Any) -> Any:
-        raise NotImplementedError()

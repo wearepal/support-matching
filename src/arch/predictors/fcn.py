@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Generic, Optional, Type, TypeVar
+from typing import Callable, Generic, Optional, Type, TypeVar
 from typing_extensions import override
 
 from ranzen.torch import DcModule
@@ -25,6 +25,8 @@ class NormType(Enum):
 
 @dataclass
 class Fcn(PredictorFactory):
+    """Fully connected network."""
+
     num_hidden: int = 0
     hidden_dim: Optional[int] = None
     activation: Activation = Activation.GELU
@@ -45,7 +47,7 @@ class Fcn(PredictorFactory):
 
     @override
     def __call__(
-        self, input_dim: int, *, target_dim: int, **kwargs: Any
+        self, input_dim: int, *, target_dim: int, batch_size: Optional[int] = None
     ) -> PredictorFactoryOut[nn.Sequential]:
         predictor = nn.Sequential(nn.Flatten())
         if self.input_norm and (self.norm is not None):
@@ -121,10 +123,7 @@ class SetFcn(PredictorFactory):
             norm=self.norm,
             final_bias=True,
             input_norm=self.input_norm,
-        )(
-            input_dim=input_dim,
-            target_dim=agg_input_dim,
-        )
+        )(input_dim=input_dim, target_dim=agg_input_dim)
 
     def _post_agg_fcn(
         self, input_dim: int, *, target_dim: int
@@ -154,12 +153,7 @@ class SetFcn(PredictorFactory):
 
     @override
     def __call__(
-        self,
-        input_dim: int,
-        *,
-        target_dim: int,
-        batch_size: int,
-        **kwargs: Any,
+        self, input_dim: int, *, target_dim: int, batch_size: int
     ) -> PredictorFactoryOut[SetPredictor[BatchAggregator]]:
         fcn_pre, input_dim = self._pre_agg_fcn(input_dim=input_dim)
         aggregator, input_dim = self._aggregator(

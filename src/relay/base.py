@@ -30,7 +30,7 @@ class BaseRelay:
 
     def init_dm(
         self, ds: CdtVisionDataset[TernarySample, Tensor, Tensor], labeller: Labeller
-    ) -> DataModule[CdtVisionDataset[TernarySample, Tensor, Tensor]]:
+    ) -> DataModule:
         assert isinstance(self.split, DataSplitter)
 
         logger.info(f"Current working directory: '{os.getcwd()}'")

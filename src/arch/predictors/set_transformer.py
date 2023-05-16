@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any
+from typing import Optional
 
 import torch
 from torch import Tensor
@@ -100,7 +100,7 @@ class SetTransformer(PredictorFactory):
     num_heads: int = 4
 
     def __call__(
-        self, input_dim: int, *, target_dim: int, **kwargs: Any
+        self, input_dim: int, *, target_dim: int, batch_size: Optional[int] = None
     ) -> PredictorFactoryOut[_SetTransformer]:
         st = _SetTransformer(
             in_dim=input_dim,
