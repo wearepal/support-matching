@@ -1,5 +1,5 @@
 from dataclasses import asdict
-from typing import Any, ClassVar, Dict, Optional
+from typing import Any, ClassVar, Optional
 
 from attrs import define, field
 from loguru import logger
@@ -63,7 +63,7 @@ class SupMatchRelay(BaseRelay):
     artifact_name: Optional[str] = None
     """Save model weights under this name."""
 
-    options: ClassVar[Dict[str, Dict[str, type]]] = BaseRelay.options | {
+    options: ClassVar[dict[str, dict[str, type]]] = BaseRelay.options | {
         "scorer": {"neural": NeuralScorer, "none": NullScorer},
         "ds": {
             "cmnist": ColoredMNISTCfg,
@@ -89,7 +89,7 @@ class SupMatchRelay(BaseRelay):
         },
     }
 
-    def run(self, raw_config: Optional[Dict[str, Any]] = None) -> Optional[float]:
+    def run(self, raw_config: Optional[dict[str, Any]] = None) -> Optional[float]:
         assert isinstance(self.ae_arch, AeFactory)
         assert isinstance(self.disc_arch, PredictorFactory)
         assert isinstance(self.ds, DatasetFactory)

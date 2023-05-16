@@ -1,6 +1,6 @@
 from enum import Enum
 import math
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 from typing_extensions import override
 
 from conduit.types import Loss
@@ -23,7 +23,7 @@ class MixedLoss(nn.Module):
 
     def __init__(
         self,
-        feature_group_slices: Dict[str, List[slice]],
+        feature_group_slices: dict[str, list[slice]],
         *,
         disc_loss_factor: float = 1.0,
         reduction: Union[str, ReductionType] = ReductionType.mean,

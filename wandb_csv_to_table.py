@@ -1,9 +1,7 @@
-from __future__ import annotations
 from enum import Enum
 import math
 from pathlib import Path
-from typing import List
-from typing_extensions import Final
+from typing import Final, Optional
 
 import numpy as np
 import pandas as pd
@@ -52,7 +50,7 @@ def generate_table(
     metrics: list[str],
     aggregation: Aggregation,
     round_to: int,
-    metrics_renames: dict[str, str] | None = None,
+    metrics_renames: Optional[dict[str, str]] = None,
 ) -> pd.DataFrame:
     AggClass = AGGREGATION_LOOKUP[aggregation]
     col_renames = {"data": "type", "method": "classifier"}
@@ -106,9 +104,9 @@ DEFAULT_METRICS: Final = [
 
 def main(
     csv_file: Path,
-    metrics: List[Metrics] = typer.Option(DEFAULT_METRICS, "--metrics", "-m"),
+    metrics: list[Metrics] = typer.Option(DEFAULT_METRICS, "--metrics", "-m"),
     sens_attr: str = typer.Option("colour", "--sens-attr", "-s"),
-    classifiers: List[str] = typer.Option(["pytorch_classifier"], "--classifiers", "-c"),
+    classifiers: list[str] = typer.Option(["pytorch_classifier"], "--classifiers", "-c"),
     groupby: str = typer.Option("misc.log_method", "--groupby", "-g"),
     aggregation: Aggregation = typer.Option(Aggregation.mean.value, "--aggregation", "-a"),
     round_to: int = typer.Option(2, "--round-to", "-r"),

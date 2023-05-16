@@ -1,8 +1,7 @@
-from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
 from typing_extensions import TypeAlias
 
 from conduit.data.datasets.vision.base import CdtVisionDataset
@@ -37,7 +36,7 @@ class WandbConf:
     project: Optional[str] = "support-matching"
     group: Optional[str] = None
     entity: Optional[str] = "predictive-analytics-lab"
-    tags: Optional[List[str]] = None
+    tags: Optional[list[str]] = None
     reinit: bool = True
     job_type: Optional[str] = None
     resume: Optional[str] = None
@@ -46,8 +45,8 @@ class WandbConf:
 
     def init(
         self,
-        raw_config: Optional[Dict[str, Any]] = None,
-        cfgs_for_group: Tuple[object, ...] = (),
+        raw_config: Optional[dict[str, Any]] = None,
+        cfgs_for_group: tuple[object, ...] = (),
         suffix: Optional[str] = None,
     ) -> Run:
         if self.group is None:
@@ -73,11 +72,11 @@ def log_images(
     dm: DataModule,
     name: str,
     step: int,
-    nsamples: int | Sequence[int] = 64,
+    nsamples: Union[int, Sequence[int]] = 64,
     ncols: int = 8,
     monochrome: bool = False,
-    prefix: str | None = None,
-    caption: str | None = None,
+    prefix: Optional[str] = None,
+    caption: Optional[str] = None,
 ):
     """Make a grid of the given images, save them in a file and log them with W&B"""
     prefix = "train/" if prefix is None else f"{prefix}/"
@@ -116,7 +115,7 @@ def log_attention(
     nbags: int,
     border_width: int = 3,
     ncols: int = 8,
-    prefix: str | None = None,
+    prefix: Optional[str] = None,
 ):
     """Make a grid of the given images, save them in a file and log them with W&B"""
     prefix = "train_" if prefix is None else f"{prefix}_"

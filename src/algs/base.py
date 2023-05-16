@@ -1,5 +1,6 @@
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Iterator, Optional
+from typing import Optional
 
 from loguru import logger
 from ranzen.torch.module import DcModule

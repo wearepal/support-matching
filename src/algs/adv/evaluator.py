@@ -1,8 +1,7 @@
-from __future__ import annotations
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any, Final, Generic, Optional, Sequence, TypeVar, overload
-from typing_extensions import Literal
+from typing import Any, Final, Generic, Literal, Optional, TypeVar, Union, overload
 
 from conduit.data import TernarySample
 from conduit.data.datasets import CdtDataLoader, CdtDataset
@@ -95,7 +94,7 @@ def encode_dataset(
     dl: CdtDataLoader[TernarySample],
     *,
     encoder: SplitLatentAe,
-    device: str | torch.device,
+    device: Union[str, torch.device],
     invariant_to: Literal["y"] = ...,
 ) -> InvariantDatasets[Dataset, None]:
     ...
@@ -106,7 +105,7 @@ def encode_dataset(
     dl: CdtDataLoader[TernarySample],
     *,
     encoder: SplitLatentAe,
-    device: str | torch.device,
+    device: Union[str, torch.device],
     invariant_to: Literal["s"] = ...,
 ) -> InvariantDatasets[None, Dataset]:
     ...
@@ -117,7 +116,7 @@ def encode_dataset(
     dl: CdtDataLoader[TernarySample],
     *,
     encoder: SplitLatentAe,
-    device: str | torch.device,
+    device: Union[str, torch.device],
     invariant_to: Literal["both"],
 ) -> InvariantDatasets[Dataset, Dataset]:
     ...
@@ -127,7 +126,7 @@ def encode_dataset(
     dl: CdtDataLoader[TernarySample],
     *,
     encoder: SplitLatentAe,
-    device: str | torch.device,
+    device: Union[str, torch.device],
     invariant_to: InvariantAttr = "s",
 ) -> InvariantDatasets:
     device = resolve_device(device)
@@ -174,7 +173,7 @@ def encode_dataset(
     return InvariantDatasets(inv_y=inv_y, inv_s=inv_s)
 
 
-def _log_enc_statistics(encoded: Dataset, *, step: int | None, s_count: int) -> None:
+def _log_enc_statistics(encoded: Dataset, *, step: Optional[int], s_count: int) -> None:
     """Compute and log statistics about the encoding."""
     x, y, s = encoded.x, encoded.y, encoded.s
     class_ids = labels_to_group_id(s=s, y=y, s_count=s_count)
@@ -194,11 +193,11 @@ def _log_enc_statistics(encoded: Dataset, *, step: int | None, s_count: int) -> 
 
 
 def visualize_clusters(
-    x: np.ndarray | Tensor,
+    x: Union[np.ndarray, Tensor],
     *,
-    labels: np.ndarray | Tensor,
+    labels: Union[np.ndarray, Tensor],
     s_count: int,
-    title: str | None = None,
+    title: Optional[str] = None,
     legend: bool = True,
 ) -> plt.Figure:  # type: ignore
     if x.shape[1] != 2:
@@ -306,7 +305,7 @@ class Evaluator:
         dm: DataModule,
         *,
         device: torch.device,
-        step: int | None = None,
+        step: Optional[int] = None,
         name: str = "",
         pred_s: bool = False,
     ) -> None:
@@ -327,8 +326,8 @@ class Evaluator:
         dm: DataModule,
         *,
         encoder: SplitLatentAe,
-        device: str | torch.device | int,
-        step: int | None = None,
+        device: Union[str, torch.device, int],
+        step: Optional[int] = None,
     ) -> None:
         device = resolve_device(device)
         encoder.eval()
@@ -384,7 +383,7 @@ class Evaluator:
         dm: DataModule,
         *,
         encoder: SplitLatentAe,
-        device: str | torch.device | int,
-        step: int | None = None,
+        device: Union[str, torch.device, int],
+        step: Optional[int] = None,
     ) -> None:
         return self.run(dm=dm, encoder=encoder, device=device, step=step)

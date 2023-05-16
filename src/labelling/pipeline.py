@@ -1,4 +1,3 @@
-from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -47,10 +46,10 @@ __all__ = [
 
 class Labeller(ABC):
     @abstractmethod
-    def run(self, dm: DataModule) -> Tensor | None:
+    def run(self, dm: DataModule) -> Optional[Tensor]:
         raise NotImplementedError()
 
-    def __call__(self, dm: DataModule) -> Tensor | None:
+    def __call__(self, dm: DataModule) -> Optional[Tensor]:
         return self.run(dm=dm)
 
 
@@ -158,7 +157,7 @@ class ClipClassifier(Labeller):
 
     @torch.no_grad()
     def evaluate(
-        self, g_pred: Tensor, *, g_true: Tensor, use_wandb: bool, prefix: str | None = None
+        self, g_pred: Tensor, *, g_true: Tensor, use_wandb: bool, prefix: Optional[str] = None
     ) -> dict[str, float]:
         metrics = {
             "Accuracy": to_item(cdtm.accuracy(y_pred=g_pred, y_true=g_true)),

@@ -1,14 +1,10 @@
-from __future__ import annotations
 from pathlib import Path
 from typing import TypeVar
 
 import torch
 from torch import nn
 
-__all__ = [
-    "restore_model",
-    "save_model",
-]
+__all__ = ["restore_model", "save_model"]
 
 
 def save_model(save_dir: Path, *, model: nn.Module, itr: int, best: bool = False) -> Path:

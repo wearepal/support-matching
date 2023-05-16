@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, Final, Optional, Tuple, Union
+from typing import Any, Final, Optional, Union
 from typing_extensions import override
 
 from hydra.utils import instantiate
@@ -26,7 +26,7 @@ FILENAME: Final[str] = "model.pt"
 
 @torch.no_grad()
 def save_ae_artifact(
-    model: AePair, *, run: Union[Run, RunDisabled], config: Dict[str, Any], name: str
+    model: AePair, *, run: Union[Run, RunDisabled], config: dict[str, Any], name: str
 ) -> None:
     assert "_target_" in config
     with TemporaryDirectory() as tmpdir:
@@ -60,7 +60,7 @@ def _process_root_dir(root: Optional[Union[Path, str]]) -> Path:
 def load_ae_from_artifact(
     name: str,
     *,
-    input_shape: Tuple[int, int, int],
+    input_shape: tuple[int, int, int],
     version: Optional[int] = None,
     run: Optional[Union[Run, RunDisabled]] = None,
     project: Optional[str] = None,
@@ -108,7 +108,7 @@ class AeFromArtifact(AeFactory):
     @override
     def __call__(
         self,
-        input_shape: Tuple[int, int, int],
+        input_shape: tuple[int, int, int],
     ) -> AePair:
         ae_pair = load_ae_from_artifact(
             input_shape=input_shape, name=self.artifact_name, version=self.version

@@ -1,9 +1,9 @@
-from __future__ import annotations
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 import platform
-from typing import Any, Final, Generic, Iterator, TypeVar
+from typing import Any, Final, Generic, TypeVar, Union
 from typing_extensions import TypeAlias
 
 from conduit.data import LoadedData, TernarySample
@@ -38,7 +38,7 @@ def find_data_dir() -> str:
     return DATA_DIRS.get(name_of_machine, to_absolute_path("data"))
 
 
-def process_data_dir(root: Path | str | None) -> Path:
+def process_data_dir(root: Union[Path, str, None]) -> Path:
     if root is None:
         return Path(find_data_dir())
     return Path(to_absolute_path(str(root))).resolve()

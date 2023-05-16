@@ -1,6 +1,6 @@
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 from typing_extensions import override
 
 from conduit.data import TernarySample
@@ -56,8 +56,8 @@ class ColoredMNISTCfg(DatasetFactory):
     root: Union[str, Path]
     download: bool = True
     transform: Any = None  # Optional[Union[Compose, BasicTransform, Callable[[Image], Any]]]
-    label_map: Optional[Dict[str, int]] = None
-    colors: Optional[List[int]] = None
+    label_map: Optional[dict[str, int]] = None
+    colors: Optional[list[int]] = None
     num_colors: int = 10
     scale: float = 0.2
     correlation: Optional[float] = None

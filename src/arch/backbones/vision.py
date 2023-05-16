@@ -1,17 +1,18 @@
-from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Optional, cast
+from typing import TYPE_CHECKING, Callable, Optional, Union, cast
 from typing_extensions import override
 
 import timm
-import timm.models as tm
 import torch.nn as nn
 import torchvision.models as tvm
 
 from src.arch.common import Activation, BiaslessLayerNorm
 
 from .base import BackboneFactory, BackboneFactoryOut
+
+if TYPE_CHECKING:
+    import timm.models as tm
 
 __all__ = [
     "Beit",
@@ -97,7 +98,7 @@ class ConvNeXt(BackboneFactory):
 
     @override
     def __call__(self, input_dim: int) -> BackboneFactoryOut[nn.Sequential]:
-        classifier: tm.ConvNeXt = timm.create_model(
+        classifier: "tm.ConvNeXt" = timm.create_model(
             self.version.value, pretrained=self.pretrained, checkpoint_path=self.checkpoint_path
         )
         out_dim = classifier.num_features
@@ -144,8 +145,8 @@ class ViT(BackboneFactory):
     checkpoint_path: str = ""
 
     @override
-    def __call__(self, input_dim: int) -> BackboneFactoryOut[tm.VisionTransformer]:
-        model: tm.VisionTransformer = timm.create_model(
+    def __call__(self, input_dim: int) -> BackboneFactoryOut["tm.VisionTransformer"]:
+        model: "tm.VisionTransformer" = timm.create_model(
             self.version.value, pretrained=self.pretrained, checkpoint_path=self.checkpoint_path
         )
         model.head = nn.Identity()
@@ -166,8 +167,8 @@ class Swin(BackboneFactory):
     checkpoint_path: str = ""
 
     @override
-    def __call__(self, input_dim: int) -> BackboneFactoryOut[tm.SwinTransformer]:
-        model: tm.SwinTransformer = timm.create_model(
+    def __call__(self, input_dim: int) -> BackboneFactoryOut["tm.SwinTransformer"]:
+        model: "tm.SwinTransformer" = timm.create_model(
             self.version.value, pretrained=self.pretrained, checkpoint_path=self.checkpoint_path
         )
         model.head = nn.Identity()
@@ -205,8 +206,8 @@ class SwinV2(BackboneFactory):
     @override
     def __call__(
         self, input_dim: int
-    ) -> BackboneFactoryOut[tm.SwinTransformerV2 | tm.SwinTransformerV2Cr]:
-        model: tm.SwinTransformerV2 | tm.SwinTransformerV2Cr = timm.create_model(
+    ) -> BackboneFactoryOut[Union["tm.SwinTransformerV2", "tm.SwinTransformerV2Cr"]]:
+        model: Union["tm.SwinTransformerV2", "tm.SwinTransformerV2Cr"] = timm.create_model(
             self.version.value, pretrained=self.pretrained, checkpoint_path=self.checkpoint_path
         )
         if self.freeze_patch_embedder:
@@ -234,8 +235,8 @@ class Beit(BackboneFactory):
     out_dim: int = 0
 
     @override
-    def __call__(self, input_dim: int) -> BackboneFactoryOut[tm.Beit]:
-        model: tm.Beit = timm.create_model(
+    def __call__(self, input_dim: int) -> BackboneFactoryOut["tm.Beit"]:
+        model: "tm.Beit" = timm.create_model(
             self.version.value, pretrained=self.pretrained, checkpoint_path=self.checkpoint_path
         )
         model.reset_classifier(num_classes=self.out_dim)
@@ -269,8 +270,8 @@ class NfNet(BackboneFactory):
     out_dim: int = 0
 
     @override
-    def __call__(self, input_dim: int) -> BackboneFactoryOut[tm.NormFreeNet]:
-        model: tm.NormFreeNet = timm.create_model(
+    def __call__(self, input_dim: int) -> BackboneFactoryOut["tm.NormFreeNet"]:
+        model: "tm.NormFreeNet" = timm.create_model(
             self.version.value, pretrained=self.pretrained, checkpoint_path=self.checkpoint_path
         )
         model.head = nn.Sequential(nn.AdaptiveAvgPool2d(1), nn.Flatten())  # type: ignore
@@ -308,7 +309,7 @@ class SimpleCNN(BackboneFactory):
         out_dim: int,
         kernel_size: int,
         stride: int = 1,
-        padding: str | int = "same",
+        padding: Union[str, int] = "same",
     ) -> nn.Sequential:
         _block = []
         _block += [

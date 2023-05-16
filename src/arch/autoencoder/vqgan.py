@@ -1,6 +1,7 @@
 # Code derived from https://github.com/CompVis/taming-transformers/tree/master/taming/models
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import List, Optional, Sequence, Tuple
+from typing import Optional
 from typing_extensions import override
 
 import numpy as np
@@ -325,15 +326,15 @@ class Decoder(nn.Module):
 
 @dataclass(eq=False)
 class VqGanAe(AeFactory):
-    attn_resolutions: List[int]
-    ch_mult: List[int]
+    attn_resolutions: list[int]
+    ch_mult: list[int]
     latent_dim: int
     init_chans: int
     num_res_blocks: int
     dropout: float = 0.0
 
     @override
-    def __call__(self, input_shape: Tuple[int, int, int]) -> AePair[Encoder, Decoder]:
+    def __call__(self, input_shape: tuple[int, int, int]) -> AePair[Encoder, Decoder]:
         c, h, w = input_shape
         if h != w:
             raise ValueError(

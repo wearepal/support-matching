@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Final, Optional, Tuple, Union
+from typing import Final, Optional, Union
 from typing_extensions import override
 
 from conduit.data import TernarySample
@@ -33,7 +33,7 @@ def _encode_and_score_recons(
     ae: SplitLatentAe,
     device: Union[str, torch.device],
     minimize: bool = False,
-) -> Tuple[CdtDataset[TernarySample, Tensor, Tensor, Tensor], float]:
+) -> tuple[CdtDataset[TernarySample, Tensor, Tensor, Tensor], float]:
     device = resolve_device(device)
     ae.eval()
     ae.to(device)

@@ -1,6 +1,6 @@
-from __future__ import annotations
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Iterable, Optional, Union
+from typing import Optional, Union
 
 from loguru import logger
 import numpy as np
@@ -24,7 +24,7 @@ def fft_init(
     *,
     centroids: Tensor,
     num_clusters: int,
-    device: str | torch.device | None = None,
+    device: Union[str, torch.device, None] = None,
     chunk_size: int = 1000,
 ) -> Tensor:
     num_predefined = len(centroids)

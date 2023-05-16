@@ -1,5 +1,4 @@
 """Modules that aggregate over a batch."""
-from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 from typing_extensions import override

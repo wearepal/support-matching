@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 from typing_extensions import override
 
 from conduit.types import Loss
@@ -27,8 +27,8 @@ class SdCrossEntropyLoss(nn.Module, Loss):
         self,
         loss_fn: Optional[Loss] = None,
         *,
-        lambda_: Union[float, Tuple[float, ...], List[float], ListConfig] = 1.0,
-        gamma: Union[float, Tuple[float, ...], List[float], ListConfig] = 0.0,
+        lambda_: Union[float, tuple[float, ...], list[float], ListConfig] = 1.0,
+        gamma: Union[float, tuple[float, ...], list[float], ListConfig] = 0.0,
     ) -> None:
         super().__init__()
         if isinstance(lambda_, ListConfig):
@@ -73,8 +73,8 @@ class SdErm(Erm):
         https://arxiv.org/abs/2011.09468
     """
 
-    lambda_: List[float] = field(default_factory=lambda: [1.0])
-    gamma: List[float] = field(default_factory=lambda: [0.0])
+    lambda_: list[float] = field(default_factory=lambda: [1.0])
+    gamma: list[float] = field(default_factory=lambda: [0.0])
 
     def __post_init__(self) -> None:
         self.criterion: SdCrossEntropyLoss = SdCrossEntropyLoss(

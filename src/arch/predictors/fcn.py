@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Generic, Optional, Type, TypeVar
+from typing import Callable, Generic, Optional, TypeVar
 from typing_extensions import override
 
 from ranzen.torch import DcModule
@@ -91,7 +91,7 @@ class BatchAggregatorEnum(Enum):
     KVQ = (KvqAggregator,)
     GATED = (GatedAggregator,)
 
-    def __init__(self, init: Type[BatchAggregator]) -> None:
+    def __init__(self, init: type[BatchAggregator]) -> None:
         self.init = init
 
 

@@ -1,4 +1,5 @@
-from typing import Dict, Iterable, List, Tuple, Union
+from collections.abc import Iterable
+from typing import Union
 
 from torch.nn.parameter import Parameter
 
@@ -6,12 +7,12 @@ __all__ = ["exclude_from_weight_decay"]
 
 
 def exclude_from_weight_decay(
-    named_params: Iterable[Tuple[str, Parameter]],
+    named_params: Iterable[tuple[str, Parameter]],
     weight_decay: float = 0.0,
-    exclusion_patterns: Tuple[str, ...] = ("bias",),
-) -> List[Dict[str, Union[List[Parameter], float]]]:
-    params: List[Parameter] = []
-    excluded_params: List[Parameter] = []
+    exclusion_patterns: tuple[str, ...] = ("bias",),
+) -> list[dict[str, Union[list[Parameter], float]]]:
+    params: list[Parameter] = []
+    excluded_params: list[Parameter] = []
 
     for name, param in named_params:
         if not param.requires_grad:
