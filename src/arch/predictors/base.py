@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any, Tuple, TypeVar
+from typing import Tuple, TypeVar
 from typing_extensions import TypeAlias
 
 import torch.nn as nn
@@ -14,6 +14,6 @@ PredictorFactoryOut: TypeAlias = Tuple[M, int]
 class PredictorFactory(ABC):
     @abstractmethod
     def __call__(
-        self, input_dim: int, *, target_dim: int, **kwargs: Any
+        self, input_dim: int, *, target_dim: int, batch_size: int
     ) -> PredictorFactoryOut[nn.Module]:
-        ...
+        raise NotImplementedError()

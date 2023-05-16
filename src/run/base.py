@@ -41,7 +41,7 @@ def launch(relay_cls: type[Experiment]) -> None:
         assert isinstance(raw_config, dict)
         raw_config = cast(dict[str, Any], raw_config)
         raw_config = {
-            f"{key}/{OmegaConf.get_type(dict_).__name__}"
+            f"{key}/{OmegaConf.get_type(dict_).__name__}"  # type: ignore
             if isinstance(dict_ := hydra_config[key], DictConfig)
             else key: value
             for key, value in raw_config.items()

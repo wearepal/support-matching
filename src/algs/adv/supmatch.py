@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import Dict, Optional, Tuple, cast
 from typing_extensions import Self, override
 
-from conduit.data.datasets.vision import CdtVisionDataset
 from conduit.data.structures import TernarySample
 from loguru import logger
 import torch
@@ -165,7 +164,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
     @override
     def run(
         self,
-        dm: DataModule[CdtVisionDataset],
+        dm: DataModule,
         *,
         ae: SplitLatentAe,
         disc: BinaryDiscriminator,
@@ -184,4 +183,5 @@ class SupportMatching(AdvSemiSupervisedAlg):
         if (scorer is not None) and (disc_model_sd0 is not None):
             disc = cast(NeuralDiscriminator, disc)
             disc.model.load_state_dict(disc_model_sd0)
+            assert isinstance(disc.model, SetPredictor)
             return scorer.run(dm=dm, ae=ae, disc=disc.model, device=self.device, use_wandb=True)

@@ -14,9 +14,8 @@ from typing import (
     TypeVar,
     Union,
 )
-from typing_extensions import Self, TypeAlias, override
+from typing_extensions import Self, TypeAlias
 
-from conduit.data.datasets.vision import CdtVisionDataset
 from conduit.data.structures import NamedSample, TernarySample
 from conduit.metrics import accuracy
 from conduit.models.utils import prefix_keys
@@ -149,12 +148,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         raise NotImplementedError()
 
     def encoder_step(
-        self,
-        comp: Components,
-        *,
-        batch_tr: TernarySample,
-        x_dep: Tensor,
-        warmup: bool,
+        self, comp: Components, *, batch_tr: TernarySample, x_dep: Tensor, warmup: bool
     ) -> DefaultDict[str, float]:
         logging_dict: DefaultDict[str, float] = defaultdict(float)
         for _ in range(self.ga_steps):
@@ -351,15 +345,13 @@ class AdvSemiSupervisedAlg(Algorithm):
         logger.info("Finished training")
         return self
 
-    @override
     def run(
         self,
-        dm: DataModule[CdtVisionDataset],
+        dm: DataModule,
         *,
         ae: SplitLatentAe,
         disc: Any,
         evaluator: Evaluator,
-        **kwargs: Any,
     ) -> Any:
         try:
             self.fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)

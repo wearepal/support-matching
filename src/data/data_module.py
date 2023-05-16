@@ -7,7 +7,6 @@ from typing import (
     TYPE_CHECKING,
     DefaultDict,
     Dict,
-    Generic,
     Iterable,
     Iterator,
     List,
@@ -40,7 +39,7 @@ import torch
 from torch import Tensor
 import torchvision.transforms.transforms as T
 
-from .common import D
+from .common import Dataset
 from .splitter import DataSplitter
 from .utils import group_id_to_label
 
@@ -83,12 +82,12 @@ class DataModuleConf:
 
 
 @dataclass(eq=False)
-class DataModule(Generic[D]):
+class DataModule:
     cfg: DataModuleConf
-    train: D
-    deployment: D
+    train: Dataset
+    deployment: Dataset
     deployment_ids: Optional[Tensor] = field(init=False, default=None)
-    test: D
+    test: Dataset
     split_seed: Optional[int]
 
     def __post_init__(self) -> None:
@@ -228,7 +227,7 @@ class DataModule(Generic[D]):
 
     def _make_dataloader(
         self,
-        ds: D,
+        ds: Dataset,
         *,
         batch_size: Optional[int],
         shuffle: bool = False,
@@ -429,7 +428,12 @@ class DataModule(Generic[D]):
 
     @classmethod
     def from_ds(
-        cls, *, config: DataModuleConf, ds: D, splitter: DataSplitter, labeller: "Labeller"
+        cls,
+        *,
+        config: DataModuleConf,
+        ds: Dataset,
+        splitter: DataSplitter,
+        labeller: "Labeller",
     ) -> Self:
         splits = splitter(ds)
         dm = cls(
@@ -443,7 +447,7 @@ class DataModule(Generic[D]):
         dm.deployment_ids = deployment_ids
         return dm
 
-    def __iter__(self) -> Iterator[D]:
+    def __iter__(self) -> Iterator[Dataset]:
         yield from (self.train, self.deployment, self.test)
 
     def __str__(self) -> str:
