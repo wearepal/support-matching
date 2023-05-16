@@ -31,4 +31,3 @@ class Algorithm(DcModule):
     def _clip_gradients(self, parameters: Iterator[Parameter]) -> None:
         if (value := self.max_grad_norm) is not None:
             nn.utils.clip_grad.clip_grad_norm_(parameters, max_norm=value, norm_type=2.0)
-
