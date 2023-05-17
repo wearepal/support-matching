@@ -54,11 +54,7 @@ class Classifier(Model):
 
     @overload
     def predict(
-        self,
-        data: CdtDataLoader[TernarySample],
-        *,
-        device: torch.device,
-        with_soft: Literal[True],
+        self, data: CdtDataLoader[TernarySample], *, device: torch.device, with_soft: Literal[True]
     ) -> EvalTuple[Tensor, Tensor]:
         ...
 
@@ -151,12 +147,7 @@ class Classifier(Model):
                 pair = EmEvalPair.from_tensors(
                     y_pred=preds, y_true=targets, s=groups, pred_s=pred_s
                 )
-                metrics = compute_metrics(
-                    pair=pair,
-                    use_wandb=False,
-                    prefix="test",
-                    verbose=False,
-                )
+                metrics = compute_metrics(pair=pair, use_wandb=False, prefix="test", verbose=False)
                 log_dict.update(metrics)
                 self.model.train()
             if use_wandb:
@@ -185,9 +176,7 @@ class SetClassifier(Model):
 
     @torch.no_grad()
     def _fetch_train_data(
-        self,
-        *args: tuple[Iterator[S], int],
-        device: torch.device,
+        self, *args: tuple[Iterator[S], int], device: torch.device
     ) -> Iterator[_ScSample]:
         for i, (dl_iter, bs) in enumerate(args):
             batch = next(dl_iter)

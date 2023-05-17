@@ -91,8 +91,7 @@ class KmeansOnClipEncodings(DcModule, Labeller):
         else:
             if self.encoder is None or not use_cached_encoder:
                 encoder = ClipVisualEncoder(
-                    version=self.clip_version,
-                    download_root=self.download_root,
+                    version=self.clip_version, download_root=self.download_root
                 )
                 if self.ft_steps > 0:
                     encoder.finetune(
@@ -106,11 +105,7 @@ class KmeansOnClipEncodings(DcModule, Labeller):
                     )
             else:
                 encoder = self.encoder
-            encodings = encoder.encode(
-                dm=dm,
-                batch_size_tr=self.enc_batch_size,
-                device=device,
-            )
+            encodings = encoder.encode(dm=dm, batch_size_tr=self.enc_batch_size, device=device)
             if self.encodings_path is not None:
                 encodings.save(self.encodings_path)
             if self.cache_encoder:
@@ -178,10 +173,7 @@ class ClipClassifier(Labeller):
     @override
     def run(self, dm: DataModule, *, use_cached_encoder: bool = False) -> Tensor:
         device = resolve_device(self.gpu)
-        encoder = ClipVisualEncoder(
-            version=self.clip_version,
-            download_root=self.download_root,
-        )
+        encoder = ClipVisualEncoder(version=self.clip_version, download_root=self.download_root)
         ft_model = encoder.finetune(
             dm=dm,
             steps=self.steps,
@@ -205,10 +197,7 @@ class ClipClassifier(Labeller):
         if self.save_as_artifact:
             run = cast(Optional[Run], wandb.run)
             save_labels_as_artifact(
-                run=run,
-                labels=g_pred,
-                datamodule=dm,
-                artifact_name=self.artifact_name,
+                run=run, labels=g_pred, datamodule=dm, artifact_name=self.artifact_name
             )
         return g_pred
 
@@ -292,10 +281,7 @@ class UniformLabelNoiser(LabelNoiser):
     @override
     def _noise(self, dep_ids: Tensor, *, flip_inds: Tensor, dm: DataModule) -> Tensor:
         return uniform_label_noise(
-            labels=dep_ids,
-            indices=flip_inds,
-            generator=self.generator,
-            inplace=True,
+            labels=dep_ids, indices=flip_inds, generator=self.generator, inplace=True
         )
 
 
@@ -310,10 +296,7 @@ class CentroidalLabelNoiser(LabelNoiser):
     @override
     def _noise(self, dep_ids: Tensor, *, flip_inds: Tensor, dm: DataModule) -> Tensor:
         device = resolve_device(self.gpu)
-        encoder = ClipVisualEncoder(
-            version=self.clip_version,
-            download_root=self.download_root,
-        )
+        encoder = ClipVisualEncoder(version=self.clip_version, download_root=self.download_root)
         encodings, _ = encode_with_group_ids(
             model=encoder,
             dl=dm.deployment_dataloader(eval=True, batch_size=self.enc_batch_size),

@@ -5,10 +5,7 @@ from typing import Any, Optional
 import torch
 from torch import Tensor
 
-__all__ = [
-    "mmd2",
-    "MMDKernel",
-]
+__all__ = ["mmd2", "MMDKernel"]
 
 
 class MMDKernel(Enum):
@@ -148,12 +145,7 @@ def _mmd2(
 
 
 def mmd2(
-    x: Tensor,
-    y: Tensor,
-    *,
-    kernel: MMDKernel = MMDKernel.rq,
-    biased: bool = False,
-    **kwargs: Any,
+    x: Tensor, y: Tensor, *, kernel: MMDKernel = MMDKernel.rq, biased: bool = False, **kwargs: Any
 ) -> Tensor:
     if kernel == MMDKernel.linear:
         kernel_out = _dot_kernel(x, y)

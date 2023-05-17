@@ -7,13 +7,7 @@ import torch
 from torch import Tensor
 from torch.types import Number
 
-__all__ = [
-    "cat",
-    "soft_prediction",
-    "to_item",
-    "to_numpy",
-    "full_class_path",
-]
+__all__ = ["cat", "soft_prediction", "to_item", "to_numpy", "full_class_path"]
 
 
 DT = TypeVar("DT", bound=Union[np.number, np.bool_])

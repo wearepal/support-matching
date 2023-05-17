@@ -19,12 +19,7 @@ from src.models.base import ModelCfg
 
 from .base import FsAlg
 
-__all__ = [
-    "IndexedDataset",
-    "IndexedSample",
-    "LabelEma",
-    "LfF",
-]
+__all__ = ["IndexedDataset", "IndexedSample", "LabelEma", "LfF"]
 
 
 class LabelEma(nn.Module, Indexable):
@@ -92,10 +87,7 @@ class IndexedSample(TernarySample[X], _IndexedSampleMixin[Tensor]):
 
 
 class IndexedDataset(SizedDataset):
-    def __init__(
-        self,
-        dataset: CdtDataset[TernarySample[LoadedData], Any, Tensor, Tensor],
-    ) -> None:
+    def __init__(self, dataset: CdtDataset[TernarySample[LoadedData], Any, Tensor, Tensor]) -> None:
         self.dataset = dataset
 
     @override

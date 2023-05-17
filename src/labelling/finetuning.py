@@ -89,8 +89,7 @@ class FineTuner(DcModule):
         )
         last_acc = None
         val_freq = max(
-            (self.val_freq if isinstance(self.val_freq, int) else round(self.val_freq * steps)),
-            1,
+            (self.val_freq if isinstance(self.val_freq, int) else round(self.val_freq * steps)), 1
         )
         logger.info(f"Set to validate every {val_freq} steps.")
         for step, sample in enumerate(pbar, start=1):
@@ -107,12 +106,7 @@ class FineTuner(DcModule):
             pbar.set_postfix(loss=loss, last_acc=last_acc)
 
     def train_step(
-        self,
-        model: nn.Module,
-        *,
-        inputs: Tensor,
-        targets: Tensor,
-        optimizer: optim.Optimizer,
+        self, model: nn.Module, *, inputs: Tensor, targets: Tensor, optimizer: optim.Optimizer
     ) -> tuple[Tensor, float]:
         output = model(inputs)
         loss = self.loss_fn(input=output, target=targets)

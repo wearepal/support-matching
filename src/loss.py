@@ -11,11 +11,7 @@ from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
 
-__all__ = [
-    "GeneralizedCELoss",
-    "MixedLoss",
-    "PolynomialLoss",
-]
+__all__ = ["GeneralizedCELoss", "MixedLoss", "PolynomialLoss"]
 
 
 class MixedLoss(nn.Module):
@@ -60,10 +56,7 @@ class MixedLoss(nn.Module):
 
 class GeneralizedCELoss(nn.Module):
     def __init__(
-        self,
-        *,
-        q: float = 0.7,
-        reduction: Union[ReductionType, str] = ReductionType.mean,
+        self, *, q: float = 0.7, reduction: Union[ReductionType, str] = ReductionType.mean
     ) -> None:
         super().__init__()
         self.reduction = str_to_enum(str_=reduction, enum=ReductionType)
@@ -76,10 +69,7 @@ class GeneralizedCELoss(nn.Module):
         # modify gradient of cross entropy
         loss_weight = (p_correct.squeeze().detach() ** self.q) * self.q
         return cross_entropy_loss(
-            input,
-            target=target,
-            reduction=self.reduction,
-            instance_weight=loss_weight,
+            input, target=target, reduction=self.reduction, instance_weight=loss_weight
         )
 
 

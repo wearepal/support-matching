@@ -39,10 +39,7 @@ def uniform_label_noise(
         labels = labels.clone()
     unique, unique_inv = labels.unique(return_inverse=True)
     unique_inv[indices] += torch.randint(
-        low=1,
-        high=len(unique),
-        size=(len(indices),),
-        generator=generator,
+        low=1, high=len(unique), size=(len(indices),), generator=generator
     )
     unique_inv[indices] %= len(unique)
     return unique[unique_inv]
@@ -95,12 +92,7 @@ def centroidal_label_noise(
     num[row_inds, inv[indices]] = 0.0
     denom = num.sum(dim=1, keepdim=True)
     probs = num / denom
-    new_labels = torch.multinomial(
-        probs,
-        num_samples=1,
-        replacement=False,
-        generator=generator,
-    )
+    new_labels = torch.multinomial(probs, num_samples=1, replacement=False, generator=generator)
     del probs
     if not inplace:
         labels = labels.clone()

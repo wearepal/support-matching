@@ -17,10 +17,7 @@ from tqdm import tqdm
 
 from src.data import DataModule, labels_to_group_id
 
-__all__ = [
-    "Encodings",
-    "generate_encodings",
-]
+__all__ = ["Encodings", "generate_encodings"]
 
 
 @dataclass
@@ -83,14 +80,10 @@ def generate_encodings(
     encoder.to(device)
 
     train_enc, train_group_ids = encode_with_group_ids(
-        encoder,
-        dl=dm.train_dataloader(eval=True, batch_size=batch_size_tr),
-        device=device,
+        encoder, dl=dm.train_dataloader(eval=True, batch_size=batch_size_tr), device=device
     )
     deployment_enc, _ = encode_with_group_ids(
-        encoder,
-        dl=dm.deployment_dataloader(eval=True, batch_size=batch_size_te),
-        device=device,
+        encoder, dl=dm.deployment_dataloader(eval=True, batch_size=batch_size_te), device=device
     )
     test_enc, test_group_ids = encode_with_group_ids(
         encoder, dl=dm.test_dataloader(), device=device
@@ -111,10 +104,7 @@ def generate_encodings(
 
 @torch.no_grad()
 def encode_with_group_ids(
-    model: nn.Module,
-    *,
-    dl: CdtDataLoader[TernarySample[Tensor]],
-    device: Union[str, torch.device],
+    model: nn.Module, *, dl: CdtDataLoader[TernarySample[Tensor]], device: Union[str, torch.device]
 ) -> tuple[Tensor, Tensor]:
     model.to(device)
     encoded: list[Tensor] = []

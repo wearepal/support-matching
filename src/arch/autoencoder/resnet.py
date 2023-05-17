@@ -439,19 +439,11 @@ class ResNetAE(AeFactory):
         else:
             enc_fn = resnet50_encoder
             dec_fn = resnet50_decoder
-        encoder = enc_fn(
-            self.first_conv,
-            latent_dim=self.latent_dim,
-            maxpool1=self.maxpool1,
-        )
+        encoder = enc_fn(self.first_conv, latent_dim=self.latent_dim, maxpool1=self.maxpool1)
         decoder = dec_fn(
             self.latent_dim,
             input_height=input_shape[1],
             first_conv=self.first_conv,
             maxpool1=self.maxpool1,
         )
-        return AePair(
-            encoder=encoder,
-            decoder=decoder,
-            latent_dim=self.latent_dim,
-        )
+        return AePair(encoder=encoder, decoder=decoder, latent_dim=self.latent_dim)

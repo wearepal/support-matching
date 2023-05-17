@@ -24,8 +24,5 @@ def exclude_from_weight_decay(
 
     return [
         {"params": params, "weight_decay": weight_decay},
-        {
-            "params": excluded_params,
-            "weight_decay": 0.0,
-        },
+        {"params": excluded_params, "weight_decay": 0.0},
     ]

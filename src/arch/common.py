@@ -29,9 +29,4 @@ class BiaslessLayerNorm(nn.Module):
         self.register_buffer("beta", torch.zeros(input_dim))
 
     def forward(self, x: Tensor) -> Tensor:  # type: ignore
-        return F.layer_norm(
-            x,
-            normalized_shape=x.shape[-1:],
-            weight=self.gamma,
-            bias=self.beta,
-        )
+        return F.layer_norm(x, normalized_shape=x.shape[-1:], weight=self.gamma, bias=self.beta)

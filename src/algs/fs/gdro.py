@@ -17,11 +17,7 @@ from src.models.base import ModelCfg
 
 from .base import FsAlg
 
-__all__ = [
-    "Gdro",
-    "GdroClassifier",
-    "LossComputer",
-]
+__all__ = ["Gdro", "GdroClassifier", "LossComputer"]
 
 
 class LossComputer(nn.Module):
@@ -253,10 +249,7 @@ class GdroClassifier(Classifier, _LcMixin):
         target = batch.s if pred_s else batch.y
         logits = self.forward(batch.x)
         return self.loss_computer.forward(
-            input=logits,
-            target=target,
-            group_idx=batch.s,
-            criterion=self.criterion,
+            input=logits, target=target, group_idx=batch.s, criterion=self.criterion
         )
 
 

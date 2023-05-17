@@ -156,14 +156,8 @@ class SetFcn(PredictorFactory):
         self, input_dim: int, *, target_dim: int, batch_size: int
     ) -> PredictorFactoryOut[SetPredictor[BatchAggregator]]:
         fcn_pre, input_dim = self._pre_agg_fcn(input_dim=input_dim)
-        aggregator, input_dim = self._aggregator(
-            input_dim=input_dim,
-            batch_size=batch_size,
-        )
-        fcn_post, target_dim = self._post_agg_fcn(
-            input_dim=input_dim,
-            target_dim=target_dim,
-        )
+        aggregator, input_dim = self._aggregator(input_dim=input_dim, batch_size=batch_size)
+        fcn_post, target_dim = self._post_agg_fcn(input_dim=input_dim, target_dim=target_dim)
         model = nn.Sequential(fcn_pre, aggregator, fcn_post)
         model = SetPredictor(pre=fcn_pre, agg=aggregator, post=fcn_post)
         return model, target_dim

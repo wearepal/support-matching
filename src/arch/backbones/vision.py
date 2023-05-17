@@ -14,17 +14,7 @@ from .base import BackboneFactory, BackboneFactoryOut
 if TYPE_CHECKING:
     import timm.models as tm
 
-__all__ = [
-    "Beit",
-    "ConvNeXt",
-    "DenseNet",
-    "NfNet",
-    "ResNet",
-    "SimpleCNN",
-    "Swin",
-    "SwinV2",
-    "ViT",
-]
+__all__ = ["Beit", "ConvNeXt", "DenseNet", "NfNet", "ResNet", "SimpleCNN", "Swin", "SwinV2", "ViT"]
 
 
 class ResNetVersion(Enum):
