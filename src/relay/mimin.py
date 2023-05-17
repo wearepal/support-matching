@@ -25,7 +25,7 @@ from src.labelling.pipeline import (
     NullLabeller,
     UniformLabelNoiser,
 )
-from src.models import Model, ModelCfg, SplitLatentAe, SplitLatentAeCfg
+from src.models import Model, OptimizerCfg, SplitAeOptimizerCfg, SplitLatentAe
 
 from .base import BaseRelay
 
@@ -41,9 +41,9 @@ class MiMinRelay(BaseRelay):
     alg: MiMin = field(default=MiMin)
     ae_arch: Any
     disc_arch: Fcn = field(default=Fcn)
-    disc: ModelCfg = field(default=ModelCfg)
+    disc: OptimizerCfg = field(default=OptimizerCfg)
     eval: Evaluator = field(default=Evaluator)
-    ae: SplitLatentAeCfg = field(default=SplitLatentAeCfg)
+    ae: SplitAeOptimizerCfg = field(default=SplitAeOptimizerCfg)
     ds: Any
     labeller: Any
 
@@ -79,12 +79,12 @@ class MiMinRelay(BaseRelay):
         run = self.wandb.init(raw_config, (ds, self.labeller, self.ae_arch, self.disc_arch))
         dm = self.init_dm(ds, self.labeller)
         ae_pair = self.ae_arch(input_shape=dm.dim_x)
-        ae = SplitLatentAe(cfg=self.ae, model=ae_pair, feature_group_slices=dm.feature_group_slices)
+        ae = SplitLatentAe(opt=self.ae, model=ae_pair, feature_group_slices=dm.feature_group_slices)
         logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
         card_s = dm.card_s
         target_dim = card_s if card_s > 2 else 1
         disc_net, _ = self.disc_arch(input_dim=ae.encoding_size.zy, target_dim=target_dim)
-        disc = Model(cfg=self.disc, model=disc_net)
+        disc = Model(opt=self.disc, model=disc_net)
         self.alg.run(dm=dm, ae=ae, disc=disc, evaluator=self.eval)
         if run is not None:
             run.finish()

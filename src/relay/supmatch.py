@@ -33,8 +33,8 @@ from src.labelling.pipeline import (
     UniformLabelNoiser,
 )
 from src.models import SplitLatentAe
-from src.models.autoencoder import SplitLatentAeCfg
-from src.models.discriminator import NeuralDiscriminator, NeuralDiscriminatorCfg
+from src.models.autoencoder import SplitAeOptimizerCfg
+from src.models.discriminator import DiscOptimizerCfg, NeuralDiscriminator
 from src.utils import full_class_path
 
 from .base import BaseRelay
@@ -55,11 +55,11 @@ class SupMatchRelay(BaseRelay):
         ]
     )
     alg: SupportMatching = field(default=SupportMatching)
-    ae: SplitLatentAeCfg = field(default=SplitLatentAeCfg)
+    ae: SplitAeOptimizerCfg = field(default=SplitAeOptimizerCfg)
     ae_arch: Any  # AeFactory
     ds: Any  # DatasetFactory
     disc_arch: Any  # PredictorFactory
-    disc: NeuralDiscriminatorCfg = field(default=NeuralDiscriminatorCfg)
+    disc: DiscOptimizerCfg = field(default=DiscOptimizerCfg)
     eval: Evaluator = field(default=Evaluator)
     labeller: Any  # Labeller
     scorer: Any  # Scorer
@@ -103,12 +103,12 @@ class SupMatchRelay(BaseRelay):
         run = self.wandb.init(raw_config, (ds, self.labeller, self.ae_arch, self.disc_arch))
         dm = self.init_dm(ds, self.labeller)
         ae_pair = self.ae_arch(input_shape=dm.dim_x)
-        ae = SplitLatentAe(cfg=self.ae, model=ae_pair, feature_group_slices=dm.feature_group_slices)
+        ae = SplitLatentAe(opt=self.ae, model=ae_pair, feature_group_slices=dm.feature_group_slices)
         logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
         disc_net, _ = self.disc_arch(
             input_dim=ae.encoding_size.zy, target_dim=1, batch_size=dm.batch_size_tr
         )
-        disc = NeuralDiscriminator(model=disc_net, cfg=self.disc)
+        disc = NeuralDiscriminator(model=disc_net, opt=self.disc)
         try:
             score = self.alg.run(dm=dm, ae=ae, disc=disc, evaluator=self.eval, scorer=self.scorer)
         except NaNLossError:

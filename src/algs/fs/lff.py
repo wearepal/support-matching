@@ -15,7 +15,6 @@ import torch.nn as nn
 from src.data import DataModule, EvalTuple
 from src.loss import GeneralizedCELoss
 from src.models import Classifier
-from src.models.base import ModelCfg
 
 from .base import FsAlg
 
@@ -102,13 +101,6 @@ class IndexedDataset(SizedDataset):
 
 
 @dataclass
-class LfFClassifierCfg(ModelCfg):
-    """These are the parameters to `LfFClassifier` which are configurable by hydra."""
-
-    q: float = 0.7
-
-
-@dataclass
 class _LabelEmaMixin:
     sample_loss_ema_b: LabelEma
     sample_loss_ema_d: LabelEma
@@ -116,14 +108,14 @@ class _LabelEmaMixin:
 
 @dataclass(repr=False, eq=False)
 class LfFClassifier(Classifier, _LabelEmaMixin):
-    cfg: LfFClassifierCfg  # overriding the definition in `Model`
+    q: float = 0.7
     biased_model: nn.Module = field(init=False)
     biased_criterion: GeneralizedCELoss = field(init=False)
     criterion: CrossEntropyLoss = field(init=False)
 
     def __post_init__(self) -> None:
         self.biased_model = gcopy(self.model, deep=True)
-        self.biased_criterion = GeneralizedCELoss(q=self.cfg.q, reduction="mean")
+        self.biased_criterion = GeneralizedCELoss(q=self.q, reduction="mean")
         self.criterion = CrossEntropyLoss(reduction="mean")
         super().__post_init__()
 
@@ -168,18 +160,11 @@ class LfF(FsAlg):
         sample_loss_ema_d = LabelEma(dm.train.y, alpha=self.alpha).to(self.device)
         dm.train = IndexedDataset(dm.train)
         classifier = LfFClassifier(
-            model=model,
-            cfg=LfFClassifierCfg(
-                lr=self.lr,
-                weight_decay=self.weight_decay,
-                optimizer_cls=self.optimizer_cls,
-                optimizer_kwargs=self.optimizer_kwargs,
-                scheduler_cls=self.scheduler_cls,
-                scheduler_kwargs=self.scheduler_kwargs,
-                q=self.q,
-            ),
             sample_loss_ema_b=sample_loss_ema_b,
             sample_loss_ema_d=sample_loss_ema_d,
+            model=model,
+            opt=self.opt,
+            q=self.q,
         )
         classifier.sample_loss_ema_b = sample_loss_ema_b
         classifier.sample_loss_ema_d = sample_loss_ema_d

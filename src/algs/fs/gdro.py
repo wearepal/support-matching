@@ -13,7 +13,6 @@ import torch.nn as nn
 
 from src.data import DataModule, EvalTuple
 from src.models import Classifier
-from src.models.base import ModelCfg
 
 from .base import FsAlg
 
@@ -287,17 +286,7 @@ class Gdro(FsAlg):
         )
 
         classifier = GdroClassifier(
-            model=model,
-            cfg=ModelCfg(
-                lr=self.lr,
-                weight_decay=self.weight_decay,
-                optimizer_cls=self.optimizer_cls,
-                optimizer_kwargs=self.optimizer_kwargs,
-                scheduler_cls=self.scheduler_cls,
-                scheduler_kwargs=self.scheduler_kwargs,
-            ),
-            criterion=self.criterion,
-            loss_computer=loss_computer,
+            model=model, opt=self.opt, criterion=self.criterion, loss_computer=loss_computer
         )
         classifier.fit(
             train_data=dm.train_dataloader(),

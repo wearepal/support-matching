@@ -14,7 +14,7 @@ import torch.nn as nn
 
 from .utils import exclude_from_weight_decay
 
-__all__ = ["Model", "ModelCfg", "Optimizer"]
+__all__ = ["Model", "Optimizer", "OptimizerCfg"]
 
 
 class Optimizer(Enum):
@@ -23,8 +23,8 @@ class Optimizer(Enum):
 
 
 @dataclass
-class ModelCfg:
-    """These are the parameters to `Model` which are configurable by hydra."""
+class OptimizerCfg:
+    """Configuration for an optimizer."""
 
     optimizer_cls: Optimizer = Optimizer.ADAM
     lr: float = 5.0e-4
@@ -39,23 +39,23 @@ class Model(DcModule):
     _PBAR_COL: ClassVar[str] = "#ffe252"
 
     model: nn.Module
-    cfg: ModelCfg
+    opt: OptimizerCfg
     optimizer: torch.optim.Optimizer = field(init=False)
     scheduler: Optional[LRScheduler] = field(init=False, default=None)
 
     def __post_init__(self) -> None:
-        optimizer_config = DictConfig({"weight_decay": self.cfg.weight_decay, "lr": self.cfg.lr})
-        if self.cfg.optimizer_kwargs is not None:
-            optimizer_config.update(self.cfg.optimizer_kwargs)
+        optimizer_config = DictConfig({"weight_decay": self.opt.weight_decay, "lr": self.opt.lr})
+        if self.opt.optimizer_kwargs is not None:
+            optimizer_config.update(self.opt.optimizer_kwargs)
 
         params = exclude_from_weight_decay(
             self.named_parameters(), weight_decay=optimizer_config["weight_decay"]
         )
-        self.optimizer = self.cfg.optimizer_cls.value(**optimizer_config, params=params)
-        if self.cfg.scheduler_cls is not None:
-            scheduler_config = DictConfig({"_target_": self.cfg.scheduler_cls})
-            if self.cfg.scheduler_kwargs is not None:
-                scheduler_config.update(self.cfg.scheduler_kwargs)
+        self.optimizer = self.opt.optimizer_cls.value(**optimizer_config, params=params)
+        if self.opt.scheduler_cls is not None:
+            scheduler_config = DictConfig({"_target_": self.opt.scheduler_cls})
+            if self.opt.scheduler_kwargs is not None:
+                scheduler_config.update(self.opt.scheduler_kwargs)
             self.scheduler = instantiate(scheduler_config, optimizer=self.optimizer)
 
     def step(self, grad_scaler: Optional[GradScaler] = None, scaler_update: bool = True) -> None:

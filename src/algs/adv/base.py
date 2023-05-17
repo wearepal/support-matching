@@ -20,9 +20,7 @@ from src.algs.base import Algorithm, NaNLossError
 from src.arch.predictors.fcn import Fcn
 from src.data import DataModule
 from src.logging import log_images
-from src.models.autoencoder import SplitLatentAe
-from src.models.base import ModelCfg
-from src.models.classifier import Classifier
+from src.models import Classifier, OptimizerCfg, SplitLatentAe
 from src.utils import to_item
 
 from .evaluator import Evaluator
@@ -115,14 +113,14 @@ class AdvSemiSupervisedAlg(Algorithm):
             model, _ = Fcn(hidden_dim=self.pred_y_hidden_dim, num_hidden=self.pred_y_num_hidden)(
                 input_dim=ae.encoding_size.zy, target_dim=y_dim
             )
-            pred_y = Classifier(model=model, cfg=ModelCfg(lr=self.lr)).to(self.device)
+            pred_y = Classifier(model=model, opt=OptimizerCfg(lr=self.lr)).to(self.device)
         pred_s = None
         if self.pred_s_loss_w > 0:
             model, _ = Fcn(
                 hidden_dim=None,  # no hidden layers
                 final_bias=self.s_pred_with_bias,
             )(input_dim=ae.encoding_size.zs, target_dim=s_dim)
-            pred_s = Classifier(model=model, cfg=ModelCfg(lr=self.lr)).to(self.device)
+            pred_s = Classifier(model=model, opt=OptimizerCfg(lr=self.lr)).to(self.device)
 
         return pred_y, pred_s
 

@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 from loguru import logger
@@ -9,7 +9,7 @@ import torch.nn as nn
 from src.algs.base import Algorithm
 from src.data import DataModule, EvalTuple
 from src.evaluation.metrics import EmEvalPair, SummaryMetric, compute_metrics
-from src.models import Optimizer
+from src.models import OptimizerCfg
 
 __all__ = ["FsAlg"]
 
@@ -17,12 +17,7 @@ __all__ = ["FsAlg"]
 @dataclass(repr=False, eq=False)
 class FsAlg(Algorithm):
     steps: int = 10_000
-    lr: float = 5.0e-4
-    weight_decay: float = 0
-    optimizer_cls: Optimizer = Optimizer.ADAM
-    optimizer_kwargs: Optional[dict] = None
-    scheduler_cls: Optional[str] = None
-    scheduler_kwargs: Optional[dict] = None
+    opt: OptimizerCfg = field(default_factory=OptimizerCfg)
     val_interval: float = 0.1
     monitor: SummaryMetric = SummaryMetric.ROB_ACC
 

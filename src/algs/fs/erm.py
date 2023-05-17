@@ -8,7 +8,6 @@ import torch.nn as nn
 from src.data import DataModule
 from src.data.utils import EvalTuple
 from src.models import Classifier
-from src.models.base import ModelCfg
 
 from .base import FsAlg
 
@@ -21,18 +20,7 @@ class Erm(FsAlg):
 
     @override
     def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:
-        classifier = Classifier(
-            model=model,
-            cfg=ModelCfg(
-                lr=self.lr,
-                weight_decay=self.weight_decay,
-                optimizer_cls=self.optimizer_cls,
-                optimizer_kwargs=self.optimizer_kwargs,
-                scheduler_cls=self.scheduler_cls,
-                scheduler_kwargs=self.scheduler_kwargs,
-            ),
-            criterion=self.criterion,
-        )
+        classifier = Classifier(model=model, opt=self.opt, criterion=self.criterion)
         classifier.fit(
             train_data=dm.train_dataloader(),
             test_data=dm.test_dataloader(),

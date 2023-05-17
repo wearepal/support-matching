@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Final, Optional, Union
 from typing_extensions import override
 
@@ -17,8 +17,7 @@ import wandb
 
 from src.arch.predictors import SetPredictor
 from src.data import DataModule, resolve_device
-from src.models import Optimizer, SetClassifier, SplitLatentAe
-from src.models.base import ModelCfg
+from src.models import OptimizerCfg, SetClassifier, SplitLatentAe
 from src.utils import cat, to_item
 
 __all__ = ["NeuralScorer", "NullScorer", "Scorer"]
@@ -102,12 +101,7 @@ class NeuralScorer(Scorer):
     batch_size_te: Optional[int] = None
     batch_size_enc: Optional[int] = None
 
-    optimizer_cls: Optimizer = Optimizer.ADAM
-    lr: float = 1.0e-4
-    weight_decay: float = 0
-    optimizer_kwargs: Optional[dict] = None
-    scheduler_cls: Optional[str] = None
-    scheduler_kwargs: Optional[dict] = None
+    opt: OptimizerCfg = field(default_factory=OptimizerCfg)
     eval_batches: int = 1000
     inv_score_w: float = 1
     recon_score_w: float = 1
@@ -148,16 +142,7 @@ class NeuralScorer(Scorer):
         logger.info(f"Aggregate reconstruction score: {recon_score}")
 
         classifier = SetClassifier(
-            model=disc,
-            cfg=ModelCfg(
-                lr=self.lr,
-                weight_decay=self.weight_decay,
-                optimizer_cls=self.optimizer_cls,
-                optimizer_kwargs=self.optimizer_kwargs,
-                scheduler_cls=self.scheduler_cls,
-                scheduler_kwargs=self.scheduler_kwargs,
-            ),
-            criterion=CrossEntropyLoss(reduction=ReductionType.mean),
+            model=disc, opt=self.opt, criterion=CrossEntropyLoss(reduction=ReductionType.mean)
         )
         logger.info("Training invariance-scorer")
         classifier.fit(

@@ -29,8 +29,7 @@ from src.data import (
 )
 from src.evaluation.metrics import EmEvalPair, compute_metrics
 from src.logging import log_images
-from src.models import Classifier, SplitEncoding, SplitLatentAe
-from src.models.base import ModelCfg
+from src.models import Classifier, OptimizerCfg, SplitEncoding, SplitLatentAe
 
 __all__ = [
     "Evaluator",
@@ -240,7 +239,7 @@ class Evaluator:
     save_summary: bool = True
 
     activation: Activation = Activation.GELU
-    opt: ModelCfg = field(default_factory=ModelCfg)
+    opt: OptimizerCfg = field(default_factory=OptimizerCfg)
     """Optimization parameters."""
 
     def _fit_classifier(self, dm: DataModule, *, pred_s: bool, device: torch.device) -> Classifier:
@@ -251,7 +250,7 @@ class Evaluator:
         input_dim = np.product(dm.dim_x)
         model, _ = model_fn(input_dim, target_dim=dm.card_y)
 
-        clf = Classifier(model, cfg=self.opt)
+        clf = Classifier(model, opt=self.opt)
 
         train_dl = dm.train_dataloader(batch_size=self.batch_size, balance=self.balanced_sampling)
 

@@ -11,16 +11,15 @@ import torch.nn.functional as F
 from src.arch.autoencoder import AePair
 from src.discrete import discretize, round_ste, sample_concrete
 from src.loss import MixedLoss
-from src.models.base import Model, ModelCfg
+from src.models import Model, OptimizerCfg
 from src.utils import to_item
 
 __all__ = [
-    "SplitLatentAe",
-    "SplitLatentAeCfg",
     "EncodingSize",
-    "Model",
     "Reconstructions",
+    "SplitAeOptimizerCfg",
     "SplitEncoding",
+    "SplitLatentAe",
 ]
 
 
@@ -101,7 +100,7 @@ class ZsTransform(Enum):
 
 
 @dataclass
-class SplitLatentAeCfg(ModelCfg):
+class SplitAeOptimizerCfg(OptimizerCfg):
     """These are the parameters to `SplitLatentAe` which are configurable by hydra."""
 
     zs_dim: Union[int, float] = 1
@@ -112,30 +111,30 @@ class SplitLatentAeCfg(ModelCfg):
 @dataclass(repr=False, eq=False)
 class SplitLatentAe(Model):
     model: AePair  # overriding the definition in `Model`
-    cfg: SplitLatentAeCfg  # overriding the definition in `Model`
+    opt: SplitAeOptimizerCfg  # overriding the definition in `Model`
     feature_group_slices: Optional[dict[str, list[slice]]] = None
     recon_loss_fn: Callable[[Tensor, Tensor], Tensor] = field(init=False)
     zs_dim: int = field(init=False)
 
     def __post_init__(self) -> None:
-        zs_dim_t = self.cfg.zs_dim
+        zs_dim_t = self.opt.zs_dim
         self.latent_dim: int = self.model.latent_dim
         self.zs_dim = round(zs_dim_t * self.latent_dim) if isinstance(zs_dim_t, float) else zs_dim_t
         self.encoding_size = EncodingSize(zs=self.zs_dim, zy=self.latent_dim - self.zs_dim)
 
-        if self.cfg.recon_loss is ReconstructionLoss.mixed:
+        if self.opt.recon_loss is ReconstructionLoss.mixed:
             if self.feature_group_slices is None:
                 raise ValueError("'MixedLoss' requires 'feature_group_slices' to be specified.")
-            self.recon_loss_fn = self.cfg.recon_loss.value(
+            self.recon_loss_fn = self.opt.recon_loss.value(
                 reduction="sum", feature_group_slices=self.feature_group_slices
             )
         else:
-            self.recon_loss_fn = self.cfg.recon_loss.value(reduction="sum")
+            self.recon_loss_fn = self.opt.recon_loss.value(reduction="sum")
         super().__post_init__()
 
     def encode(self, inputs: Tensor, *, transform_zs: bool = True) -> SplitEncoding:
         enc = self._split_encoding(self.model.encoder(inputs))
-        if transform_zs and self.cfg.zs_transform is ZsTransform.round_ste:
+        if transform_zs and self.opt.zs_transform is ZsTransform.round_ste:
             rounded_zs = round_ste(torch.sigmoid(enc.zs))
         else:
             rounded_zs = enc.zs
