@@ -115,9 +115,15 @@ class SupMatchRelay(BaseRelay):
             logger.info("Stopping due to NaN loss")
             return -math.inf
         if some(run):
-            # Bar the saving of AeFromArtifact instances to prevent infinite recursion.
-            if (self.artifact_name is not None) and (not isinstance(self.ae_arch, AeFromArtifact)):
-                ae_config = asdict(self.ae_arch) | {"_target_": full_class_path(self.ae_arch)}
-                save_ae_artifact(run=run, model=ae_pair, config=ae_config, name=self.artifact_name)
+            if self.artifact_name is not None:
+                if isinstance(self.ae_arch, AeFromArtifact):
+                    # An `AeFromArtifact` doesn't know how to instantiate the model architecture,
+                    # so we have to take the information from the loaded config.
+                    ae_config = self.ae_arch.factory_config
+                else:
+                    ae_config = asdict(self.ae_arch) | {"_target_": full_class_path(self.ae_arch)}
+                save_ae_artifact(
+                    run=run, model=ae_pair, factory_config=ae_config, name=self.artifact_name
+                )
             run.finish()
         return score
