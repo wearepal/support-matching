@@ -11,8 +11,9 @@ import torch.nn.functional as F
 from src.arch.autoencoder import AePair
 from src.discrete import discretize, round_ste, sample_concrete
 from src.loss import MixedLoss
-from src.models import Model, OptimizerCfg
 from src.utils import to_item
+
+from .base import Model, OptimizerCfg
 
 __all__ = [
     "EncodingSize",
