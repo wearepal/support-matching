@@ -40,10 +40,5 @@ class FsAlg(Algorithm):
         et = self.routine(dm=dm, model=model)
         logger.info("Evaluating on the test set")
         pair = EmEvalPair.from_tensors(y_pred=et.y_pred, y_true=et.y_true, s=et.s, pred_s=False)
-        metrics = compute_metrics(
-            pair=pair,
-            prefix="test",
-            use_wandb=True,
-            verbose=True,
-        )
+        metrics = compute_metrics(pair=pair, prefix="test", use_wandb=True, verbose=True)
         return metrics.get(f"test/{self.monitor.value}", None)

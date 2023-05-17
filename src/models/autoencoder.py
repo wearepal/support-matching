@@ -195,11 +195,7 @@ class SplitLatentAe(Model):
         return SplitEncoding(zs=zs, zy=zy)
 
     def training_step(
-        self,
-        x: Tensor,
-        *,
-        s: Optional[Tensor] = None,
-        prior_loss_w: Optional[float] = None,
+        self, x: Tensor, *, s: Optional[Tensor] = None, prior_loss_w: Optional[float] = None
     ) -> tuple[SplitEncoding, Tensor, dict[str, float]]:
         # it only makes sense to transform zs if we're actually going to use it
         encoding = self.encode(x, transform_zs=s is None)

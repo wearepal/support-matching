@@ -7,10 +7,7 @@ from ranzen.torch import DcModule
 from torch import Tensor
 import torch.nn as nn
 
-__all__ = [
-    "AeFactory",
-    "AePair",
-]
+__all__ = ["AeFactory", "AePair"]
 
 E = TypeVar("E", bound=nn.Module, covariant=True)
 D = TypeVar("D", bound=nn.Module, covariant=True)

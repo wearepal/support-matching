@@ -160,9 +160,7 @@ class RandomSplitter(DataSplitter):
         if self.data_prop < 1:
             dataset = stratified_split(dataset, default_train_prop=self.data_prop).train
         dep_inds, test_inds, train_inds = dataset.random_split(
-            props=[self.dep_prop, self.test_prop],
-            seed=self.seed,
-            as_indices=True,
+            props=[self.dep_prop, self.test_prop], seed=self.seed, as_indices=True
         )
         train_inds = torch.as_tensor(train_inds)
         train_data = dataset.subset(train_inds)

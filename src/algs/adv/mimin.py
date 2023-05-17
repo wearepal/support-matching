@@ -63,11 +63,7 @@ class MiMin(AdvSemiSupervisedAlg):
                 logging_dict["loss/discriminator"] = to_item(disc_loss)
 
             loss_pred, ld_pred = self._predictor_loss(
-                comp=comp,
-                zy=encoding_t.zy,
-                zs=encoding_t.zs,
-                y=batch_tr.y,
-                s=batch_tr.s,
+                comp=comp, zy=encoding_t.zy, zs=encoding_t.zs, y=batch_tr.y, s=batch_tr.s
             )
             logging_dict.update(ld_pred)
             total_loss += loss_pred
@@ -77,10 +73,7 @@ class MiMin(AdvSemiSupervisedAlg):
         return total_loss, logging_dict
 
     def _discriminator_loss(
-        self,
-        comp: Components[Model],
-        *,
-        iterator_tr: IterTr,
+        self, comp: Components[Model], *, iterator_tr: IterTr
     ) -> tuple[Tensor, dict[str, float]]:
         """Train the discriminator while keeping the encoder fixed."""
         batch_tr = self._sample_tr(iterator_tr)
@@ -90,9 +83,7 @@ class MiMin(AdvSemiSupervisedAlg):
 
             logits = comp.disc(encoding_tr.zy)
             disc_loss = cross_entropy_loss(
-                input=logits,
-                target=batch_tr.s,
-                label_smoothing=self.label_smoothing,
+                input=logits, target=batch_tr.s, label_smoothing=self.label_smoothing
             )
 
         return disc_loss, {}
@@ -104,11 +95,7 @@ class MiMin(AdvSemiSupervisedAlg):
 
     @override
     def discriminator_step(
-        self,
-        comp: Components[Model],
-        *,
-        iterator_tr: IterTr,
-        iterator_dep: IterDep,
+        self, comp: Components[Model], *, iterator_tr: IterTr, iterator_dep: IterDep
     ) -> None:
         # Train the discriminator on its own for a number of iterations
         for _ in range(self.num_disc_updates):

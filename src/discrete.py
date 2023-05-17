@@ -3,11 +3,7 @@ from torch.autograd.function import Function, NestedIOFunction
 import torch.distributions as td
 from torch.nn import functional as F
 
-__all__ = [
-    "round_ste",
-    "sample_concrete",
-    "discretize",
-]
+__all__ = ["round_ste", "sample_concrete", "discretize"]
 
 
 class RoundSTE(Function):

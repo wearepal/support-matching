@@ -59,23 +59,14 @@ class InvariantDatasets(Generic[DY, DS]):
 
 
 def log_sample_images(
-    *,
-    data: CdtVisionDataset,
-    dm: DataModule,
-    name: str,
-    step: int,
-    num_samples: int = 64,
+    *, data: CdtVisionDataset, dm: DataModule, name: str, step: int, num_samples: int = 64
 ) -> None:
     inds = torch.randperm(len(data))[:num_samples]
     images = data[inds.tolist()]
     log_images(images=images, dm=dm, name=f"Samples from {name}", prefix="eval", step=step)
 
 
-def _get_classifer_input(
-    encodings: SplitEncoding,
-    *,
-    invariant_to: Literal["s", "y"],
-) -> Tensor:
+def _get_classifer_input(encodings: SplitEncoding, *, invariant_to: Literal["s", "y"]) -> Tensor:
     zs_m, zy_m = encodings.mask()
     # `zs_m` has zs zeroed out
     z_m = zs_m if invariant_to == "s" else zy_m
@@ -141,20 +132,10 @@ def encode_dataset(
             encodings = encoder.encode(x, transform_zs=False)
 
             if invariant_to in ("s", "both"):
-                zy_ls.append(
-                    _get_classifer_input(
-                        encodings=encodings,
-                        invariant_to="s",
-                    )
-                )
+                zy_ls.append(_get_classifer_input(encodings=encodings, invariant_to="s"))
 
             if invariant_to in ("y", "both"):
-                zs_ls.append(
-                    _get_classifer_input(
-                        encodings=encodings,
-                        invariant_to="y",
-                    )
-                )
+                zs_ls.append(_get_classifer_input(encodings=encodings, invariant_to="y"))
 
     s_ls = torch.cat(s_ls, dim=0)
     y_ls = torch.cat(y_ls, dim=0)
@@ -342,10 +323,7 @@ class Evaluator:
         )
         logger.info("Encoding test set")
         test_eval = encode_dataset(
-            dl=dm.test_dataloader(),
-            encoder=encoder,
-            device=device,
-            invariant_to=invariant_to,
+            dl=dm.test_dataloader(), encoder=encoder, device=device, invariant_to=invariant_to
         )
 
         s_count = dm.dim_s if dm.dim_s > 1 else 2

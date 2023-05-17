@@ -100,8 +100,4 @@ class SimpleConvAE(AeFactory):
         encoder = nn.Sequential(*encoder_ls)
         decoder = nn.Sequential(*decoder_ls)
 
-        return AePair(
-            encoder=encoder,
-            decoder=decoder,
-            latent_dim=self.latent_dim,
-        )
+        return AePair(encoder=encoder, decoder=decoder, latent_dim=self.latent_dim)

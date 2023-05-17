@@ -15,11 +15,7 @@ from src.arch.autoencoder.base import AePair
 
 from .base import AeFactory
 
-__all__ = [
-    "AeFromArtifact",
-    "load_ae_from_artifact",
-    "save_ae_artifact",
-]
+__all__ = ["AeFromArtifact", "load_ae_from_artifact", "save_ae_artifact"]
 
 FILENAME: Final[str] = "model.pt"
 
@@ -106,10 +102,7 @@ class AeFromArtifact(AeFactory):
     bitfit: bool = False
 
     @override
-    def __call__(
-        self,
-        input_shape: tuple[int, int, int],
-    ) -> AePair:
+    def __call__(self, input_shape: tuple[int, int, int]) -> AePair:
         ae_pair = load_ae_from_artifact(
             input_shape=input_shape, name=self.artifact_name, version=self.version
         )

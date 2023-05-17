@@ -11,10 +11,7 @@ import torch.nn as nn
 
 from .erm import Erm
 
-__all__ = [
-    "SdErm",
-    "SdCrossEntropyLoss",
-]
+__all__ = ["SdErm", "SdCrossEntropyLoss"]
 
 
 class SdCrossEntropyLoss(nn.Module, Loss):

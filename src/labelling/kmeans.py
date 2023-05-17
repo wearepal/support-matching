@@ -112,10 +112,7 @@ class KMeans:
                         "Using furthest-first traversal to generate additional initial clusters..."
                     )
                     centroids_np = fft_init(
-                        encodings.dep,
-                        centroids=centroids,
-                        num_clusters=n_clusters,
-                        device=device,
+                        encodings.dep, centroids=centroids, num_clusters=n_clusters, device=device
                     ).numpy()
                 else:
                     logger.info("Using kmeans++ to generate additional initial clusters...")

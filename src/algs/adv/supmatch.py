@@ -90,11 +90,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 logging_dict["loss/discriminator"] = to_item(disc_loss)
 
             loss_pred, ld_pred = self._predictor_loss(
-                comp=comp,
-                zy=encoding_tr.zy,
-                zs=encoding_tr.zs,
-                y=batch_tr.y,
-                s=batch_tr.s,
+                comp=comp, zy=encoding_tr.zy, zs=encoding_tr.zs, y=batch_tr.y, s=batch_tr.s
             )
             logging_dict.update(ld_pred)
             total_loss += loss_pred
@@ -104,11 +100,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         return total_loss, logging_dict
 
     def _discriminator_loss(
-        self,
-        comp: Components[BinaryDiscriminator],
-        *,
-        iterator_tr: IterTr,
-        iterator_dep: IterDep,
+        self, comp: Components[BinaryDiscriminator], *, iterator_tr: IterTr, iterator_dep: IterDep
     ) -> tuple[Tensor, dict[str, float]]:
         """Train the discriminator while keeping the encoder fixed."""
         if isinstance(comp.disc, NeuralDiscriminator):
@@ -120,10 +112,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
                     encoding_tr = comp.ae.encode(x_tr)
                     encoding_dep = comp.ae.encode(x_dep)
 
-                disc_loss = comp.disc.discriminator_loss(
-                    fake=encoding_tr.zy,
-                    real=encoding_dep.zy,
-                )
+                disc_loss = comp.disc.discriminator_loss(fake=encoding_tr.zy, real=encoding_dep.zy)
 
             return disc_loss, {}
         return torch.zeros((), device=self.device), {}
@@ -136,11 +125,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
 
     @override
     def discriminator_step(
-        self,
-        comp: Components[BinaryDiscriminator],
-        *,
-        iterator_tr: IterTr,
-        iterator_dep: IterDep,
+        self, comp: Components[BinaryDiscriminator], *, iterator_tr: IterTr, iterator_dep: IterDep
     ) -> None:
         if isinstance(comp.disc, NeuralDiscriminator):
             # Train the discriminator on its own for a number of iterations

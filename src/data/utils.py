@@ -94,10 +94,7 @@ def resolve_device(device: Union[str, torch.device, int]) -> torch.device:
     return device
 
 
-def to_device(
-    *args: Tensor,
-    device: Union[str, torch.device, int],
-) -> Iterator[Tensor]:
+def to_device(*args: Tensor, device: Union[str, torch.device, int]) -> Iterator[Tensor]:
     device = resolve_device(device)
     for arg in args:
         yield arg.to(device, non_blocking=True)

@@ -174,11 +174,7 @@ class Encoder(nn.Module):
             block_out = ch * ch_mult[i_level]
             for _ in range(self.num_res_blocks):
                 block.append(
-                    ResnetBlock(
-                        in_channels=block_in,
-                        out_channels=block_out,
-                        dropout=dropout,
-                    )
+                    ResnetBlock(in_channels=block_in, out_channels=block_out, dropout=dropout)
                 )
                 block_in = block_out
                 if curr_res in attn_resolutions:
@@ -275,11 +271,7 @@ class Decoder(nn.Module):
             block_out = ch * ch_mult[i_level]
             for _ in range(self.num_res_blocks + 1):
                 block.append(
-                    ResnetBlock(
-                        in_channels=block_in,
-                        out_channels=block_out,
-                        dropout=dropout,
-                    )
+                    ResnetBlock(in_channels=block_in, out_channels=block_out, dropout=dropout)
                 )
                 block_in = block_out
                 if curr_res in attn_resolutions:

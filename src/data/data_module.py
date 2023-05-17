@@ -291,10 +291,7 @@ class DataModule:
     ) -> CdtDataLoader[TernarySample]:
         if eval:
             return self._make_dataloader(
-                ds=self.train,
-                batch_size=self.batch_size_te,
-                shuffle=False,
-                num_workers=num_workers,
+                ds=self.train, batch_size=self.batch_size_te, shuffle=False, num_workers=num_workers
             )
         batch_size = self.batch_size_tr if batch_size is None else batch_size
         if batch_sampler is None:
@@ -333,10 +330,7 @@ class DataModule:
                 )
             logger.info(f"effective batch size: {batch_sampler.batch_size}")
         return self._make_dataloader(
-            ds=self.train,
-            batch_size=1,
-            batch_sampler=batch_sampler,
-            num_workers=num_workers,
+            ds=self.train, batch_size=1, batch_sampler=batch_sampler, num_workers=num_workers
         )
 
     def deployment_dataloader(
@@ -361,22 +355,15 @@ class DataModule:
             )
         else:
             batch_sampler = self._make_stratified_sampler(
-                group_ids=self.deployment_ids,
-                batch_size=batch_size,
+                group_ids=self.deployment_ids, batch_size=batch_size
             )
         return self._make_dataloader(
-            ds=self.deployment,
-            batch_size=1,
-            batch_sampler=batch_sampler,
-            num_workers=num_workers,
+            ds=self.deployment, batch_size=1, batch_sampler=batch_sampler, num_workers=num_workers
         )
 
     def test_dataloader(self, num_workers: Optional[int] = None) -> CdtDataLoader[TernarySample]:
         return self._make_dataloader(
-            ds=self.test,
-            batch_size=self.batch_size_te,
-            shuffle=False,
-            num_workers=num_workers,
+            ds=self.test, batch_size=self.batch_size_te, shuffle=False, num_workers=num_workers
         )
 
     @property
@@ -420,12 +407,7 @@ class DataModule:
 
     @classmethod
     def from_ds(
-        cls,
-        *,
-        config: DataModuleConf,
-        ds: Dataset,
-        splitter: DataSplitter,
-        labeller: "Labeller",
+        cls, *, config: DataModuleConf, ds: Dataset, splitter: DataSplitter, labeller: "Labeller"
     ) -> Self:
         splits = splitter(ds)
         dm = cls(

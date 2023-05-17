@@ -104,10 +104,7 @@ class AdvSemiSupervisedAlg(Algorithm):
     def _sample_dep(self, iterator_dep: Iterator[NamedSample[Tensor]]) -> Tensor:
         return next(iterator_dep).x.to(self.device, non_blocking=True)
 
-    def _sample_tr(
-        self,
-        iterator_tr: Iterator[TernarySample[Tensor]],
-    ) -> TernarySample[Tensor]:
+    def _sample_tr(self, iterator_tr: Iterator[TernarySample[Tensor]]) -> TernarySample[Tensor]:
         return next(iterator_tr).to(self.device, non_blocking=True)
 
     def _build_predictors(
@@ -115,10 +112,9 @@ class AdvSemiSupervisedAlg(Algorithm):
     ) -> tuple[Optional[Classifier], Optional[Classifier]]:
         pred_y = None
         if self.pred_y_loss_w > 0:
-            model, _ = Fcn(
-                hidden_dim=self.pred_y_hidden_dim,
-                num_hidden=self.pred_y_num_hidden,
-            )(input_dim=ae.encoding_size.zy, target_dim=y_dim)
+            model, _ = Fcn(hidden_dim=self.pred_y_hidden_dim, num_hidden=self.pred_y_num_hidden)(
+                input_dim=ae.encoding_size.zy, target_dim=y_dim
+            )
             pred_y = Classifier(model=model, cfg=ModelCfg(lr=self.lr)).to(self.device)
         pred_s = None
         if self.pred_s_loss_w > 0:
@@ -165,21 +161,12 @@ class AdvSemiSupervisedAlg(Algorithm):
         warmup = itr < self.warmup_steps
         if (not warmup) and (self.disc_loss_w > 0):
             comp.train_disc()
-            self.discriminator_step(
-                comp=comp,
-                iterator_tr=iterator_tr,
-                iterator_dep=iterator_dep,
-            )
+            self.discriminator_step(comp=comp, iterator_tr=iterator_tr, iterator_dep=iterator_dep)
 
         batch_tr = self._sample_tr(iterator_tr=iterator_tr)
         x_dep = self._sample_dep(iterator_dep=iterator_dep)
         comp.train_ae()
-        logging_dict = self.encoder_step(
-            comp=comp,
-            batch_tr=batch_tr,
-            x_dep=x_dep,
-            warmup=warmup,
-        )
+        logging_dict = self.encoder_step(comp=comp, batch_tr=batch_tr, x_dep=x_dep, warmup=warmup)
         logging_dict = prefix_keys(logging_dict, prefix="train", sep="/")
         wandb.log(logging_dict, step=itr)
 
@@ -314,18 +301,10 @@ class AdvSemiSupervisedAlg(Algorithm):
             ),
             1,
         )
-        with tqdm(
-            total=self.steps,
-            desc="Training",
-            colour=self._PBAR_COL,
-        ) as pbar:
+        with tqdm(total=self.steps, desc="Training", colour=self._PBAR_COL) as pbar:
             for step in range(1, self.steps + 1):
                 logging_dict = self.training_step(
-                    comp=comp,
-                    dm=dm,
-                    iterator_tr=iterator_tr,
-                    iterator_dep=iterator_dep,
-                    itr=step,
+                    comp=comp, dm=dm, iterator_tr=iterator_tr, iterator_dep=iterator_dep, itr=step
                 )
                 pbar.set_postfix(logging_dict)
                 pbar.update()
@@ -336,14 +315,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         logger.info("Finished training")
         return self
 
-    def run(
-        self,
-        dm: DataModule,
-        *,
-        ae: SplitLatentAe,
-        disc: Any,
-        evaluator: Evaluator,
-    ) -> Any:
+    def run(self, dm: DataModule, *, ae: SplitLatentAe, disc: Any, evaluator: Evaluator) -> Any:
         try:
             self.fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
         except KeyboardInterrupt:
