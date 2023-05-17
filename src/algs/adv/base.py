@@ -144,8 +144,8 @@ class AdvSemiSupervisedAlg(Algorithm):
             loss, logging_dict_s = self._encoder_loss(
                 comp=comp, x_dep=x_dep, batch_tr=batch_tr, warmup=warmup
             )
-            if torch.isnan(loss).any().item():
-                raise NaNLossError("NaN in encoder_step.")
+            if not torch.isfinite(loss).item():
+                raise NaNLossError("NaN or inf in encoder_step.")
             self.backward(loss=loss / self.ga_steps)
             # Average the logging dict over the gradient-accumulation steps
             for k, v in logging_dict_s.items():

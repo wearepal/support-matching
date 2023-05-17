@@ -4,6 +4,7 @@ from typing import Any, ClassVar, Optional
 
 from attrs import define, field
 from loguru import logger
+from ranzen import some
 
 from src.algs import SupportMatching
 from src.algs.adv import Evaluator, NeuralScorer, NullScorer, Scorer
@@ -112,7 +113,7 @@ class SupMatchRelay(BaseRelay):
             score = self.alg.run(dm=dm, ae=ae, disc=disc, evaluator=self.eval, scorer=self.scorer)
         except NaNLossError:
             return -math.inf
-        if run is not None:
+        if some(run):
             # Bar the saving of AeFromArtifact instances to prevent infinite recursion.
             if (self.artifact_name is not None) and (not isinstance(self.ae_arch, AeFromArtifact)):
                 ae_config = asdict(self.ae_arch) | {"_target_": full_class_path(self.ae_arch)}
