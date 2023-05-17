@@ -112,6 +112,7 @@ class SupMatchRelay(BaseRelay):
         try:
             score = self.alg.run(dm=dm, ae=ae, disc=disc, evaluator=self.eval, scorer=self.scorer)
         except NaNLossError:
+            logger.info("Stopping due to NaN loss")
             return -math.inf
         if some(run):
             # Bar the saving of AeFromArtifact instances to prevent infinite recursion.
