@@ -11,7 +11,7 @@ from torch.nn.parameter import Parameter
 
 from src.data import resolve_device
 
-__all__ = ["Algorithm"]
+__all__ = ["Algorithm", "NaNLossError"]
 
 
 @dataclass(repr=False, eq=False)
@@ -32,3 +32,7 @@ class Algorithm(DcModule):
     def _clip_gradients(self, parameters: Iterator[Parameter]) -> None:
         if (value := self.max_grad_norm) is not None:
             nn.utils.clip_grad.clip_grad_norm_(parameters, max_norm=value, norm_type=2.0)
+
+
+class NaNLossError(Exception):
+    """Exception for when the loss is NaN (=not a number)."""

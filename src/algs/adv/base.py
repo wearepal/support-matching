@@ -16,7 +16,7 @@ import torch.nn as nn
 from tqdm import tqdm
 import wandb
 
-from src.algs.base import Algorithm
+from src.algs.base import Algorithm, NaNLossError
 from src.arch.predictors.fcn import Fcn
 from src.data import DataModule
 from src.logging import log_images
@@ -144,6 +144,8 @@ class AdvSemiSupervisedAlg(Algorithm):
             loss, logging_dict_s = self._encoder_loss(
                 comp=comp, x_dep=x_dep, batch_tr=batch_tr, warmup=warmup
             )
+            if not torch.isfinite(loss).item():
+                raise NaNLossError("NaN or inf in encoder_step.")
             self.backward(loss=loss / self.ga_steps)
             # Average the logging dict over the gradient-accumulation steps
             for k, v in logging_dict_s.items():
