@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Any, Final, Generic, Literal, Optional, TypeVar, Union, overload
 
@@ -29,7 +29,7 @@ from src.data import (
 )
 from src.evaluation.metrics import EmEvalPair, compute_metrics
 from src.logging import log_images
-from src.models import Classifier, Optimizer, SplitEncoding, SplitLatentAe
+from src.models import Classifier, SplitEncoding, SplitLatentAe
 from src.models.base import ModelCfg
 
 __all__ = [
@@ -240,12 +240,8 @@ class Evaluator:
     save_summary: bool = True
 
     activation: Activation = Activation.GELU
-    optimizer_cls: Optimizer = Optimizer.ADAM
-    lr: float = 1.0e-4
-    weight_decay: float = 0
-    optimizer_kwargs: Optional[dict] = None
-    scheduler_cls: Optional[str] = None
-    scheduler_kwargs: Optional[dict] = None
+    opt: ModelCfg = field(default_factory=ModelCfg)
+    """Optimization parameters."""
 
     def _fit_classifier(self, dm: DataModule, *, pred_s: bool, device: torch.device) -> Classifier:
         input_dim = dm.dim_x[0]
@@ -255,17 +251,7 @@ class Evaluator:
         input_dim = np.product(dm.dim_x)
         model, _ = model_fn(input_dim, target_dim=dm.card_y)
 
-        clf = Classifier(
-            model,
-            cfg=ModelCfg(
-                lr=self.lr,
-                weight_decay=self.weight_decay,
-                optimizer_cls=self.optimizer_cls,
-                optimizer_kwargs=self.optimizer_kwargs,
-                scheduler_cls=self.scheduler_cls,
-                scheduler_kwargs=self.scheduler_kwargs,
-            ),
-        )
+        clf = Classifier(model, cfg=self.opt)
 
         train_dl = dm.train_dataloader(batch_size=self.batch_size, balance=self.balanced_sampling)
 

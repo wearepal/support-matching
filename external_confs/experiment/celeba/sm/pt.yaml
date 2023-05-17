@@ -42,14 +42,15 @@ ae:
 eval:
     batch_size: 12
     balanced_sampling: true
-    lr: 1.e-4
     steps: 10000
     num_hidden: 1
     hidden_dim: null
-    scheduler_cls: torch.optim.lr_scheduler.CosineAnnealingLR
-    scheduler_kwargs:
-        T_max: ${ eval.steps }
-        eta_min: 5e-7
+    opt:
+        lr: 1.e-4
+        scheduler_cls: torch.optim.lr_scheduler.CosineAnnealingLR
+        scheduler_kwargs:
+            T_max: ${ eval.steps }
+            eta_min: 5e-7
 
 wandb:
     group: ${split.artifact_name}_ae_pretraining
