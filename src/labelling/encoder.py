@@ -12,7 +12,7 @@ import torch.nn as nn
 from src.data import DataModule
 
 from .encode import Encodings, generate_encodings
-from .finetuning import FineTuner
+from .finetuning import FineTuneParams, FineTuner
 
 __all__ = ["ClipVersion", "ClipVisualEncoder"]
 
@@ -77,24 +77,16 @@ class ClipVisualEncoder(nn.Module):
     def finetune(
         self,
         dm: DataModule,
-        *,
-        batch_size: int = 16,
-        steps: int,
-        val_freq: Union[int, float] = 0.1,
-        lr: float = 1.0e-5,
+        params: FineTuneParams,
         device: Union[str, torch.device, int] = 0,
-        val_batches: Union[int, float] = 1.0,
     ) -> nn.Sequential:
         dm = gcopy(dm, deep=False)
         dm.set_transforms_all(self.transforms)
         finetuner = FineTuner(
-            batch_size=batch_size,
-            steps=steps,
-            lr=lr,
-            val_freq=val_freq,
-            val_batches=val_batches,
-            loss_fn=CrossEntropyLoss(reduction="mean"),
-            device=device,
+            params=params, loss_fn=CrossEntropyLoss(reduction="mean"), device=device
         )
-        logger.info(f"Fine-tuning visual encoder for {steps} steps with batch size {batch_size}.")
+        logger.info(
+            f"Fine-tuning visual encoder for {params.steps} steps "
+            f"with batch size {params.batch_size}."
+        )
         return finetuner.run(dm=dm, backbone=self, out_dim=self.out_dim)

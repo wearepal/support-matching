@@ -4,11 +4,12 @@ defaults:
   - _self_
 clip_version: RN50
 download_root: null
-ft_steps: 2000
-ft_batch_size: 10
-ft_lr: 1e-05
-ft_val_freq: 0.1
-ft_val_batches: 1.0
+ft:
+  steps: 2000
+  batch_size: 10
+  lr: 1e-05
+  val_freq: 0.1
+  val_batches: 1.0
 enc_batch_size: 150
 gpu: 0
 spherical: true

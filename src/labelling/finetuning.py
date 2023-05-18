@@ -18,32 +18,37 @@ import wandb
 
 from src.data import DataModule, labels_to_group_id, resolve_device
 
-__all__ = ["FineTuner"]
+__all__ = ["FineTuner", "FineTuneParams"]
+
+
+@dataclass
+class FineTuneParams:
+    steps: int = 2000
+    batch_size: int = 16
+    val_freq: Union[int, float] = 0.1
+    val_batches: Union[int, float] = 1.0
+    lr: float = 1e-5
 
 
 @dataclass(repr=False, eq=False)
 class FineTuner(DcModule):
     _PBAR_COL: ClassVar[str] = "#ffe252"
 
-    batch_size: int = 16
-    steps: int = 2000
-    val_freq: Union[int, float] = 0.1
-    val_batches: Union[int, float] = 1.0
-    lr: float = 1e-5
+    params: FineTuneParams = field(default_factory=FineTuneParams)
     device: Union[int, str, torch.device] = 0
     save_path: Optional[str] = None
     loss_fn: CrossEntropyLoss = field(default_factory=CrossEntropyLoss)
     _LOG_PREFIX: ClassVar[str] = "fine-tuning"
 
     def __post_init__(self) -> None:
-        if isinstance(self.val_freq, float) and (not (0 <= self.val_freq <= 1)):
+        if isinstance(self.params.val_freq, float) and (not (0 <= self.params.val_freq <= 1)):
             raise AttributeError("If 'val_freq' is a float, it must be in the range [0, 1].")
-        if isinstance(self.val_batches, float) and (not (0 <= self.val_batches <= 1)):
+        if isinstance(self.params.val_batches, float) and (not (0 <= self.params.val_batches <= 1)):
             raise AttributeError("If 'val_batches' is a float, it must be in the range [0, 1].")
 
     def run(self, dm: DataModule, *, backbone: nn.Module, out_dim: int) -> nn.Sequential:
         dm = gcopy(dm, deep=False)
-        dm.batch_size_tr = self.batch_size
+        dm.batch_size_tr = self.params.batch_size
         device = resolve_device(self.device)
 
         logger.info(f"Initialising predictor for fine-tuning.")
@@ -51,7 +56,7 @@ class FineTuner(DcModule):
             backbone, nn.Linear(in_features=out_dim, out_features=dm.num_sources_dep)
         )
         model.to(device)
-        optimizer = optim.AdamW(model.parameters(), lr=self.lr)
+        optimizer = optim.AdamW(model.parameters(), lr=self.params.lr)
 
         logger.info(f"Starting fine-tuning routine.")
         self.train_loop(
@@ -59,7 +64,7 @@ class FineTuner(DcModule):
             train_loader=dm.train_dataloader(balance=True),
             val_loader=dm.test_dataloader(),
             optimizer=optimizer,
-            steps=self.steps,
+            steps=self.params.steps,
             device=device,
             card_s=dm.card_s,
         )
@@ -89,7 +94,12 @@ class FineTuner(DcModule):
         )
         last_acc = None
         val_freq = max(
-            (self.val_freq if isinstance(self.val_freq, int) else round(self.val_freq * steps)), 1
+            (
+                self.params.val_freq
+                if isinstance(self.params.val_freq, int)
+                else round(self.params.val_freq * steps)
+            ),
+            1,
         )
         logger.info(f"Set to validate every {val_freq} steps.")
         for step, sample in enumerate(pbar, start=1):
@@ -129,9 +139,9 @@ class FineTuner(DcModule):
         all_y: list[Tensor] = []
         with torch.no_grad():
             val_batches = (
-                self.val_batches
-                if isinstance(self.val_batches, int)
-                else round(self.val_batches * len(val_loader))
+                self.params.val_batches
+                if isinstance(self.params.val_batches, int)
+                else round(self.params.val_batches * len(val_loader))
             )
             for sample in tqdm(
                 islice(val_loader, val_batches),

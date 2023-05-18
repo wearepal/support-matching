@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Union, cast
+from typing import Optional, cast
 from typing_extensions import override
 
 import conduit.metrics as cdtm
@@ -15,12 +15,13 @@ from wandb.wandb_run import Run
 
 from src.data import DataModule, resolve_device
 from src.evaluation.metrics import print_metrics
-from src.labelling.encode import Encodings, encode_with_group_ids
 from src.models import Classifier, OptimizerCfg
 from src.utils import to_item
 
 from .artifact import load_labels_from_artifact, save_labels_as_artifact
+from .encode import Encodings, encode_with_group_ids
 from .encoder import ClipVersion, ClipVisualEncoder
+from .finetuning import FineTuneParams
 from .kmeans import KMeans
 from .noise import (
     ClnMetric,
@@ -56,12 +57,7 @@ class Labeller(ABC):
 class KmeansOnClipEncodings(DcModule, Labeller):
     clip_version: ClipVersion = ClipVersion.RN50
     download_root: Optional[str] = None
-    ft_steps: int = 1000
-    ft_batch_size: int = 16
-    ft_lr: float = 1.0e-5
-    ft_val_freq: Union[int, float] = 0.1
-    ft_val_batches: Union[int, float] = 1.0
-    ft_lr: float = 1.0e-5
+    ft: FineTuneParams = field(default_factory=lambda: FineTuneParams(steps=1000))
     enc_batch_size: int = 64
 
     gpu: int = 0
@@ -92,16 +88,8 @@ class KmeansOnClipEncodings(DcModule, Labeller):
                 encoder = ClipVisualEncoder(
                     version=self.clip_version, download_root=self.download_root
                 )
-                if self.ft_steps > 0:
-                    encoder.finetune(
-                        dm=dm,
-                        steps=self.ft_steps,
-                        batch_size=self.ft_batch_size,
-                        lr=self.ft_lr,
-                        val_freq=self.ft_val_freq,
-                        val_batches=self.ft_val_batches,
-                        device=device,
-                    )
+                if self.ft.steps > 0:
+                    encoder.finetune(dm=dm, params=self.ft, device=device)
             else:
                 encoder = self.encoder
             encodings = encoder.encode(dm=dm, batch_size_tr=self.enc_batch_size, device=device)
@@ -134,14 +122,8 @@ class KmeansOnClipEncodings(DcModule, Labeller):
 class ClipClassifier(Labeller):
     clip_version: ClipVersion = ClipVersion.RN50
     download_root: Optional[str] = None
-    steps: int = 1000
-    batch_size_tr: int = 16
+    ft: FineTuneParams = field(default_factory=lambda: FineTuneParams(steps=1000))
     batch_size_te: int = 64
-    lr: float = 1.0e-5
-    weight_decay: float = 0.0
-    val_freq: Union[int, float] = 0.1
-    val_batches: Union[int, float] = 1.0
-    lr: float = 1.0e-5
 
     gpu: int = 0
     save_as_artifact: bool = True
@@ -173,15 +155,7 @@ class ClipClassifier(Labeller):
     def run(self, dm: DataModule, *, use_cached_encoder: bool = False) -> Tensor:
         device = resolve_device(self.gpu)
         encoder = ClipVisualEncoder(version=self.clip_version, download_root=self.download_root)
-        ft_model = encoder.finetune(
-            dm=dm,
-            steps=self.steps,
-            batch_size=self.batch_size_tr,
-            lr=self.lr,
-            val_freq=self.val_freq,
-            val_batches=self.val_batches,
-            device=device,
-        )
+        ft_model = encoder.finetune(dm=dm, params=self.ft, device=device)
         classifier = Classifier(model=ft_model, opt=OptimizerCfg())
         preds = classifier.predict(
             dm.deployment_dataloader(eval=True, batch_size=self.batch_size_te),
