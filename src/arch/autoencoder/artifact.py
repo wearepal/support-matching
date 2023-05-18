@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Final, Optional, Union
@@ -22,19 +22,19 @@ FILENAME: Final[str] = "model.pt"
 
 @torch.no_grad()
 def save_ae_artifact(
-    model: AePair, *, run: Union[Run, RunDisabled], config: dict[str, Any], name: str
+    model: AePair, *, run: Union[Run, RunDisabled], factory_config: dict[str, Any], name: str
 ) -> None:
-    assert "_target_" in config
+    assert "_target_" in factory_config
     with TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)
         model_save_path = tmpdir / FILENAME
         save_dict = {
             "state": model.state_dict(),
-            "config": config,
+            "config": factory_config,
         }
         torch.save(save_dict, f=model_save_path)
         logger.info(f"Model config and state saved to '{model_save_path.resolve()}'")
-        model_artifact = wandb.Artifact(name, type="model", metadata=dict(config))
+        model_artifact = wandb.Artifact(name, type="model", metadata=dict(factory_config))
         model_artifact.add_file(str(model_save_path.resolve()), name=FILENAME)
         run.log_artifact(model_artifact)
         model_artifact.wait()
@@ -61,7 +61,7 @@ def load_ae_from_artifact(
     run: Optional[Union[Run, RunDisabled]] = None,
     project: Optional[str] = None,
     root: Optional[Union[Path, str]] = None,
-) -> AePair:
+) -> tuple[AePair, dict[str, Any]]:
     root = _process_root_dir(root)
     version_str = "latest" if version is None else f"v{version}"
     versioned_name = name + f":{version_str}"
@@ -92,7 +92,7 @@ def load_ae_from_artifact(
     ae_pair = factory(input_shape=input_shape)
     ae_pair.load_state_dict(state_dict["state"])
     logger.info(f"Model successfully loaded from artifact '{full_name}'.")
-    return ae_pair
+    return ae_pair, state_dict["config"]
 
 
 @dataclass(eq=False)
@@ -100,10 +100,11 @@ class AeFromArtifact(AeFactory):
     artifact_name: str
     version: Optional[int] = None
     bitfit: bool = False
+    factory_config: dict[str, Any] = field(init=False, metadata={"omegaconf_ignore": True})
 
     @override
     def __call__(self, input_shape: tuple[int, int, int]) -> AePair:
-        ae_pair = load_ae_from_artifact(
+        ae_pair, self.factory_config = load_ae_from_artifact(
             input_shape=input_shape, name=self.artifact_name, version=self.version
         )
         if self.bitfit:
