@@ -110,7 +110,9 @@ class SupMatchRelay(BaseRelay):
         )
         disc = NeuralDiscriminator(model=disc_net, opt=self.disc)
         try:
-            score = self.alg.run(dm=dm, ae=ae, disc=disc, evaluator=self.eval, scorer=self.scorer)
+            score = self.alg.fit_evaluate_score(
+                dm=dm, ae=ae, disc=disc, evaluator=self.eval, scorer=self.scorer
+            )
         except NaNLossError:
             logger.info("Stopping due to NaN loss")
             return -math.inf

@@ -2,7 +2,7 @@ from abc import abstractmethod
 from collections import defaultdict
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Any, ClassVar, Generic, Literal, Optional, TypeVar, Union
+from typing import ClassVar, Generic, Literal, Optional, TypeVar, Union
 from typing_extensions import Self, TypeAlias
 
 from conduit.data.structures import NamedSample, TernarySample
@@ -19,8 +19,9 @@ import wandb
 from src.algs.base import Algorithm, NaNLossError
 from src.arch.predictors.fcn import Fcn
 from src.data import DataModule
+from src.evaluation.metrics import EmEvalPair, compute_metrics
 from src.logging import log_images
-from src.models import Classifier, OptimizerCfg, SplitLatentAe
+from src.models import Classifier, Model, OptimizerCfg, SplitLatentAe
 from src.utils import to_item
 
 from .evaluator import Evaluator
@@ -275,17 +276,26 @@ class AdvSemiSupervisedAlg(Algorithm):
         return iter(dl_tr), iter(dl_dep)
 
     def _evaluate(
-        self,
-        dm: DataModule,
-        *,
-        ae: SplitLatentAe,
-        evaluator: Optional[Evaluator],
-        step: Optional[int] = None,
-    ) -> None:
-        if evaluator is not None:
-            evaluator(dm=dm, encoder=ae, step=step, device=self.device)
+        self, dm: DataModule, *, ae: SplitLatentAe, evaluator: Evaluator, step: Optional[int] = None
+    ) -> DataModule:
+        return evaluator(dm=dm, encoder=ae, step=step, device=self.device)
 
-    def fit(self, dm: DataModule, *, ae: SplitLatentAe, disc: Any, evaluator: Evaluator) -> Self:
+    def _evaluate_pred_y(
+        self, dm: DataModule, *, comp: Components, step: Optional[int] = None
+    ) -> None:
+        if comp.pred_y is not None:
+            et = comp.pred_y.predict(dm.test_dataloader(), device=self.device)
+            pair = EmEvalPair.from_et(et=et, pred_s=False)
+            compute_metrics(
+                pair=pair,
+                exp_name="pred_y",
+                step=step,
+                save_summary=True,
+                prefix="test",
+                use_wandb=True,
+            )
+
+    def fit(self, dm: DataModule, *, ae: SplitLatentAe, disc: Model, evaluator: Evaluator) -> Self:
         iterator_tr, iterator_dep = self._get_data_iterators(dm=dm)
         pred_y, pred_s = self._build_predictors(ae=ae, y_dim=dm.card_y, s_dim=dm.card_s)
         comp = Components(ae=ae, disc=disc, pred_y=pred_y, pred_s=pred_s)
@@ -308,12 +318,15 @@ class AdvSemiSupervisedAlg(Algorithm):
                 pbar.update()
 
                 if self.validate and (step % val_freq == 0):
-                    self._evaluate(dm=dm, ae=ae, evaluator=evaluator, step=step)
+                    dm_zy = self._evaluate(dm=dm, ae=ae, evaluator=evaluator, step=step)
+                    self._evaluate_pred_y(dm_zy, comp=comp, step=step)
 
         logger.info("Finished training")
         return self
 
-    def run(self, dm: DataModule, *, ae: SplitLatentAe, disc: Any, evaluator: Evaluator) -> Any:
+    def fit_and_evaluate(
+        self, dm: DataModule, *, ae: SplitLatentAe, disc: Model, evaluator: Evaluator
+    ) -> None:
         try:
             self.fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
         except KeyboardInterrupt:

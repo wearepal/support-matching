@@ -29,7 +29,7 @@ from src.data import (
 )
 from src.evaluation.metrics import EmEvalPair, compute_metrics
 from src.logging import log_images
-from src.models import Classifier, OptimizerCfg, SplitEncoding, SplitLatentAe
+from src.models import Classifier, OptimizerCfg, SplitLatentAe
 
 __all__ = [
     "Evaluator",
@@ -63,14 +63,6 @@ def log_sample_images(
     inds = torch.randperm(len(data))[:num_samples]
     images = data[inds.tolist()]
     log_images(images=images, dm=dm, name=f"Samples from {name}", prefix="eval", step=step)
-
-
-def _get_classifer_input(encodings: SplitEncoding, *, invariant_to: Literal["s", "y"]) -> Tensor:
-    zs_m, zy_m = encodings.mask()
-    # `zs_m` has zs zeroed out
-    z_m = zs_m if invariant_to == "s" else zy_m
-    classifier_input = z_m.join()
-    return classifier_input.detach().cpu()
 
 
 InvariantAttr = Literal["s", "y", "both"]
@@ -131,10 +123,10 @@ def encode_dataset(
             encodings = encoder.encode(x, transform_zs=False)
 
             if invariant_to in ("s", "both"):
-                zy_ls.append(_get_classifer_input(encodings=encodings, invariant_to="s"))
+                zy_ls.append(encodings.zy.detach().cpu())
 
             if invariant_to in ("y", "both"):
-                zs_ls.append(_get_classifer_input(encodings=encodings, invariant_to="y"))
+                zs_ls.append(encodings.zs.detach().cpu())
 
     s_ls = torch.cat(s_ls, dim=0)
     y_ls = torch.cat(y_ls, dim=0)
@@ -242,12 +234,12 @@ class Evaluator:
     opt: OptimizerCfg = field(default_factory=OptimizerCfg)
     """Optimization parameters."""
 
-    def _fit_classifier(self, dm: DataModule, *, pred_s: bool, device: torch.device) -> Classifier:
-        input_dim = dm.dim_x[0]
+    def _fit_classifier(
+        self, dm: DataModule, *, pred_s: bool, input_dim: int, device: torch.device
+    ) -> Classifier:
         model_fn = Fcn(
             hidden_dim=self.hidden_dim, num_hidden=self.num_hidden, activation=self.activation
         )
-        input_dim = np.product(dm.dim_x)
         model, _ = model_fn(input_dim, target_dim=dm.card_y)
 
         clf = Classifier(model, opt=self.opt)
@@ -270,12 +262,13 @@ class Evaluator:
         self,
         dm: DataModule,
         *,
+        input_dim: int,
         device: torch.device,
         step: Optional[int] = None,
         name: str = "",
         pred_s: bool = False,
     ) -> None:
-        clf = self._fit_classifier(dm=dm, pred_s=False, device=device)
+        clf = self._fit_classifier(dm=dm, pred_s=False, device=device, input_dim=input_dim)
         et = clf.predict(dm.test_dataloader(), device=torch.device(device))
         pair = EmEvalPair.from_et(et=et, pred_s=pred_s)
         compute_metrics(
@@ -294,7 +287,7 @@ class Evaluator:
         encoder: SplitLatentAe,
         device: Union[str, torch.device, int],
         step: Optional[int] = None,
-    ) -> None:
+    ) -> DataModule:
         device = resolve_device(device)
         encoder.eval()
         invariant_to = "both" if self.eval_s_from_zs is not None else "s"
@@ -323,9 +316,17 @@ class Evaluator:
             fig.tight_layout()
             wandb.log({"zs_histogram": wandb.Image(fig)}, step=step)
 
-        dm_cp = gcopy(dm, deep=False, train=train_eval.inv_s, test=test_eval.inv_s)
+        enc_size = encoder.encoding_size
+        dm_zy = gcopy(dm, deep=False, train=train_eval.inv_s, test=test_eval.inv_s)
         logger.info("\nComputing metrics...")
-        self._evaluate(dm=dm_cp, device=device, step=step, name="y_from_zy", pred_s=False)
+        self._evaluate(
+            dm=dm_zy,
+            device=device,
+            step=step,
+            name="y_from_zy",
+            pred_s=False,
+            input_dim=enc_size.zy,
+        )
 
         if self.eval_s_from_zs is not None:
             if self.eval_s_from_zs is EvalTrainData.train:
@@ -338,8 +339,16 @@ class Evaluator:
                     invariant_to="y",
                 )
                 train_data = encoded_dep.inv_y
-            dm_cp = gcopy(dm, deep=False, train=train_data, test=test_eval.inv_y)
-            self._evaluate(dm=dm_cp, device=device, step=step, name="s_from_zs", pred_s=True)
+            dm_zs = gcopy(dm, deep=False, train=train_data, test=test_eval.inv_y)
+            self._evaluate(
+                dm=dm_zs,
+                device=device,
+                step=step,
+                name="s_from_zs",
+                pred_s=True,
+                input_dim=enc_size.zs,
+            )
+        return dm_zy
 
     def __call__(
         self,
@@ -348,5 +357,5 @@ class Evaluator:
         encoder: SplitLatentAe,
         device: Union[str, torch.device, int],
         step: Optional[int] = None,
-    ) -> None:
+    ) -> DataModule:
         return self.run(dm=dm, encoder=encoder, device=device, step=step)
