@@ -244,7 +244,9 @@ class SetClassifier(Model):
             y_pred_ls = []
             y_true_ls = []
             for i, dl in enumerate(dls):
-                assert isinstance(dl.batch_sampler, StratifiedBatchSampler)
+                assert isinstance(
+                    dl.batch_sampler, (StratifiedBatchSampler, ApproxStratBatchSampler)
+                )
                 bs = dl.batch_sampler.batch_size
                 self.model.batch_size = bs
                 pbar = trange(max_steps, desc="Generating predictions", colour=self._PBAR_COL)
