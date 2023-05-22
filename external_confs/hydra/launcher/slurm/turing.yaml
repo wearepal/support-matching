@@ -1,5 +1,5 @@
 #
-# usage: hydra/launcher=slurm_turing
+# usage: hydra/launcher=slurm/turing
 #
 defaults:
   - submitit_slurm

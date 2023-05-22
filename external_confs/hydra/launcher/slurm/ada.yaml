@@ -1,5 +1,5 @@
 #
-# usage: hydra/launcher=slurm_ada
+# usage: hydra/launcher=slurm/ada
 #
 defaults:
   - submitit_slurm

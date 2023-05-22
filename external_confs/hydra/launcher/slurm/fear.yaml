@@ -1,5 +1,5 @@
 #
-# usage: hydra/launcher=slurm_fear
+# usage: hydra/launcher=slurm/fear
 #
 defaults:
   - submitit_slurm
