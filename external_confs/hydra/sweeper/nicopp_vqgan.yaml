@@ -8,6 +8,8 @@ defaults:
 
 sampler:
     seed: 0
+    qmc_type: halton
+    scramble: true
 
 direction:
     - maximize
