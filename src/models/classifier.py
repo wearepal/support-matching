@@ -10,7 +10,7 @@ from conduit.metrics import hard_prediction
 from conduit.models.utils import prefix_keys
 from conduit.types import Loss
 from loguru import logger
-from ranzen.torch.data import StratifiedBatchSampler
+from ranzen.torch import ApproxStratBatchSampler, StratifiedBatchSampler
 from ranzen.torch.loss import cross_entropy_loss
 from ranzen.torch.utils import inf_generator
 import torch
@@ -180,7 +180,7 @@ class SetClassifier(Model):
     ) -> Iterator[_ScSample]:
         for i, (dl_iter, bs) in enumerate(args):
             batch = next(dl_iter)
-            y = torch.full(size=(bs,), fill_value=i, dtype=torch.long)
+            y = torch.full(size=(batch.x.shape[0] // bs,), fill_value=i, dtype=torch.long)
             yield _ScSample(x=batch.x, y=y, b=bs).to(device=device, non_blocking=True)
 
     def training_step(self, *batches: _ScSample) -> tuple[Tensor, Tensor]:
@@ -208,7 +208,7 @@ class SetClassifier(Model):
 
         iter_bs_pairs = []
         for dl in dls:
-            assert isinstance(dl.batch_sampler, StratifiedBatchSampler)
+            assert isinstance(dl.batch_sampler, (StratifiedBatchSampler, ApproxStratBatchSampler))
             dl_iter = inf_generator(dl)
             iter_bs_pairs.append((dl_iter, dl.batch_sampler.batch_size))
 
