@@ -9,7 +9,7 @@ from torch import Tensor
 
 from src.arch.predictors import SetPredictor
 from src.data.data_module import DataModule
-from src.models.autoencoder import SplitLatentAe
+from src.models import Model, SplitLatentAe
 from src.models.discriminator import BinaryDiscriminator, NeuralDiscriminator
 from src.utils import to_item
 
@@ -138,34 +138,28 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 self._update_discriminator(comp.disc)
 
     @override
-    def fit(
-        self, dm: DataModule, *, ae: SplitLatentAe, disc: BinaryDiscriminator, evaluator: Evaluator
-    ) -> Self:
+    def fit(self, dm: DataModule, *, ae: SplitLatentAe, disc: Model, evaluator: Evaluator) -> Self:
         if self.s_as_zs and ae.zs_dim != dm.card_s:
             raise ValueError(f"zs_dim has to be equal to s_dim ({dm.card_s}) if `s_as_zs` is True.")
 
         return super().fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
 
-    @override
-    def run(
+    def fit_evaluate_score(
         self,
         dm: DataModule,
         *,
         ae: SplitLatentAe,
         disc: BinaryDiscriminator,
         evaluator: Evaluator,
-        scorer: Optional[Scorer] = None,
+        scorer: Scorer,
     ) -> Optional[float]:
+        """First fit, then evaluate, then score."""
         disc_model_sd0 = None
-        if (
-            (scorer is not None)
-            and isinstance(disc, NeuralDiscriminator)
-            and isinstance(disc.model, SetPredictor)
-        ):
+        if isinstance(disc, NeuralDiscriminator) and isinstance(disc.model, SetPredictor):
             disc_model_sd0 = disc.model.state_dict()
-        super().run(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
+        super().fit_and_evaluate(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
         # TODO: Generalise this to other discriminator types and architectures
-        if (scorer is not None) and (disc_model_sd0 is not None):
+        if disc_model_sd0 is not None:
             disc = cast(NeuralDiscriminator, disc)
             disc.model.load_state_dict(disc_model_sd0)
             assert isinstance(disc.model, SetPredictor)

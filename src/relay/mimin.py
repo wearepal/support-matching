@@ -85,6 +85,6 @@ class MiMinRelay(BaseRelay):
         target_dim = card_s if card_s > 2 else 1
         disc_net, _ = self.disc_arch(input_dim=ae.encoding_size.zy, target_dim=target_dim)
         disc = Model(opt=self.disc, model=disc_net)
-        self.alg.run(dm=dm, ae=ae, disc=disc, evaluator=self.eval)
+        self.alg.fit_and_evaluate(dm=dm, ae=ae, disc=disc, evaluator=self.eval)
         if run is not None:
             run.finish()
