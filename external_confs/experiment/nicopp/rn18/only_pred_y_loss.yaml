@@ -1,0 +1,30 @@
+# @package _global_
+
+defaults:
+    - /alg: supmatch_no_disc
+    - /eval: nicopp
+    - override /ae_arch: resnet
+    - override /dm: nicopp
+    - override /ds: nicopp
+    - override /labeller: gt
+    - override /split: nicopp/change_is_hard
+    - _self_
+
+ae_arch:
+    version: RN18
+    first_conv: true
+    maxpool1: true
+    latent_dim: 256
+    pretrained_enc: true
+
+alg:
+    pred_y_loss_w: 1.0
+    enc_loss_w: 0.0
+    steps: 30000
+    use_amp: true
+    lr: 1.e-5
+    log_freq: 100000000000  # never
+    val_freq: 1000
+
+ae:
+    zs_dim: 1
