@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from src.arch.autoencoder import AePair
 from src.discrete import discretize, round_ste, sample_concrete
 from src.loss import MixedLoss
-from src.utils import to_item
+from src.utils import soft_prediction, to_item
 
 from .base import Model, OptimizerCfg
 
@@ -98,6 +98,7 @@ class ZsTransform(Enum):
 
     none = auto()
     round_ste = auto()
+    soft_classification = auto()
 
 
 @dataclass
@@ -135,11 +136,13 @@ class SplitLatentAe(Model):
 
     def encode(self, inputs: Tensor, *, transform_zs: bool = True) -> SplitEncoding:
         enc = self._split_encoding(self.model.encoder(inputs))
-        if transform_zs and self.opt.zs_transform is ZsTransform.round_ste:
-            rounded_zs = round_ste(torch.sigmoid(enc.zs))
-        else:
-            rounded_zs = enc.zs
-        return SplitEncoding(zs=rounded_zs, zy=enc.zy)
+        zs = enc.zs
+        if transform_zs:
+            if self.opt.zs_transform is ZsTransform.round_ste:
+                zs = round_ste(torch.sigmoid(zs))
+            elif self.opt.zs_transform is ZsTransform.soft_classification:
+                zs = soft_prediction(zs)
+        return SplitEncoding(zs=zs, zy=enc.zy)
 
     def decode(
         self,
