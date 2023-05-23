@@ -2,7 +2,7 @@ from abc import abstractmethod
 from collections import defaultdict
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Any, ClassVar, Generic, Literal, Optional, TypeVar, Union
+from typing import ClassVar, Generic, Literal, Optional, TypeVar, Union
 from typing_extensions import Self, TypeAlias
 
 from conduit.data.structures import NamedSample, TernarySample
@@ -20,7 +20,7 @@ from src.algs.base import Algorithm, NaNLossError
 from src.arch.predictors.fcn import Fcn
 from src.data import DataModule
 from src.logging import log_images
-from src.models import Classifier, OptimizerCfg, SplitLatentAe
+from src.models import Classifier, Model, OptimizerCfg, SplitLatentAe
 from src.utils import to_item
 
 from .evaluator import Evaluator
@@ -285,7 +285,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         if evaluator is not None:
             evaluator(dm=dm, encoder=ae, step=step, device=self.device)
 
-    def fit(self, dm: DataModule, *, ae: SplitLatentAe, disc: Any, evaluator: Evaluator) -> Self:
+    def fit(self, dm: DataModule, *, ae: SplitLatentAe, disc: Model, evaluator: Evaluator) -> Self:
         iterator_tr, iterator_dep = self._get_data_iterators(dm=dm)
         pred_y, pred_s = self._build_predictors(ae=ae, y_dim=dm.card_y, s_dim=dm.card_s)
         comp = Components(ae=ae, disc=disc, pred_y=pred_y, pred_s=pred_s)
@@ -313,7 +313,9 @@ class AdvSemiSupervisedAlg(Algorithm):
         logger.info("Finished training")
         return self
 
-    def run(self, dm: DataModule, *, ae: SplitLatentAe, disc: Any, evaluator: Evaluator) -> Any:
+    def fit_and_evaluate(
+        self, dm: DataModule, *, ae: SplitLatentAe, disc: Model, evaluator: Evaluator
+    ) -> None:
         try:
             self.fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
         except KeyboardInterrupt:
