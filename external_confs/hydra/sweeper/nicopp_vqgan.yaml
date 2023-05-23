@@ -1,0 +1,48 @@
+#
+# usage: hydra/sweeper=nicopp_vqgan
+#
+---
+defaults:
+  - optuna
+  - override sampler: qmc
+
+sampler:
+    seed: 0
+    qmc_type: halton
+    scramble: true
+
+direction:
+    - maximize
+
+storage: null
+study_name: supmatch
+n_trials: 40
+n_jobs: 4
+max_failure_rate: 0.0
+search_space: null
+custom_search_space: null
+
+params:
+    # alg.ga_steps: choice(3)
+    alg.num_disc_updates: range(3, 6)
+    # alg.enc_loss_w: tag(log, interval(1.e-2, 1.0))
+    alg.disc_loss_w: tag(log, interval(1.e-3, 3.e-1))
+    alg.prior_loss_w: choice(0.0, 1.e-2, 1.e-3)
+    alg.pred_y_loss_w: choice(0.0, 1.0)
+    alg.twoway_disc_loss: choice(true, false)
+    alg.lr: tag(log, interval(1.e-6, 1.e-4))
+    alg.max_grad_norm: choice(5, 10, 10000)
+    # alg.pred_y_num_hidden: choice(0, 1)
+    disc.lr: tag(log, interval(1.e-6, 1.e-4))
+    # disc.criterion: choice(LOGISTIC_NS)
+    # disc_arch.num_hidden_pre: choice(1, 2)
+    # disc_arch.dropout_prob: choice(0.0, 0.1)
+    # ae.zs_dim: choice(1, 8)
+    ae.zs_transform: choice(none, soft_classification)
+    # ae.weight_decay: interval(1.e-4, 1.e-2)
+    # disc_arch.agg_fn: choice(KVQ, GATED)
+
+    # the following can't be used with an AE from an artifact
+    # ae_arch.latent_dim: choice(128, 256)
+    # ae_arch.init_chans: choice(8, 16, 32)
+    # ae_arch.dropout: choice(0.0, 0.1)
