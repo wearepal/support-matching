@@ -122,18 +122,18 @@ class NeuralScorer(Scorer):
         ae.to(device)
         disc.to(device)
 
-        dm = gcopy(dm, batch_size_tr=self.batch_size_tr, deep=False)
+        dm_zy = gcopy(dm, batch_size_tr=self.batch_size_tr, deep=False)
         batch_size_enc = self.batch_size_tr if self.batch_size_enc is None else self.batch_size_enc
         logger.info("Encoding training set and scoring its reconstructions")
-        dm.train, recon_score_tr = _encode_and_score_recons(
-            dl=dm.train_dataloader(eval=True, batch_size=batch_size_enc),
+        dm_zy.train, recon_score_tr = _encode_and_score_recons(
+            dl=dm_zy.train_dataloader(eval=True, batch_size=batch_size_enc),
             ae=ae,
             device=device,
             minimize=self.minimize,
         )
         logger.info("Encoding deployment set and scoring its reconstructions")
-        dm.deployment, recon_score_dep = _encode_and_score_recons(
-            dl=dm.deployment_dataloader(eval=True, batch_size=batch_size_enc),
+        dm_zy.deployment, recon_score_dep = _encode_and_score_recons(
+            dl=dm_zy.deployment_dataloader(eval=True, batch_size=batch_size_enc),
             ae=ae,
             device=device,
             minimize=self.minimize,
@@ -146,8 +146,8 @@ class NeuralScorer(Scorer):
         )
         logger.info("Training invariance-scorer")
         classifier.fit(
-            dm.train_dataloader(batch_size=self.batch_size_tr),
-            dm.deployment_dataloader(batch_size=self.batch_size_tr),
+            dm_zy.train_dataloader(batch_size=self.batch_size_tr),
+            dm_zy.deployment_dataloader(batch_size=self.batch_size_tr),
             steps=self.steps,
             use_wandb=False,
             device=device,
@@ -155,8 +155,8 @@ class NeuralScorer(Scorer):
         logger.info("Scoring invariance of encodings")
         batch_size_te = self.batch_size_tr if self.batch_size_te is None else self.batch_size_te
         et = classifier.predict(
-            dm.train_dataloader(batch_size=batch_size_te),
-            dm.deployment_dataloader(batch_size=batch_size_te),
+            dm_zy.train_dataloader(batch_size=batch_size_te),
+            dm_zy.deployment_dataloader(batch_size=batch_size_te),
             device=device,
             max_steps=self.eval_batches,
         )

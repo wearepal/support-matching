@@ -128,4 +128,5 @@ class SupMatchRelay(BaseRelay):
                     run=run, model=ae_pair, factory_config=ae_config, name=self.artifact_name
                 )
             run.finish()
+        logger.info(f"Score: {score}")
         return score
