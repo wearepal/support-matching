@@ -1,6 +1,7 @@
 # @package _global_
 
 defaults:
+    - /eval: nicopp
     - override /ds: nicopp
     - override /split: nicopp/change_is_hard
     - override /dm: nicopp
@@ -14,7 +15,9 @@ ae_arch:
 alg:
     use_amp: true
     lr: 1.e-5
-    val_freq: 1000
+    steps: 30000
+    val_freq: ${ alg.steps }
+    log_freq: ${ alg.steps }
     num_disc_updates: 5
     disc_loss_w: 0.03
 
@@ -23,16 +26,3 @@ ae:
 
 disc:
     lr: 1.e-4
-
-eval:
-    batch_size: 1
-    balanced_sampling: true
-    hidden_dim: null
-    num_hidden: 1
-    steps: 10000
-    opt:
-        lr: 1.e-4
-        scheduler_cls: torch.optim.lr_scheduler.CosineAnnealingLR
-        scheduler_kwargs:
-            T_max: ${ eval.steps }
-            eta_min: 5e-7
