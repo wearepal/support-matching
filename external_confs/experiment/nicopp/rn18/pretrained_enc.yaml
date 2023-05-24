@@ -18,7 +18,8 @@ ae_arch:
 
 alg:
     use_amp: true
-    pred_lr: 1.e-5
+    pred:
+        lr: 1.e-5
     log_freq: 100000000000  # never
     val_freq: 200
     num_disc_updates: 5
