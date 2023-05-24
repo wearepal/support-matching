@@ -75,7 +75,7 @@ class AdvSemiSupervisedAlg(Algorithm):
     weight_decay: float = 0
     warmup_steps: int = 0
 
-    lr: float = 4.0e-4
+    pred_lr: float = 4.0e-4  # learning rate for pred_y and pred_s
     enc_loss_w: float = 1
     disc_loss_w: float = 1
     prior_loss_w: Optional[float] = None
@@ -114,14 +114,14 @@ class AdvSemiSupervisedAlg(Algorithm):
             model, _ = Fcn(hidden_dim=self.pred_y_hidden_dim, num_hidden=self.pred_y_num_hidden)(
                 input_dim=ae.encoding_size.zy, target_dim=y_dim
             )
-            pred_y = Classifier(model=model, opt=OptimizerCfg(lr=self.lr)).to(self.device)
+            pred_y = Classifier(model=model, opt=OptimizerCfg(lr=self.pred_lr)).to(self.device)
         pred_s = None
         if self.pred_s_loss_w > 0:
             model, _ = Fcn(
                 hidden_dim=None,  # no hidden layers
                 final_bias=self.s_pred_with_bias,
             )(input_dim=ae.encoding_size.zs, target_dim=s_dim)
-            pred_s = Classifier(model=model, opt=OptimizerCfg(lr=self.lr)).to(self.device)
+            pred_s = Classifier(model=model, opt=OptimizerCfg(lr=self.pred_lr)).to(self.device)
 
         return pred_y, pred_s
 
