@@ -72,10 +72,10 @@ class AdvSemiSupervisedAlg(Algorithm):
     steps: int = 50_000
     # Number of gradient-accumulation steps
     ga_steps: int = 1
-    weight_decay: float = 0
     warmup_steps: int = 0
 
     pred_lr: float = 4.0e-4  # learning rate for pred_y and pred_s
+    pred_weight_decay: float = 0  # weight decay for pred_y and pred_s
     enc_loss_w: float = 1
     disc_loss_w: float = 1
     prior_loss_w: Optional[float] = None
@@ -109,19 +109,20 @@ class AdvSemiSupervisedAlg(Algorithm):
     def _build_predictors(
         self, ae: SplitLatentAe, *, y_dim: int, s_dim: int
     ) -> tuple[Optional[Classifier], Optional[Classifier]]:
+        pred_opt = OptimizerCfg(lr=self.pred_lr, weight_decay=self.pred_weight_decay)
         pred_y = None
         if self.pred_y_loss_w > 0:
             model, _ = Fcn(hidden_dim=self.pred_y_hidden_dim, num_hidden=self.pred_y_num_hidden)(
                 input_dim=ae.encoding_size.zy, target_dim=y_dim
             )
-            pred_y = Classifier(model=model, opt=OptimizerCfg(lr=self.pred_lr)).to(self.device)
+            pred_y = Classifier(model=model, opt=pred_opt).to(self.device)
         pred_s = None
         if self.pred_s_loss_w > 0:
             model, _ = Fcn(
                 hidden_dim=None,  # no hidden layers
                 final_bias=self.s_pred_with_bias,
             )(input_dim=ae.encoding_size.zs, target_dim=s_dim)
-            pred_s = Classifier(model=model, opt=OptimizerCfg(lr=self.pred_lr)).to(self.device)
+            pred_s = Classifier(model=model, opt=pred_opt).to(self.device)
 
         return pred_y, pred_s
 
