@@ -19,6 +19,7 @@ import wandb
 from src.algs.base import Algorithm, NaNLossError
 from src.arch.predictors.fcn import Fcn
 from src.data import DataModule
+from src.evaluation.metrics import EmEvalPair, compute_metrics
 from src.logging import log_images
 from src.models import Classifier, Model, OptimizerCfg, SplitLatentAe
 from src.utils import to_item
@@ -275,15 +276,24 @@ class AdvSemiSupervisedAlg(Algorithm):
         return iter(dl_tr), iter(dl_dep)
 
     def _evaluate(
-        self,
-        dm: DataModule,
-        *,
-        ae: SplitLatentAe,
-        evaluator: Optional[Evaluator],
-        step: Optional[int] = None,
+        self, dm: DataModule, *, ae: SplitLatentAe, evaluator: Evaluator, step: Optional[int] = None
+    ) -> DataModule:
+        return evaluator(dm=dm, encoder=ae, step=step, device=self.device)
+
+    def _evaluate_pred_y(
+        self, dm: DataModule, *, comp: Components, step: Optional[int] = None
     ) -> None:
-        if evaluator is not None:
-            evaluator(dm=dm, encoder=ae, step=step, device=self.device)
+        if comp.pred_y is not None:
+            et = comp.pred_y.predict(dm.test_dataloader(), device=self.device)
+            pair = EmEvalPair.from_et(et=et, pred_s=False)
+            compute_metrics(
+                pair=pair,
+                exp_name="pred_y",
+                step=step,
+                save_summary=True,
+                prefix="test",
+                use_wandb=True,
+            )
 
     def fit(self, dm: DataModule, *, ae: SplitLatentAe, disc: Model, evaluator: Evaluator) -> Self:
         iterator_tr, iterator_dep = self._get_data_iterators(dm=dm)
@@ -308,7 +318,8 @@ class AdvSemiSupervisedAlg(Algorithm):
                 pbar.update()
 
                 if self.validate and (step % val_freq == 0):
-                    self._evaluate(dm=dm, ae=ae, evaluator=evaluator, step=step)
+                    dm_zy = self._evaluate(dm=dm, ae=ae, evaluator=evaluator, step=step)
+                    self._evaluate_pred_y(dm_zy, comp=comp, step=step)
 
         logger.info("Finished training")
         return self
