@@ -287,7 +287,7 @@ class Evaluator:
         encoder: SplitLatentAe,
         device: Union[str, torch.device, int],
         step: Optional[int] = None,
-    ) -> None:
+    ) -> DataModule:
         device = resolve_device(device)
         encoder.eval()
         invariant_to = "both" if self.eval_s_from_zs is not None else "s"
@@ -348,6 +348,7 @@ class Evaluator:
                 pred_s=True,
                 input_dim=enc_size.zs,
             )
+        return dm_zy
 
     def __call__(
         self,
@@ -356,5 +357,5 @@ class Evaluator:
         encoder: SplitLatentAe,
         device: Union[str, torch.device, int],
         step: Optional[int] = None,
-    ) -> None:
+    ) -> DataModule:
         return self.run(dm=dm, encoder=encoder, device=device, step=step)
