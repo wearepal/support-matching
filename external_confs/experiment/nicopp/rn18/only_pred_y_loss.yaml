@@ -22,7 +22,8 @@ alg:
     enc_loss_w: 0.0
     steps: 30000
     use_amp: true
-    lr: 1.e-5
+    pred:
+        lr: 1.e-5
     log_freq: 100000000000  # never
     val_freq: 1000
 

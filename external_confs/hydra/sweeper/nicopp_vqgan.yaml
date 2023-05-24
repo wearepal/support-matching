@@ -30,7 +30,7 @@ params:
     alg.prior_loss_w: choice(0.0, 1.e-2, 1.e-3)
     alg.pred_y_loss_w: choice(0.0, 1.0)
     alg.twoway_disc_loss: choice(true, false)
-    alg.lr: tag(log, interval(1.e-6, 1.e-4))
+    alg.pred.lr: tag(log, interval(1.e-6, 1.e-4))
     alg.max_grad_norm: choice(5, 10, 10000)
     # alg.pred_y_num_hidden: choice(0, 1)
     disc.lr: tag(log, interval(1.e-6, 1.e-4))
