@@ -1,9 +1,10 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Optional, Protocol
+from typing import Optional
 from typing_extensions import override
 
-from ranzen.torch import DcModule
+import ot
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -19,27 +20,34 @@ __all__ = [
     "GanLoss",
     "MmdDiscriminator",
     "NeuralDiscriminator",
+    "WassersteinDiscriminator",
 ]
 
 
-class BinaryDiscriminator(Protocol):
-    def discriminator_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
-        ...
+class DiscType(Enum):
+    MMD = auto()
+    """Maximum mean discrepancy."""
+    EMD = auto()
+    """Earth mover's distance."""
+    NEURAL = auto()
+    """Adversarial neural network."""
 
+
+class BinaryDiscriminator(ABC):
+    def discriminator_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
+        return torch.zeros((), device=fake.device)
+
+    @abstractmethod
     def encoder_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
-        ...
+        raise NotImplementedError()
 
 
 @dataclass(repr=False, eq=False)
-class MmdDiscriminator(BinaryDiscriminator, DcModule):
+class MmdDiscriminator(BinaryDiscriminator):
     mmd_kernel: MMDKernel = MMDKernel.rq
     mmd_scales: list[float] = field(default_factory=list)
     mmd_wts: list[float] = field(default_factory=list)
     mmd_add_dot: float = 0.0
-
-    @override
-    def discriminator_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
-        return torch.zeros((), device=fake.device)
 
     @override
     def encoder_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
@@ -51,6 +59,17 @@ class MmdDiscriminator(BinaryDiscriminator, DcModule):
             wts=self.mmd_wts,
             add_dot=self.mmd_add_dot,
         )
+
+
+@dataclass(repr=False, eq=False)
+class WassersteinDiscriminator(BinaryDiscriminator):
+    @override
+    def encoder_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
+        size_batch = fake.shape[0]
+        weights = torch.ones(size_batch, device=fake.device) / size_batch
+        metric_cost_matrix: Tensor = ot.dist(fake, real)
+
+        return ot.emd2(weights, weights, metric_cost_matrix)  # type: ignore
 
 
 class GanLoss(Enum):

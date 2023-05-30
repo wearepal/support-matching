@@ -34,7 +34,14 @@ from src.labelling.pipeline import (
 )
 from src.models import SplitLatentAe
 from src.models.autoencoder import SplitAeOptimizerCfg
-from src.models.discriminator import DiscOptimizerCfg, NeuralDiscriminator
+from src.models.discriminator import (
+    BinaryDiscriminator,
+    DiscOptimizerCfg,
+    DiscType,
+    MmdDiscriminator,
+    NeuralDiscriminator,
+    WassersteinDiscriminator,
+)
 from src.utils import full_class_path
 
 from .base import BaseRelay
@@ -65,6 +72,7 @@ class SupMatchRelay(BaseRelay):
     scorer: Any  # Scorer
     artifact_name: Optional[str] = None
     """Save model weights under this name."""
+    disc_type: DiscType = DiscType.NEURAL
 
     options: ClassVar[dict[str, dict[str, type]]] = BaseRelay.options | {
         "scorer": {"neural": NeuralScorer, "none": NullScorer},
@@ -105,10 +113,20 @@ class SupMatchRelay(BaseRelay):
         ae_pair = self.ae_arch(input_shape=dm.dim_x)
         ae = SplitLatentAe(opt=self.ae, model=ae_pair, feature_group_slices=dm.feature_group_slices)
         logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
-        disc_net, _ = self.disc_arch(
-            input_dim=ae.encoding_size.zy, target_dim=1, batch_size=dm.batch_size_tr
-        )
-        disc = NeuralDiscriminator(model=disc_net, opt=self.disc)
+
+        # TODO: configure the following more elegantly
+        # the instantiation of the disc arch should be moved into the NeuralDiscriminator class
+        disc: BinaryDiscriminator
+        if self.disc_type is DiscType.NEURAL:
+            disc_net, _ = self.disc_arch(
+                input_dim=ae.encoding_size.zy, target_dim=1, batch_size=dm.batch_size_tr
+            )
+            disc = NeuralDiscriminator(model=disc_net, opt=self.disc)
+        elif self.disc_type is DiscType.EMD:
+            disc = WassersteinDiscriminator()
+        else:
+            disc = MmdDiscriminator()
+
         try:
             score = self.alg.fit_evaluate_score(
                 dm=dm, ae=ae, disc=disc, evaluator=self.eval, scorer=self.scorer
