@@ -9,7 +9,7 @@ from torch import Tensor
 
 from src.arch.predictors import SetPredictor
 from src.data.data_module import DataModule
-from src.models import Model, SplitLatentAe
+from src.models import SplitLatentAe
 from src.models.discriminator import BinaryDiscriminator, NeuralDiscriminator
 from src.utils import to_item
 
@@ -118,10 +118,10 @@ class SupportMatching(AdvSemiSupervisedAlg):
         return torch.zeros((), device=self.device), {}
 
     def _update_discriminator(self, disc: BinaryDiscriminator) -> None:
-        if isinstance(disc, NeuralDiscriminator):
-            self._clip_gradients(disc.parameters())
-            disc.step(grad_scaler=self.grad_scaler, scaler_update=True)
-            disc.zero_grad()
+        if isinstance(disc, NeuralDiscriminator) and (model := disc.model) is not None:
+            self._clip_gradients(model.parameters())
+            model.step(grad_scaler=self.grad_scaler, scaler_update=True)
+            model.zero_grad()
 
     @override
     def discriminator_step(
@@ -138,7 +138,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
                 self._update_discriminator(comp.disc)
 
     @override
-    def fit(self, dm: DataModule, *, ae: SplitLatentAe, disc: Model, evaluator: Evaluator) -> Self:
+    def fit(self, dm: DataModule, *, ae: SplitLatentAe, disc: object, evaluator: Evaluator) -> Self:
         if self.s_as_zs and ae.zs_dim != dm.card_s:
             raise ValueError(f"zs_dim has to be equal to s_dim ({dm.card_s}) if `s_as_zs` is True.")
 
@@ -155,12 +155,13 @@ class SupportMatching(AdvSemiSupervisedAlg):
     ) -> Optional[float]:
         """First fit, then evaluate, then score."""
         disc_model_sd0 = None
-        if isinstance(disc, NeuralDiscriminator) and isinstance(disc.model, SetPredictor):
-            disc_model_sd0 = disc.model.state_dict()
+        if isinstance(disc, NeuralDiscriminator) and isinstance(disc.model.model, SetPredictor):
+            disc_model_sd0 = disc.model.model.state_dict()
         super().fit_and_evaluate(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
         # TODO: Generalise this to other discriminator types and architectures
         if disc_model_sd0 is not None:
             disc = cast(NeuralDiscriminator, disc)
-            disc.model.load_state_dict(disc_model_sd0)
+            assert disc.model is not None
+            disc.model.model.load_state_dict(disc_model_sd0)
             assert isinstance(disc.model, SetPredictor)
             return scorer.run(dm=dm, ae=ae, disc=disc.model, device=self.device, use_wandb=True)

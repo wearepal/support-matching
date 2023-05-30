@@ -21,7 +21,7 @@ from src.arch.predictors.fcn import Fcn
 from src.data import DataModule
 from src.evaluation.metrics import EmEvalPair, compute_metrics
 from src.logging import log_images
-from src.models import Classifier, Model, OptimizerCfg, SplitLatentAe
+from src.models import Classifier, OptimizerCfg, SplitLatentAe
 from src.utils import to_item
 
 from .evaluator import Evaluator
@@ -29,7 +29,7 @@ from .evaluator import Evaluator
 __all__ = ["AdvSemiSupervisedAlg", "Components"]
 
 
-D = TypeVar("D")
+D = TypeVar("D", covariant=True)
 
 IterTr: TypeAlias = Iterator[TernarySample[Tensor]]
 IterDep: TypeAlias = Iterator[NamedSample[Tensor]]
@@ -294,7 +294,7 @@ class AdvSemiSupervisedAlg(Algorithm):
                 use_wandb=True,
             )
 
-    def fit(self, dm: DataModule, *, ae: SplitLatentAe, disc: Model, evaluator: Evaluator) -> Self:
+    def fit(self, dm: DataModule, *, ae: SplitLatentAe, disc: object, evaluator: Evaluator) -> Self:
         iterator_tr, iterator_dep = self._get_data_iterators(dm=dm)
         pred_y, pred_s = self._build_predictors(ae=ae, y_dim=dm.card_y, s_dim=dm.card_s)
         comp = Components(ae=ae, disc=disc, pred_y=pred_y, pred_s=pred_s)
@@ -324,7 +324,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         return self
 
     def fit_and_evaluate(
-        self, dm: DataModule, *, ae: SplitLatentAe, disc: Model, evaluator: Evaluator
+        self, dm: DataModule, *, ae: SplitLatentAe, disc: object, evaluator: Evaluator
     ) -> None:
         try:
             self.fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)

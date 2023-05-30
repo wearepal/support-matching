@@ -105,10 +105,8 @@ class SupMatchRelay(BaseRelay):
         ae_pair = self.ae_arch(input_shape=dm.dim_x)
         ae = SplitLatentAe(opt=self.ae, model=ae_pair, feature_group_slices=dm.feature_group_slices)
         logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
-        disc_net, _ = self.disc_arch(
-            input_dim=ae.encoding_size.zy, target_dim=1, batch_size=dm.batch_size_tr
-        )
-        disc = NeuralDiscriminator(model=disc_net, opt=self.disc)
+        disc = NeuralDiscriminator(arch=self.disc_arch, opt=self.disc)
+        disc.build(input_dim=ae.encoding_size.zy, batch_size=dm.batch_size_tr)
         try:
             score = self.alg.fit_evaluate_score(
                 dm=dm, ae=ae, disc=disc, evaluator=self.eval, scorer=self.scorer

@@ -1,14 +1,17 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Optional, Protocol
+from typing import Optional
 from typing_extensions import override
 
-from ranzen.torch import DcModule
+import ot
 import torch
 from torch import Tensor
+from torch.cuda.amp.grad_scaler import GradScaler
 import torch.nn as nn
 import torch.nn.functional as F
 
+from src.arch.predictors import PredictorFactory
 from src.mmd import MMDKernel, mmd2
 
 from .base import Model, OptimizerCfg
@@ -22,16 +25,21 @@ __all__ = [
 ]
 
 
-class BinaryDiscriminator(Protocol):
-    def discriminator_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
-        ...
+class BinaryDiscriminator(ABC):
+    def build(self, input_dim: int, batch_size: int) -> None:
+        pass
 
+    @abstractmethod
+    def discriminator_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
+        raise NotImplementedError()
+
+    @abstractmethod
     def encoder_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
-        ...
+        raise NotImplementedError()
 
 
 @dataclass(repr=False, eq=False)
-class MmdDiscriminator(BinaryDiscriminator, DcModule):
+class MmdDiscriminator(BinaryDiscriminator):
     mmd_kernel: MMDKernel = MMDKernel.rq
     mmd_scales: list[float] = field(default_factory=list)
     mmd_wts: list[float] = field(default_factory=list)
@@ -51,6 +59,17 @@ class MmdDiscriminator(BinaryDiscriminator, DcModule):
             wts=self.mmd_wts,
             add_dot=self.mmd_add_dot,
         )
+
+
+@dataclass(repr=False, eq=False)
+class WassersteinDiscriminator(BinaryDiscriminator):
+    @override
+    def encoder_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
+        size_batch = fake.shape[0]
+        weights = torch.ones(size_batch, device=fake.device) / size_batch
+        metric_cost_matrix: Tensor = ot.dist(fake, real)
+
+        return ot.emd2(weights, weights, metric_cost_matrix)  # type: ignore
 
 
 class GanLoss(Enum):
@@ -75,16 +94,21 @@ class DiscOptimizerCfg(OptimizerCfg):
 
 
 @dataclass(repr=False, eq=False)
-class NeuralDiscriminator(BinaryDiscriminator, Model):
-    opt: DiscOptimizerCfg  # overriding the definition in `Model`
+class NeuralDiscriminator(BinaryDiscriminator):
+    opt: DiscOptimizerCfg
+    arch: PredictorFactory
+    model: Optional[Model] = field(init=False, default=None, metadata={"omegaconf_ignore": True})
 
-    def __post_init__(self) -> None:
+    @override
+    def build(self, input_dim: int, batch_size: int) -> None:
+        disc, _ = self.arch(input_dim=input_dim, target_dim=1, batch_size=batch_size)
         if self.opt.criterion is GanLoss.WASSERSTEIN:
-            self.model.apply(_maybe_spectral_norm)
-        super().__post_init__()
+            disc.apply(_maybe_spectral_norm)
+        self.model = Model(disc, self.opt)
 
     @override
     def discriminator_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
+        assert self.model is not None, "call .build() first"
         real_scores = self.model(real)
         fake_scores = self.model(fake)
         if self.opt.criterion is GanLoss.LOGISTIC_S:
@@ -101,6 +125,7 @@ class NeuralDiscriminator(BinaryDiscriminator, Model):
 
     @override
     def encoder_loss(self, fake: Tensor, *, real: Optional[Tensor]) -> Tensor:
+        assert self.model is not None, "call .build() first"
         fake_scores = self.model(fake)
         real_scores: Optional[Tensor] = None
         if real is not None:
