@@ -10,19 +10,19 @@ defaults:
     - _self_
 
 ae_arch:
-    artifact_name: nicopp_vqgan_1_256_latent_50000_steps_6_zsdim
+    artifact_name: nicopp_vqgan_1_256_latent_50000_steps_6_zsdim_ZsTransform.soft_classification_zstrans_0.1_dropout
 
 ae:
+    lr: 5.e-5
     zs_dim: 6
-    lr: 1.e-5
 
 alg:
     use_amp: true
     pred:
         lr: ${ ae.lr }
     steps: 30000
-    val_freq: ${ alg.steps }
-    log_freq: ${ alg.steps }
+    val_freq: 1000
+    # log_freq: ${ alg.steps }
     num_disc_updates: 5
     disc_loss_w: 0.03
 

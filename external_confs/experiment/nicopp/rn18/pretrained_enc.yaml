@@ -16,10 +16,15 @@ ae_arch:
     latent_dim: 256
     pretrained_enc: true
 
+ae:
+    lr: 5.e-5
+    zs_dim: 6
+    zs_transform: none
+
 alg:
     use_amp: true
     pred:
-        lr: 1.e-5
+        lr: ${ ae.lr }
     log_freq: 100000000000  # never
     val_freq: 200
     num_disc_updates: 5
@@ -30,10 +35,6 @@ alg:
     pred_s_loss_w: 0
     s_pred_with_bias: false
     s_as_zs: false
-
-ae:
-    zs_dim: 6
-    zs_transform: none
 
 disc:
     lr: 1.e-4
