@@ -23,9 +23,20 @@ alg:
     steps: 30000
     use_amp: true
     pred:
-        lr: 1.e-5
+        lr: 5.e-5
+        scheduler_cls: ranzen.torch.schedulers.CosineLRWithLinearWarmup
+        scheduler_kwargs:
+            total_iters: ${ alg.steps }
+            lr_min: 5.e-7
+            warmup_iters: 0.05
     log_freq: 100000000000  # never
     val_freq: 1000
 
 ae:
+    lr: 5.e-5
+    scheduler_cls: ranzen.torch.schedulers.CosineLRWithLinearWarmup
+    scheduler_kwargs:
+        total_iters: ${ alg.steps }
+        lr_min: 5.e-7
+        warmup_iters: 0.05
     zs_dim: 1
