@@ -56,7 +56,7 @@ class ColoredMNISTCfg(DatasetFactory):
     root: Union[str, Path]
     download: bool = True
     transform: Any = None  # Optional[Union[Compose, BasicTransform, Callable[[Image], Any]]]
-    label_map: Optional[dict[str, int]] = None
+    label_map: Optional[dict[int, int]] = None
     colors: Optional[list[int]] = None
     num_colors: int = 10
     scale: float = 0.2
