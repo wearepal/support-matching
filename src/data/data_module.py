@@ -268,8 +268,7 @@ class DataModule:
         self, dataset: Dataset, *, batch_size: int
     ) -> Union[StratifiedBatchSampler, ApproxStratBatchSampler]:
         if self.cfg.stratified_sampler is StratSamplerType.exact:
-            group_ids = get_group_ids(dataset)
-            return self._make_stratified_sampler(group_ids, batch_size=batch_size)
+            return self._make_stratified_sampler(get_group_ids(dataset), batch_size=batch_size)
 
         num_samples_effective = self.cfg.num_samples_per_group_per_bag * batch_size
         if self.cfg.stratified_sampler is StratSamplerType.approx_group:
