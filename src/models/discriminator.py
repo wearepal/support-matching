@@ -69,7 +69,7 @@ class WassersteinDiscriminator(BinaryDiscriminator):
         weights = torch.ones(size_batch, device=fake.device) / size_batch
         metric_cost_matrix: Tensor = ot.dist(fake, real)
 
-        return ot.emd2(weights, weights, metric_cost_matrix)  # type: ignore
+        return ot.emd2(weights, weights, metric_cost_matrix).clone()  # type: ignore
 
 
 class GanLoss(Enum):

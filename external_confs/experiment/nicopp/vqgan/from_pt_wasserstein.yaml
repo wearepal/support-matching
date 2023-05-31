@@ -1,0 +1,42 @@
+# @package _global_
+
+defaults:
+    - /eval: nicopp
+    - override /ds: nicopp
+    - override /split: nicopp/change_is_hard
+    - override /dm: nicopp
+    - override /labeller: gt
+    - override /ae_arch: artifact
+    - _self_
+
+disc_type: EMD
+ae_arch:
+    artifact_name: nicopp_vqgan_1_256_latent_50000_steps_6_zsdim
+
+ae:
+    zs_dim: 6
+    lr: 1.e-5
+    scheduler_cls: ranzen.torch.schedulers.CosineLRWithLinearWarmup
+    scheduler_kwargs:
+        total_iters: ${ alg.steps }
+        lr_min: 5.e-7
+        warmup_iters: 0.05
+
+alg:
+    use_amp: true
+    pred:
+        lr: ${ ae.lr }
+        scheduler_cls: ranzen.torch.schedulers.CosineLRWithLinearWarmup
+        scheduler_kwargs:
+            total_iters: ${ alg.steps }
+            lr_min: 5.e-7
+            warmup_iters: 0.05
+    steps: 30000
+    # val_freq: ${ alg.steps }
+    val_freq: 1000
+    log_freq: ${ alg.steps }
+    num_disc_updates: 5
+    disc_loss_w: 0.03
+
+disc:
+    lr: 1.e-4
