@@ -365,6 +365,11 @@ class DataModule:
             if self.cfg.use_y_for_dep_bags:
                 batch_sampler = self._get_balanced_sampler(self.deployment, batch_size=batch_size)
             else:
+                if self.cfg.stratified_sampler is not StratSamplerType.exact:
+                    logger.info(
+                        "warning: train batches and deployment batches"
+                        " are using different batch samplers"
+                    )
                 batch_sampler = self._make_stratified_sampler(
                     self.deployment_ids, batch_size=batch_size
                 )
