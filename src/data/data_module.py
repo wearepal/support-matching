@@ -65,6 +65,8 @@ class DataModuleConf:
     batch_size_te: Optional[int] = None
     num_samples_per_group_per_bag: int = 1
     stratified_sampler: StratSamplerType = StratSamplerType.exact
+    use_y_for_dep_bags: bool = False
+    """If True, the code may use ground-truth y labels to construct stratified deployment bags."""
 
     # DataLoader settings
     num_workers: int = 0
@@ -360,12 +362,12 @@ class DataModule:
                 generator=self.generator,
             )
         else:
-            if False:  # TODO: add a flag?
+            if self.cfg.use_y_for_dep_bags:
+                batch_sampler = self._get_balanced_sampler(self.deployment, batch_size=batch_size)
+            else:
                 batch_sampler = self._make_stratified_sampler(
                     self.deployment_ids, batch_size=batch_size
                 )
-            else:
-                batch_sampler = self._get_balanced_sampler(self.deployment, batch_size=batch_size)
         logger.info(f"effective batch size: {batch_sampler.batch_size}")
         return self._make_dataloader(
             ds=self.deployment, batch_size=1, batch_sampler=batch_sampler, num_workers=num_workers
