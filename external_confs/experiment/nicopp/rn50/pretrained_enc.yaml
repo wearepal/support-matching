@@ -1,0 +1,51 @@
+# @package _global_
+
+defaults:
+    - /eval: nicopp
+    - override /ds: nicopp
+    - override /split: nicopp/change_is_hard
+    - override /dm: nicopp
+    - override /labeller: gt
+    - override /ae_arch: resnet
+    - _self_
+
+ae_arch:
+    version: RN50
+    first_conv: true
+    maxpool1: true
+    latent_dim: 256
+    pretrained_enc: true
+
+ae:
+    lr: 5.e-5
+    zs_dim: 6
+    zs_transform: none
+
+alg:
+    use_amp: true
+    pred:
+        lr: ${ ae.lr }
+    log_freq: 100000000000  # never
+    val_freq: 200
+    num_disc_updates: 5
+    # enc_loss_w: 0.0001
+    enc_loss_w: 1
+    disc_loss_w: 0.03
+    # prior_loss_w: 0.01
+    prior_loss_w: null
+    pred_y_loss_w: 1
+    pred_s_loss_w: 0
+    pred_y:
+        num_hidden: 1  # for decoding the pre-trained RN50 output
+        dropout_prob: 0.1
+    s_pred_with_bias: false
+    s_as_zs: false
+
+disc:
+    lr: 1.e-4
+
+# disc_arch:
+#     dropout_prob: 0.1
+
+dm:
+    use_y_for_dep_bags: true  # without this, RN50 doesn't fit into memory...

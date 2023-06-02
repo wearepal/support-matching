@@ -21,7 +21,8 @@ alg:
     pred:
         lr: ${ ae.lr }
     steps: 30000
-    val_freq: ${ alg.steps }
+    val_freq: 1000
+    # val_freq: ${ alg.steps }
     log_freq: ${ alg.steps }
     num_disc_updates: 5
     disc_loss_w: 0.03
