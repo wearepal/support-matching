@@ -14,7 +14,7 @@ defaults:
 alg:
     pred_y_loss_w: 1.0
     enc_loss_w: 0.0
-    steps: 30001
+    steps: 30000
     use_amp: true
     pred:
         lr: 5.e-5
