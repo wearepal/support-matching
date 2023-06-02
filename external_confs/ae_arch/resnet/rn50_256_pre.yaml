@@ -1,0 +1,10 @@
+---
+defaults:
+  - resnet
+  - _self_
+
+version: RN50
+first_conv: true
+maxpool1: true
+latent_dim: 256
+pretrained_enc: true

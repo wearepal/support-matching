@@ -1,6 +1,7 @@
 # @package _global_
 
 defaults:
+    - /ae: cosine_annealing
     - /alg: supmatch_no_disc
     - /eval: nicopp
     - override /ae_arch: resnet
@@ -34,9 +35,4 @@ alg:
 
 ae:
     lr: 5.e-5
-    scheduler_cls: ranzen.torch.schedulers.CosineLRWithLinearWarmup
-    scheduler_kwargs:
-        total_iters: ${ alg.steps }
-        lr_min: 5.e-7
-        warmup_iters: 0.05
     zs_dim: 1

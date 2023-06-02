@@ -6,15 +6,8 @@ defaults:
     - override /split: nicopp/change_is_hard
     - override /dm: nicopp
     - override /labeller: gt
-    - override /ae_arch: resnet
+    - override /ae_arch: resnet/rn50_256_pre
     - _self_
-
-ae_arch:
-    version: RN50
-    first_conv: true
-    maxpool1: true
-    latent_dim: 256
-    pretrained_enc: true
 
 ae:
     lr: 5.e-5
