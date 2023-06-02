@@ -32,7 +32,7 @@ params:
     alg.twoway_disc_loss: choice(true, false)
     alg.pred.lr: tag(log, interval(1.e-6, 1.e-4))
     alg.max_grad_norm: choice(5, 10, 10000)
-    # alg.pred_y_num_hidden: choice(0, 1)
+    # alg.pred_y.num_hidden: choice(0, 1)
     disc.lr: tag(log, interval(1.e-6, 1.e-4))
     # disc.criterion: choice(LOGISTIC_NS)
     # disc_arch.num_hidden_pre: choice(1, 2)

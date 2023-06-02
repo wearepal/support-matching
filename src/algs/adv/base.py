@@ -81,8 +81,7 @@ class AdvSemiSupervisedAlg(Algorithm):
     # Whether to use the deployment set when computing the encoder's adversarial loss
     twoway_disc_loss: bool = True
 
-    pred_y_hidden_dim: Optional[int] = None
-    pred_y_num_hidden: int = 0
+    pred_y: Fcn = field(default_factory=Fcn)
     pred_y_loss_w: float = 1
     pred_s_loss_w: float = 0
     pred: OptimizerCfg = field(default_factory=OptimizerCfg)  # config for pred_y and pred_s
@@ -110,9 +109,7 @@ class AdvSemiSupervisedAlg(Algorithm):
     ) -> tuple[Optional[Classifier], Optional[Classifier]]:
         pred_y = None
         if self.pred_y_loss_w > 0:
-            model, _ = Fcn(hidden_dim=self.pred_y_hidden_dim, num_hidden=self.pred_y_num_hidden)(
-                input_dim=ae.encoding_size.zy, target_dim=y_dim
-            )
+            model, _ = self.pred_y(input_dim=ae.encoding_size.zy, target_dim=y_dim)
             pred_y = Classifier(model=model, opt=self.pred).to(self.device)
         pred_s = None
         if self.pred_s_loss_w > 0:
