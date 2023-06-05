@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Optional, cast
 from typing_extensions import Self, override
 
-from conduit.data.structures import TernarySample
+from conduit.data.structures import SampleBase, TernarySample
 from loguru import logger
 import torch
 from torch import Tensor
@@ -41,13 +41,14 @@ class SupportMatching(AdvSemiSupervisedAlg):
         self,
         comp: Components[BinaryDiscriminator],
         *,
-        x_dep: Tensor,
+        batch_dep: SampleBase[Tensor],
         batch_tr: TernarySample[Tensor],
         warmup: bool,
     ) -> tuple[Tensor, dict[str, float]]:
         """Compute the losses for the encoder."""
         # Compute losses for the encoder.
         logging_dict = {}
+        x_dep = batch_dep.x
         total_loss = x_dep.new_zeros(())
 
         with torch.cuda.amp.autocast(enabled=self.use_amp):  # type: ignore
@@ -76,14 +77,25 @@ class SupportMatching(AdvSemiSupervisedAlg):
             # ================================= adversarial losses ================================
             if not warmup:
                 disc_input_tr = encoding_tr.zy
+                batch_dep = cast(TernarySample, batch_dep)
                 if isinstance(comp.disc, NeuralDiscriminator):
                     disc_input_dep = encoding_dep.zy if self.twoway_disc_loss else None
-                    disc_loss = comp.disc.encoder_loss(fake=disc_input_tr, real=disc_input_dep)
+                    disc_loss = comp.disc.encoder_loss(
+                        fake=disc_input_tr,
+                        real=disc_input_dep,
+                        fake_y=batch_tr.y,
+                        real_y=batch_dep.y,
+                    )
                 else:
                     disc_input_dep = encoding_dep.zy
                     if not self.twoway_disc_loss:
                         disc_input_dep = disc_input_dep.detach()
-                    disc_loss = comp.disc.encoder_loss(fake=disc_input_tr, real=disc_input_dep)
+                    disc_loss = comp.disc.encoder_loss(
+                        fake=disc_input_tr,
+                        real=disc_input_dep,
+                        fake_y=batch_tr.y,
+                        real_y=batch_dep.y,
+                    )
 
                 disc_loss *= self.disc_loss_w
                 total_loss += disc_loss

@@ -20,6 +20,7 @@ __all__ = [
     "GanLoss",
     "MmdDiscriminator",
     "NeuralDiscriminator",
+    "PerClassDiscriminator",
     "WassersteinDiscriminator",
 ]
 
@@ -31,6 +32,8 @@ class DiscType(Enum):
     """Earth mover's distance."""
     NEURAL = auto()
     """Adversarial neural network."""
+    CLS = auto()
+    """Per class euclidean distance."""
 
 
 class BinaryDiscriminator(ABC):
@@ -38,7 +41,7 @@ class BinaryDiscriminator(ABC):
         return torch.zeros((), device=fake.device)
 
     @abstractmethod
-    def encoder_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
+    def encoder_loss(self, fake: Tensor, *, real: Tensor, fake_y: Tensor, real_y: Tensor) -> Tensor:
         raise NotImplementedError()
 
 
@@ -50,7 +53,7 @@ class MmdDiscriminator(BinaryDiscriminator):
     mmd_add_dot: float = 0.0
 
     @override
-    def encoder_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
+    def encoder_loss(self, fake: Tensor, *, real: Tensor, fake_y: Tensor, real_y: Tensor) -> Tensor:
         return mmd2(
             x=fake,
             y=real,
@@ -64,12 +67,25 @@ class MmdDiscriminator(BinaryDiscriminator):
 @dataclass(repr=False, eq=False)
 class WassersteinDiscriminator(BinaryDiscriminator):
     @override
-    def encoder_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
+    def encoder_loss(self, fake: Tensor, *, real: Tensor, fake_y: Tensor, real_y: Tensor) -> Tensor:
         size_batch = fake.shape[0]
         weights = torch.ones(size_batch, device=fake.device) / size_batch
         metric_cost_matrix: Tensor = ot.dist(fake, real)
 
         return ot.emd2(weights, weights, metric_cost_matrix).clone()  # type: ignore
+
+
+@dataclass(repr=False, eq=False)
+class PerClassDiscriminator(BinaryDiscriminator):
+    @override
+    def encoder_loss(self, fake: Tensor, *, real: Tensor, fake_y: Tensor, real_y: Tensor) -> Tensor:
+        fake = F.normalize(fake, dim=1, p=2)
+        real = F.normalize(real, dim=1, p=2)
+        ys = torch.unique(torch.cat((fake_y, real_y), dim=0).flatten())
+        distance = fake.new_zeros(())
+        for y in ys:
+            distance += torch.dot(fake[fake_y == y].mean(dim=0), real[real_y == y].mean(dim=0))
+        return distance
 
 
 class GanLoss(Enum):
@@ -119,7 +135,9 @@ class NeuralDiscriminator(BinaryDiscriminator, Model):
         return real_scores.mean() - fake_scores.mean()
 
     @override
-    def encoder_loss(self, fake: Tensor, *, real: Optional[Tensor]) -> Tensor:
+    def encoder_loss(
+        self, fake: Tensor, *, real: Optional[Tensor], fake_y: Tensor, real_y: Tensor
+    ) -> Tensor:
         fake_scores = self.model(fake)
         real_scores: Optional[Tensor] = None
         if real is not None:

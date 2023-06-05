@@ -228,7 +228,7 @@ class DataModule:
         drop_last: bool = False,
         batch_sampler: Optional[BatchSamplerBase] = None,
         num_workers: Optional[int] = None,
-    ) -> CdtDataLoader[TernarySample]:
+    ) -> CdtDataLoader[TernarySample[Tensor]]:
         """Make DataLoader."""
         return CdtDataLoader(
             ds,
