@@ -3,6 +3,7 @@
 defaults:
     - /ae: cosine_annealing
     - /alg: supmatch_no_disc
+    - /alg/pred: cosine_annealing
     - /eval: nicopp
     - override /ae_arch: resnet/rn50_256_pre
     - override /dm: nicopp
@@ -18,11 +19,6 @@ alg:
     use_amp: true
     pred:
         lr: 5.e-5
-        scheduler_cls: ranzen.torch.schedulers.CosineLRWithLinearWarmup
-        scheduler_kwargs:
-            total_iters: ${ alg.steps }
-            lr_min: 5.e-7
-            warmup_iters: 0.05
     log_freq: 100000000000  # never
     val_freq: 1000
 

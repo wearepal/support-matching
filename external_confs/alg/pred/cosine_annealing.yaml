@@ -1,0 +1,6 @@
+---
+scheduler_cls: ranzen.torch.schedulers.CosineLRWithLinearWarmup
+scheduler_kwargs:
+    total_iters: ${ alg.steps }
+    lr_min: 5.e-7
+    warmup_iters: 0.05
