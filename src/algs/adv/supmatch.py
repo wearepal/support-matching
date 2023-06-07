@@ -117,7 +117,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         """Train the discriminator while keeping the encoder fixed."""
         if isinstance(comp.disc, NeuralDiscriminator):
             x_tr = self._sample_tr(iterator_tr).x
-            x_dep = self._sample_dep(iterator_dep)
+            x_dep = self._sample_dep(iterator_dep).x
 
             with torch.cuda.amp.autocast(enabled=self.use_amp):  # type: ignore
                 with torch.no_grad():
