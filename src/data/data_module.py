@@ -267,10 +267,10 @@ class DataModule:
         return multipliers
 
     def _get_balanced_sampler(
-        self, dataset: Dataset, *, batch_size: int
+        self, group_ids: Tensor, *, batch_size: int
     ) -> Union[StratifiedBatchSampler, ApproxStratBatchSampler]:
         if self.cfg.stratified_sampler is StratSamplerType.exact:
-            return self._make_stratified_sampler(get_group_ids(dataset), batch_size=batch_size)
+            return self._make_stratified_sampler(group_ids, batch_size=batch_size)
 
         num_samples_effective = self.cfg.num_samples_per_group_per_bag * batch_size
         if self.cfg.stratified_sampler is StratSamplerType.approx_group:
@@ -281,12 +281,10 @@ class DataModule:
             batch_sampler_fn = partial(
                 ApproxStratBatchSampler, num_samples_per_class=num_samples_effective
             )
-        s_all, y_all = extract_labels_from_dataset(dataset)
-        if s_all is None or y_all is None:
-            raise ValueError("need s and y label for stratified sampler")
+        labels = group_id_to_label(group_ids, s_count=self.card_s)
         return batch_sampler_fn(
-            class_labels=y_all.squeeze().tolist(),
-            subgroup_labels=s_all.squeeze().tolist(),
+            class_labels=labels.y.flatten().tolist(),
+            subgroup_labels=labels.s.flatten().tolist(),
             training_mode=TrainingMode.step,
             generator=self.generator,
         )
@@ -323,7 +321,7 @@ class DataModule:
         batch_size = self.batch_size_tr if batch_size is None else batch_size
         if batch_sampler is None:
             if balance:
-                batch_sampler = self._get_balanced_sampler(self.train, batch_size=batch_size)
+                batch_sampler = self._get_balanced_sampler(self.group_ids_tr, batch_size=batch_size)
             else:
                 batch_sampler = SequentialBatchSampler(
                     data_source=self.train,
@@ -363,7 +361,9 @@ class DataModule:
             )
         else:
             if self.cfg.use_y_for_dep_bags:
-                batch_sampler = self._get_balanced_sampler(self.deployment, batch_size=batch_size)
+                batch_sampler = self._get_balanced_sampler(
+                    self.deployment_ids, batch_size=batch_size
+                )
             else:
                 if self.cfg.stratified_sampler is not StratSamplerType.exact:
                     logger.info(
