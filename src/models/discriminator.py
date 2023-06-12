@@ -20,7 +20,7 @@ __all__ = [
     "GanLoss",
     "MmdDiscriminator",
     "NeuralDiscriminator",
-    "PerClassDiscriminator",
+    "WithinClassDiscriminator",
     "WassersteinDiscriminator",
 ]
 
@@ -64,19 +64,25 @@ class MmdDiscriminator(BinaryDiscriminator):
         )
 
 
+def emd(t1: Tensor, t2: Tensor) -> Tensor:
+    """Earth mover's distance."""
+    weights_t1 = torch.full_like(t1, fill_value=1.0 / t1.shape[0])
+    weights_t2 = torch.full_like(t2, fill_value=1.0 / t2.shape[0])
+    metric_cost_matrix: Tensor = ot.dist(t1, t2, metric="sqeuclidean")
+
+    distance: Tensor = ot.emd2(weights_t1, weights_t2, metric_cost_matrix)  # type: ignore
+    return distance.clone()  # cloning the tensor makes pytorch happier
+
+
 @dataclass(repr=False, eq=False)
 class WassersteinDiscriminator(BinaryDiscriminator):
     @override
     def encoder_loss(self, fake: Tensor, *, real: Tensor, fake_y: Tensor, real_y: Tensor) -> Tensor:
-        size_batch = fake.shape[0]
-        weights = torch.ones(size_batch, device=fake.device) / size_batch
-        metric_cost_matrix: Tensor = ot.dist(fake, real)
-
-        return ot.emd2(weights, weights, metric_cost_matrix).clone()  # type: ignore
+        return emd(fake, real)
 
 
 @dataclass(repr=False, eq=False)
-class PerClassDiscriminator(BinaryDiscriminator):
+class WithinClassDiscriminator(BinaryDiscriminator):
     @override
     def encoder_loss(self, fake: Tensor, *, real: Tensor, fake_y: Tensor, real_y: Tensor) -> Tensor:
         fake = F.normalize(fake, dim=1, p=2)
@@ -84,7 +90,7 @@ class PerClassDiscriminator(BinaryDiscriminator):
         ys = torch.unique(torch.cat((fake_y, real_y), dim=0).flatten())
         distance = fake.new_zeros(())
         for y in ys:
-            distance += torch.dot(fake[fake_y == y].mean(dim=0), real[real_y == y].mean(dim=0))
+            distance += emd(fake[fake_y == y], real[real_y == y])
         return distance
 
 

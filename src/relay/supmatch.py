@@ -40,8 +40,8 @@ from src.models.discriminator import (
     DiscType,
     MmdDiscriminator,
     NeuralDiscriminator,
-    PerClassDiscriminator,
     WassersteinDiscriminator,
+    WithinClassDiscriminator,
 )
 from src.utils import full_class_path
 
@@ -126,7 +126,7 @@ class SupMatchRelay(BaseRelay):
         elif self.disc_type is DiscType.EMD:
             disc = WassersteinDiscriminator()
         elif self.disc_type is DiscType.CLS:
-            disc = PerClassDiscriminator()
+            disc = WithinClassDiscriminator()
         else:
             disc = MmdDiscriminator()
 
