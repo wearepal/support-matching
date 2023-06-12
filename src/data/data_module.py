@@ -281,6 +281,8 @@ class DataModule:
             batch_sampler_fn = partial(
                 ApproxStratBatchSampler, num_samples_per_class=num_samples_effective
             )
+        # It's a bit hacky that we're re-computing the s and y labels from the group IDs,
+        # but it has to be done this way for the label noiser to work.
         labels = group_id_to_label(group_ids, s_count=self.card_s)
         return batch_sampler_fn(
             class_labels=labels.y.flatten().tolist(),
