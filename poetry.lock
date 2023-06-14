@@ -648,7 +648,7 @@ test = ["pytest (>=6)"]
 name = "filelock"
 version = "3.12.0"
 description = "A platform independent file lock."
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
@@ -1533,7 +1533,7 @@ python-dateutil = ">=2.7"
 name = "mpmath"
 version = "1.3.0"
 description = "Python library for arbitrary-precision floating-point arithmetic"
-category = "dev"
+category = "main"
 optional = false
 python-versions = "*"
 files = [
@@ -3052,7 +3052,7 @@ dev = ["black (==22.3.0)", "coverage[toml] (>=5.1)", "flit (>=3.5.1)", "isort (=
 name = "sympy"
 version = "1.12"
 description = "Computer algebra system (CAS) in Python"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.8"
 files = [
@@ -3181,24 +3181,30 @@ opt-einsum = ["opt-einsum (>=3.3)"]
 
 [[package]]
 name = "torch-conduit"
-version = "0.3.4"
+version = "0.3.5"
 description = "Lightweight framework for dataloading with PyTorch and channeling the power of PyTorch Lightning"
 category = "main"
 optional = false
 python-versions = ">=3.8.0,<3.12"
 files = [
-    {file = "torch_conduit-0.3.4-py3-none-any.whl", hash = "sha256:e53c30dd04886c80c65a2f4e419a59403f96bb5f494b441ed4acd09ee10f2e4d"},
-    {file = "torch_conduit-0.3.4.tar.gz", hash = "sha256:41c7b1ab8d565bcd3acaad1fcf42cd67a46734be6ed86e10e1edae2a1f93bd57"},
+    {file = "torch_conduit-0.3.5-py3-none-any.whl", hash = "sha256:773ab15c9ddabf4194195edaab23794a47eebc6f2661468815ab521ded00bde3"},
+    {file = "torch_conduit-0.3.5.tar.gz", hash = "sha256:5b9081761ea8d110d03200eb4da7e9972829d1bf41028b1b1192a0c3ad4b9348"},
 ]
 
 [package.dependencies]
 albumentations = {version = ">=1.0.0,<2.0.0", optional = true, markers = "extra == \"image\" or extra == \"all\""}
 attrs = ">=21.2.0"
+filelock = "*"
+jinja2 = "*"
+networkx = "*"
 numpy = ">=1.22.3,<2.0.0"
 opencv-python = {version = ">=4.5.3,<5.0.0", optional = true, markers = "extra == \"image\" or extra == \"all\""}
 pandas = ">=1.3.3,<3.0"
+pillow = ">=5.3.0,<8.3.0 || >=8.4.0"
 ranzen = ">=2.0.0"
+requests = "*"
 scikit-learn = ">=1.2.0,<2.0.0"
+sympy = "*"
 typing-extensions = ">=4.4.0"
 
 [package.extras]
