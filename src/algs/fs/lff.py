@@ -1,10 +1,17 @@
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Any, Generic, TypeVar, Union
+from typing import Any, TypeVar, Union
 from typing_extensions import Self, override
 
 from conduit.data.datasets.base import CdtDataset
-from conduit.data.structures import XI, LoadedData, SizedDataset, TernarySample, X
+from conduit.data.structures import (
+    XI,
+    LoadedData,
+    SampleBase,
+    SizedDataset,
+    TernarySample,
+    X,
+)
 from conduit.types import Indexable, IndexType
 from ranzen.misc import gcopy
 from ranzen.torch import CrossEntropyLoss
@@ -55,22 +62,20 @@ I = TypeVar("I", int, Tensor)
 
 
 @dataclass(eq=False)
-class _IndexedSampleMixin(Generic[I]):
-    idx: I
-
-
-@dataclass(eq=False)
-class IndexedSample(TernarySample[X], _IndexedSampleMixin[Tensor]):
-    def add_field(self, *args: Any, **kwargs: Any) -> Self:
-        return self
+class IndexedSample(SampleBase[X]):
+    s: Tensor
+    y: Tensor
+    idx: Tensor
 
     @override
-    def __iter__(self) -> Iterator[LoadedData]:
+    def __iter__(self) -> Iterator[Union[X, Tensor]]:
         yield from (self.x, self.y, self.s, self.idx)
 
     @override
     def __add__(self, other: Self) -> Self:
-        copy = super().__add__(other)
+        copy = self._get_copy(other, is_batched=len(self.y) > 1)
+        copy.s = torch.cat([copy.s, other.s], dim=0)
+        copy.y = torch.cat([copy.y, other.y], dim=0)
         copy.idx = torch.cat([copy.idx, other.idx], dim=0)
         return copy
 
@@ -85,12 +90,12 @@ class IndexedSample(TernarySample[X], _IndexedSampleMixin[Tensor]):
         return cls(x=sample.x, y=sample.y, s=sample.s, idx=idx)
 
 
-class IndexedDataset(SizedDataset):
+class IndexedDataset(SizedDataset[IndexedSample[Tensor]]):
     def __init__(self, dataset: CdtDataset[TernarySample[LoadedData], Any, Tensor, Tensor]) -> None:
         self.dataset = dataset
 
     @override
-    def __getitem__(self, index: int) -> IndexedSample:
+    def __getitem__(self, index: int) -> IndexedSample[Tensor]:
         sample = self.dataset[index]
         idx = torch.as_tensor(index, dtype=torch.long)
         return IndexedSample.from_ts(sample=sample, idx=idx)
@@ -158,7 +163,7 @@ class LfF(FsAlg):
     def routine(self, dm: DataModule, *, model: nn.Module) -> EvalTuple[Tensor, None]:
         sample_loss_ema_b = LabelEma(dm.train.y, alpha=self.alpha).to(self.device)
         sample_loss_ema_d = LabelEma(dm.train.y, alpha=self.alpha).to(self.device)
-        dm.train = IndexedDataset(dm.train)
+        dm.train = IndexedDataset(dm.train)  # type: ignore
         classifier = LfFClassifier(
             sample_loss_ema_b=sample_loss_ema_b,
             sample_loss_ema_d=sample_loss_ema_d,

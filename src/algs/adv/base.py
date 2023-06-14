@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Generic, Literal, Optional, TypeVar, Union
 from typing_extensions import Self, TypeAlias
 
-from conduit.data.structures import NamedSample, TernarySample
+from conduit.data.structures import SampleBase, TernarySample
 from conduit.metrics import accuracy
 from conduit.models.utils import prefix_keys
 from loguru import logger
@@ -32,7 +32,7 @@ __all__ = ["AdvSemiSupervisedAlg", "Components"]
 D = TypeVar("D")
 
 IterTr: TypeAlias = Iterator[TernarySample[Tensor]]
-IterDep: TypeAlias = Iterator[NamedSample[Tensor]]
+IterDep: TypeAlias = Iterator[SampleBase[Tensor]]
 
 
 @dataclass(repr=False, eq=False)
@@ -98,7 +98,7 @@ class AdvSemiSupervisedAlg(Algorithm):
             raise AttributeError("If 'val_freq' is a float, it must be in the range [0, 1].")
         super().__post_init__()
 
-    def _sample_dep(self, iterator_dep: Iterator[NamedSample[Tensor]]) -> Tensor:
+    def _sample_dep(self, iterator_dep: Iterator[SampleBase[Tensor]]) -> Tensor:
         return next(iterator_dep).x.to(self.device, non_blocking=True)
 
     def _sample_tr(self, iterator_tr: Iterator[TernarySample[Tensor]]) -> TernarySample[Tensor]:
