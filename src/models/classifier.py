@@ -4,7 +4,7 @@ from typing import Literal, Optional, TypeVar, Union, overload
 from typing_extensions import override
 
 from conduit.data.datasets.utils import CdtDataLoader
-from conduit.data.structures import BinarySample, NamedSample, TernarySample
+from conduit.data.structures import BinarySample, SampleBase, TernarySample
 import conduit.metrics as cdtm
 from conduit.metrics import hard_prediction
 from conduit.models.utils import prefix_keys
@@ -164,7 +164,7 @@ class _ScSample(BinarySample[Tensor]):
     b: int
 
 
-S = TypeVar("S", bound=NamedSample[Tensor])
+S = TypeVar("S", bound=SampleBase[Tensor])
 
 
 @dataclass(repr=False, eq=False)

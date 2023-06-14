@@ -9,11 +9,7 @@ from typing_extensions import Self
 
 import albumentations as A
 from conduit.data import IMAGENET_STATS
-from conduit.data.datasets import (
-    CdtDataLoader,
-    extract_labels_from_dataset,
-    get_group_ids,
-)
+from conduit.data.datasets import CdtDataLoader, get_group_ids
 from conduit.data.datasets.vision import CdtVisionDataset, ImageTform, PillowTform
 from conduit.data.structures import MeanStd, TernarySample
 from conduit.transforms.image import denormalize
