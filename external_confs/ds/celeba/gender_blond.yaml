@@ -3,5 +3,5 @@ defaults:
   - celeba
   - _self_
 download: false
-superclass: SMILING
+superclass: BLOND_HAIR
 subclass: MALE

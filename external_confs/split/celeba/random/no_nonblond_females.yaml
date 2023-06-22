@@ -1,0 +1,8 @@
+---
+defaults:
+  - random
+  - /split/celeba/random/base@_here_
+  - _self_
+
+artifact_name: split_celeba_no_nonblond_females_${oc.env:SLURM_NODELIST}_${.seed}
+train_subsampling_props: {0: {0: 0}} # Drop all nonblond females
