@@ -1,0 +1,15 @@
+---
+disc_loss_w: 0
+enc_loss_w: 0.0
+num_disc_updates: 0
+pred_s_loss_w: 0
+pred_y_loss_w: 1.0
+prior_loss_w: null
+twoway_disc_loss: false
+warmup_steps: 0
+pred:
+    scheduler_cls: ranzen.torch.schedulers.CosineLRWithLinearWarmup
+    scheduler_kwargs:
+        total_iters: ${ alg.steps }
+        lr_min: 5.e-7
+        warmup_iters: 0.05

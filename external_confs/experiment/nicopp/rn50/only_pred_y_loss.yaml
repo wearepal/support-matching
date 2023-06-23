@@ -2,8 +2,7 @@
 
 defaults:
     - /ae: cosine_annealing
-    - /alg: supmatch_no_disc
-    - /alg/pred: cosine_annealing
+    - /alg: only_pred_y_loss
     - /eval: nicopp
     - override /ae_arch: resnet/rn50_256_pre
     - override /dm: nicopp
@@ -13,12 +12,10 @@ defaults:
     - _self_
 
 alg:
-    pred_y_loss_w: 1.0
-    enc_loss_w: 0.0
     steps: 30000
     use_amp: true
     pred:
-        lr: 5.e-5
+        lr: ${ ae.lr }
     log_freq: 100000000000  # never
     val_freq: 1000
 
