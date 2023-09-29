@@ -30,6 +30,7 @@ class Metrics(Enum):
     acc = ("Accuracy ({cl})", "Accuracy{a} $\\rightarrow$")
     rob_acc = ("Robust_Accuracy", "Robust accuracy{a} $\\rightarrow$")
     rob_tpr = ("Robust_TPR", "Robust TPR{a} $\\rightarrow$")
+    rob_tpr_ovr = ("Robust OvR TPR", "Robust TPR one versus rest $\\rightarrow$")
     hgr = ("Renyi preds and s ({cl})", "$\\leftarrow$ HGR{a}")
     # ratios
     prr = ("prob_pos_{s}_0.0÷{s}_1.0 ({cl})", "PR ratio{a} $\\rightarrow 1.0 \\leftarrow$")
