@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Callable, Final, NamedTuple, Optional, Union
 
 from matplotlib import pyplot as plt
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 import pandas as pd
 import seaborn as sns
 from wandb_downloader import RunsDownloader
@@ -23,19 +25,17 @@ __all__ = [
 
 
 class Metrics(Enum):
-    # each metric is defined via two strings:
-    # string 1: the column name with the placeholder {cl} for the classifier name and {s} for the
-    # sensitive attribute
-    # string 2: the display name with the placeholders {a} for the aggregation name
-    acc = ("Accuracy ({cl})", "Accuracy{a} $\\rightarrow$")
+    # each metric an optionally take the senstitive attribute as the parameter {s}
+    # if there is aggregation, then the name will be included as the parameter {a}
+    acc = ("Accuracy", "Accuracy{a} $\\rightarrow$")
     rob_acc = ("Robust_Accuracy", "Robust accuracy{a} $\\rightarrow$")
     rob_tpr = ("Robust_TPR", "Robust TPR{a} $\\rightarrow$")
     rob_tpr_ovr = ("Robust OvR TPR", "Robust TPR one versus rest $\\rightarrow$")
-    hgr = ("Renyi preds and s ({cl})", "$\\leftarrow$ HGR{a}")
+    hgr = ("Renyi preds and s", "$\\leftarrow$ HGR{a}")
     # ratios
-    prr = ("prob_pos_{s}_0.0÷{s}_1.0 ({cl})", "PR ratio{a} $\\rightarrow 1.0 \\leftarrow$")
-    tprr = ("TPR_{s}_0.0÷{s}_1.0 ({cl})", "TPR ratio{a} $\\rightarrow 1.0 \\leftarrow$")
-    tnrr = ("TNR_{s}_0.0÷{s}_1.0 ({cl})", "TNR ratio{a} $\\rightarrow 1.0 \\leftarrow$")
+    prr = ("prob_pos_{s}_0.0÷{s}_1.0", "PR ratio{a} $\\rightarrow 1.0 \\leftarrow$")
+    tprr = ("TPR_{s}_0.0÷{s}_1.0", "TPR ratio{a} $\\rightarrow 1.0 \\leftarrow$")
+    tnrr = ("TNR_{s}_0.0÷{s}_1.0", "TNR ratio{a} $\\rightarrow 1.0 \\leftarrow$")
     # diffs
     prd = ("", "PR diff{a} $\\rightarrow 0.0 \\leftarrow$")
     tprd = ("", "TPR diff{a} $\\rightarrow 0.0 \\leftarrow$")
@@ -57,36 +57,36 @@ class Aggregation(Enum):
 
 
 AGG_METRICS_COL_NAMES: Final = {
-    Metrics.acc: lambda s, cl: (f"Accuracy_{s}_0.0 ({cl})", f"Accuracy_{s}_1.0 ({cl})"),
-    Metrics.prr: lambda s, cl: (
-        f"prob_pos_{s}_0.0÷{s}_1.0 ({cl})",
-        f"prob_pos_{s}_0.0÷{s}_2.0 ({cl})",
-        f"prob_pos_{s}_1.0÷{s}_2.0 ({cl})",
+    Metrics.acc: lambda s: (f"Accuracy_{s}_0.0", f"Accuracy_{s}_1.0"),
+    Metrics.prr: lambda s: (
+        f"prob_pos_{s}_0.0÷{s}_1.0",
+        f"prob_pos_{s}_0.0÷{s}_2.0",
+        f"prob_pos_{s}_1.0÷{s}_2.0",
     ),
-    Metrics.tprr: lambda s, cl: (
-        f"TPR_{s}_0.0÷{s}_1.0 ({cl})",
-        f"TPR_{s}_0.0÷{s}_2.0 ({cl})",
-        f"TPR_{s}_1.0÷{s}_2.0 ({cl})",
+    Metrics.tprr: lambda s: (
+        f"TPR_{s}_0.0÷{s}_1.0",
+        f"TPR_{s}_0.0÷{s}_2.0",
+        f"TPR_{s}_1.0÷{s}_2.0",
     ),
-    Metrics.tnrr: lambda s, cl: (
-        f"TNR_{s}_0.0÷{s}_1.0 ({cl})",
-        f"TNR_{s}_0.0÷{s}_2.0 ({cl})",
-        f"TNR_{s}_1.0÷{s}_2.0 ({cl})",
+    Metrics.tnrr: lambda s: (
+        f"TNR_{s}_0.0÷{s}_1.0",
+        f"TNR_{s}_0.0÷{s}_2.0",
+        f"TNR_{s}_1.0÷{s}_2.0",
     ),
-    Metrics.prd: lambda s, cl: (
-        f"prob_pos_{s}_0.0-{s}_1.0 ({cl})",
-        f"prob_pos_{s}_0.0-{s}_2.0 ({cl})",
-        f"prob_pos_{s}_1.0-{s}_2.0 ({cl})",
+    Metrics.prd: lambda s: (
+        f"prob_pos_{s}_0.0-{s}_1.0",
+        f"prob_pos_{s}_0.0-{s}_2.0",
+        f"prob_pos_{s}_1.0-{s}_2.0",
     ),
-    Metrics.tprd: lambda s, cl: (
-        f"TPR_{s}_0.0-{s}_1.0 ({cl})",
-        f"TPR_{s}_0.0-{s}_2.0 ({cl})",
-        f"TPR_{s}_1.0-{s}_2.0 ({cl})",
+    Metrics.tprd: lambda s: (
+        f"TPR_{s}_0.0-{s}_1.0",
+        f"TPR_{s}_0.0-{s}_2.0",
+        f"TPR_{s}_1.0-{s}_2.0",
     ),
-    Metrics.tnrd: lambda s, cl: (
-        f"TNR_{s}_0.0-{s}_1.0 ({cl})",
-        f"TNR_{s}_0.0-{s}_2.0 ({cl})",
-        f"TNR_{s}_1.0-{s}_2.0 ({cl})",
+    Metrics.tnrd: lambda s: (
+        f"TNR_{s}_0.0-{s}_1.0",
+        f"TNR_{s}_0.0-{s}_2.0",
+        f"TNR_{s}_1.0-{s}_2.0",
     ),
 }
 
@@ -98,6 +98,8 @@ class MethodName(Enum):
     gdro = "gDRO"
     george = "GEORGE"
     dro = "DRO"
+    lff = "LfF"
+    erm_oracle = "ERM (Label Oracle)"
 
 
 METHOD_RENAMES: Final = {
@@ -112,8 +114,8 @@ METHOD_RENAMES: Final = {
     "baseline_dro_1.0": MethodName.dro.value,
     "baseline_erm": MethodName.erm.value,
     "baseline_gdro": MethodName.gdro.value,
-    "baseline_lff": "LfF",
-    "baseline_oracle": "ERM (Label Oracle)",
+    "baseline_lff": MethodName.lff.value,
+    "baseline_oracle": MethodName.erm_oracle.value,
     "cluster_and_gdro": MethodName.george.value,
     "erm_no_context_no_reg": MethodName.erm.value,
     "kmeans-fdm": "k-means",
@@ -134,7 +136,15 @@ METHOD_RENAMES: Final = {
     "ss_ae": "AutoEncoder",
 }
 
-KNOWN_CLASSIFIERS: Final = ["pytorch_classifier", "cnn", "dro", "gdro", "lff", "erm", "oracle"]
+KNOWN_CLASSIFIERS: Final = [
+    "pytorch_classifier",
+    "cnn",
+    "dro",
+    "gdro",
+    "lff",
+    "erm",
+    "oracle",
+]
 
 
 def merge_cols(df: pd.DataFrame, correct_col: str, incorrect_col: str) -> bool:
@@ -152,7 +162,7 @@ class Aggregate:
     suffix: str
     default_value: int
 
-    def __call__(self, df: pd.DataFrame, to_aggregate: tuple[str, ...], display_name: str) -> str:
+    def __call__(self, df: pd.DataFrame, to_aggregate: list[str], display_name: str) -> str:
         ratios = tuple(df[col] for col in to_aggregate)
         min_ = pd.Series(self.default_value, ratios[0].index)
         for ratio in ratios:
@@ -236,9 +246,8 @@ def plot(
     x_label: Optional[str] = None,
     plot_style: PlotStyle = PlotStyle.boxplot,
 ) -> None:
-    df = data.copy()
-
     for metric in metrics:
+        df = data.copy()
         df, renamed_col_to_plot = _prepare_dataframe(
             df,
             groupby=groupby,
@@ -283,21 +292,22 @@ def _prepare_dataframe(
     one column.
     """
     if agg is Aggregation.none:
-        column_to_plot = metric.col_name.format(s=sens_attr, cl=KNOWN_CLASSIFIERS[0])
+        column_to_plot = metric.col_name.format(s=sens_attr)
         col_renames = {column_to_plot: metric.display_name.format(a="")}
 
-        # merge all other classifier-based columns into the first column
-        for classifier in KNOWN_CLASSIFIERS[1:]:
-            merge_cols(df, column_to_plot, metric.col_name.format(s=sens_attr, cl=classifier))
+        # # merge all other classifier-based columns into the first column
+        # for classifier in KNOWN_CLASSIFIERS:
+        #     merge_cols(df, column_to_plot, f"{metric.col_name.format(s=sens_attr)} ({classifier})")
     else:
-        cols_to_aggregate = AGG_METRICS_COL_NAMES[metric](sens_attr, KNOWN_CLASSIFIERS[0])
+        cols_to_aggregate = list(AGG_METRICS_COL_NAMES[metric](sens_attr))
 
-        # merge all other classifier-based columns into the first column
-        for classifier in KNOWN_CLASSIFIERS[1:]:
-            for col_to_aggregate, variant in zip(
-                cols_to_aggregate, AGG_METRICS_COL_NAMES[metric](sens_attr, classifier)
-            ):
-                merge_cols(df, col_to_aggregate, variant)
+        # # merge all other classifier-based columns into the first column
+        # for classifier in KNOWN_CLASSIFIERS[1:]:
+        #     suffixed_metrics = [
+        #         f"{n} ({classifier})" for n in AGG_METRICS_COL_NAMES[metric](sens_attr)
+        #     ]
+        #     for col_to_aggregate, variant in zip(cols_to_aggregate, suffixed_metrics):
+        #         merge_cols(df, col_to_aggregate, variant)
 
         if agg is Aggregation.max:
             column_to_plot = compute_max(df, cols_to_aggregate, metric.display_name)
@@ -312,6 +322,7 @@ def _prepare_dataframe(
         base_cols.append("misc.log_method")
     col_renames[groupby] = "Method"
 
+    assert "misc.log_method" in df, str(df.columns)
     df = df[base_cols + [column_to_plot]]
     df = df.rename(columns=col_renames, inplace=False)
     df = df.replace({"Method": METHOD_RENAMES}, inplace=False)
@@ -339,8 +350,9 @@ def _make_plot(
     hide_left_ticks: bool,
     x_label: Optional[str],
     plot_style: PlotStyle,
-) -> plt.Figure:
+) -> Figure:
     # sns.set_style("whitegrid")
+    plot: Axes
     fig, plot = plt.subplots(figsize=fig_dim, dpi=300, facecolor="white")
     if plot_style is PlotStyle.boxplot:
         sns.set_palette("husl", 12)
