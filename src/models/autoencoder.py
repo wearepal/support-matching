@@ -159,7 +159,7 @@ class SplitLatentAe(Model):
                 s_ = s.view(-1, 1)
             split_encoding = replace(split_encoding, zs=s_.float())
 
-        decoding = self.model.decoder(split_encoding.join())
+        decoding = self.model.decode(split_encoding.join())
         if mode in ("hard", "relaxed") and self.feature_group_slices:
             discrete_outputs_ls: list[Tensor] = []
             stop_index = 0
