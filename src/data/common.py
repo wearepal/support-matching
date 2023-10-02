@@ -3,10 +3,10 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 import platform
-from typing import Any, Final, Generic, TypeVar, Union
+from typing import Final, Generic, TypeVar, Union
 from typing_extensions import TypeAlias
 
-from conduit.data import LoadedData, TernarySample
+from conduit.data import LoadedData, TernarySample, UnloadedData
 from conduit.data.datasets import CdtDataset
 from conduit.data.datasets.vision import CdtVisionDataset
 from hydra.utils import to_absolute_path
@@ -44,7 +44,8 @@ def process_data_dir(root: Union[Path, str, None]) -> Path:
     return Path(to_absolute_path(str(root))).resolve()
 
 
-Dataset: TypeAlias = CdtDataset[TernarySample[LoadedData], Any, Tensor, Tensor]
+X = TypeVar("X", bound=UnloadedData)
+Dataset: TypeAlias = CdtDataset[TernarySample[LoadedData], X, Tensor, Tensor]
 D = TypeVar("D", bound=Dataset)
 
 

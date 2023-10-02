@@ -40,8 +40,8 @@ __all__ = [
 ]
 
 
-DY = TypeVar("DY", bound=Optional[Dataset])
-DS = TypeVar("DS", bound=Optional[Dataset])
+DY = TypeVar("DY", bound=Optional[Dataset[Tensor]])
+DS = TypeVar("DS", bound=Optional[Dataset[Tensor]])
 
 
 class EvalTrainData(Enum):
@@ -58,10 +58,15 @@ class InvariantDatasets(Generic[DY, DS]):
 
 
 def log_sample_images(
-    *, data: CdtVisionDataset, dm: DataModule, name: str, step: int, num_samples: int = 64
+    *,
+    data: CdtVisionDataset[TernarySample[Tensor], Tensor, Tensor],
+    dm: DataModule,
+    name: str,
+    step: int,
+    num_samples: int = 64,
 ) -> None:
-    inds = torch.randperm(len(data))[:num_samples]
-    images = data[inds.tolist()]
+    inds: list[int] = torch.randperm(len(data))[:num_samples].tolist()
+    images = data[inds]
     log_images(images=images, dm=dm, name=f"Samples from {name}", prefix="eval", step=step)
 
 
@@ -73,39 +78,39 @@ _PBAR_COL: Final[str] = "#ffe252"
 
 @overload
 def encode_dataset(
-    dl: CdtDataLoader[TernarySample],
+    dl: CdtDataLoader[TernarySample[Tensor]],
     *,
     encoder: SplitLatentAe,
     device: Union[str, torch.device],
     invariant_to: Literal["y"] = ...,
-) -> InvariantDatasets[Dataset, None]:
+) -> InvariantDatasets[Dataset[Tensor], None]:
     ...
 
 
 @overload
 def encode_dataset(
-    dl: CdtDataLoader[TernarySample],
+    dl: CdtDataLoader[TernarySample[Tensor]],
     *,
     encoder: SplitLatentAe,
     device: Union[str, torch.device],
     invariant_to: Literal["s"] = ...,
-) -> InvariantDatasets[None, Dataset]:
+) -> InvariantDatasets[None, Dataset[Tensor]]:
     ...
 
 
 @overload
 def encode_dataset(
-    dl: CdtDataLoader[TernarySample],
+    dl: CdtDataLoader[TernarySample[Tensor]],
     *,
     encoder: SplitLatentAe,
     device: Union[str, torch.device],
     invariant_to: Literal["both"],
-) -> InvariantDatasets[Dataset, Dataset]:
+) -> InvariantDatasets[Dataset[Tensor], Dataset[Tensor]]:
     ...
 
 
 def encode_dataset(
-    dl: CdtDataLoader[TernarySample],
+    dl: CdtDataLoader[TernarySample[Tensor]],
     *,
     encoder: SplitLatentAe,
     device: Union[str, torch.device],
@@ -145,7 +150,7 @@ def encode_dataset(
     return InvariantDatasets(inv_y=inv_y, inv_s=inv_s)
 
 
-def _log_enc_statistics(encoded: Dataset, *, step: Optional[int], s_count: int) -> None:
+def _log_enc_statistics(encoded: Dataset[Tensor], *, step: Optional[int], s_count: int) -> None:
     """Compute and log statistics about the encoding."""
     x, y, s = encoded.x, encoded.y, encoded.s
     class_ids = labels_to_group_id(s=s, y=y, s_count=s_count)
@@ -154,7 +159,7 @@ def _log_enc_statistics(encoded: Dataset, *, step: Optional[int], s_count: int) 
     mapper = umap.UMAP(n_neighbors=25, n_components=2)  # type: ignore
     umap_z = mapper.fit_transform(x.numpy())
     umap_plot = visualize_clusters(umap_z, labels=class_ids, s_count=s_count)
-    to_log = {"umap": wandb.Image(umap_plot)}
+    to_log: dict[str, Union[wandb.Image, float]] = {"umap": wandb.Image(umap_plot)}
     logger.info("Done.")
 
     for y_value in y.unique():
