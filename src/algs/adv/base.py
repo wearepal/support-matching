@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Generic, Literal, Optional, TypeVar, Union
 from typing_extensions import Self, TypeAlias
 
-from conduit.data.structures import SampleBase, TernarySample
+from conduit.data.structures import TernarySample
 from conduit.metrics import accuracy
 from conduit.models.utils import prefix_keys
 from loguru import logger
@@ -32,7 +32,7 @@ __all__ = ["AdvSemiSupervisedAlg", "Components"]
 D = TypeVar("D")
 
 IterTr: TypeAlias = Iterator[TernarySample[Tensor]]
-IterDep: TypeAlias = Iterator[SampleBase[Tensor]]
+IterDep: TypeAlias = Iterator[TernarySample[Tensor]]
 
 
 @dataclass(repr=False, eq=False)
@@ -77,6 +77,7 @@ class AdvSemiSupervisedAlg(Algorithm):
     enc_loss_w: float = 1
     disc_loss_w: float = 1
     prior_loss_w: Optional[float] = None
+    preprior_loss_w: Optional[float] = None  # prior from pretrained network
     num_disc_updates: int = 3
     # Whether to use the deployment set when computing the encoder's adversarial loss
     twoway_disc_loss: bool = True
@@ -98,8 +99,8 @@ class AdvSemiSupervisedAlg(Algorithm):
             raise AttributeError("If 'val_freq' is a float, it must be in the range [0, 1].")
         super().__post_init__()
 
-    def _sample_dep(self, iterator_dep: Iterator[SampleBase[Tensor]]) -> Tensor:
-        return next(iterator_dep).x.to(self.device, non_blocking=True)
+    def _sample_dep(self, iterator_dep: Iterator[TernarySample[Tensor]]) -> TernarySample[Tensor]:
+        return next(iterator_dep).to(self.device, non_blocking=True)
 
     def _sample_tr(self, iterator_tr: Iterator[TernarySample[Tensor]]) -> TernarySample[Tensor]:
         return next(iterator_tr).to(self.device, non_blocking=True)
@@ -128,12 +129,17 @@ class AdvSemiSupervisedAlg(Algorithm):
         raise NotImplementedError()
 
     def encoder_step(
-        self, comp: Components, *, batch_tr: TernarySample[Tensor], x_dep: Tensor, warmup: bool
+        self,
+        comp: Components,
+        *,
+        batch_tr: TernarySample[Tensor],
+        batch_dep: TernarySample[Tensor],
+        warmup: bool,
     ) -> defaultdict[str, float]:
         logging_dict: defaultdict[str, float] = defaultdict(float)
         for _ in range(self.ga_steps):
             loss, logging_dict_s = self._encoder_loss(
-                comp=comp, x_dep=x_dep, batch_tr=batch_tr, warmup=warmup
+                comp=comp, batch_dep=batch_dep, batch_tr=batch_tr, warmup=warmup
             )
             if not torch.isfinite(loss).item():
                 raise NaNLossError("NaN or inf in encoder_step.")
@@ -159,9 +165,11 @@ class AdvSemiSupervisedAlg(Algorithm):
             self.discriminator_step(comp=comp, iterator_tr=iterator_tr, iterator_dep=iterator_dep)
 
         batch_tr = self._sample_tr(iterator_tr=iterator_tr)
-        x_dep = self._sample_dep(iterator_dep=iterator_dep)
+        batch_dep = self._sample_dep(iterator_dep=iterator_dep)
         comp.train_ae()
-        logging_dict = self.encoder_step(comp=comp, batch_tr=batch_tr, x_dep=x_dep, warmup=warmup)
+        logging_dict = self.encoder_step(
+            comp=comp, batch_tr=batch_tr, batch_dep=batch_dep, warmup=warmup
+        )
         logging_dict = prefix_keys(logging_dict, prefix="train", sep="/")
         wandb.log(logging_dict, step=itr)
 
@@ -169,7 +177,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         if ((itr % self.log_freq) == 0) and (batch_tr.x.ndim == 4):
             with torch.no_grad():
                 self.log_recons(x=batch_tr.x, dm=dm, ae=comp.ae, itr=itr, split="train")
-                self.log_recons(x=x_dep, dm=dm, ae=comp.ae, itr=itr, split="deployment")
+                self.log_recons(x=batch_dep.x, dm=dm, ae=comp.ae, itr=itr, split="deployment")
         return logging_dict
 
     @torch.no_grad()
@@ -247,7 +255,12 @@ class AdvSemiSupervisedAlg(Algorithm):
 
     @abstractmethod
     def _encoder_loss(
-        self, comp: Components, *, x_dep: Tensor, batch_tr: TernarySample[Tensor], warmup: bool
+        self,
+        comp: Components,
+        *,
+        batch_dep: TernarySample[Tensor],
+        batch_tr: TernarySample[Tensor],
+        warmup: bool,
     ) -> tuple[Tensor, dict[str, float]]:
         raise NotImplementedError()
 

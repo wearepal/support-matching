@@ -26,11 +26,12 @@ class MiMin(AdvSemiSupervisedAlg):
         self,
         comp: Components[Model],
         *,
-        x_dep: Tensor,
+        batch_dep: TernarySample[Tensor],
         batch_tr: TernarySample[Tensor],
         warmup: bool,
     ) -> tuple[Tensor, dict[str, float]]:
         """Compute the losses for the encoder and update its parameters."""
+        x_dep = batch_dep.x
         # Compute losses for the encoder.
         logging_dict = {}
 

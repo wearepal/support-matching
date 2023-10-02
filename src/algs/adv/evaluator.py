@@ -70,7 +70,7 @@ def log_sample_images(
     log_images(images=images, dm=dm, name=f"Samples from {name}", prefix="eval", step=step)
 
 
-InvariantAttr = Literal["zy", "zs", "both"]
+InvariantAttr = Literal["zy", "zs", "both", "last_pretrained_layer_output"]
 
 
 _PBAR_COL: Final[str] = "#ffe252"
@@ -112,6 +112,18 @@ def encode_dataset(
     ...
 
 
+@overload
+def encode_dataset(
+    dl: CdtDataLoader[TernarySample[Tensor]],
+    *,
+    encoder: SplitLatentAe,
+    device: Union[str, torch.device],
+    segment: Literal["last_pretrained_layer_output"],
+    use_amp: bool = False,
+) -> Tensor:
+    ...
+
+
 def encode_dataset(
     dl: CdtDataLoader[TernarySample[Tensor]],
     *,
@@ -119,9 +131,9 @@ def encode_dataset(
     device: Union[str, torch.device],
     segment: InvariantAttr = "zy",
     use_amp: bool = False,
-) -> InvariantDatasets:
+) -> Union[InvariantDatasets, Tensor]:
     device = resolve_device(device)
-    zy_ls, zs_ls, s_ls, y_ls = [], [], [], []
+    zy_ls, zs_ls, s_ls, y_ls, lplo_ls = [], [], [], [], []
     with torch.cuda.amp.autocast(enabled=use_amp):  # type: ignore
         with torch.no_grad():
             for batch in tqdm(dl, desc="Encoding dataset", colour=_PBAR_COL):
@@ -138,6 +150,9 @@ def encode_dataset(
                 if segment in ("zs", "both"):
                     zs_ls.append(encodings.zs.detach().cpu())
 
+                if segment == "last_pretrained_layer_output":
+                    lplo_ls.append(encodings.last_pretrained_layer_output.detach().cpu())
+
     s_ls = torch.cat(s_ls, dim=0)
     y_ls = torch.cat(y_ls, dim=0)
     zs_ds = None
@@ -149,6 +164,8 @@ def encode_dataset(
         zy_ds = CdtDataset(x=torch.cat(zy_ls, dim=0), s=s_ls, y=y_ls)
 
     logger.info("Finished encoding")
+    if lplo_ls:
+        return torch.cat(lplo_ls, dim=0)
 
     return InvariantDatasets(zs=zs_ds, zy=zy_ds)
 

@@ -3,19 +3,21 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 import platform
-from typing import Final, Generic, TypeVar, Union
-from typing_extensions import TypeAlias
+from typing import Final, Generic, Protocol, TypeVar, Union
+from typing_extensions import Self, TypeAlias
 
-from conduit.data import LoadedData, TernarySample, UnloadedData
+from conduit.data import LoadedData, SizedDataset, TernarySample, UnloadedData
 from conduit.data.datasets import CdtDataset
 from conduit.data.datasets.vision import CdtVisionDataset
 from hydra.utils import to_absolute_path
+import torch
 from torch import Tensor
 
 __all__ = [
     "D",
     "Dataset",
     "DatasetFactory",
+    "PseudoCdtDataset",
     "TrainDepTestSplit",
     "find_data_dir",
     "process_data_dir",
@@ -78,3 +80,52 @@ class DatasetFactory(ABC):
     @abstractmethod
     def __call__(self) -> CdtVisionDataset[TernarySample, Tensor, Tensor]:
         raise NotImplementedError()
+
+
+class PseudoCdtDataset(SizedDataset[TernarySample[LoadedData]], Protocol):
+    """A protocol that captures all the behavior that we need from CdtDataset."""
+
+    @property
+    def s(self) -> Tensor:
+        ...
+
+    @s.setter
+    def s(self, value: Tensor) -> None:
+        ...
+
+    @property
+    def y(self) -> Tensor:
+        ...
+
+    @y.setter
+    def y(self, value: Tensor) -> None:
+        ...
+
+    @property
+    def dim_x(self) -> torch.Size:
+        ...
+
+    @property
+    def dim_s(self) -> torch.Size:
+        ...
+
+    @property
+    def dim_y(self) -> torch.Size:
+        ...
+
+    @property
+    def card_y(self) -> int:
+        ...
+
+    @property
+    def card_s(self) -> int:
+        ...
+
+    def __len__(self) -> int:
+        ...
+
+    def __add__(self, other: Self) -> Self:
+        ...
+
+    def __iadd__(self, other: Self) -> Self:
+        ...

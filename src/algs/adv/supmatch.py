@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import partial
 from typing import Optional, cast
 from typing_extensions import Self, override
 
@@ -14,7 +15,8 @@ from src.models.discriminator import BinaryDiscriminator, NeuralDiscriminator
 from src.utils import to_item
 
 from .base import AdvSemiSupervisedAlg, Components, IterDep, IterTr
-from .evaluator import Evaluator
+from .evaluator import Evaluator, encode_dataset
+from .prior_sample import PriorDataset, PriorSample
 from .scorer import Scorer
 
 __all__ = ["SupportMatching"]
@@ -45,11 +47,12 @@ class SupportMatching(AdvSemiSupervisedAlg):
         self,
         comp: Components[BinaryDiscriminator],
         *,
-        x_dep: Tensor,
+        batch_dep: TernarySample[Tensor],
         batch_tr: TernarySample[Tensor],
         warmup: bool,
     ) -> tuple[Tensor, dict[str, float]]:
         """Compute the losses for the encoder."""
+        x_dep = batch_dep.x
         # Compute losses for the encoder.
         logging_dict = {}
         total_loss = x_dep.new_zeros(())
@@ -77,6 +80,26 @@ class SupportMatching(AdvSemiSupervisedAlg):
             else:
                 encoding_tr = comp.ae.encode(batch_tr.x)
                 encoding_dep = comp.ae.encode(x_dep)
+
+            # ===================================== prior losses ==================================
+            if self.preprior_loss_w:
+                assert isinstance(batch_tr, PriorSample)
+                assert isinstance(batch_dep, PriorSample)
+                prior_loss = batch_tr.prior.new_zeros(())
+                prior_loss += (
+                    ((encoding_tr.last_pretrained_layer_output - batch_tr.prior) ** 2)
+                    .sum(dim=1)
+                    .mean()
+                )
+                prior_loss += (
+                    ((encoding_dep.last_pretrained_layer_output - batch_dep.prior) ** 2)
+                    .sum(dim=1)
+                    .mean()
+                )
+                prior_loss *= self.preprior_loss_w
+                logging_dict["loss/preprior"] = to_item(prior_loss)
+                total_loss += prior_loss
+
             # ================================= adversarial losses ================================
             if not warmup:
                 disc_input_tr = encoding_tr.zy
@@ -109,7 +132,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         """Train the discriminator while keeping the encoder fixed."""
         if isinstance(comp.disc, NeuralDiscriminator):
             x_tr = self._sample_tr(iterator_tr).x
-            x_dep = self._sample_dep(iterator_dep)
+            x_dep = self._sample_dep(iterator_dep).x
 
             with torch.cuda.amp.autocast(enabled=self.use_amp):  # type: ignore
                 with torch.no_grad():
@@ -145,6 +168,26 @@ class SupportMatching(AdvSemiSupervisedAlg):
     def fit(self, dm: DataModule, *, ae: SplitLatentAe, disc: Model, evaluator: Evaluator) -> Self:
         if self.s_as_zs and ae.zs_dim != dm.card_s:
             raise ValueError(f"zs_dim has to be equal to s_dim ({dm.card_s}) if `s_as_zs` is True.")
+
+        if self.preprior_loss_w:
+            ae.eval()
+            ae.to(self.device)
+            encode = partial(
+                encode_dataset,
+                encoder=ae,
+                device=self.device,
+                segment="last_pretrained_layer_output",
+                use_amp=self.use_amp,
+            )
+
+            logger.info("Encoding training set to get priors.")
+            zy_train = encode(dm.train_dataloader(eval=True, batch_size=dm.batch_size_te))
+            dm.train = PriorDataset(dm.train, priors=zy_train)
+
+            logger.info("Encoding deployment set to get priors.")
+            zy_dep = encode(dm.deployment_dataloader(eval=True, batch_size=dm.batch_size_te))
+            dm.deployment = PriorDataset(dm.deployment, priors=zy_dep)
+            ae.train()
 
         return super().fit(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
 

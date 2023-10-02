@@ -27,7 +27,7 @@ import torch
 from torch import Tensor
 import torchvision.transforms.transforms as T
 
-from .common import Dataset
+from .common import Dataset, PseudoCdtDataset
 from .splitter import DataSplitter
 from .utils import group_id_to_label
 
@@ -74,10 +74,10 @@ class DataModuleConf:
 @dataclass(eq=False)
 class DataModule:
     cfg: DataModuleConf
-    train: Dataset
-    deployment: Dataset
+    train: PseudoCdtDataset
+    deployment: PseudoCdtDataset
     deployment_ids: Optional[Tensor] = field(init=False, default=None)
-    test: Dataset
+    test: PseudoCdtDataset
     split_seed: Optional[int]
 
     def __post_init__(self) -> None:
@@ -217,7 +217,7 @@ class DataModule:
 
     def _make_dataloader(
         self,
-        ds: Dataset,
+        ds: PseudoCdtDataset,
         *,
         batch_size: Optional[int],
         shuffle: bool = False,
@@ -436,7 +436,7 @@ class DataModule:
         dm.deployment_ids = deployment_ids
         return dm
 
-    def __iter__(self) -> Iterator[Dataset]:
+    def __iter__(self) -> Iterator[PseudoCdtDataset]:
         yield from (self.train, self.deployment, self.test)
 
     def __str__(self) -> str:

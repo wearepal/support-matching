@@ -34,6 +34,7 @@ class EncodingSize:
 class SplitEncoding:
     zs: Tensor
     zy: Tensor
+    last_pretrained_layer_output: Tensor
 
     def join(self) -> Tensor:
         return torch.cat([self.zs, self.zy], dim=1)
@@ -65,11 +66,27 @@ class SplitEncoding:
                 random_zs = F.one_hot(random_s, num_classes=self.card_s)
             else:
                 random_zs = torch.randint_like(zs, low=0, high=2)
-            zs_m = SplitEncoding(zs=random_zs.float(), zy=zy)
-            zy_m = SplitEncoding(zs=zs, zy=torch.randn_like(zy))
+            zs_m = SplitEncoding(
+                zs=random_zs.float(),
+                zy=zy,
+                last_pretrained_layer_output=self.last_pretrained_layer_output,
+            )
+            zy_m = SplitEncoding(
+                zs=zs,
+                zy=torch.randn_like(zy),
+                last_pretrained_layer_output=self.last_pretrained_layer_output,
+            )
         else:
-            zs_m = SplitEncoding(zs=torch.zeros_like(zs), zy=zy)
-            zy_m = SplitEncoding(zs=zs, zy=torch.zeros_like(zy))
+            zs_m = SplitEncoding(
+                zs=torch.zeros_like(zs),
+                zy=zy,
+                last_pretrained_layer_output=self.last_pretrained_layer_output,
+            )
+            zy_m = SplitEncoding(
+                zs=zs,
+                zy=torch.zeros_like(zy),
+                last_pretrained_layer_output=self.last_pretrained_layer_output,
+            )
         return zs_m, zy_m
 
 
@@ -135,14 +152,17 @@ class SplitLatentAe(Model):
         super().__post_init__()
 
     def encode(self, inputs: Tensor, *, transform_zs: bool = True) -> SplitEncoding:
-        enc = self._split_encoding(self.model.encoder(inputs))
+        outputs, last_pretrained_layer_output = self.model.encode(inputs)
+        enc = self._split_encoding(outputs, last_pretrained_layer_output)
         zs = enc.zs
         if transform_zs:
             if self.opt.zs_transform is ZsTransform.round_ste:
                 zs = round_ste(torch.sigmoid(zs))
             elif self.opt.zs_transform is ZsTransform.soft_classification:
                 zs = soft_prediction(zs)
-        return SplitEncoding(zs=zs, zy=enc.zy)
+        return SplitEncoding(
+            zs=zs, zy=enc.zy, last_pretrained_layer_output=enc.last_pretrained_layer_output
+        )
 
     def decode(
         self,
@@ -182,7 +202,11 @@ class SplitLatentAe(Model):
     ) -> Reconstructions:
         rand_s, rand_y = enc.mask(random=True)
         zero_s, zero_y = enc.mask()
-        just_s = SplitEncoding(zs=enc.zs, zy=torch.zeros_like(enc.zy))
+        just_s = SplitEncoding(
+            zs=enc.zs,
+            zy=torch.zeros_like(enc.zy),
+            last_pretrained_layer_output=enc.last_pretrained_layer_output,
+        )
         return Reconstructions(
             all=self.decode(enc, mode=mode),
             rand_s=self.decode(rand_s, mode=mode),
@@ -192,10 +216,12 @@ class SplitLatentAe(Model):
             just_s=self.decode(just_s, mode=mode),
         )
 
-    def _split_encoding(self, z: Tensor) -> SplitEncoding:
+    def _split_encoding(self, z: Tensor, last_pretrained_layer_output: Tensor) -> SplitEncoding:
         assert self.encoding_size is not None
         zs, zy = z.split((self.encoding_size.zs, self.encoding_size.zy), dim=1)
-        return SplitEncoding(zs=zs, zy=zy)
+        return SplitEncoding(
+            zs=zs, zy=zy, last_pretrained_layer_output=last_pretrained_layer_output
+        )
 
     def training_step(
         self, x: Tensor, *, s: Optional[Tensor] = None, prior_loss_w: Optional[float] = None

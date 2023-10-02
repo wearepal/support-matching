@@ -270,7 +270,7 @@ class ResNetEncoder(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def forward(self, x: Tensor) -> Tensor:  # type: ignore
+    def forward(self, x: Tensor) -> tuple[Tensor, Tensor]:  # type: ignore
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -283,7 +283,7 @@ class ResNetEncoder(nn.Module):
 
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
-        return self.fc(x)
+        return self.fc(x), x
 
 
 class ResNetDecoder(nn.Module):
@@ -425,6 +425,15 @@ class ResNetVersion(Enum):
     RN50 = "50"
 
 
+class DoubleHead(nn.Module):
+    def __init__(self, in_features: int, out_features: int):
+        super().__init__()
+        self.fc = nn.Linear(in_features=in_features, out_features=out_features)
+
+    def forward(self, input: Tensor) -> tuple[Tensor, Tensor]:
+        return self.fc(input), input
+
+
 @dataclass
 class ResNetAE(AeFactory):
     latent_dim: int = 128
@@ -446,7 +455,9 @@ class ResNetAE(AeFactory):
             weights = getattr(tvm, weights_enum_name).DEFAULT
             fn_name = f"resnet{self.version.value}"
             encoder = cast(tvm.ResNet, getattr(tvm, fn_name)(weights=weights))
-            encoder.fc = nn.Linear(in_features=encoder.fc.in_features, out_features=self.latent_dim)
+            encoder.fc = DoubleHead(
+                in_features=encoder.fc.in_features, out_features=self.latent_dim
+            )
         else:
             enc_fn = resnet18_encoder if self.version is ResNetVersion.RN18 else resnet50_encoder
             encoder = enc_fn(self.first_conv, latent_dim=self.latent_dim, maxpool1=self.maxpool1)

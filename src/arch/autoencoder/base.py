@@ -20,17 +20,14 @@ class AePair(DcModule, Generic[E, D]):
     latent_dim: int
 
     @override
-    def forward(self, x: Tensor) -> Tensor:  # type: ignore
+    def forward(self, x: Tensor) -> tuple[Tensor, Tensor]:  # type: ignore
         return self.encoder(x)
 
-    def encode(self, x: Tensor) -> Tensor:
+    def encode(self, x: Tensor) -> tuple[Tensor, Tensor]:
         return self.encoder(x)
 
     def decode(self, z: Tensor) -> Tensor:
         return self.decoder(z)
-
-    def encode_decode(self, x: Tensor) -> Tensor:
-        return self.encode(self.decoder(x))
 
 
 @dataclass
