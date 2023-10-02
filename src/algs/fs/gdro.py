@@ -86,7 +86,9 @@ class LossComputer(nn.Module):
     def _default_criterion(input: Tensor, *, target: Tensor) -> Tensor:
         return cross_entropy_loss(input=input, target=target, reduction=ReductionType.none)
 
-    def forward(self, input: Tensor, *, target: Tensor, group_idx: Tensor, criterion: Optional[Loss] = None) -> Tensor:  # type: ignore
+    def forward(
+        self, input: Tensor, *, target: Tensor, group_idx: Tensor, criterion: Optional[Loss] = None
+    ) -> Tensor:  # type: ignore
         if criterion is None:
             per_sample_losses = self._default_criterion(input=input, target=target)
         else:

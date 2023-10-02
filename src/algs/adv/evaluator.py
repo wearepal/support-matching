@@ -20,13 +20,7 @@ import wandb
 
 from src.arch.common import Activation
 from src.arch.predictors import Fcn
-from src.data import (
-    DataModule,
-    Dataset,
-    group_id_to_label,
-    labels_to_group_id,
-    resolve_device,
-)
+from src.data import DataModule, Dataset, group_id_to_label, labels_to_group_id, resolve_device
 from src.evaluation.metrics import EmEvalPair, compute_metrics
 from src.logging import log_images
 from src.models import Classifier, OptimizerCfg, SplitLatentAe

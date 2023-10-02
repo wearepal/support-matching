@@ -71,8 +71,7 @@ target-version = ['py39']
 
 [tool.ruff]
 target-version = "py39"
-# line length here only affects import sorting
-line-length = 88
+line-length = 100
 select = ["I", "F", "E", "W", "UP"]
 ignore = [
   "F541",  # f-string without placeholder

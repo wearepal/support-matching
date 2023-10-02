@@ -4,14 +4,7 @@ from typing import Any, TypeVar, Union
 from typing_extensions import Self, override
 
 from conduit.data.datasets.base import CdtDataset
-from conduit.data.structures import (
-    XI,
-    LoadedData,
-    SampleBase,
-    SizedDataset,
-    TernarySample,
-    X,
-)
+from conduit.data.structures import XI, LoadedData, SampleBase, SizedDataset, TernarySample, X
 from conduit.types import Indexable, IndexType
 from ranzen.misc import gcopy
 from ranzen.torch import CrossEntropyLoss

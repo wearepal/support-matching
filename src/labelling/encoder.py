@@ -37,7 +37,9 @@ class ClipVisualEncoder(nn.Module):
         import clip
 
         model, self.transforms = clip.load(
-            name=version.value, device="cpu", download_root=download_root  # type: ignore
+            name=version.value,  # type: ignore
+            device="cpu",
+            download_root=download_root,
         )
         logger.info("Done.")
         self.encoder = model.visual
