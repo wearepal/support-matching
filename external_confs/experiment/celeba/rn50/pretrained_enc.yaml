@@ -1,10 +1,8 @@
 # @package _global_
 
 defaults:
-    - /eval: nicopp
-    - override /ds: nicopp
-    - override /split: nicopp/change_is_hard
-    - override /dm: nicopp
+    - override /ds: celeba
+    - override /split: celeba/random/no_nonblond_females
     - override /labeller: gt
     - override /ae_arch: resnet/rn50_256_pre
     - _self_
@@ -41,4 +39,20 @@ disc:
 #     dropout_prob: 0.1
 
 dm:
-    use_y_for_dep_bags: true  # without this, RN50 doesn't fit into memory...
+    stratified_sampler: exact
+    num_workers: 4
+    batch_size_tr: 10
+    batch_size_te: 20
+
+eval:
+    batch_size: 10
+    balanced_sampling: true
+    hidden_dim: null
+    num_hidden: 1
+    steps: 10000
+    opt:
+        lr: 1.e-4
+        scheduler_cls: torch.optim.lr_scheduler.CosineAnnealingLR
+        scheduler_kwargs:
+            T_max: ${ eval.steps }
+            eta_min: 5e-7
