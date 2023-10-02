@@ -23,12 +23,7 @@ from .encode import Encodings, encode_with_group_ids
 from .encoder import ClipVersion, ClipVisualEncoder
 from .finetuning import FineTuneParams
 from .kmeans import KMeans
-from .noise import (
-    ClnMetric,
-    centroidal_label_noise,
-    sample_noise_indices,
-    uniform_label_noise,
-)
+from .noise import ClnMetric, centroidal_label_noise, sample_noise_indices, uniform_label_noise
 
 __all__ = [
     "CentroidalLabelNoiser",

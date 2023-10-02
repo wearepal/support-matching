@@ -128,7 +128,9 @@ class PolynomialLoss(nn.Module, Loss):
         return scores
 
     @override
-    def forward(self, input: Tensor, *, target: Tensor, instance_weight: Optional[Tensor] = None) -> Tensor:  # type: ignore
+    def forward(
+        self, input: Tensor, *, target: Tensor, instance_weight: Optional[Tensor] = None
+    ) -> Tensor:  # type: ignore
         dim = input.size(1)
         if dim > 2:
             raise ValueError(

@@ -5,13 +5,7 @@ from loguru import logger
 
 from src.algs import MiMin
 from src.algs.adv import Evaluator
-from src.arch.autoencoder import (
-    AeFactory,
-    AeFromArtifact,
-    ResNetAE,
-    SimpleConvAE,
-    VqGanAe,
-)
+from src.arch.autoencoder import AeFactory, AeFromArtifact, ResNetAE, SimpleConvAE, VqGanAe
 from src.arch.predictors.fcn import Fcn
 from src.data.common import DatasetFactory
 from src.data.nih import NIHChestXRayDatasetCfg
