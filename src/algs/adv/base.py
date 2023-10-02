@@ -128,7 +128,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         raise NotImplementedError()
 
     def encoder_step(
-        self, comp: Components, *, batch_tr: TernarySample, x_dep: Tensor, warmup: bool
+        self, comp: Components, *, batch_tr: TernarySample[Tensor], x_dep: Tensor, warmup: bool
     ) -> defaultdict[str, float]:
         logging_dict: defaultdict[str, float] = defaultdict(float)
         for _ in range(self.ga_steps):
@@ -247,7 +247,7 @@ class AdvSemiSupervisedAlg(Algorithm):
 
     @abstractmethod
     def _encoder_loss(
-        self, comp: Components, *, x_dep: Tensor, batch_tr: TernarySample, warmup: bool
+        self, comp: Components, *, x_dep: Tensor, batch_tr: TernarySample[Tensor], warmup: bool
     ) -> tuple[Tensor, dict[str, float]]:
         raise NotImplementedError()
 
@@ -297,14 +297,7 @@ class AdvSemiSupervisedAlg(Algorithm):
         comp = Components(ae=ae, disc=disc, pred_y=pred_y, pred_s=pred_s)
         comp.to(self.device)
 
-        val_freq = max(
-            (
-                self.val_freq
-                if isinstance(self.val_freq, int)
-                else round(self.val_freq * self.steps)
-            ),
-            1,
-        )
+        val_freq = max(f if isinstance(f := self.val_freq, int) else round(f * self.steps), 1)
         with tqdm(total=self.steps, desc="Training", colour=self._PBAR_COL) as pbar:
             for step in range(1, self.steps + 1):
                 logging_dict = self.training_step(
