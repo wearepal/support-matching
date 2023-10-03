@@ -5,7 +5,6 @@ from typing import Any, Optional, Union
 from typing_extensions import TypeAlias
 
 from conduit.data.datasets.vision.base import CdtVisionDataset
-from loguru import logger
 from ranzen.hydra import reconstruct_cmd
 import torch
 from torch import Tensor
@@ -47,16 +46,15 @@ class WandbConf:
         self,
         raw_config: Optional[dict[str, Any]] = None,
         cfgs_for_group: tuple[object, ...] = (),
-        suffix: Optional[str] = None,
+        with_tag: Optional[str] = None,
     ) -> Run:
-        if self.group is None:
-            default_group = "_".join(
-                cfg_obj.__class__.__name__.lower() for cfg_obj in cfgs_for_group
-            )
-            if suffix is not None:
-                default_group += f"_{suffix}"
-            logger.info(f"No wandb group set - using {default_group} as the inferred default.")
-            self.group = default_group
+        if self.tags is None:
+            self.tags = []
+        self.tags.extend(
+            cfg_obj.__class__.__name__ for cfg_obj in cfgs_for_group
+        )
+        if with_tag is not None:
+            self.tags.append(with_tag)
         # TODO: not sure whether `reinit` really should be hardcoded
         self.reinit = True
         kwargs = asdict(self)

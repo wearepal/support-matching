@@ -35,7 +35,7 @@ class SplitRelay:
         assert isinstance(self.split, RandomSplitter)
 
         ds = self.ds()
-        run = self.wandb.init(raw_config, (ds,), suffix="artgen")
+        run = self.wandb.init(raw_config, (ds,), with_tag="artgen")
         self.split.save_as_artifact = True
         self.split(ds)
         if run is not None:
