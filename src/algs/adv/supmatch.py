@@ -28,7 +28,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
             if dm.deployment_ids is None:
                 logger.warning(
                     "Support matching is enabled but without any balancing of the deployment set "
-                    "- this can be achieved either by setting 'deployment_ids'."
+                    "- this can be achieved by setting 'deployment_ids'."
                 )
         dl_tr = dm.train_dataloader(balance=True)
         # The batch size needs to be consistent for the aggregation layer in the setwise neural
