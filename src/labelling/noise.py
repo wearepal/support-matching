@@ -92,8 +92,12 @@ def centroidal_label_noise(
     num[row_inds, inv[indices]] = 0.0
     denom = num.sum(dim=1, keepdim=True)
     probs = num / denom
+    # random sampling is better done on the CPU
+    probs = probs.to(torch.device("cpu"))
     new_labels = torch.multinomial(probs, num_samples=1, replacement=False, generator=generator)
     del probs
+    labels = labels.to(torch.device("cpu"))
+    indices = indices.to(torch.device("cpu"))
     if not inplace:
         labels = labels.clone()
     labels[indices] = new_labels.squeeze(1)

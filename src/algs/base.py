@@ -23,9 +23,9 @@ class Algorithm(DcModule):
     max_grad_norm: Optional[float] = None
 
     def __post_init__(self) -> None:
-        self.use_gpu: bool = torch.cuda.is_available() and self.gpu >= 0
         self.device: torch.device = resolve_device(self.gpu)
-        self.use_amp = self.use_amp and self.use_gpu
+        use_gpu = torch.cuda.is_available() and self.gpu >= 0
+        self.use_amp = self.use_amp and use_gpu
         self.grad_scaler: Optional[GradScaler] = GradScaler() if self.use_amp else None
         logger.info(f"{torch.cuda.device_count()} GPU(s) available - using device '{self.device}'")
 
