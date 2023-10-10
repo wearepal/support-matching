@@ -4,6 +4,7 @@ from attrs import define, field
 
 from src.data.common import DatasetFactory
 from src.data.nih import NIHChestXRayDatasetCfg
+from src.data.utils import resolve_device
 from src.hydra_confs.datasets import Camelyon17Cfg, CelebACfg, ColoredMNISTCfg
 from src.labelling.pipeline import (
     CentroidalLabelNoiser,
@@ -26,6 +27,7 @@ class LabelRelay(BaseRelay):
 
     ds: Any  # CdtDataset
     labeller: Any  # Labeller
+    gpu: int = 0
 
     options: ClassVar[dict[str, dict[str, type]]] = BaseRelay.options | {
         "ds": {
@@ -48,6 +50,7 @@ class LabelRelay(BaseRelay):
 
         ds = self.ds()
         run = self.wandb.init(raw_config, (ds, self.labeller))
-        self.init_dm(ds, self.labeller)
+        device = resolve_device(self.gpu)
+        self.init_dm(ds, self.labeller, device=device)
         if run is not None:
             run.finish()

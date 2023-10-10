@@ -70,7 +70,7 @@ class FsRelay(BaseRelay):
 
         ds = self.ds()
         run = self.wandb.init(raw_config, (ds, self.labeller, self.backbone, self.predictor))
-        dm = self.init_dm(ds, self.labeller)
+        dm = self.init_dm(ds, self.labeller, device=self.alg.device)
         backbone, out_dim = self.backbone(input_dim=dm.dim_x[0])
         predictor, _ = self.predictor(input_dim=out_dim, target_dim=dm.card_y)
         model = nn.Sequential(backbone, predictor)
