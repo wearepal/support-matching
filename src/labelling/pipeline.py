@@ -13,7 +13,7 @@ from torch import Tensor
 import wandb
 from wandb.wandb_run import Run
 
-from src.data import DataModule, resolve_device
+from src.data import DataModule
 from src.evaluation.metrics import print_metrics
 from src.models import Classifier, OptimizerCfg
 from src.utils import to_item
@@ -41,21 +41,22 @@ __all__ = [
 
 class Labeller(ABC):
     @abstractmethod
-    def run(self, dm: DataModule) -> Optional[Tensor]:
+    def run(self, dm: DataModule, device: torch.device) -> Optional[Tensor]:
         raise NotImplementedError()
 
-    def __call__(self, dm: DataModule) -> Optional[Tensor]:
-        return self.run(dm=dm)
+    def __call__(self, dm: DataModule, device: torch.device) -> Optional[Tensor]:
+        return self.run(dm=dm, device=device)
 
 
 @dataclass(repr=False, eq=False)
 class KmeansOnClipEncodings(DcModule, Labeller):
+    """Generate embeddings with CLIP (optionally finetuned) and then do k-means."""
+
     clip_version: ClipVersion = ClipVersion.RN50
     download_root: Optional[str] = None
     ft: FineTuneParams = field(default_factory=lambda: FineTuneParams(steps=1000))
     enc_batch_size: int = 64
 
-    gpu: int = 0
     spherical: bool = True
     fft_cluster_init: bool = False
     supervised_cluster_init: bool = False
@@ -63,38 +64,31 @@ class KmeansOnClipEncodings(DcModule, Labeller):
     save_as_artifact: bool = True
     artifact_name: Optional[str] = None
 
-    cache_encoder: bool = False
+    # cache_encoder: bool = False
     encodings_path: Optional[Path] = None
 
-    encoder: Optional[ClipVisualEncoder] = field(
-        init=False, default=None, metadata={"omegaconf_ignore": True}
-    )
+    # encoder: Optional[ClipVisualEncoder] = field(
+    #     init=False, default=None, metadata={"omegaconf_ignore": True}
+    # )
     _fitted_kmeans: Optional[KMeans] = field(
         init=False, default=None, metadata={"omegaconf_ignore": True}
     )
 
     @override
-    def run(self, dm: DataModule, *, use_cached_encoder: bool = False) -> Tensor:
-        device = resolve_device(self.gpu)
+    def run(self, dm: DataModule, device: torch.device) -> Tensor:
         if self.encodings_path is not None and self.encodings_path.exists():
             encodings = Encodings.from_npz(self.encodings_path)
         else:
-            if self.encoder is None or not use_cached_encoder:
-                encoder = ClipVisualEncoder(
-                    version=self.clip_version, download_root=self.download_root
-                )
-                if self.ft.steps > 0:
-                    encoder.finetune(dm=dm, params=self.ft, device=device)
-            else:
-                encoder = self.encoder
+            encoder = ClipVisualEncoder(version=self.clip_version, download_root=self.download_root)
+            if self.ft.steps > 0:
+                encoder.finetune(dm=dm, params=self.ft, device=device)
             encodings = encoder.encode(dm=dm, batch_size_tr=self.enc_batch_size, device=device)
             if self.encodings_path is not None:
                 encodings.save(self.encodings_path)
-            if self.cache_encoder:
-                self.encoder = encoder
-            else:
-                del encoder
-                torch.cuda.empty_cache()
+            # if self.cache_encoder:
+            #     self.encoder = encoder
+            del encoder
+            torch.cuda.empty_cache()
 
         kmeans = KMeans(
             spherical=self.spherical,
@@ -115,16 +109,17 @@ class KmeansOnClipEncodings(DcModule, Labeller):
 
 @dataclass(eq=False)
 class ClipClassifier(Labeller):
+    """Predict s and y with a fine-tuned CLIP classifier."""
+
     clip_version: ClipVersion = ClipVersion.RN50
     download_root: Optional[str] = None
     ft: FineTuneParams = field(default_factory=lambda: FineTuneParams(steps=1000))
     batch_size_te: int = 64
 
-    gpu: int = 0
     save_as_artifact: bool = True
     artifact_name: Optional[str] = None
 
-    cache_encoder: bool = False
+    # cache_encoder: bool = False
 
     @torch.no_grad()
     def evaluate(
@@ -147,8 +142,7 @@ class ClipClassifier(Labeller):
         return metrics
 
     @override
-    def run(self, dm: DataModule, *, use_cached_encoder: bool = False) -> Tensor:
-        device = resolve_device(self.gpu)
+    def run(self, dm: DataModule, device: torch.device) -> Tensor:
         encoder = ClipVisualEncoder(version=self.clip_version, download_root=self.download_root)
         ft_model = encoder.finetune(dm=dm, params=self.ft, device=device)
         classifier = Classifier(model=ft_model, opt=OptimizerCfg())
@@ -172,12 +166,14 @@ class ClipClassifier(Labeller):
 
 @dataclass(eq=False)
 class LabelFromArtifact(Labeller):
+    """Load labels from W&B."""
+
     version: Optional[int] = None  # latest by default
     artifact_name: Optional[str] = None
     root: Optional[Path] = None  # artifacts/clustering by default
 
     @override
-    def run(self, dm: DataModule) -> Tensor:
+    def run(self, dm: DataModule, device: torch.device) -> Tensor:
         return load_labels_from_artifact(
             run=wandb.run,
             datamodule=dm,
@@ -189,13 +185,17 @@ class LabelFromArtifact(Labeller):
 
 @dataclass(eq=False)
 class NullLabeller(Labeller):
+    """Don't do any bag balancing."""
+
     @override
-    def run(self, dm: DataModule) -> None:
+    def run(self, dm: DataModule, device: torch.device) -> None:
         return None
 
 
 @dataclass(eq=False)
 class GroundTruthLabeller(Labeller):
+    """Use ground truth for bag balancing."""
+
     seed: int = 47
 
     @property
@@ -203,12 +203,14 @@ class GroundTruthLabeller(Labeller):
         return torch.Generator().manual_seed(self.seed)
 
     @override
-    def run(self, dm: DataModule) -> Tensor:
+    def run(self, dm: DataModule, device: torch.device) -> Tensor:
         return dm.group_ids_dep
 
 
 @dataclass(eq=False)
 class LabelNoiser(Labeller):
+    """Base class for methods which take the ground truth labels to add noise to them."""
+
     level: float = 0.10
     seed: int = 47
     weighted_index_sampling: bool = True
@@ -222,11 +224,13 @@ class LabelNoiser(Labeller):
         return torch.Generator().manual_seed(self.seed)
 
     @abstractmethod
-    def _noise(self, dep_ids: Tensor, *, flip_inds: Tensor, dm: DataModule) -> Tensor:
+    def _noise(
+        self, dep_ids: Tensor, *, flip_inds: Tensor, dm: DataModule, device: torch.device
+    ) -> Tensor:
         raise NotImplementedError()
 
     @override
-    def run(self, dm: DataModule) -> Tensor:
+    def run(self, dm: DataModule, device: torch.device) -> Tensor:
         group_ids = dm.group_ids_dep
         logger.info(
             f"Injecting noise into ground-truth labels with noise level '{self.level}'"
@@ -240,14 +244,18 @@ class LabelNoiser(Labeller):
                 weighted=self.weighted_index_sampling,
             )
             # Inject label-noise into the group identifiers.
-            group_ids = self._noise(dep_ids=group_ids, flip_inds=flip_inds, dm=dm)
+            group_ids = self._noise(dep_ids=group_ids, flip_inds=flip_inds, dm=dm, device=device)
         return group_ids
 
 
 @dataclass(eq=False)
 class UniformLabelNoiser(LabelNoiser):
+    """Take the ground truth labels and flip them uniformly randomly."""
+
     @override
-    def _noise(self, dep_ids: Tensor, *, flip_inds: Tensor, dm: DataModule) -> Tensor:
+    def _noise(
+        self, dep_ids: Tensor, *, flip_inds: Tensor, dm: DataModule, device: torch.device
+    ) -> Tensor:
         return uniform_label_noise(
             labels=dep_ids, indices=flip_inds, generator=self.generator, inplace=True
         )
@@ -255,15 +263,17 @@ class UniformLabelNoiser(LabelNoiser):
 
 @dataclass(eq=False)
 class CentroidalLabelNoiser(LabelNoiser):
+    """Get embeddings from (non-fine-tuned) CLIP and the flip to nearest centroid."""
+
     metric: ClnMetric = ClnMetric.COSINE
     clip_version: ClipVersion = ClipVersion.RN50
     download_root: Optional[str] = None
     enc_batch_size: int = 64
-    gpu: int = 0
 
     @override
-    def _noise(self, dep_ids: Tensor, *, flip_inds: Tensor, dm: DataModule) -> Tensor:
-        device = resolve_device(self.gpu)
+    def _noise(
+        self, dep_ids: Tensor, *, flip_inds: Tensor, dm: DataModule, device: torch.device
+    ) -> Tensor:
         encoder = ClipVisualEncoder(version=self.clip_version, download_root=self.download_root)
         encodings, _ = encode_with_group_ids(
             model=encoder,
@@ -271,9 +281,9 @@ class CentroidalLabelNoiser(LabelNoiser):
             device=device,
         )
         return centroidal_label_noise(
-            labels=dep_ids,
-            indices=flip_inds,
-            encodings=encodings,
+            labels=dep_ids.to(device),
+            indices=flip_inds.to(device),
+            encodings=encodings.to(device),
             generator=self.generator,
             inplace=True,
         )

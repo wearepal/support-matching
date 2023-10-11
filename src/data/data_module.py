@@ -422,7 +422,13 @@ class DataModule:
 
     @classmethod
     def from_ds(
-        cls, *, config: DataModuleConf, ds: Dataset, splitter: DataSplitter, labeller: "Labeller"
+        cls,
+        *,
+        config: DataModuleConf,
+        ds: Dataset,
+        splitter: DataSplitter,
+        labeller: "Labeller",
+        device: torch.device,
     ) -> Self:
         splits = splitter(ds)
         dm = cls(
@@ -432,7 +438,7 @@ class DataModule:
             test=splits.test,
             split_seed=getattr(splitter, "seed", None),
         )
-        deployment_ids = labeller.run(dm=dm)
+        deployment_ids = labeller.run(dm=dm, device=device)
         dm.deployment_ids = deployment_ids
         return dm
 

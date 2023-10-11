@@ -50,9 +50,7 @@ class WandbConf:
     ) -> Run:
         if self.tags is None:
             self.tags = []
-        self.tags.extend(
-            cfg_obj.__class__.__name__ for cfg_obj in cfgs_for_group
-        )
+        self.tags.extend(cfg_obj.__class__.__name__ for cfg_obj in cfgs_for_group)
         if with_tag is not None:
             self.tags.append(with_tag)
         # TODO: not sure whether `reinit` really should be hardcoded
