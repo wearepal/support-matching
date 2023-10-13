@@ -3,8 +3,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 import platform
-from typing import Final, Generic, TypeVar, Union
-from typing_extensions import TypeAlias
+from typing import Final, Generic, TypeAlias, TypeVar, Union
 
 from conduit.data import LoadedData, TernarySample, UnloadedData
 from conduit.data.datasets import CdtDataset

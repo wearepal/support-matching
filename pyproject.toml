@@ -5,7 +5,6 @@ description = "Addressing Missing Sources with Adversarial Support-Matching"
 authors = ["PAL <info@wearepal.com>"]
 packages = [{ include = "src" }, { include = "hydra_plugins" }]
 classifiers = [
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Operating System :: OS Independent",
@@ -20,12 +19,12 @@ ethicml = { version = ">=1.0.0", extras = ["metrics"] }
 hydra-core = { version = ">=1.2.0" }
 hydra-submitit-launcher = { version = "^1.1.6" }
 # llvmlite = ">=0.35.0,<0.39"
-matplotlib = ">= 3.6.0"
+matplotlib = ">= 3.8.0"
 neoconfigen = ">=2.3.3"
 numpy = { version = ">=1.23.2" }
 pandas = { version = ">=1.5.0" }
 pillow = "*"
-python = ">=3.9.11,<3.12"
+python = ">=3.10,<3.12"
 ranzen = { version = "^2.1.2" }
 scikit-image = ">=0.14"
 scikit_learn = { version = ">=0.20.1" }
@@ -58,8 +57,8 @@ black = "*"
 ruff = "*"
 mypy = "*"
 pytest = "*"
-python-type-stubs = { git = "https://github.com/wearepal/python-type-stubs.git", rev = "6767223" }
 types-tqdm = "*"
+pandas-stubs = "*"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -67,10 +66,10 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.black]
 line-length = 100
-target-version = ['py39']
+target-version = ['py310']
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 line-length = 100
 select = ["I", "F", "E", "W", "UP"]
 ignore = [
@@ -79,6 +78,7 @@ ignore = [
   "E741",  # Ambiguous variable name
   "UP006", # generic standard library
   "UP007", # new-style unions
+  "UP038", # isinstance check with unions
 ]
 
 [tool.ruff.isort]
@@ -114,7 +114,7 @@ classes = ["MISSING", "LAFTR", "NICOPP"]
 ]
 
 [tool.pyright]
-pythonVersion = "3.9"
+pythonVersion = "3.10"
 typeCheckingMode = "strict"
 reportMissingTypeStubs = "none"
 reportUnknownParameterType = "none"

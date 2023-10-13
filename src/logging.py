@@ -1,8 +1,7 @@
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Any, Optional, Union
-from typing_extensions import TypeAlias
+from typing import Any, Optional, TypeAlias, Union
 
 from conduit.data.datasets.vision.base import CdtVisionDataset
 from ranzen.hydra import reconstruct_cmd

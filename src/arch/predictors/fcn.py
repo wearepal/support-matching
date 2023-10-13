@@ -1,6 +1,7 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Generic, Optional, TypeVar
+from typing import Generic, Optional, TypeVar
 from typing_extensions import override
 
 from ranzen.torch import DcModule
