@@ -1,6 +1,7 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Callable, Optional, Union, cast
+from typing import TYPE_CHECKING, Optional, Union, cast
 from typing_extensions import override
 
 import timm

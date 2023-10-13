@@ -78,6 +78,7 @@ ignore = [
   "E741",  # Ambiguous variable name
   "UP006", # generic standard library
   "UP007", # new-style unions
+  "UP038", # isinstance check with unions
 ]
 
 [tool.ruff.isort]

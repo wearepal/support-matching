@@ -2,8 +2,8 @@ from abc import abstractmethod
 from collections import defaultdict
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import ClassVar, Generic, Literal, Optional, TypeVar, Union
-from typing_extensions import Self, TypeAlias
+from typing import ClassVar, Generic, Literal, Optional, TypeAlias, TypeVar, Union
+from typing_extensions import Self
 
 from conduit.data.structures import SampleBase, TernarySample
 from conduit.metrics import accuracy

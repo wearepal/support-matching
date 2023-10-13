@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import TypeVar
-from typing_extensions import TypeAlias
+from typing import TypeAlias, TypeVar
 
 import torch.nn as nn
 

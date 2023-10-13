@@ -1,6 +1,7 @@
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from enum import Enum, auto
-from typing import Callable, Literal, Optional, Union, cast
+from typing import Literal, Optional, Union, cast
 from typing_extensions import Self, override
 
 import torch

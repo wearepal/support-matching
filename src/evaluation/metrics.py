@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from enum import Enum
 from functools import partial
 from pathlib import Path
-from typing import Optional, Union
-from typing_extensions import Self, TypeAlias
+from typing import Optional, TypeAlias, Union
+from typing_extensions import Self
 
 from conduit import metrics as cdtm
 from conduit.models.utils import prefix_keys
