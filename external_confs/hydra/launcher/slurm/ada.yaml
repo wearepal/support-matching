@@ -1,13 +1,13 @@
-#
+---
 # usage: hydra/launcher=slurm/ada
-#
+
 defaults:
   - submitit_slurm
 
 partition: ada
 cpus_per_task: 10  # on ada, we have 8 CPUs per GPU, but we use 10
 timeout_min: 99999  # 99999 minutes = a few months
-
-additional_parameters:
-  gres: "gpu:1"  # 1 GPU
-  # gres: "shard:1"  # 8 GB of GPU memory
+gres: "gpu:1"  # 1 GPU
+# gres: "shard:1"  # 8 GB of GPU memory
+array_parallelism: 6
+name: suds

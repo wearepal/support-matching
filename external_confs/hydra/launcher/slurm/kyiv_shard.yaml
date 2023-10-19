@@ -8,5 +8,5 @@ partition: kyiv
 cpus_per_task: 12  # on kyiv, we have 24 CPUs per GPU
 timeout_min: 99999  # 99999 minutes = a few months
 
-additional_parameters:
-  gres: "shard:5"  # 5 shards à 8GB
+gres: "shard:5"  # 5 shards à 8GB
+name: suds
