@@ -112,6 +112,7 @@ classes = ["MISSING", "LAFTR", "NICOPP"]
 "__init__.py" = [
   "F403", # star import
 ]
+"analysis/*" = ["E402"] # import at top of file
 
 [tool.pyright]
 pythonVersion = "3.10"

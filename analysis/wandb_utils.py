@@ -1,15 +1,16 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum, auto
 import math
 from pathlib import Path
-from typing import Callable, Final, NamedTuple, Optional, Union
+from typing import Final, NamedTuple, Optional, Union
 
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 import pandas as pd
+from ranzen.wandb import RunsDownloader
 import seaborn as sns
-from wandb_downloader import RunsDownloader
 
 __all__ = [
     "Group",
@@ -92,14 +93,24 @@ AGG_METRICS_COL_NAMES: Final = {
 
 
 class MethodName(Enum):
-    ours_no_balancing = "Ours (No Balancing)"
-    ours_bag_oracle = "Ours (Bag Oracle)"
-    erm = "ERM"
-    gdro = "gDRO"
-    george = "GEORGE"
-    dro = "DRO"
-    lff = "LfF"
-    erm_oracle = "ERM (Label Oracle)"
+    # ours_no_balancing = "Ours (No Balancing)"
+    # ours_bag_oracle = "Ours (Bag Oracle)"
+    ours_no_balancing = "Ours (Oracle=$\\varnothing$)"
+    ours_bag_oracle = "Ours (Oracle=B)"
+    erm = "ERM (Oracle=$\\varnothing$)"
+    gdro = "gDRO (Oracle=$\\varnothing$)"
+    gdro_oracle = "gDRO (Oracle=Y)"
+    george = "GEORGE (Oracle=$\\varnothing$)"
+    dro = "DRO (Oracle=V)"
+    lff = "LfF (Oracle=$\\varnothing$)"
+    erm_oracle = "ERM (Oracle=B & Y)"
+    dfr = "DFR (Oracle=B & Y)"
+    ours_no_bags = "Ours (sample-wise)"
+    ours_with_bags = "Ours (bag-wise)"
+
+
+class CustomMethod(NamedTuple):
+    value: str
 
 
 METHOD_RENAMES: Final = {
@@ -197,7 +208,7 @@ def load_data(*csv_files: Path) -> pd.DataFrame:
 
 
 class Group(NamedTuple):
-    name: MethodName
+    name: MethodName | CustomMethod
     metrics_prefix: str = ""
     metrics_suffix: str = " (pytorch_classifier)"
 
@@ -356,31 +367,50 @@ def _make_plot(
     fig, plot = plt.subplots(figsize=fig_dim, dpi=300, facecolor="white")
     if plot_style is PlotStyle.boxplot:
         sns.set_palette("husl", 12)
-        sns.boxplot(y="Method", x=renamed_col_to_plot, data=df, ax=plot, whis=1.0)
+        sns.boxplot(
+            y="Method",
+            x=renamed_col_to_plot,
+            data=df,
+            ax=plot,
+            whis=1.0,
+            medianprops={"color": "black", "linewidth": 4},
+            boxprops={"edgecolor": "black"},
+            # notch=True,
+        )
     else:
         df = df.rename(columns={"Method": "x-axis", "misc.log_method": "Method"}, inplace=False)
-        if plot_style is PlotStyle.scatterplot:
-            sns.set_palette("pastel")
-            sns.scatterplot(
-                x="x-axis",
-                y=renamed_col_to_plot,
-                data=df,
-                ax=plot,
-                style="Method",
-                hue="Method",
-            )
-        elif plot_style is PlotStyle.lineplot:
-            sns.set_palette("Set2")
-            sns.lineplot(
-                x="x-axis",
-                y=renamed_col_to_plot,
-                data=df,
-                ax=plot,
-                style="Method",
-                hue="Method",
-            )
-        elif plot_style is PlotStyle.boxplot_hue:
-            sns.boxplot(x="x-axis", y=renamed_col_to_plot, data=df, ax=plot, whis=1.0, hue="Method")
+        match plot_style:
+            case PlotStyle.scatterplot:
+                sns.set_palette("pastel")
+                sns.scatterplot(
+                    x="x-axis",
+                    y=renamed_col_to_plot,
+                    data=df,
+                    ax=plot,
+                    style="Method",
+                    hue="Method",
+                )
+            case PlotStyle.lineplot:
+                sns.set_palette("Set2")
+                sns.lineplot(
+                    x="x-axis",
+                    y=renamed_col_to_plot,
+                    data=df,
+                    ax=plot,
+                    style="Method",
+                    hue="Method",
+                )
+            case PlotStyle.boxplot_hue:
+                sns.boxplot(
+                    x="x-axis",
+                    y=renamed_col_to_plot,
+                    data=df,
+                    ax=plot,
+                    whis=1.0,
+                    hue="Method",
+                    medianprops={"color": "black", "linewidth": 4},
+                    boxprops={"edgecolor": "black"},
+                )
     hatches = ["/", "\\", ".", "x", "/", "\\", ".", "x"]
     for hatch, patch in zip(hatches, plot.artists):
         # patch.set_hatch(hatch)
