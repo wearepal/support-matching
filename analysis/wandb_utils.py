@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 import math
 from pathlib import Path
-from typing import Final, NamedTuple, Optional, Union
+from typing import Final, NamedTuple, Optional, TypedDict, TypeVar, Union
 
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
@@ -16,6 +16,7 @@ __all__ = [
     "Group",
     "MethodName",
     "Metrics",
+    "PlotKwargs",
     "PlotStyle",
     "concat_with_suffix",
     "download_groups",
@@ -97,6 +98,7 @@ class MethodName(Enum):
     # ours_bag_oracle = "Ours (Bag Oracle)"
     ours_no_balancing = "Ours (Oracle=$\\varnothing$)"
     ours_bag_oracle = "Ours (Oracle=B)"
+    ours_clustering = "Ours (Clustering)"
     erm = "ERM (Oracle=$\\varnothing$)"
     gdro = "gDRO (Oracle=$\\varnothing$)"
     gdro_oracle = "gDRO (Oracle=Y)"
@@ -213,14 +215,31 @@ class Group(NamedTuple):
     metrics_suffix: str = " (pytorch_classifier)"
 
 
+def load_groups(group_mapping: dict[Path, Group]) -> pd.DataFrame:
+    """Load data from CSV files.
+
+    This method can also remove metric prefixes and suffixes.
+    """
+    return _gather_groups(group_mapping, pd.read_csv)
+
+
 def download_groups(downloader: RunsDownloader, group_mapping: dict[str, Group]) -> pd.DataFrame:
     """Download groups from W&B which do not have `misc.log_method` set.
 
     This method can also remove metric prefixes and suffixes.
     """
+    return _gather_groups(group_mapping, downloader.groups)
+
+
+T = TypeVar("T")
+
+
+def _gather_groups(
+    group_mapping: dict[T, Group], retriever: Callable[[T], pd.DataFrame]
+) -> pd.DataFrame:
     dfs = []
     for group, (method_name, metric_prefix, metric_suffix) in group_mapping.items():
-        df = downloader.groups(group)
+        df = retriever(group)
         df = df.rename(
             columns={
                 col: col.removeprefix(metric_prefix).removesuffix(metric_suffix)
@@ -240,6 +259,14 @@ class PlotStyle(Enum):
     scatterplot = auto()
 
 
+class PlotKwargs(TypedDict, total=False):
+    file_format: str
+    fig_dim: tuple[float, float]
+    file_prefix: str
+    sens_attr: str
+    output_dir: Union[Path, str]
+
+
 def plot(
     data: pd.DataFrame,
     groupby: str = "misc.log_method",
@@ -256,6 +283,7 @@ def plot(
     hide_left_ticks: bool = False,
     x_label: Optional[str] = None,
     plot_style: PlotStyle = PlotStyle.boxplot,
+    plot_title: Optional[str] = None,
 ) -> None:
     for metric in metrics:
         df = data.copy()
@@ -277,6 +305,7 @@ def plot(
             hide_left_ticks=hide_left_ticks,
             x_label=x_label,
             plot_style=plot_style,
+            plot_title=plot_title,
         )
         filename = _prepare_filename(
             metric=metric, agg=agg, file_format=file_format, file_prefix=file_prefix
@@ -361,6 +390,7 @@ def _make_plot(
     hide_left_ticks: bool,
     x_label: Optional[str],
     plot_style: PlotStyle,
+    plot_title: Optional[str] = None,
 ) -> Figure:
     # sns.set_style("whitegrid")
     plot: Axes
@@ -435,5 +465,7 @@ def _make_plot(
     if hide_left_ticks:
         plot.set_ylabel(None)
         plot.tick_params(left=False, labelleft=False)
+    if plot_title is not None:
+        plot.set_title(plot_title)
 
     return fig
