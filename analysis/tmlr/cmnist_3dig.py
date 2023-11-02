@@ -48,6 +48,16 @@ plot_kwargs: PlotKwargs = {
 plot(data, metrics=[Metrics.acc], x_limits=(nan, 1), **plot_kwargs)
 
 # %%
+plot(
+    data,
+    metrics=[Metrics.acc],
+    agg=Aggregation.min,
+    x_limits=(nan, 1),
+    **plot_kwargs,
+    x_label="Robust Accuracy $\\rightarrow$",
+)
+
+# %%
 plot(data, metrics=[Metrics.hgr], x_limits=(0, nan), **plot_kwargs)
 
 # %%
