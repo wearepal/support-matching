@@ -17,25 +17,25 @@ wandb = RunsDownloader(project="suds", entity="predictive-analytics-lab")
 data = download_groups(
     wandb,
     group_mapping={
-        "celeba.SupportMatching.balanced-False.new_ae_arch_more_iters.no_smiling_females": Group(
+        "celeba.SupportMatching.balanced-False.new_ae_arch_more_iters.no_unsmiling_females": Group(
             name=MethodName.ours_no_balancing
         ),
-        "celeba.SupportMatching.balanced-with-clustering.new_ae_arch_more_iters_hierarchical_clustering.no_smiling_females": Group(
+        "celeba.SupportMatching.balanced-with-clustering.new_ae_arch_more_iters_hierarchical_clustering.no_unsmiling_females": Group(
             name=MethodName.ours_clustering
         ),
-        "celeba.SupportMatching.balanced-True.new_ae_arch_more_iters.no_smiling_females": Group(
+        "celeba.SupportMatching.balanced-True.new_ae_arch_more_iters.no_unsmiling_females": Group(
             name=MethodName.ours_bag_oracle
         ),
-        "celeba.erm.context_mode_unlabelled.erm_no_context_no_reg.no_smiling_females": Group(
+        "celeba.erm.context_mode_unlabelled.erm_no_context_no_reg.no_unsmiling_females": Group(
             name=MethodName.erm, metrics_suffix=" (erm)"
         ),
-        "celeba.gdro.context_mode_cluster_labels.cluster_and_gdro.real_gdro.no_smiling_females": Group(
+        "celeba.gdro.context_mode_cluster_labels.cluster_and_gdro.real_gdro.no_unsmiling_females": Group(
             name=MethodName.george, metrics_suffix=" (gdro)"
         ),
-        "celeba.gdro.context_mode=ContextMode.unlabelled..gdro_tests.no_smiling_females": Group(
+        "celeba.gdro.context_mode=ContextMode.unlabelled..gdro_tests.no_unsmiling_females": Group(
             name=MethodName.gdro, metrics_suffix=" (gdro)"
         ),
-        "celeba.gdro.context_mode_ground_truth.oracle_gdro.celeba_gdro.no_smiling_females": Group(
+        "celeba.gdro.context_mode_ground_truth.oracle_gdro.celeba_gdro.no_unsmiling_females": Group(
             name=MethodName.gdro_oracle, metrics_suffix=" (gdro)"
         ),
     },
@@ -48,9 +48,9 @@ plot_kwargs: PlotKwargs = {
     "fig_dim": (4, 2),
     "file_prefix": "celeba_gender_smiling",
     "sens_attr": "Male",
-    "output_dir": "no_smiling_females",
+    "output_dir": "no_unsmiling_females",
 }
-plot_title = "Missing source: smiling females"
+plot_title = "Missing source: unsmiling females"
 
 # %%
 plot(

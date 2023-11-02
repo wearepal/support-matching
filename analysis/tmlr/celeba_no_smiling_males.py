@@ -65,6 +65,16 @@ plot(
 # %%
 plot(
     data,
+    metrics=[Metrics.acc],
+    x_limits=(nan, 1.0),
+    **{**plot_kwargs, "file_prefix": f"supmat_{plot_kwargs['file_prefix']}"},
+    agg=Aggregation.min,
+    x_label="Robust Accuracy $\\rightarrow$",
+)
+
+# %%
+plot(
+    data,
     metrics=[Metrics.acc, Metrics.tprr, Metrics.tnrr],
     x_limits=(nan, 1.0),
     **plot_kwargs,

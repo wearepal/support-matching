@@ -107,7 +107,7 @@ class MethodName(Enum):
     lff = "LfF (Oracle=$\\varnothing$)"
     erm_oracle = "ERM (Oracle=B & Y)"
     dfr = "DFR (Oracle=B & Y)"
-    ours_no_bags = "Ours (sample-wise)"
+    ours_no_bags = "Ours (instance-wise)"
     ours_with_bags = "Ours (bag-wise)"
 
 
@@ -284,6 +284,7 @@ def plot(
     x_label: Optional[str] = None,
     plot_style: PlotStyle = PlotStyle.boxplot,
     plot_title: Optional[str] = None,
+    with_legend: bool = True,
 ) -> None:
     for metric in metrics:
         df = data.copy()
@@ -306,6 +307,7 @@ def plot(
             x_label=x_label,
             plot_style=plot_style,
             plot_title=plot_title,
+            with_legend=with_legend,
         )
         filename = _prepare_filename(
             metric=metric, agg=agg, file_format=file_format, file_prefix=file_prefix
@@ -391,6 +393,7 @@ def _make_plot(
     x_label: Optional[str],
     plot_style: PlotStyle,
     plot_title: Optional[str] = None,
+    with_legend: bool = True,
 ) -> Figure:
     # sns.set_style("whitegrid")
     plot: Axes
@@ -467,5 +470,7 @@ def _make_plot(
         plot.tick_params(left=False, labelleft=False)
     if plot_title is not None:
         plot.set_title(plot_title)
+    if not with_legend and (legend := plot.get_legend()) is not None:
+        legend.set_visible(False)
 
     return fig

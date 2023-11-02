@@ -44,6 +44,7 @@ plot(
     file_format="pdf",
     fig_dim=(3.0, 5.0),
     file_prefix="nicopp_labelnoise",
+    with_legend=False,
 )
 
 # %%
