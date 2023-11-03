@@ -23,10 +23,10 @@ with_noise = download_groups(
     {
         "our_method_2023-10-02_noise_0.2": Group(MethodName.ours_bag_oracle, "test/y_from_zy/", ""),
         "our_method_2023-10-02_noise_0.4": Group(MethodName.ours_bag_oracle, "test/y_from_zy/", ""),
-        # "our_method_2023-10-02_noise_0.6": Group(MethodName.ours_bag_oracle, "test/y_from_zy/", ""),
-        "our_method_2023-10-30_noise_0.6_seeded_noise": Group(
-            MethodName.ours_bag_oracle, "test/y_from_zy/", ""
-        ),
+        "our_method_2023-10-02_noise_0.6": Group(MethodName.ours_bag_oracle, "test/y_from_zy/", ""),
+        # "our_method_2023-10-30_noise_0.6_seeded_noise": Group(
+        #     MethodName.ours_bag_oracle, "test/y_from_zy/", ""
+        # ),
     },
 )
 data = simple_concat(baseline, with_noise)

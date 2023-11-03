@@ -50,14 +50,14 @@ plot_kwargs: PlotKwargs = {
     "sens_attr": "Male",
     "output_dir": "no_smiling_males",
 }
-plot_title = "Missing source: smiling females"
+plot_title = "Missing source: smiling males"
 
 # %%
 plot(
     data,
     metrics=[Metrics.acc],
     x_limits=(0.65, 1.0),
-    **{**plot_kwargs, "file_prefix": f"cutoff_{plot_kwargs['file_prefix']}"},
+    **{**plot_kwargs, "output_dir": f"{plot_kwargs['output_dir']}_cutoff"},
     agg=Aggregation.min,
     x_label="Robust Accuracy $\\rightarrow$",
 )

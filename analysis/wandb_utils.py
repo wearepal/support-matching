@@ -94,16 +94,14 @@ AGG_METRICS_COL_NAMES: Final = {
 
 
 class MethodName(Enum):
-    # ours_no_balancing = "Ours (No Balancing)"
-    # ours_bag_oracle = "Ours (Bag Oracle)"
     ours_no_balancing = "Ours (Oracle=$\\varnothing$)"
     ours_bag_oracle = "Ours (Oracle=B)"
     ours_clustering = "Ours (Clustering)"
     erm = "ERM (Oracle=$\\varnothing$)"
     gdro = "gDRO (Oracle=$\\varnothing$)"
-    gdro_oracle = "gDRO (Oracle=Y)"
+    gdro_oracle = "gDRO (Oracle=A & Y)"
     george = "GEORGE (Oracle=$\\varnothing$)"
-    dro = "DRO (Oracle=V)"
+    dro = "DRO (Oracle=A* & Y*)"
     lff = "LfF (Oracle=$\\varnothing$)"
     erm_oracle = "ERM (Oracle=B & Y)"
     dfr = "DFR (Oracle=B & Y)"
