@@ -4,6 +4,7 @@ import sys
 sys.path.append("..")
 # %%
 from math import nan
+from pathlib import Path
 
 from ranzen.wandb import RunsDownloader
 from wandb_utils import Aggregation, Group, MethodName, Metrics, PlotKwargs, download_groups, plot
@@ -57,7 +58,7 @@ plot(
     data,
     metrics=[Metrics.acc],
     x_limits=(0.65, 1.0),
-    **{**plot_kwargs, "output_dir": f"{plot_kwargs['output_dir']}_cutoff"},
+    **{**plot_kwargs, "output_dir": Path("cutoff") / plot_kwargs['output_dir']},
     agg=Aggregation.min,
     x_label="Robust Accuracy $\\rightarrow$",
 )
@@ -75,7 +76,7 @@ plot(
 # %%
 plot(
     data,
-    metrics=[Metrics.acc, Metrics.tprr, Metrics.tnrr],
+    metrics=[Metrics.acc, Metrics.prr, Metrics.tprr, Metrics.tnrr],
     x_limits=(nan, 1.0),
     **plot_kwargs,
     fillna=True,

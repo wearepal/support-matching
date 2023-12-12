@@ -58,6 +58,9 @@ plot(
 )
 
 # %%
+plot(data, metrics=[Metrics.prr], x_limits=(-0.01, 1), **plot_kwargs)
+
+# %%
 plot(data, metrics=[Metrics.tprr], x_limits=(-0.01, 1), **plot_kwargs)
 
 # %%

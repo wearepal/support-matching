@@ -82,6 +82,9 @@ plot(data, metrics=[Metrics.acc], x_limits=(nan, 1), **plot_kwargs)
 plot(data, metrics=[Metrics.acc], agg=Aggregation.min, x_label="Robust Accuracy $\\rightarrow$", x_limits=(nan, 1), **plot_kwargs)
 
 # %%
+plot(data, metrics=[Metrics.prr], x_limits=(-0.01, 1), **plot_kwargs)
+
+# %%
 plot(data, metrics=[Metrics.tprr], x_limits=(-0.01, 1), **plot_kwargs)
 
 # %%
