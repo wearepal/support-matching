@@ -10,7 +10,9 @@ from wandb_utils import (
     Group,
     MethodName,
     Metrics,
+    SpecialMetrics,
     download_groups,
+    generate_table,
     plot,
     simple_concat,
 )
@@ -59,4 +61,13 @@ plot(
     fig_dim=(5.0, 2.3),
     file_prefix="nicopp",
 )
+# %%
+generate_table(
+    data,
+    metrics=[
+        SpecialMetrics.acc_table,
+        SpecialMetrics.rob_tpr_ovr_table,
+    ],
+)
+
 # %%

@@ -7,7 +7,16 @@ from math import nan
 from pathlib import Path
 
 from ranzen.wandb import RunsDownloader
-from wandb_utils import Aggregation, Group, MethodName, Metrics, PlotKwargs, download_groups, plot
+from wandb_utils import (
+    Group,
+    MethodName,
+    Metrics,
+    PlotKwargs,
+    SpecialMetrics,
+    download_groups,
+    generate_table,
+    plot,
+)
 
 # %%
 wandb = RunsDownloader(project="suds", entity="predictive-analytics-lab")
@@ -56,30 +65,31 @@ plot_title = "Missing source: unsmiling males"
 # %%
 plot(
     data,
-    metrics=[Metrics.acc],
+    metrics=[SpecialMetrics.rob_acc],
     x_limits=(0.65, 1.0),
-    **{**plot_kwargs, "output_dir": Path("cutoff") / plot_kwargs['output_dir']},
-    agg=Aggregation.min,
-    x_label="Robust Accuracy $\\rightarrow$",
+    **{**plot_kwargs, "output_dir": Path("cutoff") / plot_kwargs["output_dir"]},
 )
 
 # %%
 plot(
     data,
-    metrics=[Metrics.acc],
-    x_limits=(nan, 1.0),
-    **plot_kwargs,
-    agg=Aggregation.min,
-    x_label="Robust Accuracy $\\rightarrow$",
-)
-
-# %%
-plot(
-    data,
-    metrics=[Metrics.acc, Metrics.prr, Metrics.tprr, Metrics.tnrr],
+    metrics=[Metrics.acc, SpecialMetrics.rob_acc, Metrics.prr, Metrics.tprr, Metrics.tnrr],
     x_limits=(nan, 1.0),
     **plot_kwargs,
     fillna=True,
+)
+
+# %%
+generate_table(
+    data,
+    metrics=[
+        SpecialMetrics.acc_table,
+        SpecialMetrics.rob_acc_table,
+        Metrics.prr,
+        Metrics.tprr,
+        Metrics.tnrr,
+    ],
+    sens_attr="Male",
 )
 
 # %%

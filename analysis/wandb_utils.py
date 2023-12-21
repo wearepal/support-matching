@@ -93,6 +93,7 @@ class SpecialMetrics:
     acc_table: ClassVar[Triplet] = (Metrics.acc, None, "Acc. $\\uparrow$")
     rob_acc_table: ClassVar[Triplet] = (Metrics.acc, Aggregation.min, "Rob. Acc. $\\uparrow$")
     rob_acc: ClassVar[Triplet] = (Metrics.acc, Aggregation.min, "Robust Accuracy $\\rightarrow$")
+    rob_tpr_ovr_table: ClassVar[Triplet] = (Metrics.rob_tpr_ovr, None, "Rob. TPR OvR $\\uparrow$")
 
 
 AGG_METRICS_COL_NAMES: Final = {
@@ -520,7 +521,7 @@ class TableAggregation(Enum):
 def generate_table(
     df: pd.DataFrame,
     metrics: list[Metrics | Triplet] = [Metrics.acc],
-    aggregation: TableAggregation = TableAggregation.median_iqr,
+    aggregation: TableAggregation = TableAggregation.mean_std,
     base_cols: Iterable[str] = ("misc.log_method",),
     round_to: int = 2,
     sens_attr: str = "colour",
@@ -543,6 +544,9 @@ def generate_table(
         col_renames["misc.log_method"] = "Method"
         base_cols.remove("misc.log_method")
         base_cols.append("Method")
+
+        # Replace the '&' in the method names with '\&' to avoid LaTeX errors.
+        df["misc.log_method"] = df["misc.log_method"].str.replace("&", "\\&", regex=False)
 
     df = df[cols_to_plot]
     df = df.rename(columns=col_renames, inplace=False)

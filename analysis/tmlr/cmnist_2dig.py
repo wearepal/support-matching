@@ -63,6 +63,7 @@ plot_kwargs: PlotKwargs = {
     "file_format": "pdf",
     "fig_dim": (5.0, 1.6),
     "file_prefix": "cmnist_2v4_partial",
+    "output_dir": "cmnist_2v4_partial",
 }
 
 # %%
