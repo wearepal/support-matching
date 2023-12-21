@@ -5,7 +5,6 @@ from typing import Final, Optional
 
 import numpy as np
 import pandas as pd
-# %%
 import typer
 
 __all__ = ["Metrics", "METRICS_COL_NAMES", "METRICS_RENAMES"]

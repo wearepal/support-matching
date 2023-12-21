@@ -1,13 +1,15 @@
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from enum import Enum, auto
 import math
+import operator
 from pathlib import Path
-from typing import Final, NamedTuple, Optional, TypedDict, TypeVar, Union
+from typing import ClassVar, Final, NamedTuple, Optional, TypeAlias, TypedDict, TypeVar, Union
 
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+import numpy as np
 import pandas as pd
 from ranzen.wandb import RunsDownloader
 import seaborn as sns
@@ -18,8 +20,11 @@ __all__ = [
     "Metrics",
     "PlotKwargs",
     "PlotStyle",
+    "SpecialMetrics",
+    "TableAggregation",
     "concat_with_suffix",
     "download_groups",
+    "generate_table",
     "load_data",
     "plot",
     "simple_concat",
@@ -52,10 +57,42 @@ class Metrics(Enum):
         self.display_name = display_name
 
 
+@dataclass
+class Aggregate:
+    agg: Callable[[pd.Series, pd.Series], pd.Series]
+    suffix: str
+    default_value: int
+
+    def __call__(self, df: pd.DataFrame, to_aggregate: list[str], display_name: str) -> str:
+        ratios = tuple(df[col] for col in to_aggregate)
+        min_ = pd.Series(self.default_value, ratios[0].index)
+        for ratio in ratios:
+            min_ = min_.where(self.agg(min_, ratio), ratio)
+        new_col = display_name.format(a=self.suffix)
+        df[new_col] = min_
+        return new_col
+
+
 class Aggregation(Enum):
-    none = auto()
-    min = auto()
-    max = auto()
+    min = (Aggregate(agg=operator.lt, suffix=" min", default_value=1),)
+    max = (Aggregate(agg=operator.gt, suffix=" max", default_value=0),)
+
+    def __init__(self, aggregate: Aggregate):
+        self.aggregate = aggregate
+
+
+Triplet: TypeAlias = tuple[Metrics, Aggregation | None, str]
+
+
+class SpecialMetrics:
+    """Collection of metric triplets.
+
+    This is not an enum because we want to still be able to pass custom triplets to functions.
+    """
+
+    acc_table: ClassVar[Triplet] = (Metrics.acc, None, "Acc. $\\uparrow$")
+    rob_acc_table: ClassVar[Triplet] = (Metrics.acc, Aggregation.min, "Rob. Acc. $\\uparrow$")
+    rob_acc: ClassVar[Triplet] = (Metrics.acc, Aggregation.min, "Robust Accuracy $\\rightarrow$")
 
 
 AGG_METRICS_COL_NAMES: Final = {
@@ -167,26 +204,6 @@ def merge_cols(df: pd.DataFrame, correct_col: str, incorrect_col: str) -> bool:
     return True
 
 
-@dataclass
-class Aggregate:
-    agg: Callable[[pd.Series, pd.Series], pd.Series]
-    suffix: str
-    default_value: int
-
-    def __call__(self, df: pd.DataFrame, to_aggregate: list[str], display_name: str) -> str:
-        ratios = tuple(df[col] for col in to_aggregate)
-        min_ = pd.Series(self.default_value, ratios[0].index)
-        for ratio in ratios:
-            min_ = min_.where(self.agg(min_, ratio), ratio)
-        new_col = display_name.format(a=self.suffix)
-        df[new_col] = min_
-        return new_col
-
-
-compute_min = Aggregate(agg=lambda x, y: x < y, suffix=" min", default_value=1)
-compute_max = Aggregate(agg=lambda x, y: x > y, suffix=" max", default_value=0)
-
-
 def simple_concat(*dfs: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(dfs, axis="index", sort=False, ignore_index=True)
 
@@ -268,7 +285,7 @@ class PlotKwargs(TypedDict, total=False):
 def plot(
     data: pd.DataFrame,
     groupby: str = "misc.log_method",
-    metrics: list[Metrics] = [Metrics.acc],
+    metrics: list[Metrics | Triplet] = [Metrics.acc],
     sens_attr: str = "colour",
     output_dir: Union[Path, str] = Path("."),
     file_format: str = "png",
@@ -276,7 +293,7 @@ def plot(
     fig_dim: tuple[float, float] = (4.0, 6.0),
     y_limits: tuple[float, float] = (math.nan, math.nan),
     x_limits: tuple[float, float] = (math.nan, math.nan),
-    agg: Aggregation = Aggregation.none,
+    agg: Aggregation | None = None,
     fillna: bool = False,
     hide_left_ticks: bool = False,
     x_label: Optional[str] = None,
@@ -286,11 +303,16 @@ def plot(
 ) -> None:
     for metric in metrics:
         df = data.copy()
+        metric_name: str | None = None
+        if isinstance(metric, tuple):
+            # Override the aggregation if it was specified together with the metric.
+            metric, agg, metric_name = metric
         df, renamed_col_to_plot = _prepare_dataframe(
             df,
             groupby=groupby,
-            agg=agg,
             metric=metric,
+            agg=agg,
+            metric_name=metric_name,
             sens_attr=sens_attr,
             fillna=fillna,
         )
@@ -319,43 +341,15 @@ def plot(
 def _prepare_dataframe(
     df: pd.DataFrame,
     groupby: str,
-    agg: Aggregation,
     metric: Metrics,
+    agg: Aggregation | None,
+    metric_name: str | None,
     sens_attr: str,
     fillna: bool,
 ) -> tuple[pd.DataFrame, str]:
-    """Merge columns to get the right metrics and find out the right column to plot.
-
-    The problem that this function solves is that we at some point decided to include the classifier
-    name in the metric name. So, for example "Accuracy (pytorch_classifier)" or "Accuracy (Logistic
-    Regression)". This function normalizes the metric names so that they're all the same and all in
-    one column.
-    """
-    if agg is Aggregation.none:
-        column_to_plot = metric.col_name.format(s=sens_attr)
-        col_renames = {column_to_plot: metric.display_name.format(a="")}
-
-        # # merge all other classifier-based columns into the first column
-        # for classifier in KNOWN_CLASSIFIERS:
-        #     merge_cols(df, column_to_plot, f"{metric.col_name.format(s=sens_attr)} ({classifier})")
-    else:
-        cols_to_aggregate = list(AGG_METRICS_COL_NAMES[metric](sens_attr))
-
-        # # merge all other classifier-based columns into the first column
-        # for classifier in KNOWN_CLASSIFIERS[1:]:
-        #     suffixed_metrics = [
-        #         f"{n} ({classifier})" for n in AGG_METRICS_COL_NAMES[metric](sens_attr)
-        #     ]
-        #     for col_to_aggregate, variant in zip(cols_to_aggregate, suffixed_metrics):
-        #         merge_cols(df, col_to_aggregate, variant)
-
-        if agg is Aggregation.max:
-            column_to_plot = compute_max(df, cols_to_aggregate, metric.display_name)
-        else:
-            column_to_plot = compute_min(df, cols_to_aggregate, metric.display_name)
-
-        # no need for a rename because we wrote the result in the correctly named column
-        col_renames = {column_to_plot: column_to_plot}
+    """Process renames for the metrics and perform aggregation if necessary."""
+    column_to_plot, new_col_name = _aggregate_and_get_new_name(df, agg, metric, sens_attr)
+    col_renames = {column_to_plot: new_col_name if metric_name is None else metric_name}
 
     base_cols = [groupby]
     if groupby != "misc.log_method":
@@ -371,9 +365,27 @@ def _prepare_dataframe(
     return df, col_renames[column_to_plot]
 
 
-def _prepare_filename(metric: Metrics, agg: Aggregation, file_format: str, file_prefix: str) -> str:
+def _aggregate_and_get_new_name(
+    df: pd.DataFrame, agg: Aggregation | None, metric: Metrics, sens_attr: str
+) -> tuple[str, str]:
+    new_col_name: str
+    if agg is None:
+        column_to_plot = metric.col_name.format(s=sens_attr)
+        new_col_name = metric.display_name.format(a="")
+    else:
+        cols_to_aggregate = list(AGG_METRICS_COL_NAMES[metric](sens_attr))
+        column_to_plot = agg.aggregate(df, cols_to_aggregate, metric.display_name)
+
+        # no need for a rename because we wrote the result in the correctly named column
+        new_col_name = column_to_plot
+    return column_to_plot, new_col_name
+
+
+def _prepare_filename(
+    metric: Metrics, agg: Aggregation | None, file_format: str, file_prefix: str
+) -> str:
     filename = metric.name
-    if agg is not Aggregation.none:
+    if agg is not None:
         filename += f"-{agg.name}"
     filename += f".{file_format}"
     if file_prefix:
@@ -472,3 +484,71 @@ def _make_plot(
         legend.set_visible(False)
 
     return fig
+
+
+class MeanStd:
+    def __init__(self, round_to: int):
+        self.round_to = round_to
+
+    def __call__(self, data: np.ndarray) -> str:
+        mean = np.mean(data)
+        if math.isnan(mean):
+            return "N/A"
+        std = np.std(data)
+        round_level = self.round_to if std > 2 * pow(10, -self.round_to) else self.round_to + 1
+        return f"{round(mean, round_level)} $\\pm$ {round(std, round_level)}"
+
+
+class MedianIQR:
+    def __init__(self, round_to: int):
+        self.round_to = round_to
+
+    def __call__(self, data: np.ndarray) -> str:
+        q1, median, q3 = np.quantile(data, [0.25, 0.5, 0.75])
+        iqr = q3 - q1
+        if math.isnan(median):
+            return "N/A"
+        # round_level = self.round_to if std > 2 * pow(10, -self.round_to) else self.round_to + 1
+        return f"{round(median, self.round_to)} $\\pm$ {round(iqr, self.round_to)}"
+
+
+class TableAggregation(Enum):
+    mean_std = MeanStd
+    median_iqr = MedianIQR
+
+
+def generate_table(
+    df: pd.DataFrame,
+    metrics: list[Metrics | Triplet] = [Metrics.acc],
+    aggregation: TableAggregation = TableAggregation.median_iqr,
+    base_cols: Iterable[str] = ("misc.log_method",),
+    round_to: int = 2,
+    sens_attr: str = "colour",
+) -> None:
+    AggClass = aggregation.value
+    col_renames: dict[str, str] = {}
+    for metric in metrics:
+        metric_name: str | None = None
+        if isinstance(metric, tuple):
+            metric, agg, metric_name = metric
+        else:
+            agg = None
+        column_to_plot, new_col_name = _aggregate_and_get_new_name(df, agg, metric, sens_attr)
+        col_renames[column_to_plot] = new_col_name if metric_name is None else metric_name
+
+    base_cols = list(base_cols)
+    cols_to_plot = base_cols + list(col_renames.keys())
+
+    if "misc.log_method" in base_cols:
+        col_renames["misc.log_method"] = "Method"
+        base_cols.remove("misc.log_method")
+        base_cols.append("Method")
+
+    df = df[cols_to_plot]
+    df = df.rename(columns=col_renames, inplace=False)
+    print(
+        df.groupby(base_cols, sort=False)
+        .agg(AggClass(round_to=round_to))
+        .reset_index(level=base_cols, inplace=False)
+        .to_latex(escape=False, index=False)
+    )

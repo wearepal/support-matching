@@ -7,7 +7,16 @@ sys.path.append("..")
 from math import nan
 from pathlib import Path
 
-from wandb_utils import Aggregation, Group, MethodName, Metrics, PlotKwargs, load_groups, plot
+from wandb_utils import (
+    Group,
+    MethodName,
+    Metrics,
+    PlotKwargs,
+    SpecialMetrics,
+    generate_table,
+    load_groups,
+    plot,
+)
 
 # %%
 results_dir = Path("../../results/cmnist/2v4/subsampled-0.66cont/")
@@ -38,6 +47,18 @@ data = load_groups(
 )
 
 # %%
+generate_table(
+    data,
+    metrics=[
+        SpecialMetrics.acc_table,
+        SpecialMetrics.rob_acc_table,
+        Metrics.prr,
+        Metrics.tprr,
+        Metrics.tnrr,
+    ],
+)
+
+# %%
 plot_kwargs: PlotKwargs = {
     "file_format": "pdf",
     "fig_dim": (5.0, 1.6),
@@ -48,14 +69,7 @@ plot_kwargs: PlotKwargs = {
 plot(data, metrics=[Metrics.acc], x_limits=(nan, 1), **plot_kwargs)
 
 # %%
-plot(
-    data,
-    metrics=[Metrics.acc],
-    agg=Aggregation.min,
-    x_label="Robust Accuracy $\\rightarrow$",
-    x_limits=(nan, 1),
-    **plot_kwargs,
-)
+plot(data, metrics=[SpecialMetrics.rob_acc], x_limits=(nan, 1), **plot_kwargs)
 
 # %%
 plot(data, metrics=[Metrics.prr], x_limits=(-0.01, 1), **plot_kwargs)
