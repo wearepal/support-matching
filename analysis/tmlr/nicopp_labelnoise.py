@@ -4,6 +4,8 @@ import sys
 sys.path.append("..")
 
 # %%
+from pathlib import Path
+
 from ranzen.wandb import RunsDownloader
 from wandb_utils import Group, MethodName, Metrics, PlotStyle, download_groups, plot, simple_concat
 
@@ -51,6 +53,7 @@ plot(
     fig_dim=(3.0, 5.0),
     file_prefix="nicopp_labelnoise",
     with_legend=False,
+    output_dir=Path("nicopp"),
 )
 
 # %%

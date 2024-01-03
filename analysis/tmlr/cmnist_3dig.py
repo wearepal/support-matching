@@ -42,6 +42,7 @@ plot_kwargs: PlotKwargs = {
     "file_format": "pdf",
     "fig_dim": (5, 1.25),
     "file_prefix": "cmnist_3dig_4miss",
+    "output_dir": Path("cmnist") / "supmat",
 }
 
 # %%

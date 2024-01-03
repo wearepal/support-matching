@@ -30,9 +30,6 @@ data = load_groups(
         results_dir / "ranking-fdm.simplified.strong_subs.subsampled.csv": Group(
             MethodName.ours_clustering
         ),
-        results_dir / "perfect-cluster.simplified.strong_subs.subsampled.csv": Group(
-            MethodName.ours_bag_oracle
-        ),
         results_dir / "cmnist_baseline_cnn_color_60epochs.csv": Group(
             MethodName.erm, metrics_suffix=" (cnn)"
         ),
@@ -43,19 +40,10 @@ data = load_groups(
         results_dir / "cmnist_baseline_lff_color_60epochs.csv": Group(
             MethodName.lff, metrics_suffix=" (lff)"
         ),
+        results_dir / "perfect-cluster.simplified.strong_subs.subsampled.csv": Group(
+            MethodName.ours_bag_oracle
+        ),
     }
-)
-
-# %%
-generate_table(
-    data,
-    metrics=[
-        SpecialMetrics.acc_table,
-        SpecialMetrics.rob_acc_table,
-        Metrics.prr,
-        Metrics.tprr,
-        Metrics.tnrr,
-    ],
 )
 
 # %%
@@ -63,7 +51,8 @@ plot_kwargs: PlotKwargs = {
     "file_format": "pdf",
     "fig_dim": (5.0, 1.6),
     "file_prefix": "cmnist_2v4_partial",
-    "output_dir": "cmnist_2v4_partial",
+    "output_dir": Path("cmnist") / "subgroup_bias",
+    "separator_after": 4,
 }
 
 # %%
@@ -80,5 +69,17 @@ plot(data, metrics=[Metrics.tprr], x_limits=(-0.01, 1), **plot_kwargs)
 
 # %%
 plot(data, metrics=[Metrics.tnrr], x_limits=(nan, 1), **plot_kwargs)
+
+# %%
+generate_table(
+    data,
+    metrics=[
+        SpecialMetrics.acc_table,
+        SpecialMetrics.rob_acc_table,
+        SpecialMetrics.prr_table,
+        SpecialMetrics.tprr_table,
+        SpecialMetrics.tnrr_table,
+    ],
+)
 
 # %%

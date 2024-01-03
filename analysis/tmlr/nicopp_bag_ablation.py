@@ -4,8 +4,18 @@ import sys
 sys.path.append("..")
 
 # %%
+from pathlib import Path
+
 from ranzen.wandb import RunsDownloader
-from wandb_utils import Group, MethodName, Metrics, download_groups, plot
+from wandb_utils import (
+    Group,
+    MethodName,
+    Metrics,
+    SpecialMetrics,
+    download_groups,
+    generate_table,
+    plot,
+)
 
 # %%
 downloader = RunsDownloader(project="support-matching", entity="predictive-analytics-lab")
@@ -29,8 +39,15 @@ plot(
     # x_limits=(0.48, 1),
     # plot_style=PlotStyle.boxplot_hue,
     file_format="pdf",
-    fig_dim=(5.0, 1.0),
+    fig_dim=(5.0, 0.6),
     file_prefix="nicopp_bag_ablation",
+    output_dir=Path("nicopp"),
+)
+
+# %%
+generate_table(
+    data,
+    metrics=[SpecialMetrics.acc_table, SpecialMetrics.rob_tpr_ovr_table],
 )
 
 # %%

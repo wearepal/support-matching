@@ -91,6 +91,9 @@ class SpecialMetrics:
     """
 
     acc_table: ClassVar[Triplet] = (Metrics.acc, None, "Acc. $\\uparrow$")
+    prr_table: ClassVar[Triplet] = (Metrics.prr, None, "PR ratio")
+    tprr_table: ClassVar[Triplet] = (Metrics.tprr, None, "TPR ratio")
+    tnrr_table: ClassVar[Triplet] = (Metrics.tnrr, None, "TNR ratio")
     rob_acc_table: ClassVar[Triplet] = (Metrics.acc, Aggregation.min, "Rob. Acc. $\\uparrow$")
     rob_acc: ClassVar[Triplet] = (Metrics.acc, Aggregation.min, "Robust Accuracy $\\rightarrow$")
     rob_tpr_ovr_table: ClassVar[Triplet] = (Metrics.rob_tpr_ovr, None, "Rob. TPR OvR $\\uparrow$")
@@ -137,12 +140,12 @@ class MethodName(Enum):
     ours_clustering = "Ours (Clustering)"
     erm = "ERM (Oracle=$\\varnothing$)"
     gdro = "gDRO (Oracle=$\\varnothing$)"
-    gdro_oracle = "gDRO (Oracle=A & Y)"
+    gdro_oracle = "gDRO (Oracle=A&Y)"
     george = "GEORGE (Oracle=$\\varnothing$)"
-    dro = "DRO (Oracle=A* & Y*)"
+    dro = "DRO (Oracle=A*&Y*)"
     lff = "LfF (Oracle=$\\varnothing$)"
-    erm_oracle = "ERM (Oracle=B & Y)"
-    dfr = "DFR (Oracle=B & Y)"
+    erm_oracle = "ERM (Oracle=B&Y)"
+    dfr = "DFR (Oracle=B&Y)"
     ours_no_bags = "Ours (instance-wise)"
     ours_with_bags = "Ours (bag-wise)"
 
@@ -281,6 +284,7 @@ class PlotKwargs(TypedDict, total=False):
     file_prefix: str
     sens_attr: str
     output_dir: Union[Path, str]
+    separator_after: int | None
 
 
 def plot(
@@ -301,6 +305,7 @@ def plot(
     plot_style: PlotStyle = PlotStyle.boxplot,
     plot_title: Optional[str] = None,
     with_legend: bool = True,
+    separator_after: int | None = None,
 ) -> None:
     for metric in metrics:
         df = data.copy()
@@ -329,6 +334,7 @@ def plot(
             plot_style=plot_style,
             plot_title=plot_title,
             with_legend=with_legend,
+            separator_after=separator_after,
         )
         filename = _prepare_filename(
             metric=metric, agg=agg, file_format=file_format, file_prefix=file_prefix
@@ -405,6 +411,7 @@ def _make_plot(
     plot_style: PlotStyle,
     plot_title: Optional[str] = None,
     with_legend: bool = True,
+    separator_after: int | None = None,
 ) -> Figure:
     # sns.set_style("whitegrid")
     plot: Axes
@@ -421,6 +428,8 @@ def _make_plot(
             boxprops={"edgecolor": "black"},
             # notch=True,
         )
+        # Add vertical gridlines.
+        plot.xaxis.grid(True)
     else:
         df = df.rename(columns={"Method": "x-axis", "misc.log_method": "Method"}, inplace=False)
         match plot_style:
@@ -464,6 +473,9 @@ def _make_plot(
         # Add dense 'x' hatching to the 'oracle' methods
         if isinstance(method, str) and "oracle" in method.lower():
             patch.set_hatch("xxx")
+
+    if separator_after is not None:
+        plot.axhline(separator_after + 0.5, color="dimgray", linestyle="--", linewidth=1)
 
     # if you only want to set one ylim, then pass "nan" on the commandline for the other value
     plot.set_ylim(
@@ -550,6 +562,8 @@ def generate_table(
 
     df = df[cols_to_plot]
     df = df.rename(columns=col_renames, inplace=False)
+    # W&B stores NaNs as strings, so we need to replace them with actual NaNs.
+    df = df.replace("NaN", math.nan, inplace=False)
     print(
         df.groupby(base_cols, sort=False)
         .agg(AggClass(round_to=round_to))

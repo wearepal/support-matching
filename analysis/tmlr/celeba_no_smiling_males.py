@@ -13,7 +13,6 @@ from wandb_utils import (
     Metrics,
     PlotKwargs,
     SpecialMetrics,
-    TableAggregation,
     download_groups,
     generate_table,
     plot,
@@ -34,9 +33,6 @@ data = download_groups(
         "celeba.SupportMatching.balanced-with-clustering.new_ae_arch_more_iters_hierarchical_clustering.no_smiling_males": Group(
             name=MethodName.ours_clustering
         ),
-        "celeba.SupportMatching.balanced-True.new_ae_arch_more_iters.no_smiling_males": Group(
-            name=MethodName.ours_bag_oracle
-        ),
         "celeba.erm.context_mode_unlabelled.erm_no_context_no_reg.no_smiling_males": Group(
             name=MethodName.erm, metrics_suffix=" (erm)"
         ),
@@ -45,6 +41,9 @@ data = download_groups(
         ),
         "celeba.gdro.context_mode=ContextMode.unlabelled..gdro_tests.no_smiling_males": Group(
             name=MethodName.gdro, metrics_suffix=" (gdro)"
+        ),
+        "celeba.SupportMatching.balanced-True.new_ae_arch_more_iters.no_smiling_males": Group(
+            name=MethodName.ours_bag_oracle
         ),
         "celeba.gdro.context_mode_ground_truth.oracle_gdro.celeba_gdro.no_smiling_males": Group(
             name=MethodName.gdro_oracle, metrics_suffix=" (gdro)"
@@ -59,24 +58,37 @@ plot_kwargs: PlotKwargs = {
     "fig_dim": (4, 2),
     "file_prefix": "celeba_gender_smiling",
     "sens_attr": "Male",
-    "output_dir": "no_smiling_males",
+    "separator_after": 4,
 }
 plot_title = "Missing source: smiling males"
+directory = "no_smiling_males"
 
 # %%
 plot(
-    data,
+    data.copy(),
     metrics=[SpecialMetrics.rob_acc],
     x_limits=(0.65, 1.0),
-    **{**plot_kwargs, "output_dir": Path("cutoff") / plot_kwargs["output_dir"]},
+    **plot_kwargs,
+    output_dir=Path("celeba") / directory,
 )
 
 # %%
 plot(
     data,
-    metrics=[Metrics.acc, SpecialMetrics.rob_acc, Metrics.prr, Metrics.tprr, Metrics.tnrr],
+    metrics=[SpecialMetrics.rob_acc],
     x_limits=(nan, 1.0),
     **plot_kwargs,
+    output_dir=Path("celeba") / "supmat" / directory,
+    fillna=True,
+)
+
+# %%
+plot(
+    data,
+    metrics=[Metrics.acc, Metrics.prr, Metrics.tprr, Metrics.tnrr],
+    x_limits=(nan, 1.0),
+    **plot_kwargs,
+    output_dir=Path("celeba") / "supmat" / directory,
     fillna=True,
 )
 
@@ -86,12 +98,11 @@ generate_table(
     metrics=[
         SpecialMetrics.acc_table,
         SpecialMetrics.rob_acc_table,
-        Metrics.prr,
-        Metrics.tprr,
-        Metrics.tnrr,
+        SpecialMetrics.prr_table,
+        SpecialMetrics.tprr_table,
+        SpecialMetrics.tnrr_table,
     ],
     sens_attr="Male",
-    aggregation=TableAggregation.mean_std,
 )
 
 # %%

@@ -73,19 +73,24 @@ plot_kwargs: PlotKwargs = {
     "file_format": "pdf",
     "fig_dim": (5, 2.5),
     "file_prefix": "cmnist_2v4_partial_overcluster",
+    "output_dir": Path("cmnist") / "subgroup_bias_oc",
 }
 
 # %%
 plot(data, metrics=[Metrics.acc], x_limits=(nan, 1), **plot_kwargs)
 
 # %%
-plot(data, metrics=[Metrics.acc], agg=Aggregation.min, x_label="Robust Accuracy $\\rightarrow$", x_limits=(nan, 1), **plot_kwargs)
+plot(
+    data,
+    metrics=[Metrics.acc],
+    agg=Aggregation.min,
+    x_label="Robust Accuracy $\\rightarrow$",
+    x_limits=(nan, 1),
+    **plot_kwargs,
+)
 
 # %%
-plot(data, metrics=[Metrics.prr], x_limits=(-0.01, 1), **plot_kwargs)
-
-# %%
-plot(data, metrics=[Metrics.tprr], x_limits=(-0.01, 1), **plot_kwargs)
+plot(data, metrics=[Metrics.prr, Metrics.tprr], x_limits=(-0.01, 1), **plot_kwargs)
 
 # %%
 plot(data, metrics=[Metrics.tnrr], x_limits=(0.83, 1), **plot_kwargs)
