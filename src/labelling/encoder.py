@@ -34,7 +34,7 @@ class ClipVisualEncoder(nn.Module):
     ) -> None:
         super().__init__()
         logger.info("Loading CLIP model (downloading if needed)...")
-        import clip
+        import clip  # type: ignore
 
         model, self.transforms = clip.load(
             name=version.value,  # type: ignore
@@ -48,7 +48,7 @@ class ClipVisualEncoder(nn.Module):
     def forward(self, x: Tensor) -> Tensor:  # type: ignore
         return self.encoder(x)
 
-    @torch.no_grad()
+    @torch.no_grad()  # pyright: ignore
     def load_from_path(self, fpath: Union[Path, str]) -> None:
         fpath = Path(fpath)
         if fpath.exists():
@@ -58,7 +58,7 @@ class ClipVisualEncoder(nn.Module):
         else:
             raise RuntimeError(f"Checkpoint {fpath.resolve()} does not exist.")
 
-    @torch.no_grad()
+    @torch.no_grad()  # pyright: ignore
     def encode(
         self,
         dm: DataModule,

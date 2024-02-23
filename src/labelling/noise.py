@@ -8,7 +8,7 @@ from torch import Tensor
 __all__ = ["ClnMetric", "centroidal_label_noise", "sample_noise_indices", "uniform_label_noise"]
 
 
-@torch.no_grad()
+@torch.no_grad()  # pyright: ignore
 def sample_noise_indices(
     labels: Tensor,
     *,
@@ -27,7 +27,7 @@ def sample_noise_indices(
     return torch.randperm(len(labels), generator=generator)[:num_to_flip]
 
 
-@torch.no_grad()
+@torch.no_grad()  # pyright: ignore
 def uniform_label_noise(
     labels: Tensor,
     *,
@@ -50,7 +50,7 @@ class ClnMetric(Enum):
     EUCLIDEAN = "euclidean"
 
 
-@torch.no_grad()
+@torch.no_grad()  # pyright: ignore
 def centroidal_label_noise(
     labels: Tensor,
     *,

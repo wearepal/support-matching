@@ -74,14 +74,13 @@ class DiscOptimizerCfg(OptimizerCfg):
     criterion: GanLoss = GanLoss.LOGISTIC_NS
 
 
-@dataclass(repr=False, eq=False)
+@dataclass(repr=False, eq=False, frozen=True)
 class NeuralDiscriminator(BinaryDiscriminator, Model):
     opt: DiscOptimizerCfg  # overriding the definition in `Model`
 
     def __post_init__(self) -> None:
         if self.opt.criterion is GanLoss.WASSERSTEIN:
             self.model.apply(_maybe_spectral_norm)
-        super().__post_init__()
 
     @override
     def discriminator_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:

@@ -42,7 +42,7 @@ class Components(DcModule, Generic[D]):
     pred_y: Optional[Classifier]
     pred_s: Optional[Classifier]
 
-    @torch.no_grad()
+    @torch.no_grad()  # pyright: ignore
     def train_ae(self) -> None:
         self.ae.train()
         if self.pred_y is not None:
@@ -52,7 +52,7 @@ class Components(DcModule, Generic[D]):
         if isinstance(self.disc, nn.Module):
             self.disc.eval()
 
-    @torch.no_grad()
+    @torch.no_grad()  # pyright: ignore
     def train_disc(self) -> None:
         self.ae.eval()
         if self.pred_y is not None:
@@ -172,7 +172,7 @@ class AdvSemiSupervisedAlg(Algorithm):
                 self.log_recons(x=x_dep, dm=dm, ae=comp.ae, itr=itr, split="deployment")
         return logging_dict
 
-    @torch.no_grad()
+    @torch.no_grad()  # pyright: ignore
     def log_recons(
         self,
         x: Tensor,

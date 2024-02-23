@@ -257,14 +257,11 @@ def load_split_inds_from_artifact(
     return split_inds
 
 
-@dataclass(eq=False)
-class _ArtifactLoaderMixin:
+@dataclass(eq=False, kw_only=True)
+class SplitFromArtifact(DataSplitter):
     artifact_name: str
     version: Optional[int] = None
 
-
-@dataclass(eq=False)
-class SplitFromArtifact(DataSplitter, _ArtifactLoaderMixin):
     @override
     def split(self, dataset: D) -> TrainDepTestSplit[D]:
         splits = load_split_inds_from_artifact(

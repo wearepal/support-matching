@@ -14,11 +14,11 @@ class RoundSTE(Function):
     @staticmethod
     def backward(ctx: NestedIOFunction, *grad_outputs: Tensor) -> tuple[Tensor]:
         """Straight-through estimator"""
-        return grad_outputs
+        return grad_outputs  # type: ignore
 
 
 def round_ste(x: Tensor) -> Tensor:
-    return RoundSTE.apply(x)
+    return RoundSTE.apply(x)  # type: ignore
 
 
 def discretize(inputs: Tensor, *, dim: int = 1) -> Tensor:

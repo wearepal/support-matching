@@ -61,7 +61,7 @@ class Encodings:
         return enc
 
 
-@torch.no_grad()
+@torch.no_grad()  # pyright: ignore
 def generate_encodings(
     dm: DataModule,
     *,
@@ -102,7 +102,7 @@ def generate_encodings(
     return encodings
 
 
-@torch.no_grad()
+@torch.no_grad()  # pyright: ignore
 def encode_with_group_ids(
     model: nn.Module, *, dl: CdtDataLoader[TernarySample[Tensor]], device: Union[str, torch.device]
 ) -> tuple[Tensor, Tensor]:

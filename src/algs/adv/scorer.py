@@ -25,7 +25,7 @@ __all__ = ["NeuralScorer", "NullScorer", "Scorer"]
 _PBAR_COL: Final[str] = "#ffe252"
 
 
-@torch.no_grad()
+@torch.no_grad()  # pyright: ignore
 def _encode_and_score_recons(
     dl: CdtDataLoader[TernarySample],
     *,
@@ -60,7 +60,7 @@ def _encode_and_score_recons(
     return CdtDataset(x=zy, y=y, s=s), recon_score
 
 
-@torch.no_grad()
+@torch.no_grad()  # pyright: ignore
 def balanced_accuracy(y_pred: Tensor, *, y_true: Tensor) -> Tensor:
     return cdtm.subclass_balanced_accuracy(y_pred=y_pred, y_true=y_true, s=y_true)
 

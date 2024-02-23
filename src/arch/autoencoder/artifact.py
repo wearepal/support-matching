@@ -20,7 +20,7 @@ __all__ = ["AeFromArtifact", "load_ae_from_artifact", "save_ae_artifact"]
 FILENAME: Final[str] = "model.pt"
 
 
-@torch.no_grad()
+@torch.no_grad()  # pyright: ignore
 def save_ae_artifact(
     model: AePair, *, run: Union[Run, RunDisabled], factory_config: dict[str, Any], name: str
 ) -> None:
@@ -52,7 +52,7 @@ def _process_root_dir(root: Optional[Union[Path, str]]) -> Path:
     return root
 
 
-@torch.no_grad()
+@torch.no_grad()  # pyright: ignore
 def load_ae_from_artifact(
     name: str,
     *,

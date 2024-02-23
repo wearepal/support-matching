@@ -195,7 +195,7 @@ class Encoder(nn.Module):
 
         # end
         self.norm_out = Normalize(block_in)
-        flattened_size = np.prod((block_in, curr_res, curr_res))
+        flattened_size = np.prod((block_in, curr_res, curr_res)).item()
         self.to_latent = nn.Sequential(
             nn.Flatten(),
             nn.Linear(flattened_size, out_features=latent_dim),
@@ -253,7 +253,7 @@ class Decoder(nn.Module):
         curr_res = resolution // 2 ** (self.num_resolutions - 1)
         unflattened_size = (block_in, curr_res, curr_res)
         self.from_latent = nn.Sequential(
-            nn.Linear(latent_dim, np.prod(unflattened_size)),
+            nn.Linear(latent_dim, np.prod(unflattened_size).item()),
             nn.Unflatten(dim=1, unflattened_size=unflattened_size),
         )
 

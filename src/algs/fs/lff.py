@@ -1,5 +1,6 @@
 from collections.abc import Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from functools import cached_property
 from typing import Any, TypeVar, Union
 from typing_extensions import Self, override
 
@@ -33,20 +34,20 @@ class LabelEma(nn.Module, Indexable):
         self.register_buffer("parameter", torch.zeros(len(labels)))
         self.register_buffer("updated", torch.zeros(len(labels)))
 
-    @torch.no_grad()
+    @torch.no_grad()  # pyright: ignore
     def update(self, data: Tensor, *, index: Union[Tensor, int]) -> None:
         self.parameter[index] = (
             self.alpha * self.parameter[index] + (1 - self.alpha * self.updated[index]) * data
         )
         self.updated[index] = 1
 
-    @torch.no_grad()
+    @torch.no_grad()  # pyright: ignore
     def max_loss(self, label: int) -> Tensor:
         label_index = self.labels == label
         return self.parameter[label_index].max()
 
     @override
-    @torch.no_grad()
+    @torch.no_grad()  # pyright: ignore
     def __getitem__(self, index: IndexType) -> Tensor:
         return self.parameter[index].clone()
 
@@ -98,24 +99,20 @@ class IndexedDataset(SizedDataset[IndexedSample[Tensor]]):
         return len(self.dataset)
 
 
-@dataclass
-class _LabelEmaMixin:
+@dataclass(kw_only=True, repr=False, eq=False, frozen=True)
+class LfFClassifier(Classifier):
+    criterion: CrossEntropyLoss
     sample_loss_ema_b: LabelEma
     sample_loss_ema_d: LabelEma
-
-
-@dataclass(repr=False, eq=False)
-class LfFClassifier(Classifier, _LabelEmaMixin):
     q: float = 0.7
-    biased_model: nn.Module = field(init=False)
-    biased_criterion: GeneralizedCELoss = field(init=False)
-    criterion: CrossEntropyLoss = field(init=False)
 
-    def __post_init__(self) -> None:
-        self.biased_model = gcopy(self.model, deep=True)
-        self.biased_criterion = GeneralizedCELoss(q=self.q, reduction="mean")
-        self.criterion = CrossEntropyLoss(reduction="mean")
-        super().__post_init__()
+    @cached_property
+    def biased_model(self) -> nn.Module:
+        return gcopy(self.model, deep=True)
+
+    @cached_property
+    def biased_criterion(self) -> GeneralizedCELoss:
+        return GeneralizedCELoss(q=self.q, reduction="mean")
 
     def training_step(self, batch: IndexedSample[Tensor], *, pred_s: bool = False) -> Tensor:  # type: ignore
         logit_b = self.biased_model(batch.x)
@@ -158,14 +155,13 @@ class LfF(FsAlg):
         sample_loss_ema_d = LabelEma(dm.train.y, alpha=self.alpha).to(self.device)
         dm.train = IndexedDataset(dm.train)  # type: ignore
         classifier = LfFClassifier(
+            criterion=CrossEntropyLoss(reduction="mean"),
             sample_loss_ema_b=sample_loss_ema_b,
             sample_loss_ema_d=sample_loss_ema_d,
             model=model,
             opt=self.opt,
             q=self.q,
         )
-        classifier.sample_loss_ema_b = sample_loss_ema_b
-        classifier.sample_loss_ema_d = sample_loss_ema_d
         classifier.fit(
             train_data=dm.train_dataloader(),
             test_data=dm.test_dataloader(),

@@ -77,7 +77,7 @@ robust_tnr_gap = cdtm.subclasswise_metric(
 )
 
 
-@torch.no_grad()
+@torch.no_grad()  # pyright: ignore
 def compute_metrics(
     pair: EmEvalPair,
     *,
