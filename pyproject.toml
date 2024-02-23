@@ -136,6 +136,6 @@ exclude = [
   "external_confs",
   "conf",
   "scripts",
-  "experiments"
+  "experiments",
   ".venv",
 ]
