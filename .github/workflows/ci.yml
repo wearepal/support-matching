@@ -17,12 +17,12 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: "3.10"
-    - name: Install black
+    - name: Install ruff
       run: |
-        pip install black
-    - name: Format with black
+        pip install ruff
+    - name: Format with ruff
       run: |
-        python -m black --check src
+          ruff format --diff .
 
   lint_with_ruff:
 
@@ -39,4 +39,4 @@ jobs:
         pip install ruff
     - name: Lint with ruff
       run: |
-        ruff check --output-format=github src
+        ruff check --output-format=github .
