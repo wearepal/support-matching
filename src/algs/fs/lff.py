@@ -34,20 +34,20 @@ class LabelEma(nn.Module, Indexable):
         self.register_buffer("parameter", torch.zeros(len(labels)))
         self.register_buffer("updated", torch.zeros(len(labels)))
 
-    @torch.no_grad()
+    @torch.no_grad()  # pyright: ignore
     def update(self, data: Tensor, *, index: Union[Tensor, int]) -> None:
         self.parameter[index] = (
             self.alpha * self.parameter[index] + (1 - self.alpha * self.updated[index]) * data
         )
         self.updated[index] = 1
 
-    @torch.no_grad()
+    @torch.no_grad()  # pyright: ignore
     def max_loss(self, label: int) -> Tensor:
         label_index = self.labels == label
         return self.parameter[label_index].max()
 
     @override
-    @torch.no_grad()
+    @torch.no_grad()  # pyright: ignore
     def __getitem__(self, index: IndexType) -> Tensor:
         return self.parameter[index].clone()
 

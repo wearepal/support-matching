@@ -30,7 +30,7 @@ from .base import Model
 __all__ = ["Classifier", "SetClassifier"]
 
 
-@torch.no_grad()
+@torch.no_grad()  # pyright: ignore
 def cat_cpu_flatten(*ls: list[Tensor], dim: int = 0) -> Iterator[Tensor]:
     for ls_ in ls:
         yield torch.cat(ls_, dim=dim).cpu().flatten()
@@ -58,7 +58,7 @@ class Classifier(Model):
     ) -> EvalTuple[Tensor, Tensor]:
         ...
 
-    @torch.no_grad()
+    @torch.no_grad()  # pyright: ignore
     def predict(
         self,
         data: CdtDataLoader[TernarySample],
@@ -174,7 +174,7 @@ class SetClassifier(Model):
     model: SetPredictor  # overriding the definition in `Model`
     criterion: Optional[Loss] = None
 
-    @torch.no_grad()
+    @torch.no_grad()  # pyright: ignore
     def _fetch_train_data(
         self, *args: tuple[Iterator[S], int], device: torch.device
     ) -> Iterator[_ScSample]:
@@ -233,7 +233,7 @@ class SetClassifier(Model):
         pbar.close()
         logger.info("Finished training")
 
-    @torch.no_grad()
+    @torch.no_grad()  # pyright: ignore
     def predict(
         self, *dls: CdtDataLoader[S], device: Union[torch.device, str], max_steps: int
     ) -> EvalTuple[None, None]:

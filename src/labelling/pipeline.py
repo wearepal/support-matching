@@ -121,7 +121,7 @@ class ClipClassifier(Labeller):
 
     # cache_encoder: bool = False
 
-    @torch.no_grad()
+    @torch.no_grad()  # pyright: ignore
     def evaluate(
         self, g_pred: Tensor, *, g_true: Tensor, use_wandb: bool, prefix: Optional[str] = None
     ) -> dict[str, float]:

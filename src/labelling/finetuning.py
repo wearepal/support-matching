@@ -125,7 +125,7 @@ class FineTuner(DcModule):
         optimizer.step()
         return output, loss.item()
 
-    @torch.no_grad()
+    @torch.no_grad()  # pyright: ignore
     def predict_loop(
         self,
         model: nn.Module,
@@ -159,7 +159,7 @@ class FineTuner(DcModule):
         y = torch.cat(all_y)
         return preds, s, y
 
-    @torch.no_grad()
+    @torch.no_grad()  # pyright: ignore
     def validate(
         self,
         model: nn.Module,
