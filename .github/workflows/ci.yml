@@ -43,7 +43,7 @@ jobs:
 
   run_type_checking:
     needs:
-      - format_with_black
+      - format_with_ruff
       - lint_with_ruff
     runs-on: ubuntu-latest
 
@@ -70,7 +70,7 @@ jobs:
       - name: Install dependencies
         run: |
           poetry env use 3.10
-          poetry install --no-interaction --no-root --without torch
+          poetry install --no-interaction --no-root --with torch
       - name: Set python path for all subsequent actions
         run: echo "$(poetry env info --path)/bin" >> $GITHUB_PATH
 
