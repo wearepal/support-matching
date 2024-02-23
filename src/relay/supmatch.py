@@ -102,7 +102,8 @@ class SupMatchRelay(BaseRelay):
         ds = self.ds()
         run = self.wandb.init(raw_config, (ds, self.labeller, self.ae_arch, self.disc_arch))
         dm = self.init_dm(ds, self.labeller, device=self.alg.device)
-        ae_pair = self.ae_arch(input_shape=dm.dim_x)
+        input_shape: tuple[int, int, int] = dm.dim_x  # type: ignore
+        ae_pair = self.ae_arch(input_shape=input_shape)
         ae = SplitLatentAe(opt=self.ae, model=ae_pair, feature_group_slices=dm.feature_group_slices)
         logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
         disc_net, _ = self.disc_arch(

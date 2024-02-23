@@ -162,7 +162,7 @@ class Swin(BackboneFactory):
         model: "tm.SwinTransformer" = timm.create_model(
             self.version.value, pretrained=self.pretrained, checkpoint_path=self.checkpoint_path
         )
-        model.head = nn.Identity()
+        model.head = nn.Identity()  # type: ignore
         return model, model.num_features
 
 

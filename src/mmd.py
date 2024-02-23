@@ -35,8 +35,8 @@ def _mix_rq_kernel(
     Rational quadratic kernel
     http://www.cs.toronto.edu/~duvenaud/cookbook/index.html
     """
-    scales = (0.1, 1.0, 10.0) or scales
-    wts = [1.0] * len(scales) or wts
+    scales = (0.1, 1.0, 10.0) if scales is None else scales
+    wts = [1.0] * len(scales) if wts is None else wts
 
     xx_gm = x @ x.t()
     xy_gm = x @ y.t()

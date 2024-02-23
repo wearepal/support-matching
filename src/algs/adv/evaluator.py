@@ -5,7 +5,6 @@ from typing import Any, Final, Generic, Literal, Optional, TypeVar, Union, overl
 
 from conduit.data import TernarySample
 from conduit.data.datasets import CdtDataLoader, CdtDataset
-from conduit.data.datasets.vision import CdtVisionDataset
 from loguru import logger
 from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
@@ -22,14 +21,12 @@ from src.arch.common import Activation
 from src.arch.predictors import Fcn
 from src.data import DataModule, Dataset, group_id_to_label, labels_to_group_id, resolve_device
 from src.evaluation.metrics import EmEvalPair, compute_metrics
-from src.logging import log_images
 from src.models import Classifier, OptimizerCfg, SplitLatentAe
 
 __all__ = [
     "Evaluator",
     "InvariantDatasets",
     "encode_dataset",
-    "log_sample_images",
     "visualize_clusters",
 ]
 
@@ -51,17 +48,17 @@ class InvariantDatasets(Generic[DY, DS]):
     zy: DS
 
 
-def log_sample_images(
-    *,
-    data: CdtVisionDataset[TernarySample[Tensor], Tensor, Tensor],
-    dm: DataModule,
-    name: str,
-    step: int,
-    num_samples: int = 64,
-) -> None:
-    inds: list[int] = torch.randperm(len(data))[:num_samples].tolist()
-    images = data[inds]
-    log_images(images=images, dm=dm, name=f"Samples from {name}", prefix="eval", step=step)
+# def log_sample_images(
+#     *,
+#     data: CdtVisionDataset[TernarySample[Tensor], Tensor, Tensor],
+#     dm: DataModule,
+#     name: str,
+#     step: int,
+#     num_samples: int = 64,
+# ) -> None:
+#     inds: list[int] = torch.randperm(len(data))[:num_samples].tolist()
+#     images = data[inds]
+#     log_images(images=images, dm=dm, name=f"Samples from {name}", prefix="eval", step=step)
 
 
 InvariantAttr = Literal["zy", "zs", "both"]

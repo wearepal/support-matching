@@ -2,14 +2,12 @@ import os
 from typing import Any, ClassVar
 
 from attrs import define, field
-from conduit.data import TernarySample
-from conduit.data.datasets.vision import CdtVisionDataset
 from loguru import logger
 from ranzen.torch import random_seed
 import torch
-from torch import Tensor
 
 from src.data import DataModule, DataModuleConf, RandomSplitter, SplitFromArtifact
+from src.data.common import Dataset
 from src.data.splitter import DataSplitter
 from src.labelling import Labeller
 from src.logging import WandbConf
@@ -30,7 +28,7 @@ class BaseRelay:
 
     def init_dm(
         self,
-        ds: CdtVisionDataset[TernarySample, Tensor, Tensor],
+        ds: Dataset,
         labeller: Labeller,
         device: torch.device,
     ) -> DataModule:

@@ -34,7 +34,7 @@ class ClipVisualEncoder(nn.Module):
     ) -> None:
         super().__init__()
         logger.info("Loading CLIP model (downloading if needed)...")
-        import clip
+        import clip  # type: ignore
 
         model, self.transforms = clip.load(
             name=version.value,  # type: ignore

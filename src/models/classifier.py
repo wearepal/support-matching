@@ -36,7 +36,7 @@ def cat_cpu_flatten(*ls: list[Tensor], dim: int = 0) -> Iterator[Tensor]:
         yield torch.cat(ls_, dim=dim).cpu().flatten()
 
 
-@dataclass(repr=False, eq=False)
+@dataclass(repr=False, eq=False, frozen=True)
 class Classifier(Model):
     """Wrapper for classifier models equipped witht training/inference routines."""
 
@@ -152,7 +152,7 @@ class Classifier(Model):
                 self.model.train()
             if use_wandb:
                 wandb.log(log_dict)
-            pbar.set_postfix(**log_dict)
+            pbar.set_postfix(**log_dict)  # type: ignore
             pbar.update()
 
         pbar.close()
@@ -167,7 +167,7 @@ class _ScSample(BinarySample[Tensor]):
 S = TypeVar("S", bound=SampleBase[Tensor])
 
 
-@dataclass(repr=False, eq=False)
+@dataclass(repr=False, eq=False, frozen=True)
 class SetClassifier(Model):
     """Wrapper for set classifier models equipped witht training/inference routines."""
 
@@ -227,7 +227,7 @@ class SetClassifier(Model):
             loss.backward()  # type: ignore
             self.step(grad_scaler=grad_scaler, scaler_update=True)
             self.optimizer.zero_grad()
-            pbar.set_postfix(**log_dict)
+            pbar.set_postfix(**log_dict)  # type: ignore
             pbar.update()
 
         pbar.close()

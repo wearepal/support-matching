@@ -1,6 +1,7 @@
 from collections.abc import Callable
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, replace
 from enum import Enum, auto
+from functools import cached_property
 from typing import Literal, Optional, Union, cast
 from typing_extensions import Self, override
 
@@ -71,7 +72,7 @@ class SplitEncoding:
         else:
             zs_m = SplitEncoding(zs=torch.zeros_like(zs), zy=zy)
             zy_m = SplitEncoding(zs=zs, zy=torch.zeros_like(zy))
-        return zs_m, zy_m
+        return zs_m, zy_m  # type: ignore
 
 
 @dataclass
@@ -111,29 +112,35 @@ class SplitAeOptimizerCfg(OptimizerCfg):
     recon_loss: ReconstructionLoss = ReconstructionLoss.l2
 
 
-@dataclass(repr=False, eq=False)
+@dataclass(repr=False, eq=False, frozen=True)
 class SplitLatentAe(Model):
     model: AePair  # overriding the definition in `Model`
     opt: SplitAeOptimizerCfg  # overriding the definition in `Model`
     feature_group_slices: Optional[dict[str, list[slice]]] = None
-    recon_loss_fn: Callable[[Tensor, Tensor], Tensor] = field(init=False)
-    zs_dim: int = field(init=False)
 
-    def __post_init__(self) -> None:
-        zs_dim_t = self.opt.zs_dim
-        self.latent_dim: int = self.model.latent_dim
-        self.zs_dim = round(zs_dim_t * self.latent_dim) if isinstance(zs_dim_t, float) else zs_dim_t
-        self.encoding_size = EncodingSize(zs=self.zs_dim, zy=self.latent_dim - self.zs_dim)
-
+    @cached_property
+    def recon_loss_fn(self) -> Callable[[Tensor, Tensor], Tensor]:
         if self.opt.recon_loss is ReconstructionLoss.mixed:
             if self.feature_group_slices is None:
                 raise ValueError("'MixedLoss' requires 'feature_group_slices' to be specified.")
-            self.recon_loss_fn = self.opt.recon_loss.value(
+            return self.opt.recon_loss.value(
                 reduction="sum", feature_group_slices=self.feature_group_slices
             )
         else:
-            self.recon_loss_fn = self.opt.recon_loss.value(reduction="sum")
-        super().__post_init__()
+            return self.opt.recon_loss.value(reduction="sum")
+
+    @cached_property
+    def zs_dim(self) -> int:
+        zs_dim_t = self.opt.zs_dim
+        return round(zs_dim_t * self.latent_dim) if isinstance(zs_dim_t, float) else zs_dim_t
+
+    @cached_property
+    def encoding_size(self) -> EncodingSize:
+        return EncodingSize(zs=self.zs_dim, zy=self.latent_dim - self.zs_dim)
+
+    @property
+    def latent_dim(self) -> int:
+        return self.model.latent_dim
 
     def encode(self, inputs: Tensor, *, transform_zs: bool = True) -> SplitEncoding:
         enc = self._split_encoding(self.model.encoder(inputs))

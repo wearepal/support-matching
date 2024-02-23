@@ -4,7 +4,7 @@ from conduit.models.utils import prefix_keys
 from loguru import logger
 import numpy as np
 import numpy.typing as npt
-from scipy.optimize import linear_sum_assignment
+from scipy.optimize import linear_sum_assignment  # type: ignore
 from sklearn.metrics import (
     adjusted_mutual_info_score,
     adjusted_rand_score,
@@ -54,11 +54,11 @@ def evaluate(
     use_wandb: bool = True,
     prefix: Optional[str] = None,
 ) -> dict[str, float]:
-    metrics = {
-        "ARI": adjusted_rand_score(y_true, y_pred),
-        "AMI": adjusted_mutual_info_score(y_true, y_pred),
-        "NMI": normalized_mutual_info_score(y_true, y_pred),
-        "Accuracy": compute_accuracy(y_true, clusters=y_pred),
+    metrics: dict[str, float] = {
+        "ARI": float(adjusted_rand_score(y_true, y_pred)),
+        "AMI": float(adjusted_mutual_info_score(y_true, y_pred)),
+        "NMI": float(normalized_mutual_info_score(y_true, y_pred)),
+        "Accuracy": float(compute_accuracy(y_true, clusters=y_pred)),
     }
     if prefix is not None:
         metrics = prefix_keys(metrics, prefix=prefix, sep="/")

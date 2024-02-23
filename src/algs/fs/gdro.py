@@ -232,18 +232,14 @@ class LossComputer(nn.Module):
         self.avg_acc = group_frac @ self.avg_group_acc
 
 
-@dataclass
-class _LcMixin:
+@dataclass(kw_only=True, repr=False, eq=False, frozen=True)
+class GdroClassifier(Classifier):
     loss_computer: LossComputer
 
-
-@dataclass(repr=False, eq=False)
-class GdroClassifier(Classifier, _LcMixin):
     def __post_init__(self) -> None:
         # LossComputer requires that the criterion return per-sample (unreduced) losses.
         if self.criterion is not None:
             self.criterion.reduction = ReductionType.none
-        super().__post_init__()
 
     @override
     def training_step(self, batch: TernarySample[Tensor], *, pred_s: bool = False) -> Tensor:

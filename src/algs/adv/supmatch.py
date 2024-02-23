@@ -33,10 +33,9 @@ class SupportMatching(AdvSemiSupervisedAlg):
         dl_tr = dm.train_dataloader(balance=True)
         # The batch size needs to be consistent for the aggregation layer in the setwise neural
         # discriminator
+        batch_size: int = dl_tr.batch_sampler.batch_size  # type: ignore
         dl_dep = dm.deployment_dataloader(
-            batch_size=dl_tr.batch_sampler.batch_size
-            if dm.deployment_ids is None
-            else dm.batch_size_tr
+            batch_size=batch_size if dm.deployment_ids is None else dm.batch_size_tr
         )
         return iter(dl_tr), iter(dl_dep)
 
@@ -161,6 +160,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         disc_model_sd0 = None
         if isinstance(disc, NeuralDiscriminator) and isinstance(disc.model, SetPredictor):
             disc_model_sd0 = disc.model.state_dict()
+        assert isinstance(disc, Model)
         super().fit_and_evaluate(dm=dm, ae=ae, disc=disc, evaluator=evaluator)
         # TODO: Generalise this to other discriminator types and architectures
         if disc_model_sd0 is not None:
