@@ -7,6 +7,7 @@ from typing import Any, Final, Optional, TypedDict, Union, cast
 from typing_extensions import override
 
 from conduit.data.constants import IMAGENET_STATS
+from conduit.data.datasets import random_split
 from conduit.data.datasets.utils import stratified_split
 from conduit.data.datasets.vision import CdtVisionDataset, ImageTform, PillowTform
 from loguru import logger
@@ -159,8 +160,8 @@ class RandomSplitter(DataSplitter):
     def split(self, dataset: D) -> TrainDepTestSplit[D]:
         if self.data_prop < 1:
             dataset = stratified_split(dataset, default_train_prop=self.data_prop).train
-        dep_inds, test_inds, train_inds = dataset.random_split(
-            props=[self.dep_prop, self.test_prop], seed=self.seed, as_indices=True
+        dep_inds, test_inds, train_inds = random_split(
+            dataset, props=[self.dep_prop, self.test_prop], seed=self.seed, as_indices=True
         )
         train_inds = torch.as_tensor(train_inds)
         train_data = dataset.subset(train_inds)

@@ -5,8 +5,9 @@ from typing import Any, TypeVar, Union
 from typing_extensions import Self, override
 
 from conduit.data.datasets.base import CdtDataset
-from conduit.data.structures import XI, LoadedData, SampleBase, SizedDataset, TernarySample, X
+from conduit.data.structures import LoadedData, SampleBase, SizedDataset, TernarySample, X
 from conduit.types import Indexable, IndexType
+import numpy as np
 from ranzen.misc import gcopy
 from ranzen.torch import CrossEntropyLoss
 import torch
@@ -74,7 +75,8 @@ class IndexedSample(SampleBase[X]):
         return copy
 
     @override
-    def __getitem__(self: "IndexedSample[XI]", index: IndexType) -> "IndexedSample[XI]":
+    def __getitem__(self, index: IndexType) -> Self:
+        assert isinstance(self.x, (Tensor, np.ndarray)), "x is not indexable"
         return gcopy(
             self, deep=False, x=self.x[index], y=self.y[index], s=self.s[index], idx=self.idx[index]
         )
@@ -101,7 +103,7 @@ class IndexedDataset(SizedDataset[IndexedSample[Tensor]]):
 
 @dataclass(kw_only=True, repr=False, eq=False, frozen=True)
 class LfFClassifier(Classifier):
-    criterion: CrossEntropyLoss
+    criterion: CrossEntropyLoss  # type: ignore
     sample_loss_ema_b: LabelEma
     sample_loss_ema_d: LabelEma
     q: float = 0.7

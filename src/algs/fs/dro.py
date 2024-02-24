@@ -29,7 +29,8 @@ class DroLoss(nn.Module, Loss):
             reduction = str_to_enum(str_=reduction, enum=ReductionType)
         self.reduction = reduction
         if loss_fn is None:
-            loss_fn = CrossEntropyLoss(reduction=ReductionType.none)
+            cross_entropy: Loss = CrossEntropyLoss(reduction=ReductionType.none) # type: ignore
+            loss_fn = cross_entropy
         else:
             loss_fn.reduction = ReductionType.none
         self.reduction = reduction
