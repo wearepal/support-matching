@@ -39,13 +39,13 @@ class ClipVisualEncoder(nn.Module):
         model, self.transforms = clip.load(
             name=version.value,  # type: ignore
             device="cpu",
-            download_root=download_root,
+            download_root=download_root,  # type: ignore
         )
         logger.info("Done.")
         self.encoder = model.visual
         self.out_dim = cast(int, self.encoder.output_dim)
 
-    def forward(self, x: Tensor) -> Tensor:  # type: ignore
+    def forward(self, x: Tensor) -> Tensor:
         return self.encoder(x)
 
     @torch.no_grad()  # pyright: ignore
