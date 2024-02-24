@@ -29,7 +29,8 @@ class DroLoss(nn.Module, Loss):
             reduction = str_to_enum(str_=reduction, enum=ReductionType)
         self.reduction = reduction
         if loss_fn is None:
-            loss_fn = CrossEntropyLoss(reduction=ReductionType.none)
+            cross_entropy: Loss = CrossEntropyLoss(reduction=ReductionType.none)  # type: ignore
+            loss_fn = cross_entropy
         else:
             loss_fn.reduction = ReductionType.none
         self.reduction = reduction
@@ -37,7 +38,7 @@ class DroLoss(nn.Module, Loss):
         self.eta = eta
 
     @override
-    def forward(self, input: Tensor, *, target: Tensor) -> Tensor:  # type: ignore
+    def forward(self, input: Tensor, *, target: Tensor) -> Tensor:
         sample_losses = (self.loss_fn(input, target=target) - self.eta).relu().pow(2)
         return reduce(sample_losses, reduction_type=self.reduction)
 

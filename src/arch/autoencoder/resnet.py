@@ -22,7 +22,7 @@ class Interpolate(nn.Module):
         super().__init__()
         self.size, self.scale_factor = size, scale_factor
 
-    def forward(self, x: Tensor) -> Tensor:  # type: ignore
+    def forward(self, x: Tensor) -> Tensor:
         return F.interpolate(x, size=self.size, scale_factor=self.scale_factor)
 
 
@@ -72,7 +72,7 @@ class EncoderBlock(nn.Module):
         self.bn2 = nn.BatchNorm2d(planes)
         self.downsample = downsample
 
-    def forward(self, x: Tensor) -> Tensor:  # type: ignore
+    def forward(self, x: Tensor) -> Tensor:
         identity = x
 
         out = self.conv1(x)
@@ -112,7 +112,7 @@ class EncoderBottleneck(nn.Module):
         self.downsample = downsample
         self.stride = stride
 
-    def forward(self, x: Tensor) -> Tensor:  # type: ignore
+    def forward(self, x: Tensor) -> Tensor:
         identity = x
 
         out = self.conv1(x)
@@ -150,7 +150,7 @@ class DecoderBlock(nn.Module):
         self.bn2 = nn.BatchNorm2d(planes)
         self.upsample = upsample
 
-    def forward(self, x: Tensor) -> Tensor:  # type: ignore
+    def forward(self, x: Tensor) -> Tensor:
         identity = x
 
         out = self.conv1(x)
@@ -189,7 +189,7 @@ class DecoderBottleneck(nn.Module):
         self.upsample = upsample
         self.scale = scale
 
-    def forward(self, x: Tensor) -> Tensor:  # type: ignore
+    def forward(self, x: Tensor) -> Tensor:
         identity = x
 
         out = self.conv1(x)
@@ -270,7 +270,7 @@ class ResNetEncoder(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def forward(self, x: Tensor) -> Tensor:  # type: ignore
+    def forward(self, x: Tensor) -> Tensor:
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -357,7 +357,7 @@ class ResNetDecoder(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def forward(self, x: Tensor) -> Tensor:  # type: ignore
+    def forward(self, x: Tensor) -> Tensor:
         x = self.linear(x)
 
         # NOTE: replaced this by Linear(in_channels, 514 * 4 * 4)

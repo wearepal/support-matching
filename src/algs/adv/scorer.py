@@ -7,6 +7,7 @@ from conduit.data import TernarySample
 from conduit.data.datasets import CdtDataLoader, CdtDataset
 import conduit.metrics as cdtm
 from conduit.models.utils import prefix_keys
+from conduit.types import Loss
 from loguru import logger
 from ranzen.misc import gcopy
 from ranzen.torch.loss import CrossEntropyLoss, ReductionType
@@ -141,9 +142,8 @@ class NeuralScorer(Scorer):
         score = recon_score = self.recon_score_w * 0.5 * (recon_score_tr + recon_score_dep)
         logger.info(f"Aggregate reconstruction score: {recon_score}")
 
-        classifier = SetClassifier(
-            model=disc, opt=self.opt, criterion=CrossEntropyLoss(reduction=ReductionType.mean)
-        )
+        cross_entropy: Loss = CrossEntropyLoss(reduction=ReductionType.mean)  # type: ignore
+        classifier = SetClassifier(model=disc, opt=self.opt, criterion=cross_entropy)
         logger.info("Training invariance-scorer")
         classifier.fit(
             dm.train_dataloader(batch_size=self.batch_size_tr),

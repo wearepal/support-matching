@@ -19,7 +19,7 @@ class MultiheadAttentionBlock(nn.Module):
         self.fc = nn.Sequential(nn.Linear(embed_dim, embed_dim), nn.ReLU(inplace=True))
         self.mh = nn.MultiheadAttention(embed_dim=embed_dim, num_heads=num_heads)
 
-    def forward(self, Q: Tensor, K: Tensor) -> Tensor:  # type: ignore
+    def forward(self, Q: Tensor, K: Tensor) -> Tensor:
         H = self.norm1(K + self.mh(key=K, query=Q, value=K, need_weights=False)[0])
         out = self.norm2(H + self.fc(H))
         return out
@@ -30,7 +30,7 @@ class SetAttentionBlock(nn.Module):
         super().__init__()
         self.mab = MultiheadAttentionBlock(embed_dim=dim_in, num_heads=num_heads)
 
-    def forward(self, x: Tensor) -> Tensor:  # type: ignore
+    def forward(self, x: Tensor) -> Tensor:
         return self.mab(x, x)
 
 
@@ -42,7 +42,7 @@ class InducedSetAttentionBlock(nn.Module):
         self.mab1 = MultiheadAttentionBlock(embed_dim=out_dim, num_heads=num_heads)
         self.mab2 = MultiheadAttentionBlock(embed_dim=dim_in, num_heads=num_heads)
 
-    def forward(self, x: Tensor) -> Tensor:  # type: ignore
+    def forward(self, x: Tensor) -> Tensor:
         H = self.mab1(self.inducing_points.repeat(x.size(0), 1, 1), x)
         return self.mab2(x, H)
 
@@ -54,7 +54,7 @@ class PoolingMultiheadAttention(nn.Module):
         nn.init.xavier_uniform_(self.seed_vectors)
         self.mab = MultiheadAttentionBlock(embed_dim=dim, num_heads=num_heads)
 
-    def forward(self, x: Tensor) -> Tensor:  # type: ignore
+    def forward(self, x: Tensor) -> Tensor:
         return self.mab(self.seed_vectors.repeat(x.size(0), 1, 1), x)
 
 
@@ -85,7 +85,7 @@ class _SetTransformer(nn.Module):
         )
         self.predictor = nn.Linear(hidden_dim * num_inds, target_dim)
 
-    def forward(self, x: Tensor) -> Tensor:  # type: ignore
+    def forward(self, x: Tensor) -> Tensor:
         out = self.embedder(x).unsqueeze(1)
         out = self.decoder(self.encoder(out))
         out = out.flatten(start_dim=1).sum(0)

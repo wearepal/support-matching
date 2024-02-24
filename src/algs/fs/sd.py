@@ -33,7 +33,8 @@ class SdCrossEntropyLoss(nn.Module, Loss):
         if isinstance(gamma, ListConfig):
             gamma = list(gamma)
         if loss_fn is None:
-            loss_fn = CrossEntropyLoss(reduction=ReductionType.mean)
+            cross_entropy: Loss = CrossEntropyLoss(reduction=ReductionType.mean)  # type: ignore
+            loss_fn = cross_entropy
         self.loss_fn = loss_fn
         if isinstance(lambda_, (tuple, list)):
             self.register_buffer("lambda_", torch.as_tensor(lambda_, dtype=torch.float))
@@ -49,7 +50,7 @@ class SdCrossEntropyLoss(nn.Module, Loss):
         return self.loss_fn.reduction
 
     @reduction.setter
-    def reduction(self, value: Union[ReductionType, str]) -> None:
+    def reduction(self, value: Union[ReductionType, str]) -> None:  # type: ignore
         self.loss_fn.reduction = value
 
     @override
