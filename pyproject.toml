@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "support-matching"
-version = "1.0.0"
+package-mode = false
 description = "Addressing Missing Sources with Adversarial Support-Matching"
 authors = ["PAL <info@wearepal.com>"]
 packages = [{ include = "src" }, { include = "hydra_plugins" }]
