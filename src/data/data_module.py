@@ -14,6 +14,7 @@ from conduit.data.datasets.vision import CdtVisionDataset, ImageTform, PillowTfo
 from conduit.data.structures import MeanStd, TernarySample
 from conduit.transforms.image import denormalize
 from loguru import logger
+import pandas as pd
 from ranzen import gcopy
 from ranzen.torch.data import (
     ApproxStratBatchSampler,
@@ -475,3 +476,45 @@ class DataModule:
                 if (stats := _get_stats(tform)) is not None:
                     return denormalize(x, mean=stats.mean, std=stats.std, inplace=inplace)
         return x
+
+    def print_statistics(self) -> None:
+        y_names = {0: "No", 1: "Yes"}
+        s_names = {0: "Female", 1: "Male"}
+        dfs: dict[str, pd.DataFrame] = {}
+        for data, name in [
+            (self.train, "Train"),
+            (self.deployment, "Deployment"),
+            # (self.test, "Test"),
+        ]:
+            ys = data.y
+            ss = data.s
+            total = len(ys)
+
+            df = pd.DataFrame(
+                {
+                    "Smiling": pd.Series(dtype="str"),
+                    "Gender": pd.Series(dtype="str"),
+                    "Number": pd.Series(dtype="int"),
+                    "Fraction": pd.Series(dtype="str"),
+                }
+            )
+            i = 0
+            for y in ys.unique():
+                for s in ss.unique():
+                    num = int(torch.sum((ys == y) * (ss == s)))
+                    df.loc[i] = (  # type: ignore
+                        y_names[int(y)],
+                        s_names[int(s)],
+                        num,
+                        f"{(100 * num / total):.3g}\\%",
+                    )
+                    i += 1
+            dfs[name] = df
+        table = pd.concat(dfs, axis=1)
+        print(
+            table.to_latex(
+                index=False,
+                # float_format="%.5g",
+                multicolumn_format="l",
+            )
+        )
