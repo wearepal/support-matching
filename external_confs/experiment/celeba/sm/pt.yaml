@@ -6,7 +6,7 @@ defaults:
     - override /ds: celeba/gender_smiling
     - override /labeller: gt
     - override /split: celeba/artifact/base
-    - override /ae_arch: vqgan/imagnet
+    - override /ae_arch: vqgan/imagenet
     - override /disc_arch: set
     - override /scorer: none
 

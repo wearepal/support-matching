@@ -2,12 +2,12 @@
 defaults:
   - random
   - _self_
-log_dataset: ''
+# log_dataset: ''
 seed: 42
 transductive: false
 dep_prop: 0.4
 test_prop: 0.2
-data_prop: null
+# data_prop: null
 dep_subsampling_props:
     0:
         0: 0.7
