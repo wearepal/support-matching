@@ -1,4 +1,3 @@
-from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from typing import Generic, Optional, TypeVar
@@ -9,19 +8,11 @@ from torch import Tensor
 import torch.nn as nn
 
 from src.arch.aggregation import BatchAggregator, GatedAggregator, KvqAggregator
-from src.arch.common import Activation, BiaslessLayerNorm
+from src.arch.common import Activation, NormType
 
 from .base import PredictorFactory, PredictorFactoryOut
 
 __all__ = ["BatchAggregatorEnum", "Fcn", "NormType", "SetFcn", "SetPredictor"]
-
-
-class NormType(Enum):
-    BN = (nn.BatchNorm1d,)
-    LN = (BiaslessLayerNorm,)
-
-    def __init__(self, init: Callable[[int], nn.Module]) -> None:
-        self.init = init
 
 
 @dataclass
