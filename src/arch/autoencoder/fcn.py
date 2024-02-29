@@ -31,9 +31,7 @@ class SimpleAE(AeFactory):
             decoder.append(self._linear_block(c_out, c_in, last=i == 0))
             c_in = c_out
 
-        encoder_out_dim = self.latent_dim
-
-        encoder.append(self._linear_block(c_in, encoder_out_dim, last=True))
+        encoder.append(self._linear_block(c_in, self.latent_dim, last=True))
         decoder.append(self._linear_block(self.latent_dim, c_in))
         decoder = decoder[::-1]
 
