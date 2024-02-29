@@ -3,6 +3,7 @@ from typing import Any, ClassVar, Optional
 from attrs import define, field
 
 from src.data.common import DatasetFactory
+from src.data.factories import ACSCfg
 from src.data.nih import NIHChestXRayDatasetCfg
 from src.data.utils import resolve_device
 from src.hydra_confs.datasets import Camelyon17Cfg, CelebACfg, ColoredMNISTCfg
@@ -31,6 +32,7 @@ class LabelRelay(BaseRelay):
 
     options: ClassVar[dict[str, dict[str, type]]] = BaseRelay.options | {
         "ds": {
+            "acs": ACSCfg,
             "cmnist": ColoredMNISTCfg,
             "celeba": CelebACfg,
             "camelyon17": Camelyon17Cfg,
