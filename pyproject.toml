@@ -53,10 +53,12 @@ torch = "^2.0.1"
 torchvision = ">=0.15.2"
 
 [tool.poetry.group.dev.dependencies]
-ruff = "*"
 types-tqdm = "*"
 pandas-stubs = "*"
-python-type-stubs = {git = "https://github.com/wearepal/python-type-stubs.git", rev = "8d5f608"}
+python-type-stubs = { git = "https://github.com/wearepal/python-type-stubs.git", rev = "8d5f608" }
+
+[tool.poetry.group.lint.dependencies]
+ruff = "*"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -66,6 +68,9 @@ build-backend = "poetry.core.masonry.api"
 target-version = "py310"
 line-length = 100
 extend-exclude = ["hydra_plugins"]
+
+[tool.ruff.format]
+quote-style = "preserve"
 
 [tool.ruff.lint]
 select = ["I", "F", "E", "W", "UP"]
