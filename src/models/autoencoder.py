@@ -143,7 +143,7 @@ class SplitLatentAe(Model):
         return self.model.latent_dim
 
     def encode(self, inputs: Tensor, *, transform_zs: bool = True) -> SplitEncoding:
-        enc = self._split_encoding(self.model.encoder(inputs))
+        enc = self._split_encoding(self.model.encode(inputs))
         zs = enc.zs
         if transform_zs:
             if self.opt.zs_transform is ZsTransform.round_ste:

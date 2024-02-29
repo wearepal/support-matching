@@ -50,7 +50,7 @@ class SimpleConvAE(AeFactory):
     init_chans: int = 32
 
     @override
-    def __call__(self, input_shape: tuple[int, int, int]) -> AePair[nn.Sequential, nn.Sequential]:
+    def __call__(self, input_shape: tuple[int, int, int]) -> AePair:
         encoder_ls: list[nn.Module] = []
         decoder_ls: list[nn.Module] = []
         c_in, height, width = input_shape
