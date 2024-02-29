@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import Optional, Union
 
 from ranzen import str_to_enum
 import torch
@@ -13,7 +12,7 @@ def sample_noise_indices(
     labels: Tensor,
     *,
     level: float,
-    generator: Optional[torch.Generator] = None,
+    generator: torch.Generator | None = None,
     weighted: bool = False,
 ) -> Tensor:
     if not 0 <= level <= 1:
@@ -32,7 +31,7 @@ def uniform_label_noise(
     labels: Tensor,
     *,
     indices: Tensor,
-    generator: Optional[torch.Generator] = None,
+    generator: torch.Generator | None = None,
     inplace: bool = True,
 ) -> Tensor:
     if not inplace:
@@ -56,9 +55,9 @@ def centroidal_label_noise(
     *,
     indices: Tensor,
     encodings: Tensor,
-    generator: Optional[torch.Generator] = None,
+    generator: torch.Generator | None = None,
     inplace: bool = True,
-    metric: Union[str, ClnMetric] = ClnMetric.COSINE,
+    metric: str | ClnMetric = ClnMetric.COSINE,
     temperature: float = 1.0,
 ) -> Tensor:
     assert len(labels) == len(encodings)

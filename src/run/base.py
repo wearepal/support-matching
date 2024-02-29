@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Optional, Protocol, cast
+from typing import Any, ClassVar, Protocol, cast
 
 import hydra
 from hydra.utils import instantiate
@@ -14,7 +14,7 @@ __all__ = ["Experiment", "launch"]
 class Experiment(Protocol):
     options: ClassVar[dict[str, dict[str, type]]]
 
-    def run(self, raw_config: Optional[dict[str, Any]] = None) -> Optional[float]:
+    def run(self, raw_config: dict[str, Any] | None = None) -> float | None:
         ...
 
 
@@ -22,7 +22,7 @@ def launch(relay_cls: type[Experiment]) -> None:
     register_hydra_config(relay_cls, relay_cls.options, schema_name="config_schema")
 
     @hydra.main(config_path="../../conf", config_name="config", version_base=None)
-    def main(hydra_config: DictConfig) -> Optional[float]:
+    def main(hydra_config: DictConfig) -> float | None:
         if "root" in hydra_config["ds"]:
             # TODO: this should probably be done somewhere else
             # Deal with missing `root`

@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
-from typing import TypeAlias, TypeVar
+from typing import TypeVar
+from typing_extensions import TypeAliasType
 
 import torch.nn as nn
 
 __all__ = ["PredictorFactory", "PredictorFactoryOut"]
 
 M = TypeVar("M", bound=nn.Module, covariant=True)
-PredictorFactoryOut: TypeAlias = tuple[M, int]
+PredictorFactoryOut = TypeAliasType("PredictorFactoryOut", tuple[M, int], type_params=(M,))
 
 
 class PredictorFactory(ABC):

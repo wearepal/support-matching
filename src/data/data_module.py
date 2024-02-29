@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from functools import partial, reduce
 from math import gcd
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 from typing_extensions import Self
 
 import albumentations as A
@@ -59,7 +59,7 @@ class DataModuleConf:
     """DataModule settings that are configurable by hydra."""
 
     batch_size_tr: int = 1
-    batch_size_te: Optional[int] = None
+    batch_size_te: int | None = None
     num_samples_per_group_per_bag: int = 1
     stratified_sampler: StratSamplerType = StratSamplerType.exact
     use_y_for_dep_bags: bool = False
@@ -77,9 +77,9 @@ class DataModule:
     cfg: DataModuleConf
     train: Dataset
     deployment: Dataset
-    deployment_ids: Optional[Tensor] = field(init=False, default=None)
+    deployment_ids: Tensor | None = field(init=False, default=None)
     test: Dataset
-    split_seed: Optional[int]
+    split_seed: int | None
 
     def __post_init__(self) -> None:
         # we have to store `batch_size_tr` in `self` because `gcopy` may want to overwrite it
@@ -95,7 +95,7 @@ class DataModule:
         return self.batch_size_tr if self._batch_size_te is None else self._batch_size_te
 
     @batch_size_te.setter
-    def batch_size_te(self, value: Optional[int]) -> None:
+    def batch_size_te(self, value: int | None) -> None:
         self._batch_size_te = value
 
     @property
@@ -126,7 +126,7 @@ class DataModule:
     def card_y(self) -> int:
         return self.train.card_y
 
-    def set_deployment_labels(self, ids: Optional[Tensor] = None) -> Self:
+    def set_deployment_labels(self, ids: Tensor | None = None) -> Self:
         ids = self.deployment_ids if ids is None else ids
         if ids is not None:
             if len(ids) != len(self.deployment):
@@ -199,7 +199,7 @@ class DataModule:
         return get_group_ids(self.test)
 
     @property
-    def feature_group_slices(self) -> Optional[dict[str, list[slice]]]:
+    def feature_group_slices(self) -> dict[str, list[slice]] | None:
         return None
 
     @classmethod
@@ -220,11 +220,11 @@ class DataModule:
         self,
         ds: Dataset,
         *,
-        batch_size: Optional[int],
+        batch_size: int | None,
         shuffle: bool = False,
         drop_last: bool = False,
-        batch_sampler: Optional[BatchSamplerBase] = None,
-        num_workers: Optional[int] = None,
+        batch_sampler: BatchSamplerBase | None = None,
+        num_workers: int | None = None,
     ) -> CdtDataLoader[TernarySample]:
         """Make DataLoader."""
         return CdtDataLoader(
@@ -265,7 +265,7 @@ class DataModule:
 
     def _get_balanced_sampler(
         self, group_ids: Tensor, *, batch_size: int
-    ) -> Union[StratifiedBatchSampler, ApproxStratBatchSampler]:
+    ) -> StratifiedBatchSampler | ApproxStratBatchSampler:
         if self.cfg.stratified_sampler is StratSamplerType.exact:
             return self._make_stratified_sampler(group_ids, batch_size=batch_size)
 
@@ -309,9 +309,9 @@ class DataModule:
         eval: bool = False,
         *,
         balance: bool = True,
-        batch_size: Optional[int] = None,
-        num_workers: Optional[int] = None,
-        batch_sampler: Optional[BatchSamplerBase] = None,
+        batch_size: int | None = None,
+        num_workers: int | None = None,
+        batch_sampler: BatchSamplerBase | None = None,
     ) -> CdtDataLoader[TernarySample]:
         if eval:
             return self._make_dataloader(
@@ -339,16 +339,14 @@ class DataModule:
         self,
         *,
         eval: bool = False,
-        num_workers: Optional[int] = None,
-        batch_size: Optional[int] = None,
+        num_workers: int | None = None,
+        batch_size: int | None = None,
     ) -> CdtDataLoader[TernarySample]:
         batch_size = self.batch_size_tr if batch_size is None else batch_size
         if eval:
             return self._make_dataloader(ds=self.deployment, batch_size=batch_size, shuffle=False)
 
-        batch_sampler: Union[
-            SequentialBatchSampler, StratifiedBatchSampler, ApproxStratBatchSampler
-        ]
+        batch_sampler: SequentialBatchSampler | StratifiedBatchSampler | ApproxStratBatchSampler
         if self.deployment_ids is None:
             batch_sampler = SequentialBatchSampler(
                 data_source=self.deployment,
@@ -377,46 +375,46 @@ class DataModule:
             ds=self.deployment, batch_size=1, batch_sampler=batch_sampler, num_workers=num_workers
         )
 
-    def test_dataloader(self, num_workers: Optional[int] = None) -> CdtDataLoader[TernarySample]:
+    def test_dataloader(self, num_workers: int | None = None) -> CdtDataLoader[TernarySample]:
         return self._make_dataloader(
             ds=self.test, batch_size=self.batch_size_te, shuffle=False, num_workers=num_workers
         )
 
     @property
-    def transforms_tr(self) -> Optional[ImageTform]:
+    def transforms_tr(self) -> ImageTform | None:
         if isinstance(self.train, CdtVisionDataset):
             return self.train.transform
         return None
 
     @transforms_tr.setter
-    def transforms_tr(self, value: Optional[ImageTform]) -> None:
+    def transforms_tr(self, value: ImageTform | None) -> None:
         if isinstance(self.train, CdtVisionDataset):
             self.train.transform = self._default_train_transforms() if value is None else value
 
     @property
-    def transforms_dep(self) -> Optional[ImageTform]:
+    def transforms_dep(self) -> ImageTform | None:
         if isinstance(self.deployment, CdtVisionDataset):
             return self.deployment.transform
         return None
 
     @transforms_dep.setter
-    def transforms_dep(self, value: Optional[ImageTform]) -> None:
+    def transforms_dep(self, value: ImageTform | None) -> None:
         if isinstance(self.deployment, CdtVisionDataset):
             assert isinstance(self.train, CdtVisionDataset)
             self.deployment.transform = self.train.transform if value is None else value
 
     @property
-    def transforms_te(self) -> Optional[ImageTform]:
+    def transforms_te(self) -> ImageTform | None:
         if isinstance(self.test, CdtVisionDataset):
             return self.test.transform
         return None
 
     @transforms_te.setter
-    def transforms_te(self, value: Optional[ImageTform]) -> None:
+    def transforms_te(self, value: ImageTform | None) -> None:
         if isinstance(self.test, CdtVisionDataset):
             self.test.transform = self._default_test_transforms() if value is None else value
 
-    def set_transforms_all(self, value: Optional[ImageTform]) -> None:
+    def set_transforms_all(self, value: ImageTform | None) -> None:
         self.transforms_tr = value
         self.transforms_te = value
         self.transforms_dep = value
@@ -460,7 +458,7 @@ class DataModule:
         if isinstance(self.train, CdtVisionDataset):
             if (tform := self.train.transform) is not None:
 
-                def _get_stats(_tform: ImageTform) -> Optional[MeanStd]:
+                def _get_stats(_tform: ImageTform) -> MeanStd | None:
                     stats = None
                     if isinstance(_tform, (T.Normalize, A.Normalize)):
                         stats = MeanStd(mean=_tform.mean, std=_tform.std)

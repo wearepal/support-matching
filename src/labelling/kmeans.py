@@ -1,6 +1,5 @@
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Optional, Union
 
 from loguru import logger
 import numpy as np
@@ -24,7 +23,7 @@ def fft_init(
     *,
     centroids: Tensor,
     num_clusters: int,
-    device: Union[str, torch.device, None] = None,
+    device: str | torch.device | None = None,
     chunk_size: int = 1000,
 ) -> Tensor:
     num_predefined = len(centroids)
@@ -83,8 +82,8 @@ class KMeans:
     fft_cluster_init: bool = False
     supervised_cluster_init: bool = False
     spherical: bool = True
-    device: Union[int, str, torch.device] = 0
-    _fitted_model: Optional[SklKMeans] = field(
+    device: int | str | torch.device = 0
+    _fitted_model: SklKMeans | None = field(
         default=None, init=False, metadata={"omegaconf_ignore": True}
     )
 

@@ -2,7 +2,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from enum import Enum, auto
 from functools import cached_property
-from typing import Literal, NamedTuple, Optional, Union
+from typing import Literal, NamedTuple
 from typing_extensions import Self, override
 
 import torch
@@ -106,7 +106,7 @@ class ZsTransform(Enum):
 class SplitAeCfg(OptimizerCfg):
     """These are the parameters to `SplitLatentAe` which are configurable by hydra."""
 
-    zs_dim: Union[int, float] = 1
+    zs_dim: int | float = 1
     zs_transform: ZsTransform = ZsTransform.none
     recon_loss: ReconstructionLoss = ReconstructionLoss.l2
 
@@ -114,7 +114,7 @@ class SplitAeCfg(OptimizerCfg):
 @dataclass(repr=False, eq=False)
 class SplitLatentAe(Model[AePair]):
     cfg: SplitAeCfg
-    feature_group_slices: Optional[dict[str, list[slice]]] = None
+    feature_group_slices: dict[str, list[slice]] | None = None
 
     @cached_property
     def recon_loss_fn(self) -> Callable[[Tensor, Tensor], Tensor]:
@@ -154,7 +154,7 @@ class SplitLatentAe(Model[AePair]):
         self,
         split_encoding: SplitEncoding,
         *,
-        s: Optional[Tensor] = None,
+        s: Tensor | None = None,
         mode: Literal["soft", "hard", "relaxed"] = "soft",
     ) -> Tensor:
         if s is not None:  # we've been given the ground-truth labels for reconstruction
@@ -204,7 +204,7 @@ class SplitLatentAe(Model[AePair]):
         return SplitEncoding(zs=zs, zy=zy)
 
     def training_step(
-        self, x: Tensor, *, s: Optional[Tensor] = None, prior_loss_w: Optional[float] = None
+        self, x: Tensor, *, s: Tensor | None = None, prior_loss_w: float | None = None
     ) -> tuple[SplitEncoding, Tensor, dict[str, float]]:
         # it only makes sense to transform zs if we're actually going to use it
         encoding = self.encode(x, transform_zs=s is None)

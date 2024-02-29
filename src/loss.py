@@ -1,6 +1,5 @@
 from enum import Enum
 import math
-from typing import Optional, Union
 from typing_extensions import override
 
 from conduit.types import Loss
@@ -22,7 +21,7 @@ class MixedLoss(nn.Module):
         feature_group_slices: dict[str, list[slice]],
         *,
         disc_loss_factor: float = 1.0,
-        reduction: Union[str, ReductionType] = ReductionType.mean,
+        reduction: str | ReductionType = ReductionType.mean,
     ) -> None:
         super().__init__()
         self.reduction = str_to_enum(reduction, enum=ReductionType)
@@ -56,7 +55,7 @@ class MixedLoss(nn.Module):
 
 class GeneralizedCELoss(nn.Module):
     def __init__(
-        self, *, q: float = 0.7, reduction: Union[ReductionType, str] = ReductionType.mean
+        self, *, q: float = 0.7, reduction: ReductionType | str = ReductionType.mean
     ) -> None:
         super().__init__()
         self.reduction = str_to_enum(str_=reduction, enum=ReductionType)
@@ -93,10 +92,10 @@ class PolynomialLoss(nn.Module, Loss):
 
     def __init__(
         self,
-        mode: Union[str, Mode] = Mode.exp,
+        mode: str | Mode = Mode.exp,
         *,
         alpha: float = 1.0,
-        reduction: Union[str, ReductionType] = ReductionType.mean,
+        reduction: str | ReductionType = ReductionType.mean,
     ) -> None:
         super().__init__()
         self.mode = str_to_enum(mode, enum=Mode)
@@ -129,7 +128,7 @@ class PolynomialLoss(nn.Module, Loss):
 
     @override
     def forward(
-        self, input: Tensor, *, target: Tensor, instance_weight: Optional[Tensor] = None
+        self, input: Tensor, *, target: Tensor, instance_weight: Tensor | None = None
     ) -> Tensor:  # type: ignore
         dim = input.size(1)
         if dim > 2:

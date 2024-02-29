@@ -1,6 +1,6 @@
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Literal, Optional, TypeVar, Union, overload
+from typing import Literal, TypeVar, overload
 from typing_extensions import override
 
 from conduit.data.datasets.utils import CdtDataLoader
@@ -40,7 +40,7 @@ def cat_cpu_flatten(*ls: list[Tensor], dim: int = 0) -> Iterator[Tensor]:
 class Classifier(Model):
     """Wrapper for classifier models equipped witht training/inference routines."""
 
-    criterion: Optional[Loss] = None
+    criterion: Loss | None = None
 
     @overload
     def predict(
@@ -63,7 +63,7 @@ class Classifier(Model):
         self,
         data: CdtDataLoader[TernarySample],
         *,
-        device: Union[torch.device, str],
+        device: torch.device | str,
         with_soft: bool = False,
     ) -> EvalTuple[Tensor, None] | EvalTuple[Tensor, Tensor]:
         device = resolve_device(device)
@@ -101,9 +101,9 @@ class Classifier(Model):
         steps: int,
         device: torch.device,
         pred_s: bool = False,
-        val_interval: Union[int, float] = 0.1,
-        test_data: Optional[CdtDataLoader[TernarySample]] = None,
-        grad_scaler: Optional[GradScaler] = None,
+        val_interval: int | float = 0.1,
+        test_data: CdtDataLoader[TernarySample] | None = None,
+        grad_scaler: GradScaler | None = None,
         use_wandb: bool = False,
     ) -> None:
         use_amp = grad_scaler is not None
@@ -171,7 +171,7 @@ S = TypeVar("S", bound=SampleBase[Tensor])
 class SetClassifier(Model[SetPredictor]):
     """Wrapper for set classifier models equipped witht training/inference routines."""
 
-    criterion: Optional[Loss] = None
+    criterion: Loss | None = None
 
     @torch.no_grad()  # pyright: ignore
     def _fetch_train_data(
@@ -198,7 +198,7 @@ class SetClassifier(Model[SetPredictor]):
         *dls: CdtDataLoader[S],
         steps: int,
         device: torch.device,
-        grad_scaler: Optional[GradScaler] = None,
+        grad_scaler: GradScaler | None = None,
         use_wandb: bool = False,
     ) -> None:
         use_amp = grad_scaler is not None
@@ -234,7 +234,7 @@ class SetClassifier(Model[SetPredictor]):
 
     @torch.no_grad()  # pyright: ignore
     def predict(
-        self, *dls: CdtDataLoader[S], device: Union[torch.device, str], max_steps: int
+        self, *dls: CdtDataLoader[S], device: torch.device | str, max_steps: int
     ) -> EvalTuple[None, None]:
         device = resolve_device(device)
         self.to(device)
@@ -260,5 +260,5 @@ class SetClassifier(Model[SetPredictor]):
         return EvalTuple(y_pred=y_pred, y_true=y_true)
 
     @override
-    def forward(self, inputs: Tensor, batch_size: Optional[int] = None) -> Tensor:
+    def forward(self, inputs: Tensor, batch_size: int | None = None) -> Tensor:
         return self.model(inputs, batch_size=batch_size)

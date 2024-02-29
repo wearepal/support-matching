@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import Optional, Union
 from typing_extensions import override
 
 from conduit.types import Loss
@@ -17,15 +16,15 @@ __all__ = ["SdErm", "SdCrossEntropyLoss"]
 class SdCrossEntropyLoss(nn.Module, Loss):
     """Cross-entropy loss with spectral-decoupling."""
 
-    lambda_: Union[float, Tensor]
-    gamma: Union[float, Tensor]
+    lambda_: float | Tensor
+    gamma: float | Tensor
 
     def __init__(
         self,
-        loss_fn: Optional[Loss] = None,
+        loss_fn: Loss | None = None,
         *,
-        lambda_: Union[float, tuple[float, ...], list[float], ListConfig] = 1.0,
-        gamma: Union[float, tuple[float, ...], list[float], ListConfig] = 0.0,
+        lambda_: float | tuple[float, ...] | list[float] | ListConfig = 1.0,
+        gamma: float | tuple[float, ...] | list[float] | ListConfig = 0.0,
     ) -> None:
         super().__init__()
         if isinstance(lambda_, ListConfig):
@@ -46,11 +45,11 @@ class SdCrossEntropyLoss(nn.Module, Loss):
             self.gamma = gamma
 
     @property
-    def reduction(self) -> Union[ReductionType, str]:
+    def reduction(self) -> ReductionType | str:
         return self.loss_fn.reduction
 
     @reduction.setter
-    def reduction(self, value: Union[ReductionType, str]) -> None:  # type: ignore
+    def reduction(self, value: ReductionType | str) -> None:  # type: ignore
         self.loss_fn.reduction = value
 
     @override

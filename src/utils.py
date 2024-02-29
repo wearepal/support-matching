@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from typing import Optional, TypeVar, Union, overload
+from typing import TypeVar, overload
 
 import numpy as np
 import numpy.typing as npt
@@ -10,7 +10,7 @@ from torch.types import Number
 __all__ = ["cat", "soft_prediction", "to_item", "to_numpy", "full_class_path"]
 
 
-DT = TypeVar("DT", bound=Union[np.number, np.bool_])
+DT = TypeVar("DT", bound=np.number | np.bool_)
 
 
 @overload
@@ -23,7 +23,7 @@ def to_numpy(tensor: Tensor, *, dtype: None = ...) -> npt.NDArray:
     ...
 
 
-def to_numpy(tensor: Tensor, *, dtype: Optional[DT] = None) -> Union[npt.NDArray[DT], npt.NDArray]:
+def to_numpy(tensor: Tensor, *, dtype: DT | None = None) -> npt.NDArray[DT] | npt.NDArray:
     arr = tensor.detach().cpu().numpy()
     if dtype is not None:
         arr.astype(dtype)
@@ -35,7 +35,7 @@ def to_item(tensor: Tensor) -> Number:
 
 
 def cat(
-    *ls: list[Tensor], dim: int = 0, device: Optional[Union[torch.device, str]] = None
+    *ls: list[Tensor], dim: int = 0, device: torch.device | str | None = None
 ) -> Iterator[Tensor]:
     for ls_ in ls:
         yield torch.cat(ls_, dim=dim).to(device=device)

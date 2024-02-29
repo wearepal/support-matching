@@ -2,8 +2,8 @@ from abc import abstractmethod
 from collections import defaultdict
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import ClassVar, Generic, Literal, Optional, TypeAlias, TypeVar, Union
-from typing_extensions import Self
+from typing import ClassVar, Generic, Literal, TypeVar
+from typing_extensions import Self, TypeAliasType
 
 from conduit.data.structures import SampleBase, TernarySample
 from conduit.metrics import accuracy
@@ -32,16 +32,16 @@ __all__ = ["AdvSemiSupervisedAlg", "Components"]
 
 D = TypeVar("D")
 
-IterTr: TypeAlias = Iterator[TernarySample[Tensor]]
-IterDep: TypeAlias = Iterator[SampleBase[Tensor]]
+IterTr = TypeAliasType("IterTr", Iterator[TernarySample[Tensor]])
+IterDep = TypeAliasType("IterDep", Iterator[SampleBase[Tensor]])
 
 
 @dataclass(repr=False, eq=False)
 class Components(DcModule, Generic[D]):
     ae: SplitLatentAe
     disc: D
-    pred_y: Optional[Classifier]
-    pred_s: Optional[Classifier]
+    pred_y: Classifier | None
+    pred_s: Classifier | None
 
     @torch.no_grad()  # pyright: ignore
     def train_ae(self) -> None:
@@ -77,7 +77,7 @@ class AdvSemiSupervisedAlg(Algorithm):
 
     enc_loss_w: float = 1
     disc_loss_w: float = 1
-    prior_loss_w: Optional[float] = None
+    prior_loss_w: float | None = None
     num_disc_updates: int = 3
     # Whether to use the deployment set when computing the encoder's adversarial loss
     twoway_disc_loss: bool = True
@@ -91,7 +91,7 @@ class AdvSemiSupervisedAlg(Algorithm):
 
     # Misc
     validate: bool = True
-    val_freq: Union[int, float] = 0.1  # how often to do validation
+    val_freq: int | float = 0.1  # how often to do validation
     log_freq: int = 150
 
     def __post_init__(self) -> None:
@@ -107,7 +107,7 @@ class AdvSemiSupervisedAlg(Algorithm):
 
     def _build_predictors(
         self, ae: SplitLatentAe, *, y_dim: int, s_dim: int
-    ) -> tuple[Optional[Classifier], Optional[Classifier]]:
+    ) -> tuple[Classifier | None, Classifier | None]:
         pred_y = None
         if self.pred_y_loss_w > 0:
             model, _ = self.pred_y(input_dim=ae.encoding_size.zy, target_dim=y_dim)
@@ -273,12 +273,12 @@ class AdvSemiSupervisedAlg(Algorithm):
         return iter(dl_tr), iter(dl_dep)
 
     def _evaluate(
-        self, dm: DataModule, *, ae: SplitLatentAe, evaluator: Evaluator, step: Optional[int] = None
+        self, dm: DataModule, *, ae: SplitLatentAe, evaluator: Evaluator, step: int | None = None
     ) -> DataModule:
         return evaluator(dm=dm, encoder=ae, step=step, device=self.device)
 
     def _evaluate_pred_y(
-        self, dm: DataModule, *, comp: Components, step: Optional[int] = None
+        self, dm: DataModule, *, comp: Components, step: int | None = None
     ) -> None:
         if comp.pred_y is not None:
             et = comp.pred_y.predict(dm.test_dataloader(), device=self.device)

@@ -5,7 +5,7 @@ from enum import Enum
 from pathlib import Path
 import platform
 from tempfile import TemporaryDirectory
-from typing import Any, Final, Optional, TypedDict, Union, cast
+from typing import Any, Final, TypedDict, cast
 from typing_extensions import override
 
 from conduit.data.constants import IMAGENET_STATS
@@ -108,17 +108,17 @@ class SavedSplitInds(TypedDict):
 
 
 def save_split_inds_as_artifact(
-    run: Optional[Union[Run, RunDisabled]],
+    run: Run | RunDisabled | None,
     *,
     train_inds: Tensor,
     test_inds: Tensor,
     dep_inds: Tensor,
     ds: Dataset,
     seed: int,
-    artifact_name: Optional[str] = None,
-) -> Optional[str]:
+    artifact_name: str | None = None,
+) -> str | None:
     if run is None:
-        run = cast(Optional[Run], wandb.run)
+        run = cast(Run | None, wandb.run)
         if run is None:
             logger.info(
                 f"No active wandb run with which to save an artifact: skipping saving of splits."
@@ -154,9 +154,9 @@ class RandomSplitter(_VisionDataSplitter):
     data_prop: float = 1.0
 
     # Dataset manipulation
-    dep_subsampling_props: Optional[dict[int, Any]] = None
-    train_subsampling_props: Optional[dict[int, Any]] = None
-    artifact_name: Optional[str] = None
+    dep_subsampling_props: dict[int, Any] | None = None
+    train_subsampling_props: dict[int, Any] | None = None
+    artifact_name: str | None = None
     save_as_artifact: bool = False
 
     def __post_init__(self) -> None:
@@ -230,7 +230,7 @@ class RandomSplitter(_VisionDataSplitter):
         return TrainDepTestSplit(train=train_data, deployment=dep_data, test=test_data)
 
 
-def _process_root_dir(root: Optional[Union[Path, str]]) -> Path:
+def _process_root_dir(root: Path | str | None) -> Path:
     if root is None:
         root = Path("artifacts", "splits")
     elif isinstance(root, str):
@@ -239,12 +239,12 @@ def _process_root_dir(root: Optional[Union[Path, str]]) -> Path:
 
 
 def load_split_inds_from_artifact(
-    run: Optional[Union[Run, RunDisabled]],
+    run: Run | RunDisabled | None,
     *,
     name: str,
-    project: Optional[str] = None,
-    root: Optional[Union[Path, str]] = None,
-    version: Optional[int] = None,
+    project: str | None = None,
+    root: Path | str | None = None,
+    version: int | None = None,
 ) -> SavedSplitInds:
     root = _process_root_dir(root)
     version_str = ":latest" if version is None else f":v{version}"
@@ -274,7 +274,7 @@ def load_split_inds_from_artifact(
 @dataclass(eq=False, kw_only=True)
 class SplitFromArtifact(_VisionDataSplitter):
     artifact_name: str
-    version: Optional[int] = None
+    version: int | None = None
 
     @override
     def split(self, dataset: D) -> TrainDepTestSplit[D]:

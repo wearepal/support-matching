@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Union, final
+from typing import Any, final
 from typing_extensions import Self
 
 from torch import nn
@@ -13,7 +13,7 @@ def exclude_from_weight_decay(
     named_params: Iterable[tuple[str, Parameter]],
     weight_decay: float = 0.0,
     exclusion_patterns: tuple[str, ...] = ("bias",),
-) -> list[dict[str, Union[list[Parameter], float]]]:
+) -> list[dict[str, list[Parameter] | float]]:
     params: list[Parameter] = []
     excluded_params: list[Parameter] = []
 

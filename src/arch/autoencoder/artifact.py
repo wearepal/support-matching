@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Final, Optional, Union
+from typing import Any, Final
 from typing_extensions import override
 
 from hydra.utils import instantiate
@@ -22,7 +22,7 @@ FILENAME: Final[str] = "model.pt"
 
 @torch.no_grad()  # pyright: ignore
 def save_ae_artifact(
-    model: AePair, *, run: Union[Run, RunDisabled], factory_config: dict[str, Any], name: str
+    model: AePair, *, run: Run | RunDisabled, factory_config: dict[str, Any], name: str
 ) -> None:
     assert "_target_" in factory_config
     with TemporaryDirectory() as tmpdir:
@@ -44,7 +44,7 @@ def save_ae_artifact(
         )
 
 
-def _process_root_dir(root: Optional[Union[Path, str]]) -> Path:
+def _process_root_dir(root: Path | str | None) -> Path:
     if root is None:
         root = Path("artifacts", "autoencoder")
     elif isinstance(root, str):
@@ -57,10 +57,10 @@ def load_ae_from_artifact(
     name: str,
     *,
     input_shape: tuple[int, int, int],
-    version: Optional[int] = None,
-    run: Optional[Union[Run, RunDisabled]] = None,
-    project: Optional[str] = None,
-    root: Optional[Union[Path, str]] = None,
+    version: int | None = None,
+    run: Run | RunDisabled | None = None,
+    project: str | None = None,
+    root: Path | str | None = None,
 ) -> tuple[AePair, dict[str, Any]]:
     root = _process_root_dir(root)
     version_str = "latest" if version is None else f"v{version}"
@@ -98,7 +98,7 @@ def load_ae_from_artifact(
 @dataclass(eq=False)
 class AeFromArtifact(AeFactory):
     artifact_name: str
-    version: Optional[int] = None
+    version: int | None = None
     bitfit: bool = False
     factory_config: dict[str, Any] = field(init=False, metadata={"omegaconf_ignore": True})
 

@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar
 
 from attrs import define, field
 from loguru import logger
@@ -65,7 +65,7 @@ class MiMinRelay(BaseRelay):
         },
     }
 
-    def run(self, raw_config: Optional[dict[str, Any]] = None) -> None:
+    def run(self, raw_config: dict[str, Any] | None = None) -> None:
         assert isinstance(self.ae_arch, AeFactory)
         assert isinstance(self.ds, DatasetFactory)
         assert isinstance(self.labeller, Labeller)

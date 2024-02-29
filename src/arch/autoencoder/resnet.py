@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Union, cast
+from typing import cast
 from typing_extensions import override
 
 import torch
@@ -17,7 +17,7 @@ class Interpolate(nn.Module):
     """nn.Module wrapper for F.interpolate."""
 
     def __init__(
-        self, size: Optional[int] = None, scale_factor: Union[float, list[float], None] = None
+        self, size: int | None = None, scale_factor: float | list[float] | None = None
     ) -> None:
         super().__init__()
         self.size, self.scale_factor = size, scale_factor
@@ -38,7 +38,7 @@ def conv1x1(in_planes: int, *, out_planes: int, stride: int = 1) -> nn.Conv2d:
 
 def resize_conv3x3(
     in_planes: int, *, out_planes: int, scale: float = 1
-) -> Union[nn.Sequential, nn.Conv2d]:
+) -> nn.Sequential | nn.Conv2d:
     """upsample + 3x3 convolution with padding to avoid checkerboard artifact."""
     if scale == 1:
         return conv3x3(in_planes, out_planes=out_planes)
@@ -47,7 +47,7 @@ def resize_conv3x3(
 
 def resize_conv1x1(
     in_planes: int, *, out_planes: int, scale: float = 1
-) -> Union[nn.Sequential, nn.Conv2d]:
+) -> nn.Sequential | nn.Conv2d:
     """upsample + 1x1 convolution with padding to avoid checkerboard artifact."""
     if scale == 1:
         return conv1x1(in_planes=in_planes, out_planes=out_planes)
@@ -62,7 +62,7 @@ class EncoderBlock(nn.Module):
     expansion = 1
 
     def __init__(
-        self, inplanes: int, planes: int, stride: int = 1, downsample: Optional[nn.Module] = None
+        self, inplanes: int, planes: int, stride: int = 1, downsample: nn.Module | None = None
     ) -> None:
         super().__init__()
         self.conv1 = conv3x3(inplanes, out_planes=planes, stride=stride)
@@ -98,7 +98,7 @@ class EncoderBottleneck(nn.Module):
     expansion = 4
 
     def __init__(
-        self, inplanes: int, planes: int, stride: int = 1, downsample: Optional[nn.Module] = None
+        self, inplanes: int, planes: int, stride: int = 1, downsample: nn.Module | None = None
     ) -> None:
         super().__init__()
         width = planes  # this needs to change if we want wide resnets
@@ -140,7 +140,7 @@ class DecoderBlock(nn.Module):
     expansion = 1
 
     def __init__(
-        self, inplanes: int, planes: int, scale: float = 1, upsample: Optional[nn.Module] = None
+        self, inplanes: int, planes: int, scale: float = 1, upsample: nn.Module | None = None
     ) -> None:
         super().__init__()
         self.conv1 = resize_conv3x3(in_planes=inplanes, out_planes=inplanes)
@@ -175,7 +175,7 @@ class DecoderBottleneck(nn.Module):
     expansion = 4
 
     def __init__(
-        self, inplanes: int, planes: int, scale: float = 1, upsample: Optional[nn.Module] = None
+        self, inplanes: int, planes: int, scale: float = 1, upsample: nn.Module | None = None
     ) -> None:
         super().__init__()
         width = planes  # this needs to change if we want wide resnets
@@ -214,7 +214,7 @@ class DecoderBottleneck(nn.Module):
 class ResNetEncoder(nn.Module):
     def __init__(
         self,
-        block: Union[type[EncoderBlock], type[EncoderBottleneck]],
+        block: type[EncoderBlock] | type[EncoderBottleneck],
         layers: list[int],
         first_conv: bool = False,
         maxpool1: bool = False,
@@ -248,7 +248,7 @@ class ResNetEncoder(nn.Module):
 
     def _make_layer(
         self,
-        block: Union[type[EncoderBlock], type[EncoderBottleneck]],
+        block: type[EncoderBlock] | type[EncoderBottleneck],
         planes: int,
         blocks: int,
         stride: int = 1,
@@ -291,7 +291,7 @@ class ResNetDecoder(nn.Module):
 
     def __init__(
         self,
-        block: Union[type[DecoderBlock], type[DecoderBottleneck]],
+        block: type[DecoderBlock] | type[DecoderBottleneck],
         layers: list[int],
         latent_dim: int,
         input_height: int,
@@ -335,7 +335,7 @@ class ResNetDecoder(nn.Module):
 
     def _make_layer(
         self,
-        block: Union[type[DecoderBlock], type[DecoderBottleneck]],
+        block: type[DecoderBlock] | type[DecoderBottleneck],
         planes: int,
         blocks: int,
         scale: float = 1,
@@ -437,7 +437,7 @@ class ResNetAE(AeFactory):
 
     @override
     def __call__(self, input_shape: tuple[int, int, int]) -> AePair:
-        encoder: Union[ResNetEncoder, tvm.ResNet]
+        encoder: ResNetEncoder | tvm.ResNet
         if self.pretrained_enc:
             assert (
                 self.first_conv and self.maxpool1

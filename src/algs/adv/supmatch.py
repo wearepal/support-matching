@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, cast
+from typing import cast
 from typing_extensions import Self, override
 
 from conduit.data.structures import TernarySample
@@ -155,7 +155,7 @@ class SupportMatching(AdvSemiSupervisedAlg):
         disc: BinaryDiscriminator,
         evaluator: Evaluator,
         scorer: Scorer,
-    ) -> Optional[float]:
+    ) -> float | None:
         """First fit, then evaluate, then score."""
         disc_model_sd0 = None
         if isinstance(disc, NeuralDiscriminator) and isinstance(disc.model, SetPredictor):

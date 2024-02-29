@@ -40,7 +40,7 @@ class RunsDownloader:
         return pd.concat(dfs, axis="index", sort=False, ignore_index=True)
 
     def modify_config(
-        self, group: str, config_key: str, new_value: Union[bool, int, float, str]
+        self, group: str, config_key: str, new_value: bool | int | float | str
     ) -> None:
         path = f"{self.entity}/{self.project}"
         runs = self.api.runs(path, {"group": group})

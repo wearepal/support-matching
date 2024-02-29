@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 from functools import cached_property
-from typing import Any, ClassVar, Generic, Optional, Protocol, cast
+from typing import Any, ClassVar, Generic, Protocol, cast
 from typing_extensions import TypeVar, override
 
 from conduit.types import LRScheduler
@@ -30,9 +30,9 @@ class OptimizerCfg:
     optimizer_cls: Optimizer = Optimizer.ADAM
     lr: float = 5.0e-4
     weight_decay: float = 0
-    optimizer_kwargs: Optional[dict] = None
-    scheduler_cls: Optional[str] = None
-    scheduler_kwargs: Optional[dict] = None
+    optimizer_kwargs: dict | None = None
+    scheduler_cls: str | None = None
+    scheduler_kwargs: dict | None = None
 
 
 class ModuleLike(Protocol):
@@ -64,7 +64,7 @@ class Model(DcModule, Generic[M]):
         return self.opt.optimizer_cls.value(**cast(dict[str, Any], kwargs), params=params)
 
     @cached_property
-    def scheduler(self) -> Optional[LRScheduler]:
+    def scheduler(self) -> LRScheduler | None:
         if self.opt.scheduler_cls is not None:
             scheduler_config = DictConfig({"_target_": self.opt.scheduler_cls})
             if self.opt.scheduler_kwargs is not None:
@@ -72,7 +72,7 @@ class Model(DcModule, Generic[M]):
             return instantiate(scheduler_config, optimizer=self.optimizer)
         return None
 
-    def step(self, grad_scaler: Optional[GradScaler] = None, scaler_update: bool = True) -> None:
+    def step(self, grad_scaler: GradScaler | None = None, scaler_update: bool = True) -> None:
         if grad_scaler is None:
             self.optimizer.step()
         else:

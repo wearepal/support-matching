@@ -1,6 +1,6 @@
 from collections.abc import Iterator
 from dataclasses import KW_ONLY, dataclass
-from typing import Any, Generic, Literal, Optional, Union, overload
+from typing import Any, Generic, Literal, overload
 from typing_extensions import NamedTuple, TypeVar
 
 from conduit.data.datasets.utils import infer_sample_cls
@@ -68,8 +68,8 @@ def group_id_to_label(group_id: I, *, s_count: int, label: Literal[None] = ...) 
 
 
 def group_id_to_label(
-    group_id: I, *, s_count: int, label: Optional[Literal["s", "y"]] = None
-) -> Union[I, LabelPair[I]]:
+    group_id: I, *, s_count: int, label: Literal["s", "y"] | None = None
+) -> I | LabelPair[I]:
     assert s_count > 1
     if label is None:
         y = group_id_to_label(group_id=group_id, s_count=s_count, label="y")
@@ -82,7 +82,7 @@ def group_id_to_label(
     return group_id // s_count
 
 
-def resolve_device(device: Union[str, torch.device, int]) -> torch.device:
+def resolve_device(device: str | torch.device | int) -> torch.device:
     if isinstance(device, int):
         use_gpu = torch.cuda.is_available() and device >= 0
         device = torch.device(device if use_gpu else "cpu")
@@ -91,13 +91,13 @@ def resolve_device(device: Union[str, torch.device, int]) -> torch.device:
     return device
 
 
-def to_device(*args: Tensor, device: Union[str, torch.device, int]) -> Iterator[Tensor]:
+def to_device(*args: Tensor, device: str | torch.device | int) -> Iterator[Tensor]:
     device = resolve_device(device)
     for arg in args:
         yield arg.to(device, non_blocking=True)
 
 
-def sample_converter(sample: Union[Any, tuple[Any, ...], list[Any], dict[str, Any]]) -> SampleBase:
+def sample_converter(sample: Any | tuple[Any, ...] | list[Any] | dict[str, Any]) -> SampleBase:
     sample_cls = infer_sample_cls(sample)
     if isinstance(sample, (tuple, list)):
         sample_d = dict(zip(["y", "s"], sample[1:]))

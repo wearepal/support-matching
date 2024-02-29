@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, TypeVar, Union
+from typing import Any, TypeVar
 from typing_extensions import Self, override
 
 from conduit.data.datasets.base import CdtDataset
@@ -36,7 +36,7 @@ class LabelEma(nn.Module, Indexable):
         self.register_buffer("updated", torch.zeros(len(labels)))
 
     @torch.no_grad()  # pyright: ignore
-    def update(self, data: Tensor, *, index: Union[Tensor, int]) -> None:
+    def update(self, data: Tensor, *, index: Tensor | int) -> None:
         self.parameter[index] = (
             self.alpha * self.parameter[index] + (1 - self.alpha * self.updated[index]) * data
         )
@@ -63,7 +63,7 @@ class IndexedSample(SampleBase[X]):
     idx: Tensor
 
     @override
-    def __iter__(self) -> Iterator[Union[X, Tensor]]:
+    def __iter__(self) -> Iterator[X | Tensor]:
         yield from (self.x, self.y, self.s, self.idx)
 
     @override
