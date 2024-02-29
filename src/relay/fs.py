@@ -8,6 +8,7 @@ from src.arch import BackboneFactory
 from src.arch.backbones import DenseNet, LinearResNet, ResNet, SimpleCNN
 from src.arch.predictors.fcn import Fcn
 from src.data import DatasetFactory, NICOPPCfg, NIHChestXRayDatasetCfg
+from src.data.factories import ACSCfg
 from src.hydra_confs.datasets import Camelyon17Cfg, CelebACfg, ColoredMNISTCfg
 from src.labelling.pipeline import (
     CentroidalLabelNoiser,
@@ -44,6 +45,7 @@ class FsRelay(BaseRelay):
 
     options: ClassVar[dict[str, dict[str, type]]] = BaseRelay.options | {
         "ds": {
+            "acs": ACSCfg,
             "cmnist": ColoredMNISTCfg,
             "celeba": CelebACfg,
             "camelyon17": Camelyon17Cfg,

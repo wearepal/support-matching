@@ -1,5 +1,7 @@
-from abc import abstractmethod
+from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 import platform
 from tempfile import TemporaryDirectory
@@ -10,7 +12,10 @@ from conduit.data.constants import IMAGENET_STATS
 from conduit.data.datasets import random_split
 from conduit.data.datasets.utils import stratified_split
 from conduit.data.datasets.vision import CdtVisionDataset, ImageTform, PillowTform
+from conduit.fair.data.datasets import ACSDataset
+from conduit.transforms import MinMaxNormalize, TabularNormalize, ZScoreNormalize
 from loguru import logger
+from ranzen import some
 import torch
 from torch import Tensor
 import torchvision.transforms as T
@@ -24,14 +29,22 @@ __all__ = [
     "DataSplitter",
     "RandomSplitter",
     "SplitFromArtifact",
+    "TabularSplitter",
     "load_split_inds_from_artifact",
     "save_split_inds_as_artifact",
 ]
 
 
 @dataclass(eq=False)
-class DataSplitter:
-    """How to split the data into train/test/dep."""
+class DataSplitter(ABC):
+    @abstractmethod
+    def __call__(self, dataset: D) -> TrainDepTestSplit[D]:
+        """Split the dataset into train/deployment/test."""
+
+
+@dataclass(eq=False)
+class _VisionDataSplitter(DataSplitter):
+    """Common methods for transforming vision datasets."""
 
     transductive: bool = False
     """Whether to include the test data in the pool of unlabelled data."""
@@ -133,7 +146,7 @@ def save_split_inds_as_artifact(
 
 
 @dataclass(eq=False)
-class RandomSplitter(DataSplitter):
+class RandomSplitter(_VisionDataSplitter):
     seed: int = 42
     dep_prop: float = 0.4
     test_prop: float = 0.2
@@ -259,7 +272,7 @@ def load_split_inds_from_artifact(
 
 
 @dataclass(eq=False, kw_only=True)
-class SplitFromArtifact(DataSplitter):
+class SplitFromArtifact(_VisionDataSplitter):
     artifact_name: str
     version: Optional[int] = None
 
@@ -272,3 +285,41 @@ class SplitFromArtifact(DataSplitter):
         dep_data = dataset.subset(splits["dep"])
         test_data = dataset.subset(splits["test"])
         return TrainDepTestSplit(train=train_data, deployment=dep_data, test=test_data)
+
+
+class TabularTform(Enum):
+    zscore_normalize = (ZScoreNormalize,)
+    minmax_normalize = (MinMaxNormalize,)
+
+    def __init__(self, tform: Callable[[], TabularNormalize]) -> None:
+        self.tf = tform
+
+
+@dataclass(eq=False)
+class TabularSplitter(DataSplitter):
+    """Split and transform tabular datasets."""
+
+    seed: int
+    train_props: dict[int, dict[int, float]] | None = None
+    dep_prop: float = 0.2
+    test_prop: float = 0.1
+    transform: TabularTform | None = TabularTform.zscore_normalize
+
+    @override
+    def __call__(self, dataset: D) -> TrainDepTestSplit[D]:
+        if not isinstance(dataset, ACSDataset):
+            raise NotImplementedError("TabularSplitter only supports splitting of `ACSDataset`.")
+
+        train, dep, test = dataset.subsampled_split(
+            train_props=self.train_props,
+            val_prop=self.dep_prop,
+            test_prop=self.test_prop,
+            seed=self.seed,
+        )
+        if some(tf_type := self.transform):
+            tf = tf_type.tf()
+            train.fit_transform_(tf)
+            dep.transform_(tf)
+            test.transform_(tf)
+
+        return TrainDepTestSplit(train=train, deployment=dep, test=test)

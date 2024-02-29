@@ -1,0 +1,10 @@
+---
+defaults:
+  - acs
+
+setting: employment_disability
+survey_year: YEAR_2018
+states:
+  - FL
+survey: PERSON
+horizon: ONE_YEAR

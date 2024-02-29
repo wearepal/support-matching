@@ -8,7 +8,7 @@ import torch
 
 from src.data import DataModule, DataModuleConf, RandomSplitter, SplitFromArtifact
 from src.data.common import Dataset
-from src.data.splitter import DataSplitter
+from src.data.splitter import DataSplitter, TabularSplitter
 from src.labelling import Labeller
 from src.logging import WandbConf
 
@@ -23,7 +23,11 @@ class BaseRelay:
     seed: int = 0
 
     options: ClassVar[dict[str, dict[str, type]]] = {
-        "split": {"random": RandomSplitter, "artifact": SplitFromArtifact}
+        "split": {
+            "random": RandomSplitter,
+            "artifact": SplitFromArtifact,
+            "tabular": TabularSplitter,
+        }
     }
 
     def init_dm(

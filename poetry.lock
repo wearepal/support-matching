@@ -543,6 +543,7 @@ files = [
 
 [package.dependencies]
 filelock = "*"
+folktables = {version = ">=0.0.12", optional = true, markers = "extra == \"data\" or extra == \"all\""}
 jinja2 = "*"
 joblib = ">=1.1.0,<2.0.0"
 networkx = "*"
@@ -577,6 +578,23 @@ files = [
 [package.extras]
 docs = ["furo (>=2023.3.27)", "sphinx (>=6.1.3)", "sphinx-autodoc-typehints (>=1.23,!=1.23.4)"]
 testing = ["covdefaults (>=2.3)", "coverage (>=7.2.3)", "diff-cover (>=7.5)", "pytest (>=7.3.1)", "pytest-cov (>=4)", "pytest-mock (>=3.10)", "pytest-timeout (>=2.1)"]
+
+[[package]]
+name = "folktables"
+version = "0.0.12"
+description = "New machine learning benchmarks from tabular datasets."
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "folktables-0.0.12-py3-none-any.whl", hash = "sha256:979cda1900094b845ab3a8a3ae1b848f0138b780d5f8d17eeb6eb04c3c0c6617"},
+    {file = "folktables-0.0.12.tar.gz", hash = "sha256:e83dde0cbcdd54c7c39b175006a50bdfc4adc351f69d4389f82aaba3eee02115"},
+]
+
+[package.dependencies]
+numpy = "*"
+pandas = "*"
+requests = "*"
+scikit-learn = "*"
 
 [[package]]
 name = "fonttools"
@@ -2855,18 +2873,20 @@ opt-einsum = ["opt-einsum (>=3.3)"]
 
 [[package]]
 name = "torch-conduit"
-version = "0.4.1"
+version = "0.4.2"
 description = "Lightweight framework for dataloading with PyTorch and channeling the power of PyTorch Lightning"
 optional = false
 python-versions = ">=3.10,<3.13"
 files = [
-    {file = "torch_conduit-0.4.1-py3-none-any.whl", hash = "sha256:d9e61232a7a017fd1ed7a9a0e080fb321b10ea816608518523b9c8ae9c9db44a"},
-    {file = "torch_conduit-0.4.1.tar.gz", hash = "sha256:4201f46355f7397c6e0bc1b39442b83daf207a9427ed93eebf0c1cbf59f67bd2"},
+    {file = "torch_conduit-0.4.2-py3-none-any.whl", hash = "sha256:ff8587f60d4fc79e298e0d883364a33710c1861ba8de2a5b4a6b17ddc3c46054"},
+    {file = "torch_conduit-0.4.2.tar.gz", hash = "sha256:9e4b3091f4f276b829a51a81639fa27ecaf7373958adb0f8306f3f01e36fc076"},
 ]
 
 [package.dependencies]
 albumentations = {version = ">=1.0.0,<2.0.0", optional = true, markers = "extra == \"image\" or extra == \"all\""}
 attrs = ">=21.2.0"
+ethicml = {version = ">=1.2.1,<2.0.0", extras = ["data"], optional = true, markers = "extra == \"fair\" or extra == \"all\""}
+folktables = {version = ">=0.0.12,<0.0.13", optional = true, markers = "extra == \"fair\" or extra == \"all\""}
 numpy = ">=1.22.3,<2.0.0"
 opencv-python = {version = ">=4.5.3,<5.0.0", optional = true, markers = "extra == \"image\" or extra == \"all\""}
 pandas = ">=1.3.3,<3.0"
@@ -3011,13 +3031,13 @@ files = [
 
 [[package]]
 name = "typing-extensions"
-version = "4.5.0"
-description = "Backported and Experimental Type Hints for Python 3.7+"
+version = "4.10.0"
+description = "Backported and Experimental Type Hints for Python 3.8+"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "typing_extensions-4.5.0-py3-none-any.whl", hash = "sha256:fb33085c39dd998ac16d1431ebc293a8b3eedd00fd4a32de0ff79002c19511b4"},
-    {file = "typing_extensions-4.5.0.tar.gz", hash = "sha256:5cb5f4a79139d699607b3ef622a1dedafa84e115ab0024e0d9c044a9479ca7cb"},
+    {file = "typing_extensions-4.10.0-py3-none-any.whl", hash = "sha256:69b1a937c3a517342112fb4c6df7e72fc39a38e7891a5730ed4985b5214b5475"},
+    {file = "typing_extensions-4.10.0.tar.gz", hash = "sha256:b0abd7c89e8fb96f98db18d86106ff1d90ab692004eb746cf6eda2682f91b3cb"},
 ]
 
 [[package]]
@@ -3238,4 +3258,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "0db240d14519c4a8a2078b91e59ce42803c85dbceb5d91b719ba7f6836c875f5"
+content-hash = "8e3dc2a8b7a8b97ff2ee17fec3b445c7ec645340c40c5f39b7a1cf552b54e5f4"

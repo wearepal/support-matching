@@ -1,0 +1,4 @@
+stratified_sampler: approx_group
+num_workers: 1
+batch_size_tr: 128
+batch_size_te: 100000

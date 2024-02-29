@@ -21,7 +21,7 @@ from src.arch.autoencoder import (
 from src.arch.predictors.base import PredictorFactory
 from src.arch.predictors.fcn import Fcn, SetFcn
 from src.data.common import DatasetFactory
-from src.data.nico_plus_plus import NICOPPCfg
+from src.data.factories import ACSCfg, NICOPPCfg
 from src.data.nih import NIHChestXRayDatasetCfg
 from src.hydra_confs.datasets import Camelyon17Cfg, CelebACfg, ColoredMNISTCfg
 from src.labelling.pipeline import (
@@ -71,6 +71,7 @@ class SupMatchRelay(BaseRelay):
     options: ClassVar[dict[str, dict[str, type]]] = BaseRelay.options | {
         "scorer": {"neural": NeuralScorer, "none": NullScorer},
         "ds": {
+            "acs": ACSCfg,
             "cmnist": ColoredMNISTCfg,
             "celeba": CelebACfg,
             "camelyon17": Camelyon17Cfg,
