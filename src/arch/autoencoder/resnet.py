@@ -434,9 +434,7 @@ class ResNetAE(AeFactory):
     pretrained_enc: bool = False
 
     @override
-    def __call__(
-        self, input_shape: tuple[int, int, int]
-    ) -> AePair:
+    def __call__(self, input_shape: tuple[int, int, int]) -> AePair:
         encoder: Union[ResNetEncoder, tvm.ResNet]
         if self.pretrained_enc:
             assert (
