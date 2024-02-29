@@ -81,7 +81,7 @@ class SupMatchRelay(BaseRelay):
             "resnet": ResNetAE,
             "simple": SimpleConvAE,
             "vqgan": VqGanAe,
-            "fc": SimpleAE,
+            "fcn": SimpleAE,
         },
         "disc_arch": {"sample": Fcn, "set": SetFcn},
         "labeller": {
