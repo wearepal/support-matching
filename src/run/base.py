@@ -21,7 +21,7 @@ class Experiment(Protocol):
 def launch(relay_cls: type[Experiment]) -> None:
     register_hydra_config(relay_cls, relay_cls.options, schema_name="config_schema")
 
-    @hydra.main(config_path="../../external_confs", config_name="config", version_base=None)
+    @hydra.main(config_path="../../conf", config_name="config", version_base=None)
     def main(hydra_config: DictConfig) -> Optional[float]:
         if "root" in hydra_config["ds"]:
             # TODO: this should probably be done somewhere else

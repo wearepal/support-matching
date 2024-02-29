@@ -140,7 +140,6 @@ exclude = [
   "venv",
   "artifacts",
   "hydra_plugins",
-  "external_confs",
   "conf",
   "scripts",
   "experiments",
