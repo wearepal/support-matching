@@ -326,7 +326,7 @@ class VqGanAe(AeFactory):
     dropout: float = 0.0
 
     @override
-    def __call__(self, input_shape: tuple[int, int, int]) -> AePair[Encoder, Decoder]:
+    def __call__(self, input_shape: tuple[int, int, int]) -> AePair:
         c, h, w = input_shape
         if h != w:
             raise ValueError(

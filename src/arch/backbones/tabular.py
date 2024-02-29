@@ -38,7 +38,7 @@ class _LinearResidualBlock(nn.Module):
             nn.init.uniform_(linear_layers_ls[-1].bias, -1e-3, 1e-3)
         self.linear_layers = nn.ModuleList(linear_layers_ls)
 
-    def forward(self, inputs, context=None) -> Tensor:  # type: ignore
+    def forward(self, inputs: Tensor, context: Tensor | None = None) -> Tensor:
         temps = inputs
         if self.use_batch_norm:
             temps = self.batch_norm_layers[0](temps)
@@ -88,7 +88,7 @@ class LinearResNet(nn.Module):
         self.final_layer = nn.Linear(planes, planes)
 
     @override
-    def forward(self, inputs: Tensor, *, context: Optional[Tensor]) -> Tensor:  # type: ignore
+    def forward(self, inputs: Tensor, *, context: Optional[Tensor]) -> Tensor:
         if context is not None:
             inputs = torch.cat((inputs, context), dim=1)
         temps = self.initial_layer(inputs)

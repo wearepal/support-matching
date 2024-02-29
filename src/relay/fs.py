@@ -5,7 +5,7 @@ import torch.nn as nn
 
 from src.algs.fs import Dro, Erm, FsAlg, Gdro, Jtt, LfF, SdErm
 from src.arch import BackboneFactory
-from src.arch.backbones.vision import DenseNet, ResNet, SimpleCNN
+from src.arch.backbones import DenseNet, LinearResNet, ResNet, SimpleCNN
 from src.arch.predictors.fcn import Fcn
 from src.data import DatasetFactory, NICOPPCfg, NIHChestXRayDatasetCfg
 from src.hydra_confs.datasets import Camelyon17Cfg, CelebACfg, ColoredMNISTCfg
@@ -50,7 +50,12 @@ class FsRelay(BaseRelay):
             "nih": NIHChestXRayDatasetCfg,
             "nicopp": NICOPPCfg,
         },
-        "backbone": {"densenet": DenseNet, "resnet": ResNet, "simple": SimpleCNN},
+        "backbone": {
+            "densenet": DenseNet,
+            "resnet": ResNet,
+            "simple": SimpleCNN,
+            "linear": LinearResNet,
+        },
         "labeller": {
             "centroidal_noise": CentroidalLabelNoiser,
             "gt": GroundTruthLabeller,
