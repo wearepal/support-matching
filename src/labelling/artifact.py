@@ -1,7 +1,7 @@
 from pathlib import Path
 import platform
 from tempfile import TemporaryDirectory
-from typing import Final, Optional, Union, cast
+from typing import Final, cast
 
 from loguru import logger
 import numpy as np
@@ -18,7 +18,7 @@ __all__ = ["load_labels_from_artifact", "save_labels_as_artifact"]
 FILENAME: Final[str] = "labels.pt"
 
 
-def _artifact_info_from_dm(datamodule: DataModule) -> tuple[str, dict[str, Union[str, int, None]]]:
+def _artifact_info_from_dm(datamodule: DataModule) -> tuple[str, dict[str, str | int | None]]:
     ds_str = str(datamodule.train.__class__.__name__).lower()
     # Embed the name of machine (as reported by operating system) in the name
     # as the seed is machine-dependent.
@@ -31,14 +31,14 @@ def _artifact_info_from_dm(datamodule: DataModule) -> tuple[str, dict[str, Union
 
 
 def save_labels_as_artifact(
-    run: Union[Run, RunDisabled, None],
+    run: Run | RunDisabled | None,
     *,
-    labels: Union[Tensor, npt.NDArray],
+    labels: Tensor | npt.NDArray,
     datamodule: DataModule,
-    artifact_name: Optional[str] = None,
-) -> Optional[str]:
+    artifact_name: str | None = None,
+) -> str | None:
     if run is None:
-        run = cast(Optional[Run], wandb.run)
+        run = cast(Run | None, wandb.run)
         if run is None:
             logger.info(
                 f"No active wandb run with which to save an artifact: skipping saving of labels."
@@ -62,7 +62,7 @@ def save_labels_as_artifact(
     return versioned_name
 
 
-def _process_root_dir(root: Union[Path, str, None]) -> Path:
+def _process_root_dir(root: Path | str | None) -> Path:
     if root is None:
         root = Path("artifacts", "labels")
     elif isinstance(root, str):
@@ -71,13 +71,13 @@ def _process_root_dir(root: Union[Path, str, None]) -> Path:
 
 
 def load_labels_from_artifact(
-    run: Union[Run, RunDisabled, None],
+    run: Run | RunDisabled | None,
     *,
     datamodule: DataModule,
-    project: Optional[str] = None,
-    root: Union[Path, str, None] = None,
-    version: Optional[int] = None,
-    name: Optional[str] = None,
+    project: str | None = None,
+    root: Path | str | None = None,
+    version: int | None = None,
+    name: str | None = None,
 ) -> Tensor:
     root = _process_root_dir(root)
     if name is None:

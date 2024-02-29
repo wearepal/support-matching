@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from enum import Enum, auto
-from typing import Any, Optional
+from typing import Any
 
 import torch
 from torch import Tensor
@@ -27,8 +27,8 @@ def _dot_kernel(x: Tensor, y: Tensor) -> tuple[Tensor, Tensor, Tensor, float]:
 def _mix_rq_kernel(
     x: Tensor,
     y: Tensor,
-    scales: Optional[Sequence[float]] = None,
-    wts: Optional[Sequence[float]] = None,
+    scales: Sequence[float] | None = None,
+    wts: Sequence[float] | None = None,
     add_dot: float = 0.0,
 ) -> tuple[Tensor, Tensor, Tensor, float]:
     """
@@ -80,8 +80,8 @@ def _mix_rq_kernel(
 def _mix_rbf_kernel(
     x: Tensor,
     y: Tensor,
-    scales: Optional[Sequence[float]] = None,
-    wts: Optional[Sequence[float]] = None,
+    scales: Sequence[float] | None = None,
+    wts: Sequence[float] | None = None,
     add_dot: float = 0.0,
 ) -> tuple[Tensor, Tensor, Tensor, float]:
     """ """

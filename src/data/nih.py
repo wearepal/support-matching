@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 from typing_extensions import override
 
 from conduit.data.datasets.vision import CdtVisionDataset
@@ -62,9 +62,9 @@ class NiHTargetAttr(Enum):
 
 @dataclass
 class NIHChestXRayDatasetCfg(DatasetFactory):
-    root: Union[Path, str]
+    root: Path | str
     sens_attr: NiHSensAttr = NiHSensAttr.gender
-    target_attr: Optional[NiHTargetAttr] = NiHTargetAttr.cardiomegaly
+    target_attr: NiHTargetAttr | None = NiHTargetAttr.cardiomegaly
     transform: Any = None  # Optional[Union[Compose, BasicTransform, Callable[[Image], Any]]]
 
     @override

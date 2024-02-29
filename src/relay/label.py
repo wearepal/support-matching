@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar
 
 from attrs import define, field
 
@@ -46,7 +46,7 @@ class LabelRelay(BaseRelay):
         },
     }
 
-    def run(self, raw_config: Optional[dict[str, Any]] = None) -> Optional[float]:
+    def run(self, raw_config: dict[str, Any] | None = None) -> float | None:
         assert isinstance(self.ds, DatasetFactory)
         assert isinstance(self.labeller, Labeller)
 

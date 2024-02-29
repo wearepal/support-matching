@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 from typing_extensions import override
 
 from conduit.data.datasets.vision import NICOPP, NicoPPTarget
@@ -22,8 +22,8 @@ __all__ = ["NICOPPCfg"]
 
 @dataclass
 class NICOPPCfg(DatasetFactory):
-    root: Union[Path, str]
-    target_attrs: Optional[list[NicoPPTarget]] = None
+    root: Path | str
+    target_attrs: list[NicoPPTarget] | None = None
     transform: Any = None  # Optional[Union[Compose, BasicTransform, Callable[[Image], Any]]]
 
     @override

@@ -1,7 +1,6 @@
 # Code derived from https://github.com/CompVis/taming-transformers/tree/master/taming/models
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Optional
 from typing_extensions import override
 
 import numpy as np
@@ -56,7 +55,7 @@ class ResnetBlock(nn.Module):
         self,
         *,
         in_channels: int,
-        out_channels: Optional[int] = None,
+        out_channels: int | None = None,
         conv_shortcut: bool = False,
         dropout: float = 0.0,
     ) -> None:

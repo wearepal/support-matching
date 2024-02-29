@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Optional, Union, cast
+from typing import TYPE_CHECKING, Union, cast
 from typing_extensions import override
 
 import timm
@@ -198,7 +198,7 @@ class SwinV2(BackboneFactory):
     def __call__(
         self, input_dim: int
     ) -> BackboneFactoryOut[Union["tm.SwinTransformerV2", "tm.SwinTransformerV2Cr"]]:
-        model: Union["tm.SwinTransformerV2", "tm.SwinTransformerV2Cr"] = timm.create_model(
+        model: "tm.SwinTransformerV2 | tm.SwinTransformerV2Cr" = timm.create_model(
             self.version.value, pretrained=self.pretrained, checkpoint_path=self.checkpoint_path
         )
         if self.freeze_patch_embedder:
@@ -286,7 +286,7 @@ class NormType(Enum):
 
 @dataclass
 class SimpleCNN(BackboneFactory):
-    norm: Optional[NormType] = NormType.BN
+    norm: NormType | None = NormType.BN
     activation: Activation = Activation.GELU
     levels: int = 4
     blocks_per_level: int = 1
@@ -300,7 +300,7 @@ class SimpleCNN(BackboneFactory):
         out_dim: int,
         kernel_size: int,
         stride: int = 1,
-        padding: Union[str, int] = "same",
+        padding: str | int = "same",
     ) -> nn.Sequential:
         _block = []
         _block += [

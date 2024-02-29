@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Any, Optional, TypeAlias, Union
+from typing import Any, TypeAlias, Union
 
 from conduit.data.datasets.vision.base import CdtVisionDataset
 from ranzen.hydra import reconstruct_cmd
@@ -15,7 +15,7 @@ from src.data.data_module import DataModule
 
 __all__ = ["WandbConf", "log_attention", "log_images"]
 
-Run: TypeAlias = Union[
+Run: TypeAlias = Union[  # noqa: UP007
     wandb.sdk.wandb_run.Run,  # type: ignore
     wandb.sdk.lib.disabled.RunDisabled,  # type: ignore
     None,
@@ -27,25 +27,25 @@ WandbMode = Enum("WandbMode", ["online", "offline", "disabled"])
 
 @dataclass
 class WandbConf:
-    name: Optional[str] = None
+    name: str | None = None
     mode: WandbMode = WandbMode.online
-    id: Optional[str] = None
-    anonymous: Optional[bool] = None
-    project: Optional[str] = "support-matching"
-    group: Optional[str] = None
-    entity: Optional[str] = "predictive-analytics-lab"
-    tags: Optional[list[str]] = None
+    id: str | None = None
+    anonymous: bool | None = None
+    project: str | None = "support-matching"
+    group: str | None = None
+    entity: str | None = "predictive-analytics-lab"
+    tags: list[str] | None = None
     reinit: bool = True
-    job_type: Optional[str] = None
-    resume: Optional[str] = None
-    dir: Optional[str] = "local_logging"
-    notes: Optional[str] = None
+    job_type: str | None = None
+    resume: str | None = None
+    dir: str | None = "local_logging"
+    notes: str | None = None
 
     def init(
         self,
-        raw_config: Optional[dict[str, Any]] = None,
+        raw_config: dict[str, Any] | None = None,
         cfgs_for_group: tuple[object, ...] = (),
-        with_tag: Optional[str] = None,
+        with_tag: str | None = None,
     ) -> Run:
         if self.tags is None:
             self.tags = []
@@ -67,11 +67,11 @@ def log_images(
     dm: DataModule,
     name: str,
     step: int,
-    nsamples: Union[int, Sequence[int]] = 64,
+    nsamples: int | Sequence[int] = 64,
     ncols: int = 8,
     monochrome: bool = False,
-    prefix: Optional[str] = None,
-    caption: Optional[str] = None,
+    prefix: str | None = None,
+    caption: str | None = None,
 ) -> None:
     """Make a grid of the given images, save them in a file and log them with W&B"""
     prefix = "train/" if prefix is None else f"{prefix}/"
@@ -110,7 +110,7 @@ def log_attention(
     nbags: int,
     border_width: int = 3,
     ncols: int = 8,
-    prefix: Optional[str] = None,
+    prefix: str | None = None,
 ) -> None:
     """Make a grid of the given images, save them in a file and log them with W&B"""
     prefix = "train_" if prefix is None else f"{prefix}_"

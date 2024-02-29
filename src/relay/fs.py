@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar
 
 from attrs import define, field
 import torch.nn as nn
@@ -69,7 +69,7 @@ class FsRelay(BaseRelay):
         "alg": {"dro": Dro, "erm": Erm, "gdro": Gdro, "jtt": Jtt, "lff": LfF, "sd": SdErm},
     }
 
-    def run(self, raw_config: Optional[dict[str, Any]] = None) -> Optional[float]:
+    def run(self, raw_config: dict[str, Any] | None = None) -> float | None:
         assert isinstance(self.alg, FsAlg)
         assert isinstance(self.backbone, BackboneFactory)
         assert isinstance(self.ds, DatasetFactory)

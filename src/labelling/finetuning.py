@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from itertools import islice
 from pathlib import Path
-from typing import ClassVar, Optional, Union
+from typing import ClassVar
 
 from conduit import metrics as cdtm
 from conduit.data.datasets.utils import CdtDataLoader
@@ -26,8 +26,8 @@ __all__ = ["FineTuner", "FineTuneParams"]
 class FineTuneParams:
     steps: int = 2000
     batch_size: int = 16
-    val_freq: Union[int, float] = 0.1
-    val_batches: Union[int, float] = 1.0
+    val_freq: int | float = 0.1
+    val_batches: int | float = 1.0
     lr: float = 1e-5
 
 
@@ -36,8 +36,8 @@ class FineTuner(DcModule):
     _PBAR_COL: ClassVar[str] = "#ffe252"
 
     params: FineTuneParams = field(default_factory=FineTuneParams)
-    device: Union[int, str, torch.device] = 0
-    save_path: Optional[str] = None
+    device: int | str | torch.device = 0
+    save_path: str | None = None
     loss_fn: CrossEntropyLoss = field(default_factory=CrossEntropyLoss)
     _LOG_PREFIX: ClassVar[str] = "fine-tuning"
 

@@ -1,6 +1,6 @@
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Union, cast
+from typing import cast
 
 from loguru import logger
 from ranzen.misc import gcopy
@@ -30,7 +30,7 @@ class ClipVersion(Enum):
 
 class ClipVisualEncoder(nn.Module):
     def __init__(
-        self, version: ClipVersion = ClipVersion.RN50, *, download_root: Optional[str] = None
+        self, version: ClipVersion = ClipVersion.RN50, *, download_root: str | None = None
     ) -> None:
         super().__init__()
         logger.info("Loading CLIP model (downloading if needed)...")
@@ -49,7 +49,7 @@ class ClipVisualEncoder(nn.Module):
         return self.encoder(x)
 
     @torch.no_grad()  # pyright: ignore
-    def load_from_path(self, fpath: Union[Path, str]) -> None:
+    def load_from_path(self, fpath: Path | str) -> None:
         fpath = Path(fpath)
         if fpath.exists():
             logger.info(f"Loading model weights from '{fpath.resolve()}'")
@@ -63,9 +63,9 @@ class ClipVisualEncoder(nn.Module):
         self,
         dm: DataModule,
         *,
-        device: Union[str, torch.device],
+        device: str | torch.device,
         batch_size_tr: int,
-        batch_size_te: Optional[int] = None,
+        batch_size_te: int | None = None,
     ) -> Encodings:
         return generate_encodings(
             dm=dm,
@@ -80,7 +80,7 @@ class ClipVisualEncoder(nn.Module):
         self,
         dm: DataModule,
         params: FineTuneParams,
-        device: Union[str, torch.device, int] = 0,
+        device: str | torch.device | int = 0,
     ) -> nn.Sequential:
         dm = gcopy(dm, deep=False)
         dm.set_transforms_all(self.transforms)

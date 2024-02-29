@@ -1,6 +1,5 @@
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Optional
 
 from loguru import logger
 import torch
@@ -20,13 +19,13 @@ class Algorithm(DcModule):
 
     use_amp: bool = False  # Whether to use mixed-precision training
     gpu: int = 0  # which GPU to use (if available)
-    max_grad_norm: Optional[float] = None
+    max_grad_norm: float | None = None
 
     def __post_init__(self) -> None:
         self.device: torch.device = resolve_device(self.gpu)
         use_gpu = torch.cuda.is_available() and self.gpu >= 0
         self.use_amp = self.use_amp and use_gpu
-        self.grad_scaler: Optional[GradScaler] = GradScaler() if self.use_amp else None
+        self.grad_scaler: GradScaler | None = GradScaler() if self.use_amp else None
         logger.info(f"{torch.cuda.device_count()} GPU(s) available - using device '{self.device}'")
 
     def _clip_gradients(self, parameters: Iterator[Parameter]) -> None:

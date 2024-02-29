@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Generic, Optional, TypeVar
+from typing import Generic, TypeVar
 from typing_extensions import override
 
 from torch import Tensor
@@ -20,9 +20,9 @@ class Fcn(PredictorFactory):
     """Fully connected network."""
 
     num_hidden: int = 0
-    hidden_dim: Optional[int] = None
+    hidden_dim: int | None = None
     activation: Activation = Activation.GELU
-    norm: Optional[NormType] = NormType.LN
+    norm: NormType | None = NormType.LN
     dropout_prob: float = 0.0
     final_bias: bool = True
     input_norm: bool = True
@@ -39,7 +39,7 @@ class Fcn(PredictorFactory):
 
     @override
     def __call__(
-        self, input_dim: int, *, target_dim: int, batch_size: Optional[int] = None
+        self, input_dim: int, *, target_dim: int, batch_size: int | None = None
     ) -> PredictorFactoryOut[nn.Sequential]:
         predictor = nn.Sequential(nn.Flatten())
         if self.input_norm and (self.norm is not None):
@@ -73,7 +73,7 @@ class SetPredictor(DcModule, Generic[A]):
     def batch_size(self, value: int) -> None:
         self.agg.batch_size = value
 
-    def forward(self, x: Tensor, *, batch_size: Optional[int] = None) -> Tensor:  # type: ignore
+    def forward(self, x: Tensor, *, batch_size: int | None = None) -> Tensor:  # type: ignore
         if batch_size is not None:
             self.batch_size = batch_size
         return self.post(self.agg(self.pre(x)))
@@ -89,18 +89,18 @@ class BatchAggregatorEnum(Enum):
 
 @dataclass(eq=False)
 class SetFcn(PredictorFactory):
-    hidden_dim_pre: Optional[int] = None
-    hidden_dim_post: Optional[int] = None
+    hidden_dim_pre: int | None = None
+    hidden_dim_post: int | None = None
     num_hidden_pre: int = 1
     num_hidden_post: int = 1
-    agg_input_dim: Optional[int] = None
+    agg_input_dim: int | None = None
     activation: Activation = Activation.GELU
     norm: NormType = NormType.LN
     dropout_prob: float = 0
     final_bias: bool = True
     input_norm: bool = True
     num_heads: int = 1
-    head_dim: Optional[int] = 512
+    head_dim: int | None = 512
     num_blocks: int = 0
     mean_query: bool = True
 

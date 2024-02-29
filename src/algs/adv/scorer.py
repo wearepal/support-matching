@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Final, Optional, Union
+from typing import Final
 from typing_extensions import override
 
 from conduit.data import TernarySample
@@ -31,7 +31,7 @@ def _encode_and_score_recons(
     dl: CdtDataLoader[TernarySample],
     *,
     ae: SplitLatentAe,
-    device: Union[str, torch.device],
+    device: str | torch.device,
     minimize: bool = False,
 ) -> tuple[CdtDataset[TernarySample, Tensor, Tensor, Tensor], float]:
     device = resolve_device(device)
@@ -99,8 +99,8 @@ class NullScorer(Scorer):
 class NeuralScorer(Scorer):
     steps: int = 5_000
     batch_size_tr: int = 16
-    batch_size_te: Optional[int] = None
-    batch_size_enc: Optional[int] = None
+    batch_size_te: int | None = None
+    batch_size_enc: int | None = None
 
     opt: OptimizerCfg = field(default_factory=OptimizerCfg)
     eval_batches: int = 1000

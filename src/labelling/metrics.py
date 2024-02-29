@@ -1,5 +1,3 @@
-from typing import Optional
-
 from conduit.models.utils import prefix_keys
 from loguru import logger
 import numpy as np
@@ -52,7 +50,7 @@ def evaluate(
     *,
     y_pred: npt.NDArray[np.int32],
     use_wandb: bool = True,
-    prefix: Optional[str] = None,
+    prefix: str | None = None,
 ) -> dict[str, float]:
     metrics: dict[str, float] = {
         "ARI": float(adjusted_rand_score(y_true, y_pred)),

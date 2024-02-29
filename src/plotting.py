@@ -1,5 +1,3 @@
-from typing import Optional
-
 import matplotlib
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
@@ -38,7 +36,7 @@ def plot_histogram(
     wandb.log(log_dict, step=step)
 
 
-def _plot_histo(soft_preds: torch.Tensor, n_bins: int, pred_target: Optional[int] = None) -> Figure:
+def _plot_histo(soft_preds: torch.Tensor, n_bins: int, pred_target: int | None = None) -> Figure:
     class_dim = soft_preds.size(1) if soft_preds.ndim > 1 else 1
     if class_dim > 1:
         if pred_target is not None:

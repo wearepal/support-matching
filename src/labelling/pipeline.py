@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, cast
+from typing import cast
 from typing_extensions import override
 
 import conduit.metrics as cdtm
@@ -40,10 +40,10 @@ __all__ = [
 
 class Labeller(ABC):
     @abstractmethod
-    def run(self, dm: DataModule, device: torch.device) -> Optional[Tensor]:
+    def run(self, dm: DataModule, device: torch.device) -> Tensor | None:
         raise NotImplementedError()
 
-    def __call__(self, dm: DataModule, device: torch.device) -> Optional[Tensor]:
+    def __call__(self, dm: DataModule, device: torch.device) -> Tensor | None:
         return self.run(dm=dm, device=device)
 
 
@@ -52,7 +52,7 @@ class KmeansOnClipEncodings(DcModule, Labeller):
     """Generate embeddings with CLIP (optionally finetuned) and then do k-means."""
 
     clip_version: ClipVersion = ClipVersion.RN50
-    download_root: Optional[str] = None
+    download_root: str | None = None
     ft: FineTuneParams = field(default_factory=lambda: FineTuneParams(steps=1000))
     enc_batch_size: int = 64
 
@@ -61,15 +61,15 @@ class KmeansOnClipEncodings(DcModule, Labeller):
     supervised_cluster_init: bool = False
     n_init: int = 10
     save_as_artifact: bool = True
-    artifact_name: Optional[str] = None
+    artifact_name: str | None = None
 
     # cache_encoder: bool = False
-    encodings_path: Optional[Path] = None
+    encodings_path: Path | None = None
 
     # encoder: Optional[ClipVisualEncoder] = field(
     #     init=False, default=None, metadata={"omegaconf_ignore": True}
     # )
-    _fitted_kmeans: Optional[KMeans] = field(
+    _fitted_kmeans: KMeans | None = field(
         init=False, default=None, metadata={"omegaconf_ignore": True}
     )
 
@@ -99,7 +99,7 @@ class KmeansOnClipEncodings(DcModule, Labeller):
         self._fitted_kmeans = kmeans
         preds = torch.as_tensor(kmeans.predict(encodings.dep.numpy()), dtype=torch.long)
         if self.save_as_artifact:
-            run = cast(Optional[Run], wandb.run)
+            run = cast(Run | None, wandb.run)
             save_labels_as_artifact(
                 run=run, labels=preds, datamodule=dm, artifact_name=self.artifact_name
             )
@@ -111,18 +111,18 @@ class ClipClassifier(Labeller):
     """Predict s and y with a fine-tuned CLIP classifier."""
 
     clip_version: ClipVersion = ClipVersion.RN50
-    download_root: Optional[str] = None
+    download_root: str | None = None
     ft: FineTuneParams = field(default_factory=lambda: FineTuneParams(steps=1000))
     batch_size_te: int = 64
 
     save_as_artifact: bool = True
-    artifact_name: Optional[str] = None
+    artifact_name: str | None = None
 
     # cache_encoder: bool = False
 
     @torch.no_grad()  # pyright: ignore
     def evaluate(
-        self, g_pred: Tensor, *, g_true: Tensor, use_wandb: bool, prefix: Optional[str] = None
+        self, g_pred: Tensor, *, g_true: Tensor, use_wandb: bool, prefix: str | None = None
     ) -> dict[str, float]:
         metrics = {
             "Accuracy": to_item(cdtm.accuracy(y_pred=g_pred, y_true=g_true)),
@@ -156,7 +156,7 @@ class ClipClassifier(Labeller):
         print_metrics(metrics)
 
         if self.save_as_artifact:
-            run = cast(Optional[Run], wandb.run)
+            run = cast(Run | None, wandb.run)
             save_labels_as_artifact(
                 run=run, labels=g_pred, datamodule=dm, artifact_name=self.artifact_name
             )
@@ -167,9 +167,9 @@ class ClipClassifier(Labeller):
 class LabelFromArtifact(Labeller):
     """Load labels from W&B."""
 
-    version: Optional[int] = None  # latest by default
-    artifact_name: Optional[str] = None
-    root: Optional[Path] = None  # artifacts/clustering by default
+    version: int | None = None  # latest by default
+    artifact_name: str | None = None
+    root: Path | None = None  # artifacts/clustering by default
 
     @override
     def run(self, dm: DataModule, device: torch.device) -> Tensor:
@@ -266,7 +266,7 @@ class CentroidalLabelNoiser(LabelNoiser):
 
     metric: ClnMetric = ClnMetric.COSINE
     clip_version: ClipVersion = ClipVersion.RN50
-    download_root: Optional[str] = None
+    download_root: str | None = None
     enc_batch_size: int = 64
 
     @override

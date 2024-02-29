@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 from typing_extensions import override
 
 from conduit.data.structures import TernarySample
@@ -35,9 +35,9 @@ class LossComputer(nn.Module):
         *,
         is_robust: bool,
         group_counts: Tensor,
-        alpha: Optional[float] = None,
+        alpha: float | None = None,
         gamma: float = 0.1,
-        adj: Optional[Tensor] = None,
+        adj: Tensor | None = None,
         min_var_weight: float = 0,
         step_size: float = 0.01,
         normalize_loss: bool = False,
@@ -87,7 +87,7 @@ class LossComputer(nn.Module):
         return cross_entropy_loss(input=input, target=target, reduction=ReductionType.none)
 
     def forward(
-        self, input: Tensor, *, target: Tensor, group_idx: Tensor, criterion: Optional[Loss] = None
+        self, input: Tensor, *, target: Tensor, group_idx: Tensor, criterion: Loss | None = None
     ) -> Tensor:
         if criterion is None:
             per_sample_losses = self._default_criterion(input=input, target=target)
@@ -198,7 +198,7 @@ class LossComputer(nn.Module):
         group_loss: Tensor,
         group_acc: Tensor,
         group_count: Tensor,
-        weights: Optional[Tensor] = None,
+        weights: Tensor | None = None,
     ) -> None:
         # avg group loss
         denom = self.processed_data_counts + group_count
@@ -252,12 +252,12 @@ class GdroClassifier(Classifier):
 
 @dataclass(repr=False, eq=False)
 class Gdro(FsAlg):
-    alpha: Optional[float] = 1.0
+    alpha: float | None = 1.0
     normalize_loss: bool = False
     gamma: float = 0.1
     step_size: float = 0.01
     btl: bool = False
-    adjustments: Optional[tuple[float]] = None
+    adjustments: tuple[float] | None = None
     criterion: Any = None  # Optional[Loss]
 
     @override

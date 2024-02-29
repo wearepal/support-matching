@@ -1,13 +1,14 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TypeAlias, TypeVar
+from typing import TypeVar
+from typing_extensions import TypeAliasType
 
 import torch.nn as nn
 
 __all__ = ["BackboneFactory", "BackboneFactoryOut"]
 
 M = TypeVar("M", bound=nn.Module, covariant=True)
-BackboneFactoryOut: TypeAlias = tuple[M, int]
+BackboneFactoryOut = TypeAliasType("BackboneFactoryOut", tuple[M, int], type_params=(M,))
 
 
 @dataclass

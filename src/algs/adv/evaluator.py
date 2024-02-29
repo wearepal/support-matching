@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Any, Final, Generic, Literal, Optional, TypeVar, Union, overload
+from typing import Any, Final, Generic, Literal, TypeVar, overload
 
 from conduit.data import TernarySample
 from conduit.data.datasets import CdtDataLoader, CdtDataset
@@ -31,8 +31,8 @@ __all__ = [
 ]
 
 
-DY = TypeVar("DY", bound=Optional[Dataset[Tensor]])
-DS = TypeVar("DS", bound=Optional[Dataset[Tensor]])
+DY = TypeVar("DY", bound=Dataset[Tensor] | None)
+DS = TypeVar("DS", bound=Dataset[Tensor] | None)
 
 
 class EvalTrainData(Enum):
@@ -72,7 +72,7 @@ def encode_dataset(
     dl: CdtDataLoader[TernarySample[Tensor]],
     *,
     encoder: SplitLatentAe,
-    device: Union[str, torch.device],
+    device: str | torch.device,
     segment: Literal["zs"] = ...,
     use_amp: bool = False,
 ) -> InvariantDatasets[Dataset[Tensor], None]:
@@ -84,7 +84,7 @@ def encode_dataset(
     dl: CdtDataLoader[TernarySample[Tensor]],
     *,
     encoder: SplitLatentAe,
-    device: Union[str, torch.device],
+    device: str | torch.device,
     segment: Literal["zy"] = ...,
     use_amp: bool = False,
 ) -> InvariantDatasets[None, Dataset[Tensor]]:
@@ -96,7 +96,7 @@ def encode_dataset(
     dl: CdtDataLoader[TernarySample[Tensor]],
     *,
     encoder: SplitLatentAe,
-    device: Union[str, torch.device],
+    device: str | torch.device,
     segment: Literal["both"],
     use_amp: bool = False,
 ) -> InvariantDatasets[Dataset[Tensor], Dataset[Tensor]]:
@@ -107,7 +107,7 @@ def encode_dataset(
     dl: CdtDataLoader[TernarySample[Tensor]],
     *,
     encoder: SplitLatentAe,
-    device: Union[str, torch.device],
+    device: str | torch.device,
     segment: InvariantAttr = "zy",
     use_amp: bool = False,
 ) -> InvariantDatasets:
@@ -144,7 +144,7 @@ def encode_dataset(
     return InvariantDatasets(zs=zs_ds, zy=zy_ds)
 
 
-def _log_enc_statistics(encoded: Dataset[Tensor], *, step: Optional[int], s_count: int) -> None:
+def _log_enc_statistics(encoded: Dataset[Tensor], *, step: int | None, s_count: int) -> None:
     """Compute and log statistics about the encoding."""
     x, y, s = encoded.x, encoded.y, encoded.s
     class_ids = labels_to_group_id(s=s, y=y, s_count=s_count)
@@ -153,7 +153,7 @@ def _log_enc_statistics(encoded: Dataset[Tensor], *, step: Optional[int], s_coun
     mapper = umap.UMAP(n_neighbors=25, n_components=2)  # type: ignore
     umap_z = mapper.fit_transform(x.numpy())
     umap_plot = visualize_clusters(umap_z, labels=class_ids, s_count=s_count)
-    to_log: dict[str, Union[wandb.Image, float]] = {"umap": wandb.Image(umap_plot)}
+    to_log: dict[str, wandb.Image | float] = {"umap": wandb.Image(umap_plot)}
     logger.info("Done.")
 
     for y_value in y.unique():
@@ -164,11 +164,11 @@ def _log_enc_statistics(encoded: Dataset[Tensor], *, step: Optional[int], s_coun
 
 
 def visualize_clusters(
-    x: Union[np.ndarray, Tensor],
+    x: np.ndarray | Tensor,
     *,
-    labels: Union[np.ndarray, Tensor],
+    labels: np.ndarray | Tensor,
     s_count: int,
-    title: Optional[str] = None,
+    title: str | None = None,
     legend: bool = True,
 ) -> plt.Figure:  # type: ignore
     if x.shape[1] != 2:
@@ -222,9 +222,9 @@ def visualize_clusters(
 class Evaluator:
     steps: int = 10_000
     batch_size: int = 128
-    hidden_dim: Optional[int] = None
+    hidden_dim: int | None = None
     num_hidden: int = 0
-    eval_s_from_zs: Optional[EvalTrainData] = None
+    eval_s_from_zs: EvalTrainData | None = None
     balanced_sampling: bool = True
     umap_viz: bool = False
     save_summary: bool = True
@@ -263,7 +263,7 @@ class Evaluator:
         *,
         input_dim: int,
         device: torch.device,
-        step: Optional[int] = None,
+        step: int | None = None,
         name: str = "",
         pred_s: bool = False,
     ) -> None:
@@ -284,8 +284,8 @@ class Evaluator:
         dm: DataModule,
         *,
         encoder: SplitLatentAe,
-        device: Union[str, torch.device, int],
-        step: Optional[int] = None,
+        device: str | torch.device | int,
+        step: int | None = None,
     ) -> DataModule:
         device = resolve_device(device)
         encoder.eval()
@@ -354,7 +354,7 @@ class Evaluator:
         dm: DataModule,
         *,
         encoder: SplitLatentAe,
-        device: Union[str, torch.device, int],
-        step: Optional[int] = None,
+        device: str | torch.device | int,
+        step: int | None = None,
     ) -> DataModule:
         return self.run(dm=dm, encoder=encoder, device=device, step=step)

@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import Optional
 from typing_extensions import override
 
 import torch
@@ -16,7 +15,7 @@ class _LinearResidualBlock(nn.Module):
     def __init__(
         self,
         planes: int,
-        ctx_planes: Optional[int] = None,
+        ctx_planes: int | None = None,
         activation: Callable[[Tensor], Tensor] = F.relu,
         dropout_probability: float = 0.0,
         use_batch_norm: bool = False,
@@ -61,7 +60,7 @@ class LinearResNet(nn.Module):
         self,
         in_planes: int,
         planes: int,
-        ctx_planes: Optional[int] = None,
+        ctx_planes: int | None = None,
         num_blocks: int = 2,
         activation: Callable[[Tensor], Tensor] = F.relu,
         dropout_probability: float = 0.0,
@@ -88,7 +87,7 @@ class LinearResNet(nn.Module):
         self.final_layer = nn.Linear(planes, planes)
 
     @override
-    def forward(self, inputs: Tensor, *, context: Optional[Tensor]) -> Tensor:
+    def forward(self, inputs: Tensor, *, context: Tensor | None) -> Tensor:
         if context is not None:
             inputs = torch.cat((inputs, context), dim=1)
         temps = self.initial_layer(inputs)

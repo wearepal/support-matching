@@ -1,6 +1,5 @@
 """Modules that aggregate over a batch."""
 from dataclasses import dataclass, field
-from typing import Optional
 from typing_extensions import override
 
 from einops import rearrange
@@ -74,7 +73,7 @@ class AttentionBlock(nn.Module):
         *,
         batch_size: int,
         num_heads: int = 8,
-        head_dim: Optional[int] = 64,
+        head_dim: int | None = 64,
         dropout: float = 0.0,
         mean_query: bool = False,
     ) -> None:
@@ -129,7 +128,7 @@ class KvqAggregator(BatchAggregator):
     dropout: float = 0.0
     mean_query: bool = True
     num_heads: int = 8
-    head_dim: Optional[int] = 64
+    head_dim: int | None = 64
 
     def __post_init__(self) -> None:
         blocks = []
@@ -166,7 +165,7 @@ class KvqAggregator(BatchAggregator):
 @dataclass(repr=False, eq=False)
 class GatedAggregator(BatchAggregator):
     dim: int
-    attention_weights: Optional[Tensor] = field(
+    attention_weights: Tensor | None = field(
         init=False, default=None, metadata={"omegaconf_ignore": True}
     )
 

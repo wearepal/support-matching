@@ -1,6 +1,6 @@
 from dataclasses import asdict
 import math
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar
 
 from attrs import define, field
 from loguru import logger
@@ -65,7 +65,7 @@ class SupMatchRelay(BaseRelay):
     eval: Evaluator = field(default=Evaluator)
     labeller: Any  # Labeller
     scorer: Any  # Scorer
-    artifact_name: Optional[str] = None
+    artifact_name: str | None = None
     """Save model weights under this name."""
 
     options: ClassVar[dict[str, dict[str, type]]] = BaseRelay.options | {
@@ -96,7 +96,7 @@ class SupMatchRelay(BaseRelay):
         },
     }
 
-    def run(self, raw_config: Optional[dict[str, Any]] = None) -> Optional[float]:
+    def run(self, raw_config: dict[str, Any] | None = None) -> float | None:
         assert isinstance(self.ae_arch, AeFactory)
         assert isinstance(self.disc_arch, PredictorFactory)
         assert isinstance(self.ds, DatasetFactory)

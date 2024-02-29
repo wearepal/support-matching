@@ -4,7 +4,8 @@ from enum import Enum, auto
 import math
 import operator
 from pathlib import Path
-from typing import ClassVar, Final, NamedTuple, Optional, TypeAlias, TypedDict, TypeVar, Union
+from typing import ClassVar, Final, NamedTuple, Optional, TypedDict, TypeVar, Union
+from typing_extensions import TypeAliasType
 
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
@@ -81,7 +82,7 @@ class Aggregation(Enum):
         self.aggregate = aggregate
 
 
-Triplet: TypeAlias = tuple[Metrics, Aggregation | None, str]
+Triplet = TypeAliasType("Triplet", tuple[Metrics, Aggregation | None, str])
 
 
 class SpecialMetrics:
@@ -283,7 +284,7 @@ class PlotKwargs(TypedDict, total=False):
     fig_dim: tuple[float, float]
     file_prefix: str
     sens_attr: str
-    output_dir: Union[Path, str]
+    output_dir: Path | str
     separator_after: int | None
 
 
@@ -292,7 +293,7 @@ def plot(
     groupby: str = "misc.log_method",
     metrics: list[Metrics | Triplet] = [Metrics.acc],
     sens_attr: str = "colour",
-    output_dir: Union[Path, str] = Path("."),
+    output_dir: Path | str = Path("."),
     file_format: str = "png",
     file_prefix: str = "",
     fig_dim: tuple[float, float] = (4.0, 6.0),
@@ -301,9 +302,9 @@ def plot(
     agg: Aggregation | None = None,
     fillna: bool = False,
     hide_left_ticks: bool = False,
-    x_label: Optional[str] = None,
+    x_label: str | None = None,
     plot_style: PlotStyle = PlotStyle.boxplot,
-    plot_title: Optional[str] = None,
+    plot_title: str | None = None,
     with_legend: bool = True,
     separator_after: int | None = None,
 ) -> None:
@@ -407,9 +408,9 @@ def _make_plot(
     x_limits: tuple[float, float],
     y_limits: tuple[float, float],
     hide_left_ticks: bool,
-    x_label: Optional[str],
+    x_label: str | None,
     plot_style: PlotStyle,
-    plot_title: Optional[str] = None,
+    plot_title: str | None = None,
     with_legend: bool = True,
     separator_after: int | None = None,
 ) -> Figure:

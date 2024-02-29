@@ -1,7 +1,7 @@
 from enum import Enum
 import math
 from pathlib import Path
-from typing import Final, Optional
+from typing import Final
 
 import numpy as np
 import pandas as pd
@@ -50,7 +50,7 @@ def generate_table(
     metrics: list[str],
     aggregation: Aggregation,
     round_to: int,
-    metrics_renames: Optional[dict[str, str]] = None,
+    metrics_renames: dict[str, str] | None = None,
 ) -> pd.DataFrame:
     AggClass = AGGREGATION_LOOKUP[aggregation]
     col_renames = {"data": "type", "method": "classifier"}

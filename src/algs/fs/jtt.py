@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Optional, Union
+from typing import Any
 from typing_extensions import override
 
 from ranzen import gcopy
@@ -17,8 +17,8 @@ __all__ = ["Jtt"]
 
 @dataclass(repr=False, eq=False)
 class Jtt(FsAlg):
-    id_steps: Union[float, int] = 0.02
-    lambda_uw: Optional[float] = None
+    id_steps: float | int = 0.02
+    lambda_uw: float | None = None
     criterion: Any = None  # Optional[Loss]
 
     def __post_init__(self) -> None:

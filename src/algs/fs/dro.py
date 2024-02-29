@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional, Union
 from typing_extensions import override
 
 from conduit.types import Loss
@@ -18,10 +17,10 @@ class DroLoss(nn.Module, Loss):
 
     def __init__(
         self,
-        loss_fn: Optional[Loss] = None,
+        loss_fn: Loss | None = None,
         *,
         eta: float = 0.5,
-        reduction: Union[ReductionType, str] = ReductionType.mean,
+        reduction: ReductionType | str = ReductionType.mean,
     ) -> None:
         """Set up the loss, set which loss you want to optimize and the eta to offset by."""
         super().__init__()
