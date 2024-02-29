@@ -1,7 +1,7 @@
 # @package _global_
 
 defaults:
-    - /ae: cosine_annealing
+    - /ae_opt: cosine_annealing
     - /alg: only_pred_y_loss
     - /eval: nicopp
     - override /ae_arch: resnet/rn50_256_pre
@@ -20,8 +20,10 @@ alg:
     val_freq: 1000
 
 ae:
-    lr: 5.e-5
     zs_dim: 1
+
+ae_opt:
+    lr: 5.e-5
 
 dm:
     use_y_for_dep_bags: true

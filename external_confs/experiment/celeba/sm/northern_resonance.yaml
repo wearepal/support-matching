@@ -37,11 +37,13 @@ ae_arch:
 
 ae:
     recon_loss: l1
-    lr: 0.0000018348295456200725
     zs_transform: none
+    zs_dim: 1
+
+ae_opt:
+    lr: 0.0000018348295456200725
     optimizer_cls: ADAM
     weight_decay: 0
-    zs_dim: 1
 
 disc:
     lr: 0.000027080358427157673

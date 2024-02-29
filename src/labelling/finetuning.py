@@ -9,7 +9,7 @@ from conduit.data.structures import TernarySample
 from conduit.models.utils import prefix_keys
 from loguru import logger
 from ranzen import gcopy
-from ranzen.torch import CrossEntropyLoss, DcModule
+from ranzen.torch import CrossEntropyLoss
 import torch
 from torch import Tensor, optim
 import torch.nn as nn
@@ -17,6 +17,7 @@ from tqdm import tqdm
 import wandb
 
 from src.data import DataModule, labels_to_group_id, resolve_device
+from src.models.utils import DcModule
 
 __all__ = ["FineTuner", "FineTuneParams"]
 

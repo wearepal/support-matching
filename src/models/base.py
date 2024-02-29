@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum
 from functools import cached_property
-from typing import Any, ClassVar, Optional, cast, final
-from typing_extensions import Self, override
+from typing import Any, ClassVar, Generic, Optional, Protocol, cast
+from typing_extensions import TypeVar, override
 
 from conduit.types import LRScheduler
 from hydra.utils import instantiate
@@ -13,7 +13,7 @@ from torch import Tensor
 from torch.cuda.amp.grad_scaler import GradScaler
 import torch.nn as nn
 
-from .utils import exclude_from_weight_decay
+from .utils import DcModule, exclude_from_weight_decay
 
 __all__ = ["Model", "Optimizer", "OptimizerCfg"]
 
@@ -35,20 +35,19 @@ class OptimizerCfg:
     scheduler_kwargs: Optional[dict] = None
 
 
-@dataclass(unsafe_hash=True, frozen=True)
-class FrozenDcModule(nn.Module):
-    @final
-    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
-        obj = object.__new__(cls)
-        nn.Module.__init__(obj)
-        return obj
+class ModuleLike(Protocol):
+    def __call__(self, inputs: Tensor) -> Tensor:
+        ...
 
 
-@dataclass(repr=False, eq=False, frozen=True)
-class Model(FrozenDcModule):
+M = TypeVar("M", bound=ModuleLike, default=nn.Module, covariant=True)
+
+
+@dataclass(repr=False, eq=False)
+class Model(DcModule, Generic[M]):
     _PBAR_COL: ClassVar[str] = "#ffe252"
 
-    model: nn.Module
+    model: M
     opt: OptimizerCfg
 
     @cached_property

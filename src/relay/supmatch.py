@@ -33,8 +33,8 @@ from src.labelling.pipeline import (
     NullLabeller,
     UniformLabelNoiser,
 )
-from src.models import SplitLatentAe
-from src.models.autoencoder import SplitAeOptimizerCfg
+from src.models import OptimizerCfg, SplitLatentAe
+from src.models.autoencoder import SplitAeCfg
 from src.models.discriminator import DiscOptimizerCfg, NeuralDiscriminator
 from src.utils import full_class_path
 
@@ -56,7 +56,8 @@ class SupMatchRelay(BaseRelay):
         ]
     )
     alg: SupportMatching = field(default=SupportMatching)
-    ae: SplitAeOptimizerCfg = field(default=SplitAeOptimizerCfg)
+    ae: SplitAeCfg = field(default=SplitAeCfg)
+    ae_opt: OptimizerCfg = field(default=OptimizerCfg)
     ae_arch: Any  # AeFactory
     ds: Any  # DatasetFactory
     disc_arch: Any  # PredictorFactory
@@ -113,12 +114,17 @@ class SupMatchRelay(BaseRelay):
             case _:
                 raise ValueError(f"Unsupported input shape: {dm.dim_x}")
         ae_pair = self.ae_arch(input_shape=input_shape)
-        ae = SplitLatentAe(opt=self.ae, model=ae_pair, feature_group_slices=dm.feature_group_slices)
+        ae = SplitLatentAe(
+            opt=self.ae_opt,
+            cfg=self.ae,
+            model=ae_pair,
+            feature_group_slices=dm.feature_group_slices,
+        )
         logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
         disc_net, _ = self.disc_arch(
             input_dim=ae.encoding_size.zy, target_dim=1, batch_size=dm.batch_size_tr
         )
-        disc = NeuralDiscriminator(model=disc_net, opt=self.disc)
+        disc = NeuralDiscriminator(model=disc_net, opt=self.disc, criterion=self.disc.criterion)
         try:
             score = self.alg.fit_evaluate_score(
                 dm=dm, ae=ae, disc=disc, evaluator=self.eval, scorer=self.scorer

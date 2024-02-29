@@ -9,7 +9,6 @@ from typing_extensions import TypeAliasType
 from conduit.data import LoadedData, TernarySample, UnloadedData
 from conduit.data.datasets import CdtDataset
 from hydra.utils import to_absolute_path
-from numpy import typing as npt
 from torch import Tensor
 
 __all__ = [
@@ -78,5 +77,5 @@ class TrainDepTestSplit(Generic[D]):
 
 class DatasetFactory(ABC):
     @abstractmethod
-    def __call__(self) -> Dataset[npt.NDArray]:
+    def __call__(self) -> Dataset:
         raise NotImplementedError()

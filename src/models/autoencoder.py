@@ -2,7 +2,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from enum import Enum, auto
 from functools import cached_property
-from typing import Literal, Optional, Union, cast
+from typing import Literal, NamedTuple, Optional, Union
 from typing_extensions import Self, override
 
 import torch
@@ -20,14 +20,13 @@ from .base import Model, OptimizerCfg
 __all__ = [
     "EncodingSize",
     "Reconstructions",
-    "SplitAeOptimizerCfg",
+    "SplitAeCfg",
     "SplitEncoding",
     "SplitLatentAe",
 ]
 
 
-@dataclass
-class EncodingSize:
+class EncodingSize(NamedTuple):
     zs: int
     zy: int
 
@@ -104,7 +103,7 @@ class ZsTransform(Enum):
 
 
 @dataclass
-class SplitAeOptimizerCfg(OptimizerCfg):
+class SplitAeCfg(OptimizerCfg):
     """These are the parameters to `SplitLatentAe` which are configurable by hydra."""
 
     zs_dim: Union[int, float] = 1
@@ -112,26 +111,25 @@ class SplitAeOptimizerCfg(OptimizerCfg):
     recon_loss: ReconstructionLoss = ReconstructionLoss.l2
 
 
-@dataclass(repr=False, eq=False, frozen=True)
-class SplitLatentAe(Model):
-    model: AePair  # overriding the definition in `Model`
-    opt: SplitAeOptimizerCfg  # overriding the definition in `Model`
+@dataclass(repr=False, eq=False)
+class SplitLatentAe(Model[AePair]):
+    cfg: SplitAeCfg
     feature_group_slices: Optional[dict[str, list[slice]]] = None
 
     @cached_property
     def recon_loss_fn(self) -> Callable[[Tensor, Tensor], Tensor]:
-        if self.opt.recon_loss is ReconstructionLoss.mixed:
+        if self.cfg.recon_loss is ReconstructionLoss.mixed:
             if self.feature_group_slices is None:
                 raise ValueError("'MixedLoss' requires 'feature_group_slices' to be specified.")
-            return self.opt.recon_loss.value(
+            return self.cfg.recon_loss.value(
                 reduction="sum", feature_group_slices=self.feature_group_slices
             )
         else:
-            return self.opt.recon_loss.value(reduction="sum")
+            return self.cfg.recon_loss.value(reduction="sum")
 
     @cached_property
     def zs_dim(self) -> int:
-        zs_dim_t = self.opt.zs_dim
+        zs_dim_t = self.cfg.zs_dim
         return round(zs_dim_t * self.latent_dim) if isinstance(zs_dim_t, float) else zs_dim_t
 
     @cached_property
@@ -146,9 +144,9 @@ class SplitLatentAe(Model):
         enc = self._split_encoding(self.model.encode(inputs))
         zs = enc.zs
         if transform_zs:
-            if self.opt.zs_transform is ZsTransform.round_ste:
+            if self.cfg.zs_transform is ZsTransform.round_ste:
                 zs = round_ste(torch.sigmoid(zs))
-            elif self.opt.zs_transform is ZsTransform.soft_classification:
+            elif self.cfg.zs_transform is ZsTransform.soft_classification:
                 zs = soft_prediction(zs)
         return SplitEncoding(zs=zs, zy=enc.zy)
 
@@ -162,7 +160,7 @@ class SplitLatentAe(Model):
         if s is not None:  # we've been given the ground-truth labels for reconstruction
             card_s = split_encoding.zs.size(1)
             if card_s > 1:
-                s_ = cast(Tensor, F.one_hot(s.long(), num_classes=card_s))
+                s_ = F.one_hot(s.long(), num_classes=card_s)
             else:
                 s_ = s.view(-1, 1)
             split_encoding = replace(split_encoding, zs=s_.float())

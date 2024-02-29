@@ -101,7 +101,7 @@ class IndexedDataset(SizedDataset[IndexedSample[Tensor]]):
         return len(self.dataset)
 
 
-@dataclass(kw_only=True, repr=False, eq=False, frozen=True)
+@dataclass(kw_only=True, repr=False, eq=False)
 class LfFClassifier(Classifier):
     criterion: CrossEntropyLoss  # type: ignore
     sample_loss_ema_b: LabelEma

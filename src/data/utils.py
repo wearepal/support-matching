@@ -1,6 +1,7 @@
 from collections.abc import Iterator
-from dataclasses import dataclass
-from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload
+from dataclasses import KW_ONLY, dataclass
+from typing import Any, Generic, Literal, Optional, Union, overload
+from typing_extensions import NamedTuple, TypeVar
 
 from conduit.data.datasets.utils import infer_sample_cls
 from conduit.data.structures import SampleBase
@@ -26,17 +27,17 @@ def labels_to_group_id(*, s: I, y: I, s_count: int) -> I:
     return y * s_count + s
 
 
-S = TypeVar("S", Tensor, None)
-P = TypeVar("P", Tensor, None)
+S = TypeVar("S", Tensor, None, default=None)
+P = TypeVar("P", Tensor, None, default=None)
 
 
-@dataclass(eq=False, init=False)
+@dataclass(eq=False)
 class EvalTuple(Generic[S, P]):
-    def __init__(self, y_true: Tensor, *, y_pred: Tensor, s: S = None, probs: P = None):
-        self.y_true = y_true
-        self.y_pred = y_pred
-        self.s = s
-        self.probs = probs
+    y_true: Tensor
+    _: KW_ONLY
+    y_pred: Tensor
+    s: S = None  # pyright: ignore
+    probs: P = None  # pyright: ignore
 
     @property
     def group_ids(self) -> Tensor:
@@ -46,13 +47,9 @@ class EvalTuple(Generic[S, P]):
         return labels_to_group_id(s=self.s, y=self.y_true, s_count=s_count)
 
 
-@dataclass(eq=False)
-class LabelPair(Generic[I]):
+class LabelPair(NamedTuple, Generic[I]):
     s: I
     y: I
-
-    def __iter__(self) -> Iterator[I]:
-        yield from (self.s, self.y)
 
 
 @overload

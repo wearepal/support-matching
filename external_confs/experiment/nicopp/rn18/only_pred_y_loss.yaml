@@ -27,5 +27,7 @@ alg:
     val_freq: 1000
 
 ae:
-    lr: 5.e-5
     zs_dim: 1
+
+ae_opt:
+    lr: 5.e-5

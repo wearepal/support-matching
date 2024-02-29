@@ -34,11 +34,13 @@ alg:
 
 ae:
     recon_loss: l1
-    lr: 1.e-5
     zs_transform: none
+    zs_dim: 1
+
+ae_opt:
+    lr: 1.e-5
     optimizer_cls: ADAM
     weight_decay: 0
-    zs_dim: 1
 
 # ae_arch:
 #     # version: RN18

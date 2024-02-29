@@ -376,7 +376,7 @@ class ResNetDecoder(nn.Module):
         return x
 
 
-def resnet18_encoder(first_conv: bool, *, maxpool1: bool, latent_dim: int):
+def resnet18_encoder(first_conv: bool, *, maxpool1: bool, latent_dim: int) -> ResNetEncoder:
     return ResNetEncoder(
         EncoderBlock,
         layers=[2, 2, 2, 2],
@@ -386,7 +386,9 @@ def resnet18_encoder(first_conv: bool, *, maxpool1: bool, latent_dim: int):
     )
 
 
-def resnet18_decoder(latent_dim: int, *, input_height: int, first_conv: bool, maxpool1: bool):
+def resnet18_decoder(
+    latent_dim: int, *, input_height: int, first_conv: bool, maxpool1: bool
+) -> ResNetDecoder:
     return ResNetDecoder(
         DecoderBlock,
         layers=[2, 2, 2, 2],

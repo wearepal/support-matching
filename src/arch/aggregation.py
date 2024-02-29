@@ -4,10 +4,11 @@ from typing import Optional
 from typing_extensions import override
 
 from einops import rearrange
-from ranzen.torch import DcModule
 import torch
 from torch import Tensor, nn
 from torch.nn.parameter import Parameter
+
+from src.models.utils import DcModule
 
 __all__ = ["BatchAggregator", "GatedAggregator", "KvqAggregator", "BagMean"]
 

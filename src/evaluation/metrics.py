@@ -35,7 +35,9 @@ class EmEvalPair:
     actual: em.LabelTuple
 
     @classmethod
-    def from_et(cls, et: EvalTuple, *, pred_s: bool = False) -> Self:
+    def from_et(
+        cls, et: EvalTuple[Tensor, None] | EvalTuple[Tensor, Tensor], *, pred_s: bool = False
+    ) -> Self:
         return cls.from_tensors(y_pred=et.y_pred, y_true=et.y_true, s=et.s, pred_s=pred_s)
 
     @classmethod
@@ -170,7 +172,7 @@ def print_metrics(metrics: Mapping[str, Union[int, float, str]]) -> None:
 
 def write_results_to_csv(
     results: Mapping[str, Union[int, float, str]], csv_dir: Path, csv_file: str
-):
+) -> None:
     to_log = {}
     # to_log.update(flatten_dict(as_pretty_dict(cfg)))
     to_log.update(results)
