@@ -43,7 +43,7 @@ class Downsample(nn.Module):
         else:
             self.conv = None
 
-    def forward(self, x: Tensor) -> Tensor:  # type: ignore
+    def forward(self, x: Tensor) -> Tensor:
         if self.conv is not None:
             pad = (0, 1, 0, 1)
             x = F.pad(x, pad, mode="constant", value=0)
@@ -81,7 +81,7 @@ class ResnetBlock(nn.Module):
                     in_channels, out_channels, kernel_size=1, stride=1, padding=0
                 )
 
-    def forward(self, x: Tensor) -> Tensor:  # type: ignore
+    def forward(self, x: Tensor) -> Tensor:
         h = x
         h = self.norm1(h)
         h = F.silu(h)
@@ -112,7 +112,7 @@ class AttnBlock(nn.Module):
         self.v = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0)
         self.proj_out = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0)
 
-    def forward(self, x: Tensor) -> Tensor:  # type: ignore
+    def forward(self, x: Tensor) -> Tensor:
         h_ = x
         h_ = self.norm(h_)
         q = self.q(h_)
@@ -201,7 +201,7 @@ class Encoder(nn.Module):
             nn.Linear(flattened_size, out_features=latent_dim),
         )
 
-    def forward(self, x: Tensor) -> Tensor:  # type: ignore
+    def forward(self, x: Tensor) -> Tensor:
         # timestep embedding
         # downsampling
         hs = [self.conv_in(x)]
@@ -288,7 +288,7 @@ class Decoder(nn.Module):
         self.norm_out = Normalize(block_in)
         self.conv_out = nn.Conv2d(block_in, out_channels, kernel_size=3, stride=1, padding=1)
 
-    def forward(self, z: Tensor) -> Tensor:  # type: ignore
+    def forward(self, z: Tensor) -> Tensor:
         # z to block_in
         h = self.from_latent(z)
 

@@ -3,13 +3,13 @@ from dataclasses import dataclass
 from typing import Optional
 
 from loguru import logger
-from ranzen.torch.module import DcModule
 import torch
 from torch.cuda.amp.grad_scaler import GradScaler
 import torch.nn as nn
 from torch.nn.parameter import Parameter
 
 from src.data import resolve_device
+from src.models.utils import DcModule
 
 __all__ = ["Algorithm", "NaNLossError"]
 

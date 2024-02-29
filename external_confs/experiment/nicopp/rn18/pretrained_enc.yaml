@@ -17,9 +17,11 @@ ae_arch:
     pretrained_enc: true
 
 ae:
-    lr: 5.e-5
     zs_dim: 6
     zs_transform: none
+
+ae_opt:
+    lr: 5.e-5
 
 alg:
     use_amp: true

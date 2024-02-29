@@ -13,8 +13,10 @@ ae_arch:
     artifact_name: nicopp_vqgan_1_256_latent_50000_steps_6_zsdim_ZsTransform.soft_classification_zstrans_0.1_dropout
 
 ae:
-    lr: 5.e-5
     zs_dim: 6
+
+ae_opt:
+    lr: 5.e-5
 
 alg:
     use_amp: true

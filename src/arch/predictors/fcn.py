@@ -3,12 +3,12 @@ from enum import Enum
 from typing import Generic, Optional, TypeVar
 from typing_extensions import override
 
-from ranzen.torch import DcModule
 from torch import Tensor
 import torch.nn as nn
 
 from src.arch.aggregation import BatchAggregator, GatedAggregator, KvqAggregator
 from src.arch.common import Activation, NormType
+from src.models.utils import DcModule
 
 from .base import PredictorFactory, PredictorFactoryOut
 

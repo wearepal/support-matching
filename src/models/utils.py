@@ -1,9 +1,12 @@
 from collections.abc import Iterable
-from typing import Union
+from dataclasses import dataclass
+from typing import Any, Union, final
+from typing_extensions import Self
 
+from torch import nn
 from torch.nn.parameter import Parameter
 
-__all__ = ["exclude_from_weight_decay"]
+__all__ = ["DcModule", "exclude_from_weight_decay"]
 
 
 def exclude_from_weight_decay(
@@ -26,3 +29,12 @@ def exclude_from_weight_decay(
         {"params": params, "weight_decay": weight_decay},
         {"params": excluded_params, "weight_decay": 0.0},
     ]
+
+
+@dataclass(repr=False, eq=False)
+class DcModule(nn.Module):
+    @final
+    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
+        obj = object.__new__(cls)
+        nn.Module.__init__(obj)
+        return obj

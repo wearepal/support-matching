@@ -2,9 +2,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing_extensions import override
 
-from ranzen.torch import DcModule
 from torch import Tensor
 import torch.nn as nn
+
+from src.models.utils import DcModule
 
 __all__ = ["AeFactory", "AePair"]
 

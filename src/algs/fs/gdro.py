@@ -88,7 +88,7 @@ class LossComputer(nn.Module):
 
     def forward(
         self, input: Tensor, *, target: Tensor, group_idx: Tensor, criterion: Optional[Loss] = None
-    ) -> Tensor:  # type: ignore
+    ) -> Tensor:
         if criterion is None:
             per_sample_losses = self._default_criterion(input=input, target=target)
         else:
@@ -199,7 +199,7 @@ class LossComputer(nn.Module):
         group_acc: Tensor,
         group_count: Tensor,
         weights: Optional[Tensor] = None,
-    ):
+    ) -> None:
         # avg group loss
         denom = self.processed_data_counts + group_count
         denom += (denom == 0).float()
@@ -232,7 +232,7 @@ class LossComputer(nn.Module):
         self.avg_acc = group_frac @ self.avg_group_acc
 
 
-@dataclass(kw_only=True, repr=False, eq=False, frozen=True)
+@dataclass(kw_only=True, repr=False, eq=False)
 class GdroClassifier(Classifier):
     loss_computer: LossComputer
 

@@ -9,7 +9,7 @@ from conduit.data.structures import SampleBase, TernarySample
 from conduit.metrics import accuracy
 from conduit.models.utils import prefix_keys
 from loguru import logger
-from ranzen.torch import DcModule, cross_entropy_loss
+from ranzen.torch import cross_entropy_loss
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -22,6 +22,7 @@ from src.data import DataModule
 from src.evaluation.metrics import EmEvalPair, compute_metrics
 from src.logging import log_images
 from src.models import Classifier, Model, OptimizerCfg, SplitLatentAe
+from src.models.utils import DcModule
 from src.utils import to_item
 
 from .evaluator import Evaluator

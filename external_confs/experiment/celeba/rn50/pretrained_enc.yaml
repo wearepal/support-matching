@@ -8,9 +8,11 @@ defaults:
     - _self_
 
 ae:
-    lr: 1.e-5
     zs_dim: 6
     zs_transform: none
+
+ae_opt:
+    lr: 1.e-5
 
 alg:
     use_amp: true

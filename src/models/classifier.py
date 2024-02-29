@@ -36,7 +36,7 @@ def cat_cpu_flatten(*ls: list[Tensor], dim: int = 0) -> Iterator[Tensor]:
         yield torch.cat(ls_, dim=dim).cpu().flatten()
 
 
-@dataclass(repr=False, eq=False, frozen=True)
+@dataclass(repr=False, eq=False)
 class Classifier(Model):
     """Wrapper for classifier models equipped witht training/inference routines."""
 
@@ -65,7 +65,7 @@ class Classifier(Model):
         *,
         device: Union[torch.device, str],
         with_soft: bool = False,
-    ) -> EvalTuple:
+    ) -> EvalTuple[Tensor, None] | EvalTuple[Tensor, Tensor]:
         device = resolve_device(device)
         self.to(device)
         self.eval()
@@ -167,11 +167,10 @@ class _ScSample(BinarySample[Tensor]):
 S = TypeVar("S", bound=SampleBase[Tensor])
 
 
-@dataclass(repr=False, eq=False, frozen=True)
-class SetClassifier(Model):
+@dataclass(repr=False, eq=False)
+class SetClassifier(Model[SetPredictor]):
     """Wrapper for set classifier models equipped witht training/inference routines."""
 
-    model: SetPredictor  # overriding the definition in `Model`
     criterion: Optional[Loss] = None
 
     @torch.no_grad()  # pyright: ignore

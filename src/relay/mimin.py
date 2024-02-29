@@ -19,7 +19,7 @@ from src.labelling.pipeline import (
     NullLabeller,
     UniformLabelNoiser,
 )
-from src.models import Model, OptimizerCfg, SplitAeOptimizerCfg, SplitLatentAe
+from src.models import Model, OptimizerCfg, SplitAeCfg, SplitLatentAe
 
 from .base import BaseRelay
 
@@ -37,7 +37,8 @@ class MiMinRelay(BaseRelay):
     disc_arch: Fcn = field(default=Fcn)
     disc: OptimizerCfg = field(default=OptimizerCfg)
     eval: Evaluator = field(default=Evaluator)
-    ae: SplitAeOptimizerCfg = field(default=SplitAeOptimizerCfg)
+    ae: SplitAeCfg = field(default=SplitAeCfg)
+    ae_opt: OptimizerCfg = field(default=OptimizerCfg)
     ds: Any
     labeller: Any
 
@@ -80,7 +81,12 @@ class MiMinRelay(BaseRelay):
             case _:
                 raise ValueError(f"Unsupported input shape: {dm.dim_x}")
         ae_pair = self.ae_arch(input_shape=input_shape)
-        ae = SplitLatentAe(opt=self.ae, model=ae_pair, feature_group_slices=dm.feature_group_slices)
+        ae = SplitLatentAe(
+            opt=self.ae_opt,
+            cfg=self.ae,
+            model=ae_pair,
+            feature_group_slices=dm.feature_group_slices,
+        )
         logger.info(f"Encoding dim: {ae.latent_dim}, {ae.encoding_size}")
         card_s = dm.card_s
         target_dim = card_s if card_s > 2 else 1

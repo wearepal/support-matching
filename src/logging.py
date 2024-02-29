@@ -72,7 +72,7 @@ def log_images(
     monochrome: bool = False,
     prefix: Optional[str] = None,
     caption: Optional[str] = None,
-):
+) -> None:
     """Make a grid of the given images, save them in a file and log them with W&B"""
     prefix = "train/" if prefix is None else f"{prefix}/"
 
@@ -111,7 +111,7 @@ def log_attention(
     border_width: int = 3,
     ncols: int = 8,
     prefix: Optional[str] = None,
-):
+) -> None:
     """Make a grid of the given images, save them in a file and log them with W&B"""
     prefix = "train_" if prefix is None else f"{prefix}_"
 

@@ -7,7 +7,6 @@ from typing_extensions import override
 import conduit.metrics as cdtm
 from conduit.models.utils import prefix_keys
 from loguru import logger
-from ranzen.torch.module import DcModule
 import torch
 from torch import Tensor
 import wandb
@@ -15,7 +14,7 @@ from wandb.wandb_run import Run
 
 from src.data import DataModule
 from src.evaluation.metrics import print_metrics
-from src.models import Classifier, OptimizerCfg
+from src.models import Classifier, DcModule, OptimizerCfg
 from src.utils import to_item
 
 from .artifact import load_labels_from_artifact, save_labels_as_artifact
