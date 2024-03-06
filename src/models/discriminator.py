@@ -23,11 +23,9 @@ __all__ = [
 
 
 class BinaryDiscriminator(Protocol):
-    def discriminator_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
-        ...
+    def discriminator_loss(self, fake: Tensor, *, real: Tensor) -> Tensor: ...
 
-    def encoder_loss(self, fake: Tensor, *, real: Tensor) -> Tensor:
-        ...
+    def encoder_loss(self, fake: Tensor, *, real: Tensor) -> Tensor: ...
 
 
 @dataclass(repr=False, eq=False)

@@ -74,8 +74,7 @@ def encode_dataset(
     device: str | torch.device,
     segment: Literal["zs"] = ...,
     use_amp: bool = False,
-) -> InvariantDatasets[Dataset[Tensor], None]:
-    ...
+) -> InvariantDatasets[Dataset[Tensor], None]: ...
 
 
 @overload
@@ -86,8 +85,7 @@ def encode_dataset(
     device: str | torch.device,
     segment: Literal["zy"] = ...,
     use_amp: bool = False,
-) -> InvariantDatasets[None, Dataset[Tensor]]:
-    ...
+) -> InvariantDatasets[None, Dataset[Tensor]]: ...
 
 
 @overload
@@ -98,8 +96,7 @@ def encode_dataset(
     device: str | torch.device,
     segment: Literal["both"],
     use_amp: bool = False,
-) -> InvariantDatasets[Dataset[Tensor], Dataset[Tensor]]:
-    ...
+) -> InvariantDatasets[Dataset[Tensor], Dataset[Tensor]]: ...
 
 
 def encode_dataset(

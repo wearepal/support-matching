@@ -1,4 +1,5 @@
 """Download logged runs from W&B."""
+
 from collections.abc import Sequence
 from functools import lru_cache
 from typing import Union

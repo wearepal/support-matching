@@ -49,14 +49,12 @@ class Classifier(Model):
         *,
         device: torch.device,
         with_soft: Literal[False] = ...,
-    ) -> EvalTuple[Tensor, None]:
-        ...
+    ) -> EvalTuple[Tensor, None]: ...
 
     @overload
     def predict(
         self, data: CdtDataLoader[TernarySample], *, device: torch.device, with_soft: Literal[True]
-    ) -> EvalTuple[Tensor, Tensor]:
-        ...
+    ) -> EvalTuple[Tensor, Tensor]: ...
 
     @torch.no_grad()  # pyright: ignore
     def predict(

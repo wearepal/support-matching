@@ -14,8 +14,7 @@ __all__ = ["Experiment", "launch"]
 class Experiment(Protocol):
     options: ClassVar[dict[str, dict[str, type]]]
 
-    def run(self, raw_config: dict[str, Any] | None = None) -> float | None:
-        ...
+    def run(self, raw_config: dict[str, Any] | None = None) -> float | None: ...
 
 
 def launch(relay_cls: type[Experiment]) -> None:
