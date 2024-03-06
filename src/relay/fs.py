@@ -1,6 +1,6 @@
+from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
-from attrs import define, field
 import torch.nn as nn
 
 from src.algs.fs import Dro, Erm, FsAlg, Gdro, Jtt, LfF, SdErm
@@ -25,10 +25,10 @@ from .base import BaseRelay
 __all__ = ["FsRelay"]
 
 
-@define(eq=False, kw_only=True)
+@dataclass(eq=False, kw_only=True)
 class FsRelay(BaseRelay):
     defaults: list[Any] = field(
-        default=[
+        default_factory=lambda: [
             {"alg": "erm"},
             {"ds": "cmnist"},
             {"backbone": "simple"},
@@ -40,7 +40,7 @@ class FsRelay(BaseRelay):
     alg: Any
     ds: Any
     backbone: Any
-    predictor: Fcn = field(default=Fcn)
+    predictor: Fcn = field(default_factory=Fcn)
     labeller: Any
 
     options: ClassVar[dict[str, dict[str, type]]] = BaseRelay.options | {

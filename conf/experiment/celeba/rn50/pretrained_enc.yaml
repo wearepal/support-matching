@@ -49,8 +49,9 @@ dm:
 eval:
     batch_size: 10
     balanced_sampling: true
-    hidden_dim: null
-    num_hidden: 1
+    model:
+        hidden_dim: null
+        num_hidden: 1
     steps: 10000
     opt:
         lr: 1.e-4

@@ -1,6 +1,5 @@
+from dataclasses import dataclass, field
 from typing import Any, ClassVar
-
-from attrs import define, field
 
 from src.data.common import DatasetFactory
 from src.data.factories import ACSCfg
@@ -20,10 +19,14 @@ from .base import BaseRelay
 __all__ = ["LabelRelay"]
 
 
-@define(eq=False, kw_only=True)
+@dataclass(eq=False, kw_only=True)
 class LabelRelay(BaseRelay):
     defaults: list[Any] = field(
-        default=[{"ds": "cmnist"}, {"labeller": "uniform_noise"}, {"split": "random"}]
+        default_factory=lambda: [
+            {"ds": "cmnist"},
+            {"labeller": "uniform_noise"},
+            {"split": "random"},
+        ]
     )
 
     ds: Any  # CdtDataset

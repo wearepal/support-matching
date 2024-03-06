@@ -1,6 +1,6 @@
+from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
-from attrs import define, field
 from loguru import logger
 
 from src.algs import MiMin
@@ -26,19 +26,23 @@ from .base import BaseRelay
 __all__ = ["MiMinRelay"]
 
 
-@define(eq=False, kw_only=True)
+@dataclass(eq=False, kw_only=True)
 class MiMinRelay(BaseRelay):
     defaults: list[Any] = field(
-        default=[{"ae_arch": "simple"}, {"ds": "cmnist"}, {"labeller": "none"}]
+        default_factory=lambda: [
+            {"ae_arch": "simple"},
+            {"ds": "cmnist"},
+            {"labeller": "none"},
+        ]
     )
 
-    alg: MiMin = field(default=MiMin)
+    alg: MiMin = field(default_factory=MiMin)
     ae_arch: Any
-    disc_arch: Fcn = field(default=Fcn)
-    disc: OptimizerCfg = field(default=OptimizerCfg)
-    eval: Evaluator = field(default=Evaluator)
-    ae: SplitAeCfg = field(default=SplitAeCfg)
-    ae_opt: OptimizerCfg = field(default=OptimizerCfg)
+    disc_arch: Fcn = field(default_factory=Fcn)
+    disc: OptimizerCfg = field(default_factory=OptimizerCfg)
+    eval: Evaluator = field(default_factory=Evaluator)
+    ae: SplitAeCfg = field(default_factory=SplitAeCfg)
+    ae_opt: OptimizerCfg = field(default_factory=OptimizerCfg)
     ds: Any
     labeller: Any
 

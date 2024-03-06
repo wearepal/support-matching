@@ -17,7 +17,6 @@ from tqdm import tqdm
 import umap
 import wandb
 
-from src.arch.common import Activation
 from src.arch.predictors import Fcn
 from src.data import DataModule, Dataset, group_id_to_label, labels_to_group_id, resolve_device
 from src.evaluation.metrics import EmEvalPair, compute_metrics
@@ -222,24 +221,18 @@ def visualize_clusters(
 class Evaluator:
     steps: int = 10_000
     batch_size: int = 128
-    hidden_dim: int | None = None
-    num_hidden: int = 0
     eval_s_from_zs: EvalTrainData | None = None
     balanced_sampling: bool = True
     umap_viz: bool = False
     save_summary: bool = True
-
-    activation: Activation = Activation.GELU
+    model: Fcn = field(default_factory=Fcn)
     opt: OptimizerCfg = field(default_factory=OptimizerCfg)
     """Optimization parameters."""
 
     def _fit_classifier(
         self, dm: DataModule, *, pred_s: bool, input_dim: int, device: torch.device
     ) -> Classifier:
-        model_fn = Fcn(
-            hidden_dim=self.hidden_dim, num_hidden=self.num_hidden, activation=self.activation
-        )
-        model, _ = model_fn(input_dim, target_dim=dm.card_y)
+        model, _ = self.model(input_dim, target_dim=dm.card_y)
 
         clf = Classifier(model, opt=self.opt)
 
