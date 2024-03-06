@@ -21,7 +21,7 @@ ae_opt:
 alg:
     use_amp: true
     pred:
-        lr: ${ ae.lr }
+        lr: ${ ae_opt.lr }
     steps: 30000
     val_freq: 1000
     # val_freq: ${ alg.steps }

@@ -243,6 +243,7 @@ class Evaluator:
             device=torch.device(device),
             pred_s=pred_s,
             use_wandb=False,
+            val_interval=1.1,  # never
         )
 
         return clf

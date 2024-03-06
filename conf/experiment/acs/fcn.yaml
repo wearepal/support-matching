@@ -11,9 +11,13 @@ defaults:
 alg:
     use_amp: False
     pred:
-        lr: ${ ae.lr }
-        optimizer_cls: ${ ae.optimizer_cls }
-        # weight_decay: ${ ae.weight_decay }
+        lr: ${ ae_opt.lr }
+        optimizer_cls: ${ ae_opt.optimizer_cls }
+        # weight_decay: ${ ae_opt.weight_decay }
+        scheduler_cls: ${ ae_opt.scheduler_cls }
+        scheduler_kwargs:
+            T_max: ${ ae_opt.scheduler_kwargs.T_max }
+            eta_min: ${ ae_opt.scheduler_kwargs.eta_min }
     steps: 10000
     val_freq: 1000
     log_freq: ${ alg.steps }
@@ -30,6 +34,10 @@ ae_opt:
     lr: 1.e-4
     optimizer_cls: ADAM
     weight_decay: 1.e-2
+    scheduler_cls: torch.optim.lr_scheduler.CosineAnnealingLR
+    scheduler_kwargs:
+        T_max: ${ alg.steps }
+        eta_min: 1.e-6
 
 ae_arch:
     hidden_dim: 95
@@ -37,14 +45,19 @@ ae_arch:
     num_hidden: 3
     dropout_prob: 0.1
 
+split:
+    seed: ${ seed }
+
 eval:
-    batch_size: 128
+    steps: 5000
+    batch_size: 32
+    balanced_sampling: true
     model:
         num_hidden: 0
     opt:
         lr: 5.e-4
         optimizer_cls: ADAM
-        # scheduler_cls: torch.optim.lr_scheduler.CosineAnnealingLR
-        # scheduler_kwargs:
-        #     T_max: ${ eval.steps }
-        #     eta_min: 5e-7
+        scheduler_cls: torch.optim.lr_scheduler.CosineAnnealingLR
+        scheduler_kwargs:
+            T_max: ${ eval.steps }
+            eta_min: 5e-7

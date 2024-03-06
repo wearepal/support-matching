@@ -15,7 +15,7 @@ from src.discrete import discretize, round_ste, sample_concrete
 from src.loss import MixedLoss
 from src.utils import soft_prediction, to_item
 
-from .base import Model, OptimizerCfg
+from .base import Model
 
 __all__ = [
     "EncodingSize",
@@ -103,7 +103,7 @@ class ZsTransform(Enum):
 
 
 @dataclass
-class SplitAeCfg(OptimizerCfg):
+class SplitAeCfg:
     """These are the parameters to `SplitLatentAe` which are configurable by hydra."""
 
     zs_dim: int | float = 1

@@ -17,7 +17,7 @@ ae_opt:
 alg:
     use_amp: true
     pred:
-        lr: ${ ae.lr }
+        lr: ${ ae_opt.lr }
     log_freq: ${ alg.steps }
     val_freq: 200
     num_disc_updates: 5
