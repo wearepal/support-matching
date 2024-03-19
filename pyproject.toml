@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "support-matching"
-package-mode = false
+version = "0.0.0"
 description = "Addressing Missing Sources with Adversarial Support-Matching"
 authors = ["PAL <info@wearepal.com>"]
 packages = [{ include = "src" }, { include = "hydra_plugins" }]
@@ -88,7 +88,6 @@ known-third-party = [
   "ethicml",
   "hydra",
   "matplotlib",
-  "mypy",
   "numpy",
   "omegaconf",
   "pandas",

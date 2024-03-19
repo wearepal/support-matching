@@ -20,6 +20,25 @@ train_subsampling_props:
         1: 0.3
     1:
         0: 0.0
-train_transforms: null
-test_transforms: null
+train_transforms:
+    _target_: torchvision.transforms.Compose
+    transforms:
+        - _target_: torchvision.transforms.Resize
+          size: 28
+        - _target_: torchvision.transforms.ToTensor
+          # ImageNet channel-wise moments
+        - _target_: torchvision.transforms.Normalize
+          mean: [ 0.5, 0.5, 0.5 ]
+          std: [ 0.5, 0.5, 0.5 ]
+
+test_transforms:
+    _target_: torchvision.transforms.Compose
+    transforms:
+        - _target_: torchvision.transforms.Resize
+          size: 28
+        - _target_: torchvision.transforms.ToTensor
+          # ImageNet channel-wise moments
+        - _target_: torchvision.transforms.Normalize
+          mean: [ 0.5, 0.5, 0.5 ]
+          std: [ 0.5, 0.5, 0.5 ]
 dep_transforms: null

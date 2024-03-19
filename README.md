@@ -1,6 +1,6 @@
-# Addressing Missing Sources with Adversarial Support-Matching
+# Addressing Attribute Bias with Adversarial Support-Matching
 
-Code for the paper *Addressing Missing Sources with Adversarial Support-Matching* [https://arxiv.org/abs/2203.13154].
+Code for the paper [Addressing Attribute Bias with Adversarial Support-Matching](https://openreview.net/forum?id=JYbnJ92TJf).
 
 Requires Python 3.10+.
 
@@ -11,70 +11,55 @@ One of the dependencies is PyTorch. If your system is not compatible with the de
 then please install this from [pytorch.org](https://pytorch.org/) as required.
 If so, it's recommended that you do this first.
 
-We have provided a `setup.py` file with the dependencies.
-To install this package, `pip install -e /path/to/this/dir`
+You can install this package, with dependencies, with `pip install .`.
 
-# Running Experiments
+## Running Experiments
 
-The `compare.sh` script runs all the variants of our method.
+### ACS
 
-## Adult Income
-
-This dataset is included in the repository.
-
-### Subgroup bias
+This dataset will be downloaded on first use.
 
 ```
-bash scripts/compare.sh data=adult/gender bias=adult/partial_outcome enc=adult adapt=adult/on_enc_with_bags clust=adult
+python -m src.run.supmatch +experiment=acs/fcn
 ```
 
-For the "no-cluster" baseline, the bag size needs to be changed:
+### NICO++
+
+This dataset has to be downloaded separately.
 
 ```
-python run_ss.py adapt.balanced_context=false misc.log_method=no-cluster-fdm data=adult/gender bias=adult/partial_outcome enc=adult adapt=adult/on_enc_with_bags clust=adult adapt.bag_size=32 adapt.batch_size=16
+python -m src.run.supmatch +experiment=nicopp/rn50/pretrained_enc ds.root=/path/to/dataset
 ```
 
-### Missing subgroup
-
-```
-bash scripts/compare.sh data=adult/gender bias=adult/missing_demo enc=adult adapt=adult/on_enc_with_bags clust=adult
-```
-
-For the "no-cluster" baseline, the bag size needs to be changed:
-
-```
-python run_ss.py adapt.balanced_context=false misc.log_method=no-cluster-fdm data=adult/gender bias=adult/missing_demo enc=adult adapt=adult/on_enc_with_bags clust=adult adapt.bag_size=32 adapt.batch_size=16
-```
-
-## Colored MNIST
+### Colored MNIST
 
 This dataset will be downloaded automatically.
 
-### 2 digits
-
-#### Subgroup bias
-
 ```
-bash scripts/compare.sh +experiment=cmnist_subgroup_bias
+python -m src.run.supmatch +experiment=cmnist/2d2c labeller=gt
 ```
 
-#### Missing subgroup
-
-```
-bash scripts/compare.sh +experiment=cmnist_missing_subgroup
-```
-
-### 3 digits
-
-```
-bash scripts/compare.sh data=cmnist/3dig bias=cmnist/3dig/4miss enc=mnist adapt=cmnist/mostly_traditional clust=vague_spaceship_improved adapt.iters=20000 adapt.zs_dim=2
-```
-
-## CelebA
+### CelebA
 
 The code will try to download this, but the download quota is often saturated,
 so it might not work immediately.
 
+#### Without smiling males
 ```
-bash scripts/compare.sh +experiment=celeba_gender
+python -m src.run.supmatch +experiment=celeba/sm/pt split=celeba/artifact/no_smiling_males
+```
+
+#### Without smiling females
+```
+python -m src.run.supmatch +experiment=celeba/sm/pt split=celeba/artifact/no_smiling_females
+```
+
+#### Without unsmiling males
+```
+python -m src.run.supmatch +experiment=celeba/sm/pt split=celeba/artifact/no_unsmiling_males
+```
+
+#### Without unsmiling females
+```
+python -m src.run.supmatch +experiment=celeba/sm/pt split=celeba/artifact/no_unsmiling_females
 ```
