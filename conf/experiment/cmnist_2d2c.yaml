@@ -1,0 +1,11 @@
+# @package _global_
+
+defaults:
+    - override /ds: cmnist/2d2c
+    - override /split: cmnist/2d2c_sb1
+    - override /ae_arch: simple
+    - override /disc_arch: set
+    - override /scorer: none
+
+ae_arch:
+    levels: 2
