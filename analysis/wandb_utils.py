@@ -4,7 +4,7 @@ from enum import Enum, auto
 import math
 import operator
 from pathlib import Path
-from typing import ClassVar, Final, NamedTuple, Optional, TypedDict, TypeVar, Union
+from typing import ClassVar, Final, NamedTuple, TypedDict, TypeVar
 from typing_extensions import TypeAliasType
 
 from matplotlib import pyplot as plt
@@ -149,6 +149,7 @@ class MethodName(Enum):
     dfr = "DFR (Oracle=B&Y)"
     ours_no_bags = "Ours (instance-wise)"
     ours_with_bags = "Ours (bag-wise)"
+    jtt = "JTT (Oracle=A*&Y*)"
 
 
 class CustomMethod(NamedTuple):
@@ -424,7 +425,7 @@ def _make_plot(
             x=renamed_col_to_plot,
             data=df,
             ax=plot,
-            whis=1.0,
+            whis=2.0,
             medianprops={"color": "black", "linewidth": 4},
             boxprops={"edgecolor": "black"},
             # notch=True,
@@ -500,9 +501,10 @@ def _make_plot(
     return fig
 
 
+@dataclass(frozen=True)
 class MeanStd:
-    def __init__(self, round_to: int):
-        self.round_to = round_to
+    round_to: int
+    unicode: bool
 
     def __call__(self, data: np.ndarray) -> str:
         mean = np.mean(data)
@@ -510,12 +512,14 @@ class MeanStd:
             return "N/A"
         std = np.std(data)
         round_level = self.round_to if std > 2 * pow(10, -self.round_to) else self.round_to + 1
-        return f"{round(mean, round_level)} $\\pm$ {round(std, round_level)}"
+        pm = "±" if self.unicode else "$\\pm$"
+        return f"{round(mean, round_level)} {pm} {round(std, round_level)}"
 
 
+@dataclass(frozen=True)
 class MedianIQR:
-    def __init__(self, round_to: int):
-        self.round_to = round_to
+    round_to: int
+    unicode: bool
 
     def __call__(self, data: np.ndarray) -> str:
         q1, median, q3 = np.quantile(data, [0.25, 0.5, 0.75])
@@ -523,12 +527,16 @@ class MedianIQR:
         if math.isnan(median):
             return "N/A"
         # round_level = self.round_to if std > 2 * pow(10, -self.round_to) else self.round_to + 1
-        return f"{round(median, self.round_to)} $\\pm$ {round(iqr, self.round_to)}"
+        pm = "±" if self.unicode else "$\\pm$"
+        return f"{round(median, self.round_to)} {pm} {round(iqr, self.round_to)}"
 
 
 class TableAggregation(Enum):
-    mean_std = MeanStd
-    median_iqr = MedianIQR
+    mean_std = (MeanStd,)
+    median_iqr = (MedianIQR,)
+
+    def __init__(self, aggregation: Callable[[int, bool], Callable[[np.ndarray], str]]):
+        self.init = aggregation
 
 
 def generate_table(
@@ -538,8 +546,10 @@ def generate_table(
     base_cols: Iterable[str] = ("misc.log_method",),
     round_to: int = 2,
     sens_attr: str = "colour",
-) -> None:
-    AggClass = aggregation.value
+    *,
+    unicode: bool = False,
+) -> pd.DataFrame:
+    AggClass = aggregation.init
     col_renames: dict[str, str] = {}
     for metric in metrics:
         metric_name: str | None = None
@@ -565,9 +575,10 @@ def generate_table(
     df = df.rename(columns=col_renames, inplace=False)
     # W&B stores NaNs as strings, so we need to replace them with actual NaNs.
     df = df.replace("NaN", math.nan, inplace=False)
-    print(
+    pretty_table = (
         df.groupby(base_cols, sort=False)
-        .agg(AggClass(round_to=round_to))
+        .agg(AggClass(round_to, unicode))
         .reset_index(level=base_cols, inplace=False)
-        .to_latex(escape=False, index=False)
     )
+    print(pretty_table.to_latex(escape=False, index=False))
+    return pretty_table
