@@ -2,7 +2,6 @@
 
 defaults:
     - override /ds: cmnist/2d2c
-    - override /labeller: gt
     - override /split: cmnist/2d2c_sb1
     - override /ae_arch: simple
     - override /disc_arch: set
