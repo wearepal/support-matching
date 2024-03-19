@@ -1,7 +1,7 @@
 # @package _global_
 
 defaults:
-    - /alg: supmatch_no_disc
+    # - /alg: supmatch_no_disc
     - override /dm: acs
     - override /ds: acs/employment_dis_fl
     - override /split: acs/employment_dis
@@ -11,12 +11,18 @@ defaults:
 alg:
     use_amp: False
     pred:
-        lr: ${ ae.lr }
+        lr: ${ ae_opt.lr }
+        optimizer_cls: ${ ae_opt.optimizer_cls }
+        # weight_decay: ${ ae_opt.weight_decay }
+        scheduler_cls: ${ ae_opt.scheduler_cls }
+        scheduler_kwargs:
+            T_max: ${ ae_opt.scheduler_kwargs.T_max }
+            eta_min: ${ ae_opt.scheduler_kwargs.eta_min }
     steps: 10000
     val_freq: 1000
     log_freq: ${ alg.steps }
-    # num_disc_updates: 3
-    # disc_loss_w: 0.03
+    num_disc_updates: 3
+    disc_loss_w: 0.03
     # ga_steps: 1
     # max_grad_norm: null
 
@@ -27,12 +33,31 @@ ae:
 ae_opt:
     lr: 1.e-4
     optimizer_cls: ADAM
-    weight_decay: 0
+    weight_decay: 1.e-2
+    scheduler_cls: torch.optim.lr_scheduler.CosineAnnealingLR
+    scheduler_kwargs:
+        T_max: ${ alg.steps }
+        eta_min: 1.e-6
 
 ae_arch:
-    hidden_dim: 64
+    hidden_dim: 95
     latent_dim: 64
-    num_hidden: 2
+    num_hidden: 3
+    dropout_prob: 0.1
+
+split:
+    seed: ${ seed }
 
 eval:
-    batch_size: 128
+    steps: 5000
+    batch_size: 32
+    balanced_sampling: true
+    model:
+        num_hidden: 0
+    opt:
+        lr: 5.e-4
+        optimizer_cls: ADAM
+        scheduler_cls: torch.optim.lr_scheduler.CosineAnnealingLR
+        scheduler_kwargs:
+            T_max: ${ eval.steps }
+            eta_min: 5e-7

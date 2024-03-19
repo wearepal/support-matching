@@ -69,8 +69,9 @@ eval:
     batch_size: 12
     balanced_sampling: true
     steps: 10000
-    num_hidden: 1
-    hidden_dim: null
+    model:
+        num_hidden: 1
+        hidden_dim: null
     opt:
         lr: 1.e-4
         scheduler_cls: torch.optim.lr_scheduler.CosineAnnealingLR

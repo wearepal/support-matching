@@ -1,6 +1,7 @@
 """Dataset factories."""
 
 from dataclasses import dataclass, field
+from enum import Enum, auto
 from pathlib import Path
 from typing import Any
 from typing_extensions import override
@@ -20,6 +21,12 @@ from src.data.common import DatasetFactory
 __all__ = ["NICOPPCfg"]
 
 
+class Setting(Enum):
+    employment = auto()
+    income = auto()
+    employment_disability = auto()
+
+
 @dataclass
 class NICOPPCfg(DatasetFactory):
     root: Path | str
@@ -33,7 +40,7 @@ class NICOPPCfg(DatasetFactory):
 
 @dataclass
 class ACSCfg(DatasetFactory):
-    setting: ACSSetting
+    setting: Setting
     survey_year: ACSSurveyYear = ACSSurveyYear.YEAR_2018
     horizon: ACSHorizon = ACSHorizon.ONE_YEAR
     survey: ACSSurvey = ACSSurvey.PERSON
@@ -41,8 +48,15 @@ class ACSCfg(DatasetFactory):
 
     @override
     def __call__(self) -> ACSDataset:
+        match self.setting:
+            case Setting.employment:
+                setting = ACSSetting.employment
+            case Setting.income:
+                setting = ACSSetting.income
+            case Setting.employment_disability:
+                setting = ACSSetting.employment_disability
         return ACSDataset(
-            setting=self.setting,
+            setting=setting,
             survey_year=self.survey_year,
             horizon=self.horizon,
             survey=self.survey,

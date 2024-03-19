@@ -1,7 +1,7 @@
+from dataclasses import dataclass, field
 import os
 from typing import Any, ClassVar
 
-from attrs import define, field
 from loguru import logger
 from ranzen.torch import random_seed
 import torch
@@ -15,11 +15,11 @@ from src.logging import WandbConf
 __all__ = ["BaseRelay"]
 
 
-@define(eq=False, kw_only=True)
+@dataclass(eq=False, kw_only=True)
 class BaseRelay:
-    dm: DataModuleConf = field(default=DataModuleConf)
+    dm: DataModuleConf = field(default_factory=DataModuleConf)
     split: Any
-    wandb: WandbConf = field(default=WandbConf)
+    wandb: WandbConf = field(default_factory=WandbConf)
     seed: int = 0
 
     options: ClassVar[dict[str, dict[str, type]]] = {

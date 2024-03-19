@@ -1,4 +1,7 @@
-stratified_sampler: approx_group
-num_workers: 1
-batch_size_tr: 128
+# stratified_sampler: approx_group
+stratified_sampler: exact
+num_workers: 4
+# batch_size_tr: 128
+batch_size_tr: 32
 batch_size_te: 100000
+num_samples_per_group_per_bag: 1

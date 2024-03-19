@@ -36,8 +36,7 @@ class OptimizerCfg:
 
 
 class ModuleLike(Protocol):
-    def __call__(self, inputs: Tensor) -> Tensor:
-        ...
+    def __call__(self, inputs: Tensor) -> Tensor: ...
 
 
 M = TypeVar("M", bound=ModuleLike, default=nn.Module, covariant=True)

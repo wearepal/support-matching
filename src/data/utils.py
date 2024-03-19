@@ -53,18 +53,15 @@ class LabelPair(NamedTuple, Generic[I]):
 
 
 @overload
-def group_id_to_label(group_id: I, *, s_count: int, label: Literal["s"]) -> I:
-    ...
+def group_id_to_label(group_id: I, *, s_count: int, label: Literal["s"]) -> I: ...
 
 
 @overload
-def group_id_to_label(group_id: I, *, s_count: int, label: Literal["y"]) -> I:
-    ...
+def group_id_to_label(group_id: I, *, s_count: int, label: Literal["y"]) -> I: ...
 
 
 @overload
-def group_id_to_label(group_id: I, *, s_count: int, label: Literal[None] = ...) -> LabelPair[I]:
-    ...
+def group_id_to_label(group_id: I, *, s_count: int, label: Literal[None] = ...) -> LabelPair[I]: ...
 
 
 def group_id_to_label(

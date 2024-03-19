@@ -17,7 +17,6 @@ from tqdm import tqdm
 import umap
 import wandb
 
-from src.arch.common import Activation
 from src.arch.predictors import Fcn
 from src.data import DataModule, Dataset, group_id_to_label, labels_to_group_id, resolve_device
 from src.evaluation.metrics import EmEvalPair, compute_metrics
@@ -75,8 +74,7 @@ def encode_dataset(
     device: str | torch.device,
     segment: Literal["zs"] = ...,
     use_amp: bool = False,
-) -> InvariantDatasets[Dataset[Tensor], None]:
-    ...
+) -> InvariantDatasets[Dataset[Tensor], None]: ...
 
 
 @overload
@@ -87,8 +85,7 @@ def encode_dataset(
     device: str | torch.device,
     segment: Literal["zy"] = ...,
     use_amp: bool = False,
-) -> InvariantDatasets[None, Dataset[Tensor]]:
-    ...
+) -> InvariantDatasets[None, Dataset[Tensor]]: ...
 
 
 @overload
@@ -99,8 +96,7 @@ def encode_dataset(
     device: str | torch.device,
     segment: Literal["both"],
     use_amp: bool = False,
-) -> InvariantDatasets[Dataset[Tensor], Dataset[Tensor]]:
-    ...
+) -> InvariantDatasets[Dataset[Tensor], Dataset[Tensor]]: ...
 
 
 def encode_dataset(
@@ -222,24 +218,18 @@ def visualize_clusters(
 class Evaluator:
     steps: int = 10_000
     batch_size: int = 128
-    hidden_dim: int | None = None
-    num_hidden: int = 0
     eval_s_from_zs: EvalTrainData | None = None
     balanced_sampling: bool = True
     umap_viz: bool = False
     save_summary: bool = True
-
-    activation: Activation = Activation.GELU
+    model: Fcn = field(default_factory=Fcn)
     opt: OptimizerCfg = field(default_factory=OptimizerCfg)
     """Optimization parameters."""
 
     def _fit_classifier(
         self, dm: DataModule, *, pred_s: bool, input_dim: int, device: torch.device
     ) -> Classifier:
-        model_fn = Fcn(
-            hidden_dim=self.hidden_dim, num_hidden=self.num_hidden, activation=self.activation
-        )
-        model, _ = model_fn(input_dim, target_dim=dm.card_y)
+        model, _ = self.model(input_dim, target_dim=dm.card_y)
 
         clf = Classifier(model, opt=self.opt)
 
@@ -253,6 +243,7 @@ class Evaluator:
             device=torch.device(device),
             pred_s=pred_s,
             use_wandb=False,
+            val_interval=1.1,  # never
         )
 
         return clf

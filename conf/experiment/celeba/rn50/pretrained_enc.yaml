@@ -17,7 +17,7 @@ ae_opt:
 alg:
     use_amp: true
     pred:
-        lr: ${ ae.lr }
+        lr: ${ ae_opt.lr }
     log_freq: ${ alg.steps }
     val_freq: 200
     num_disc_updates: 5
@@ -49,8 +49,9 @@ dm:
 eval:
     batch_size: 10
     balanced_sampling: true
-    hidden_dim: null
-    num_hidden: 1
+    model:
+        hidden_dim: null
+        num_hidden: 1
     steps: 10000
     opt:
         lr: 1.e-4

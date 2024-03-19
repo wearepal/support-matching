@@ -58,7 +58,7 @@ pandas-stubs = "*"
 python-type-stubs = { git = "https://github.com/wearepal/python-type-stubs.git", rev = "8d5f608" }
 
 [tool.poetry.group.lint.dependencies]
-ruff = "*"
+ruff = ">=0.3.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

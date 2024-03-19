@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, auto
 from typing import Generic, TypeVar
 from typing_extensions import override
 
@@ -73,18 +73,15 @@ class SetPredictor(DcModule, Generic[A]):
     def batch_size(self, value: int) -> None:
         self.agg.batch_size = value
 
-    def forward(self, x: Tensor, *, batch_size: int | None = None) -> Tensor:  # type: ignore
+    def forward(self, x: Tensor, *, batch_size: int | None = None) -> Tensor:
         if batch_size is not None:
             self.batch_size = batch_size
         return self.post(self.agg(self.pre(x)))
 
 
 class BatchAggregatorEnum(Enum):
-    KVQ = (KvqAggregator,)
-    GATED = (GatedAggregator,)
-
-    def __init__(self, init: type[BatchAggregator]) -> None:
-        self.init = init
+    KVQ = auto()
+    GATED = auto()
 
 
 @dataclass(eq=False)
@@ -103,6 +100,7 @@ class SetFcn(PredictorFactory):
     head_dim: int | None = 512
     num_blocks: int = 0
     mean_query: bool = True
+    agg_fn: BatchAggregatorEnum = BatchAggregatorEnum.KVQ
 
     def _pre_agg_fcn(self, input_dim: int) -> PredictorFactoryOut[nn.Sequential]:
         agg_input_dim = self.agg_input_dim
@@ -131,17 +129,21 @@ class SetFcn(PredictorFactory):
     def _aggregator(
         self, input_dim: int, *, batch_size: int
     ) -> PredictorFactoryOut[BatchAggregator]:
-        return (
-            KvqAggregator(
-                batch_size=batch_size,
-                num_heads=self.num_heads,
-                num_blocks=self.num_blocks,
-                dim=input_dim,
-                head_dim=self.head_dim,
-                mean_query=self.mean_query,
-            ),
-            input_dim,
-        )
+        match self.agg_fn:
+            case BatchAggregatorEnum.KVQ:
+                return (
+                    KvqAggregator(
+                        batch_size=batch_size,
+                        num_heads=self.num_heads,
+                        num_blocks=self.num_blocks,
+                        dim=input_dim,
+                        head_dim=self.head_dim,
+                        mean_query=self.mean_query,
+                    ),
+                    input_dim,
+                )
+            case BatchAggregatorEnum.GATED:
+                return GatedAggregator(batch_size=batch_size, dim=input_dim), input_dim
 
     @override
     def __call__(

@@ -1,8 +1,7 @@
-from dataclasses import asdict
+from dataclasses import asdict, dataclass, field
 import math
 from typing import Any, ClassVar
 
-from attrs import define, field
 from loguru import logger
 from ranzen import some
 
@@ -43,10 +42,10 @@ from .base import BaseRelay
 __all__ = ["SupMatchRelay"]
 
 
-@define(eq=False, kw_only=True)
+@dataclass(eq=False, kw_only=True)
 class SupMatchRelay(BaseRelay):
     defaults: list[Any] = field(
-        default=[
+        default_factory=lambda: [
             {"ae_arch": "simple"},
             {"ds": "cmnist"},
             {"disc_arch": "set"},
@@ -55,14 +54,14 @@ class SupMatchRelay(BaseRelay):
             {"split": "random"},
         ]
     )
-    alg: SupportMatching = field(default=SupportMatching)
-    ae: SplitAeCfg = field(default=SplitAeCfg)
-    ae_opt: OptimizerCfg = field(default=OptimizerCfg)
+    alg: SupportMatching = field(default_factory=SupportMatching)
+    ae: SplitAeCfg = field(default_factory=SplitAeCfg)
+    ae_opt: OptimizerCfg = field(default_factory=OptimizerCfg)
     ae_arch: Any  # AeFactory
     ds: Any  # DatasetFactory
     disc_arch: Any  # PredictorFactory
-    disc: DiscOptimizerCfg = field(default=DiscOptimizerCfg)
-    eval: Evaluator = field(default=Evaluator)
+    disc: DiscOptimizerCfg = field(default_factory=DiscOptimizerCfg)
+    eval: Evaluator = field(default_factory=Evaluator)
     labeller: Any  # Labeller
     scorer: Any  # Scorer
     artifact_name: str | None = None

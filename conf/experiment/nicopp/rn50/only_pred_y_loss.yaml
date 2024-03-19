@@ -15,7 +15,7 @@ alg:
     steps: 30000
     use_amp: true
     pred:
-        lr: ${ ae.lr }
+        lr: ${ ae_opt.lr }
     log_freq: 100000000000  # never
     val_freq: 1000
 
