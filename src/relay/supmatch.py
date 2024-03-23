@@ -57,13 +57,13 @@ class SupMatchRelay(BaseRelay):
     alg: SupportMatching = field(default_factory=SupportMatching)
     ae: SplitAeCfg = field(default_factory=SplitAeCfg)
     ae_opt: OptimizerCfg = field(default_factory=OptimizerCfg)
-    ae_arch: Any  # AeFactory
-    ds: Any  # DatasetFactory
-    disc_arch: Any  # PredictorFactory
+    ae_arch: AeFactory
+    ds: DatasetFactory
+    disc_arch: PredictorFactory
     disc: DiscOptimizerCfg = field(default_factory=DiscOptimizerCfg)
     eval: Evaluator = field(default_factory=Evaluator)
-    labeller: Any  # Labeller
-    scorer: Any  # Scorer
+    labeller: Labeller
+    scorer: Scorer
     artifact_name: str | None = None
     """Save model weights under this name."""
 
@@ -96,12 +96,6 @@ class SupMatchRelay(BaseRelay):
     }
 
     def run(self, raw_config: dict[str, Any] | None = None) -> float | None:
-        assert isinstance(self.ae_arch, AeFactory)
-        assert isinstance(self.disc_arch, PredictorFactory)
-        assert isinstance(self.ds, DatasetFactory)
-        assert isinstance(self.labeller, Labeller)
-        assert isinstance(self.scorer, Scorer)
-
         ds = self.ds()
         run = self.wandb.init(raw_config, (ds, self.labeller, self.ae_arch, self.disc_arch))
         dm = self.init_dm(ds, self.labeller, device=self.alg.device)

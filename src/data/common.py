@@ -75,6 +75,7 @@ class TrainDepTestSplit(Generic[D]):
         return len(self.test)
 
 
+@dataclass
 class DatasetFactory(ABC):
     @abstractmethod
     def __call__(self) -> Dataset:

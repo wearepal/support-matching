@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import TypeVar
 from typing_extensions import TypeAliasType
 
@@ -10,6 +11,7 @@ M = TypeVar("M", bound=nn.Module, covariant=True)
 PredictorFactoryOut = TypeAliasType("PredictorFactoryOut", tuple[M, int], type_params=(M,))
 
 
+@dataclass(eq=False)
 class PredictorFactory(ABC):
     @abstractmethod
     def __call__(

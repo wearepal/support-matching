@@ -66,6 +66,7 @@ def balanced_accuracy(y_pred: Tensor, *, y_true: Tensor) -> Tensor:
     return cdtm.subclass_balanced_accuracy(y_pred=y_pred, y_true=y_true, s=y_true)
 
 
+@dataclass(eq=False)
 class Scorer(ABC):
     @abstractmethod
     def run(

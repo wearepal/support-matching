@@ -37,14 +37,14 @@ class MiMinRelay(BaseRelay):
     )
 
     alg: MiMin = field(default_factory=MiMin)
-    ae_arch: Any
+    ae_arch: AeFactory
     disc_arch: Fcn = field(default_factory=Fcn)
     disc: OptimizerCfg = field(default_factory=OptimizerCfg)
     eval: Evaluator = field(default_factory=Evaluator)
     ae: SplitAeCfg = field(default_factory=SplitAeCfg)
     ae_opt: OptimizerCfg = field(default_factory=OptimizerCfg)
-    ds: Any
-    labeller: Any
+    ds: DatasetFactory
+    labeller: Labeller
 
     options: ClassVar[dict[str, dict[str, type]]] = BaseRelay.options | {
         "ds": {
@@ -70,10 +70,6 @@ class MiMinRelay(BaseRelay):
     }
 
     def run(self, raw_config: dict[str, Any] | None = None) -> None:
-        assert isinstance(self.ae_arch, AeFactory)
-        assert isinstance(self.ds, DatasetFactory)
-        assert isinstance(self.labeller, Labeller)
-
         ds = self.ds()
         run = self.wandb.init(raw_config, (ds, self.labeller, self.ae_arch, self.disc_arch))
         dm = self.init_dm(ds, self.labeller, device=self.alg.device)

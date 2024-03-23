@@ -29,8 +29,8 @@ class LabelRelay(BaseRelay):
         ]
     )
 
-    ds: Any  # CdtDataset
-    labeller: Any  # Labeller
+    ds: DatasetFactory
+    labeller: Labeller
     gpu: int = 0
 
     options: ClassVar[dict[str, dict[str, type]]] = BaseRelay.options | {
@@ -50,9 +50,6 @@ class LabelRelay(BaseRelay):
     }
 
     def run(self, raw_config: dict[str, Any] | None = None) -> float | None:
-        assert isinstance(self.ds, DatasetFactory)
-        assert isinstance(self.labeller, Labeller)
-
         ds = self.ds()
         run = self.wandb.init(raw_config, (ds, self.labeller))
         device = resolve_device(self.gpu)
