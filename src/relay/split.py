@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
-from src.data import RandomSplitter
+from src.data import DataSplitter, RandomSplitter
 from src.data.common import DatasetFactory
 from src.data.factories import NICOPPCfg
 from src.data.nih import NIHChestXRayDatasetCfg
@@ -15,8 +15,8 @@ __all__ = ["SplitRelay"]
 class SplitRelay:
     defaults: list[Any] = field(default_factory=lambda: [{"ds": "celeba"}, {"split": "random"}])
 
-    ds: Any  # CdtDataset
-    split: Any
+    ds: DatasetFactory
+    split: DataSplitter
     wandb: WandbConf = field(default_factory=WandbConf)
 
     options: ClassVar[dict[str, dict[str, type]]] = {
@@ -30,7 +30,6 @@ class SplitRelay:
     }
 
     def run(self, raw_config: dict[str, Any] | None = None) -> None:
-        assert isinstance(self.ds, DatasetFactory)
         assert isinstance(self.split, RandomSplitter)
 
         ds = self.ds()

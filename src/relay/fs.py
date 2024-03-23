@@ -37,11 +37,11 @@ class FsRelay(BaseRelay):
         ]
     )
 
-    alg: Any
-    ds: Any
-    backbone: Any
+    alg: FsAlg
+    ds: DatasetFactory
+    backbone: BackboneFactory
     predictor: Fcn = field(default_factory=Fcn)
-    labeller: Any
+    labeller: Labeller
 
     options: ClassVar[dict[str, dict[str, type]]] = BaseRelay.options | {
         "ds": {
@@ -70,11 +70,6 @@ class FsRelay(BaseRelay):
     }
 
     def run(self, raw_config: dict[str, Any] | None = None) -> float | None:
-        assert isinstance(self.alg, FsAlg)
-        assert isinstance(self.backbone, BackboneFactory)
-        assert isinstance(self.ds, DatasetFactory)
-        assert isinstance(self.labeller, Labeller)
-
         ds = self.ds()
         run = self.wandb.init(raw_config, (ds, self.labeller, self.backbone, self.predictor))
         dm = self.init_dm(ds, self.labeller, device=self.alg.device)

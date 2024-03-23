@@ -38,6 +38,7 @@ __all__ = [
 ]
 
 
+@dataclass(repr=False, eq=False)
 class Labeller(ABC):
     @abstractmethod
     def run(self, dm: DataModule, device: torch.device) -> Tensor | None:

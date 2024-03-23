@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 import os
-from typing import Any, ClassVar
+from typing import ClassVar
 
 from loguru import logger
 from ranzen.torch import random_seed
@@ -18,7 +18,7 @@ __all__ = ["BaseRelay"]
 @dataclass(eq=False, kw_only=True)
 class BaseRelay:
     dm: DataModuleConf = field(default_factory=DataModuleConf)
-    split: Any
+    split: DataSplitter
     wandb: WandbConf = field(default_factory=WandbConf)
     seed: int = 0
 
@@ -36,8 +36,6 @@ class BaseRelay:
         labeller: Labeller,
         device: torch.device,
     ) -> DataModule:
-        assert isinstance(self.split, DataSplitter)
-
         logger.info(f"Current working directory: '{os.getcwd()}'")
         random_seed(self.seed, use_cuda=True)
         torch.multiprocessing.set_sharing_strategy("file_system")
