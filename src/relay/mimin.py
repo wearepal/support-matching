@@ -30,6 +30,7 @@ __all__ = ["MiMinRelay"]
 class MiMinRelay(BaseRelay):
     defaults: list[Any] = field(
         default_factory=lambda: [
+            "_self_",  # `_self_` (this class) has to come first for correct overriding
             {"ae_arch": "simple"},
             {"ds": "cmnist"},
             {"labeller": "none"},

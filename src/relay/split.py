@@ -13,7 +13,13 @@ __all__ = ["SplitRelay"]
 
 @dataclass(eq=False, kw_only=True)
 class SplitRelay:
-    defaults: list[Any] = field(default_factory=lambda: [{"ds": "celeba"}, {"split": "random"}])
+    defaults: list[Any] = field(
+        default_factory=lambda: [
+            "_self_",  # `_self_` (this class) has to come first for correct overriding
+            {"ds": "celeba"},
+            {"split": "random"},
+        ]
+    )
 
     ds: DatasetFactory
     split: DataSplitter
